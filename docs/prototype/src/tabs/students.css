@@ -1,0 +1,121 @@
+/* students tab */
+.stu-filters { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.stu-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.stu-theta { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.stu-signed { font-weight: 600; }
+.stu-signed.is-pos { color: var(--ok); }
+.stu-signed.is-neg { color: var(--crit); }
+.stu-stack { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.stu-kc { display: inline-flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; }
+.stu-kc .mono { color: var(--ink-2); font-size: 12px; }
+.stu-tbar { display: inline-block; width: 70px; }
+.stu-err { color: var(--crit); font-size: 12.5px; min-height: 1em; }
+.stu-err:empty { display: none; }
+.stu-errtxt { color: var(--crit); font-family: var(--font-mono); overflow-wrap: anywhere; }
+
+/* heatmap */
+.stu-heat-wrap { border: 0; }
+.stu-heat { border-collapse: separate; border-spacing: 2px; font-size: 11px; }
+.stu-heat th { font: 500 11px/1.2 var(--font-mono); color: var(--ink-3); padding: 2px; text-align: center; white-space: nowrap; }
+.stu-heat th.stu-heat-g { color: var(--ink-2); font-weight: 600; border-bottom: 2px solid var(--line-strong); }
+.stu-heat th.stu-heat-corner { text-align: left; font-family: var(--font-ui); }
+.stu-heat th[scope="row"] { text-align: left; padding-right: 8px; color: var(--ink); display: flex; flex-direction: column; line-height: 1.15; }
+.stu-heat-name { font-family: var(--font-ui); }
+.stu-heat td { padding: 0; }
+.stu-cell {
+  display: block; width: 32px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 2px; cursor: pointer;
+  background: color-mix(in srgb, var(--c, var(--sheet)) var(--a, 0%), var(--sheet)); color: var(--ink); font: 500 10.5px/1 var(--font-mono);
+}
+.stu-cell:hover { outline: 2px solid var(--ink); outline-offset: 0; }
+.stu-cell-empty { display: block; width: 32px; height: 26px; border: 1px dashed var(--line); border-radius: 2px; }
+.stu-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.stu-legend-bar {
+  display: inline-block; width: 150px; height: 10px; border: 1px solid var(--line);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--crit) 70%, var(--sheet)), var(--sheet), color-mix(in srgb, var(--accent) 70%, var(--sheet)));
+}
+.stu-legend-empty { width: 18px; height: 14px; margin-left: 8px; }
+
+/* profile */
+.stu-id { display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
+.stu-avatar {
+  flex: none; width: 48px; height: 48px; display: grid; place-items: center; border: 1.5px solid var(--accent); border-radius: 3px;
+  background: var(--accent-soft); color: var(--accent); font: 600 22px/1 var(--font-head);
+}
+.stu-name { font-size: 24px; }
+.stu-actions { align-items: flex-start; }
+.stu-switch { max-width: 100%; }
+.stu-kc-select { max-width: 100%; flex: 1 1 200px; }
+.stu-tabs { position: sticky; top: 64px; z-index: 5; }
+@media (max-width: 719px) { .stu-tabs { position: static; } }
+.stu-ks { margin: 0; padding: 10px 14px; border-left: 3px solid var(--a05); background: var(--sheet-2); color: var(--ink); line-height: 1.6; }
+.stu-k { padding-top: 6px; }
+
+/* Δθ bars + code chips */
+.stu-drow { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(70px, 1fr) auto; grid-template-areas: "kc bar n"; gap: 4px 12px; align-items: center; }
+.stu-drow > .stu-kc { grid-area: kc; } .stu-drow > .bar { grid-area: bar; width: 100%; } .stu-drow > .num { grid-area: n; }
+@media (max-width: 520px) { .stu-drow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "kc n" "bar bar"; } }
+.stu-kpis { grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); }
+.stu-skills { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); align-items: start; }
+.stu-skills > .section:first-child { position: sticky; top: 112px; }
+@media (max-width: 1099px) { .stu-skills { grid-template-columns: minmax(0, 1fr); } .stu-skills > .section:first-child { position: static; } }
+#view[data-tab="students"] .tbl .mono { white-space: nowrap; }
+.stu-codes { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.stu-codes-l { font-weight: 600; font-size: 13px; min-width: 150px; }
+
+/* replay */
+.stu-prog { display: block; width: 100%; height: 8px; background: var(--dim-soft); border-radius: 2px; overflow: hidden; }
+.stu-prog > span { display: block; height: 100%; background: var(--accent); transition: width .25s; }
+.stu-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-3); }
+.stu-steps .is-done { color: var(--ok); }
+.stu-steps .is-done::marker { content: "✓  "; }
+.stu-steps .is-cur { color: var(--ink); font-weight: 600; }
+
+/* misconceptions */
+.stu-ev { display: inline-block; max-width: 340px; font-size: 13px; }
+/* Inline math keeps 1em and scrolls instead of shrinking (same rule as session.css). */
+.stu-ev mjx-container[jax="SVG"] { display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: middle; }
+.stu-ev mjx-container[jax="SVG"] > svg { max-width: none; }
+
+/* student list on phone: each row becomes a card so status and the open button show without sideways scroll */
+@media (max-width: 600px) {
+  .stu-list-tbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .stu-list-tbl table, .stu-list-tbl tbody { display: block; }
+  .stu-list-tbl tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .stu-list-tbl tr:last-child { border-bottom: 0; }
+  .stu-list-tbl tr.is-dim { background: var(--sheet-2); }
+  .stu-list-tbl tr.is-dim td { background: transparent; }
+  .stu-list-tbl td { display: block; padding: 0; border: 0; text-align: left; }
+  .stu-list-tbl td:nth-child(2) { flex: 1 1 auto; min-width: 0; }
+  .stu-list-tbl td:nth-child(n+3):nth-child(-n+7) { font-size: 12px; color: var(--ink-2); }
+  .stu-list-tbl td:nth-child(4) { display: flex; gap: 6px; }
+  .stu-list-tbl td:nth-child(3)::before { content: "Lớp "; color: var(--ink-3); }
+  .stu-list-tbl td:nth-child(4)::before { content: "Buổi gần nhất"; color: var(--ink-3); }
+  .stu-list-tbl td:nth-child(5)::before { content: "Buổi trong tháng "; color: var(--ink-3); }
+  .stu-list-tbl td:nth-child(6)::before { content: "θ TB "; color: var(--ink-3); }
+  .stu-list-tbl td:nth-child(7)::before { content: "Lỗi lặp chưa hết "; color: var(--ink-3); }
+  .stu-list-tbl td:nth-child(8) { flex: 1 1 auto; }
+}
+.stu-cat { max-width: 760px; display: grid; grid-template-columns: minmax(110px, max-content) minmax(0, 1fr); gap: 10px 14px; align-items: center; }
+.stu-cat-l { display: flex; flex-direction: column; font-weight: 600; font-size: 13px; }
+.stu-cat-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 24px; gap: 8px; align-items: center; }
+.stu-key { display: inline-block; width: 14px; height: 8px; border-radius: 2px; }
+.stu-key-accent { background: var(--accent); } .stu-key-warn { background: var(--warn-line); }
+
+/* history timeline */
+.stu-tl { list-style: none; margin: 0; padding: 0 0 0 20px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.stu-tl > li { position: relative; }
+.stu-tl > li::before { content: ""; position: absolute; left: -27px; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: var(--sheet); border: 2px solid var(--line-strong); }
+.stu-tl > li.is-db::before { border-color: var(--ok); background: var(--ok-soft); }
+.stu-tl > li.is-pending::before { border: 2px dashed var(--warn-line); background: var(--warn-soft); }
+.stu-tl > li.is-failed::before { border-color: var(--crit); background: var(--crit-soft); }
+.stu-failed { border: 1.5px solid var(--crit); background: var(--crit-soft); }
+.stu-path { overflow-wrap: anywhere; }
+.stu-hist-nums { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: baseline; }
+
+/* outputs */
+.stu-strike td { text-decoration: line-through; text-decoration-color: var(--dim); }
+.stu-strike td .status, .stu-strike td .chip { text-decoration: none; }
+.stu-report { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.6; }
+.stu-fact { font: 600 11px/1.5 var(--font-mono); padding: 0 5px; margin: 0 2px; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-soft); }
+.stu-details summary { cursor: pointer; color: var(--accent); font-size: 12.5px; }
+.stu-details[open] summary { margin-bottom: 6px; }

@@ -1,0 +1,989 @@
+% Ngân hàng bài dummy (tự sinh để test): Hàm số y = ax^2 (a khác 0) (lớp 9).
+% Quy ước:
+%   - Mỗi bài: \begin{problem}[id] ... \end{problem}; lời giải lồng bên trong.
+%   - id: duy nhất, không dấu, không đổi, không dùng lại. Dạng <lớp><phân môn>-<chủ đề>-<số>.
+%   - Mỗi bước lời giải là 1 đoạn, các bước cách nhau 1 dòng trống; mỗi bước có lý do.
+%   - Dòng cuối lời giải: Đáp số: $\boxed{...}$
+%   - Cách giải khác: thêm \begin{solution}[cách 2].
+%   - Metadata bằng comment ngay sau \begin{problem}: % nguon:, % lop:, % kc_du_kien:, % do_kho_du_kien:
+%   - Đồ thị được mô tả bằng lời, không vẽ hình.
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- tính giá trị hàm số
+\begin{problem}[9DS-HSB2-001]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-01
+% do_kho_du_kien: 1
+Cho hàm số $y = f(x) = 2x^2$.
+
+a) Tính $f(-3)$, $f\left(\dfrac{1}{2}\right)$ và $f\left(\sqrt{2}\right)$.
+
+b) Tìm các giá trị của $x$ để $y = 8$.
+
+\begin{solution}
+a) Thay $x = -3$ vào công thức của hàm số: $f(-3) = 2 \cdot (-3)^2 = 2 \cdot 9 = 18$.
+
+a) Thay $x = \dfrac{1}{2}$: $f\left(\dfrac{1}{2}\right) = 2 \cdot \left(\dfrac{1}{2}\right)^2 = 2 \cdot \dfrac{1}{4} = \dfrac{1}{2}$.
+
+a) Thay $x = \sqrt{2}$: $f\left(\sqrt{2}\right) = 2 \cdot \left(\sqrt{2}\right)^2 = 2 \cdot 2 = 4$.
+
+b) $y = 8 \Leftrightarrow 2x^2 = 8 \Leftrightarrow x^2 = 4$ (chia hai vế cho $2$).
+
+b) Hai số có bình phương bằng $4$ là $2$ và $-2$, nên $x = 2$ hoặc $x = -2$.
+
+Đáp số: a) $\boxed{f(-3) = 18,\ f\left(\dfrac{1}{2}\right) = \dfrac{1}{2},\ f\left(\sqrt{2}\right) = 4}$; b) $\boxed{x = 2;\ x = -2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm a, điểm thuộc đồ thị
+\begin{problem}[9DS-HSB2-002]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-01
+% do_kho_du_kien: 2
+Cho hàm số $y = ax^2$ $(a \neq 0)$.
+
+a) Tìm $a$, biết đồ thị của hàm số đi qua điểm $A(-2; 2)$.
+
+b) Với giá trị $a$ vừa tìm được, các điểm $B(4; 8)$, $C\left(-1; -\dfrac{1}{2}\right)$, $D\left(\sqrt{6}; 3\right)$ có thuộc đồ thị của hàm số hay không? Vì sao?
+
+\begin{solution}
+a) Đồ thị đi qua $A(-2; 2)$ nên toạ độ của $A$ thoả mãn công thức hàm số: $2 = a \cdot (-2)^2 = 4a$.
+
+a) Suy ra $a = \dfrac{1}{2}$ (thoả mãn $a \neq 0$); hàm số là $y = \dfrac{1}{2}x^2$.
+
+b) Điểm $B(4; 8)$: thay $x = 4$ được $y = \dfrac{1}{2} \cdot 16 = 8$, bằng tung độ của $B$, nên $B$ thuộc đồ thị.
+
+b) Điểm $C\left(-1; -\dfrac{1}{2}\right)$: thay $x = -1$ được $y = \dfrac{1}{2} \cdot 1 = \dfrac{1}{2} \neq -\dfrac{1}{2}$, nên $C$ không thuộc đồ thị (cũng thấy được vì $a > 0$ nên mọi điểm của đồ thị có tung độ không âm).
+
+b) Điểm $D\left(\sqrt{6}; 3\right)$: thay $x = \sqrt{6}$ được $y = \dfrac{1}{2} \cdot \left(\sqrt{6}\right)^2 = \dfrac{1}{2} \cdot 6 = 3$, bằng tung độ của $D$, nên $D$ thuộc đồ thị.
+
+Đáp số: a) $\boxed{a = \dfrac{1}{2}}$; b) $\boxed{B, D \text{ thuộc đồ thị; } C \text{ không thuộc đồ thị}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính chất, so sánh, điểm có tung độ cho trước
+\begin{problem}[9DS-HSB2-003]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-02, 9DS-HSB2-01
+% do_kho_du_kien: 2
+Cho hàm số $y = f(x) = -\dfrac{1}{3}x^2$.
+
+a) Hàm số đồng biến, nghịch biến khi nào? Mô tả đồ thị của hàm số (đỉnh, trục đối xứng, vị trí so với trục hoành).
+
+b) Không tính giá trị, hãy so sánh $f\left(2\sqrt{2}\right)$ và $f(3)$.
+
+c) Tìm các điểm thuộc đồ thị của hàm số có tung độ bằng $-3$.
+
+\begin{solution}
+a) Hàm số có dạng $y = ax^2$ với $a = -\dfrac{1}{3} < 0$.
+
+a) Vì $a < 0$ nên hàm số đồng biến khi $x < 0$ và nghịch biến khi $x > 0$.
+
+a) Đồ thị là một parabol có đỉnh $O(0; 0)$, nhận trục $Oy$ làm trục đối xứng; vì $a < 0$ nên đồ thị nằm phía dưới trục hoành và $O$ là điểm cao nhất của đồ thị.
+
+b) Ta có $\left(2\sqrt{2}\right)^2 = 8 < 9 = 3^2$ và $2\sqrt{2}$, $3$ đều dương, nên $0 < 2\sqrt{2} < 3$.
+
+b) Hàm số nghịch biến khi $x > 0$ nên $f\left(2\sqrt{2}\right) > f(3)$ (kiểm tra: $f\left(2\sqrt{2}\right) = -\dfrac{8}{3}$, $f(3) = -3$).
+
+c) Điểm có tung độ $-3$ thuộc đồ thị khi hoành độ $x$ thoả mãn $-\dfrac{1}{3}x^2 = -3 \Leftrightarrow x^2 = 9 \Leftrightarrow x = 3$ hoặc $x = -3$.
+
+c) Vậy có hai điểm $(3; -3)$ và $(-3; -3)$; hai điểm này đối xứng nhau qua trục $Oy$, phù hợp với tính chất của đồ thị.
+
+Đáp số: a) $\boxed{\text{Đồng biến khi } x < 0, \text{ nghịch biến khi } x > 0; \text{ parabol đỉnh } O, \text{ trục đối xứng } Oy, \text{ nằm phía dưới trục hoành}}$; b) $\boxed{f\left(2\sqrt{2}\right) > f(3)}$; c) $\boxed{(3; -3) \text{ và } (-3; -3)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh tính chất với tham số, hai cách
+\begin{problem}[9DS-HSB2-004]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-02, 8DS-HDT-01
+% do_kho_du_kien: 3
+Cho hàm số $y = (m^2 - 2m + 3)x^2$, với $m$ là tham số. Chứng minh rằng với mọi giá trị của $m$, hàm số luôn nghịch biến khi $x < 0$ và đồng biến khi $x > 0$.
+
+\begin{solution}[cách 1: dùng tính chất của hàm số $y = ax^2$]
+Hệ số $a = m^2 - 2m + 3$; tách và dùng hằng đẳng thức bình phương của một hiệu: $a = (m^2 - 2m + 1) + 2 = (m - 1)^2 + 2$.
+
+Vì $(m - 1)^2 \geq 0$ với mọi $m$ nên $a \geq 2 > 0$ với mọi $m$; đặc biệt $a \neq 0$, nên hàm số có dạng $y = ax^2$ với $a > 0$.
+
+Theo tính chất của hàm số $y = ax^2$ với $a > 0$: hàm số nghịch biến khi $x < 0$ và đồng biến khi $x > 0$.
+
+Đáp số: $\boxed{a = (m - 1)^2 + 2 > 0 \text{ với mọi } m \text{ nên hàm số nghịch biến khi } x < 0, \text{ đồng biến khi } x > 0}$
+\end{solution}
+
+\begin{solution}[cách 2: dùng định nghĩa hàm số đồng biến, nghịch biến]
+Như cách 1, $a = (m - 1)^2 + 2 > 0$ với mọi $m$. Đặt $f(x) = ax^2$.
+
+Lấy hai giá trị bất kỳ $x_1 < x_2$ và xét hiệu (dùng hằng đẳng thức hiệu hai bình phương): $f(x_1) - f(x_2) = a(x_1^2 - x_2^2) = a(x_1 - x_2)(x_1 + x_2)$.
+
+Nếu $x_1 < x_2 < 0$ thì $x_1 - x_2 < 0$ và $x_1 + x_2 < 0$, nên $(x_1 - x_2)(x_1 + x_2) > 0$; nhân với $a > 0$ được $f(x_1) - f(x_2) > 0$, tức là $f(x_1) > f(x_2)$. Vậy hàm số nghịch biến khi $x < 0$.
+
+Nếu $0 < x_1 < x_2$ thì $x_1 - x_2 < 0$ và $x_1 + x_2 > 0$, nên $(x_1 - x_2)(x_1 + x_2) < 0$; nhân với $a > 0$ được $f(x_1) < f(x_2)$. Vậy hàm số đồng biến khi $x > 0$.
+
+Đáp số: $\boxed{a = (m - 1)^2 + 2 > 0 \text{ với mọi } m \text{ nên hàm số nghịch biến khi } x < 0, \text{ đồng biến khi } x > 0}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giao điểm; đường thẳng song song và tiếp xúc
+\begin{problem}[9DS-HSB2-005]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-03, 9DS-HSB2-04, 8DS-HSBN-04
+% do_kho_du_kien: 3
+Cho parabol $(P)\colon y = x^2$ và đường thẳng $(d)\colon y = x + 2$.
+
+a) Tìm toạ độ các giao điểm của $(P)$ và $(d)$.
+
+b) Viết phương trình đường thẳng $(d')$ song song với $(d)$ và tiếp xúc với $(P)$; tìm toạ độ tiếp điểm.
+
+\begin{solution}
+a) Hoành độ giao điểm của $(P)$ và $(d)$ là nghiệm của phương trình $x^2 = x + 2 \Leftrightarrow x^2 - x - 2 = 0$.
+
+a) Phương trình có $a - b + c = 1 - (-1) + (-2) = 0$ nên có hai nghiệm $x_1 = -1$ và $x_2 = -\dfrac{c}{a} = 2$.
+
+a) Tính tung độ từ $y = x^2$: với $x = -1$ thì $y = 1$; với $x = 2$ thì $y = 4$. Vậy hai giao điểm là $A(-1; 1)$ và $B(2; 4)$ (thử lại bằng $y = x + 2$: $-1 + 2 = 1$, $2 + 2 = 4$, đúng).
+
+b) Đường thẳng $(d')$ song song với $(d)$ nên có cùng hệ số góc $1$ và tung độ gốc khác $2$: $(d')\colon y = x + n$ với $n \neq 2$.
+
+b) Phương trình hoành độ giao điểm của $(P)$ và $(d')$: $x^2 = x + n \Leftrightarrow x^2 - x - n = 0$, có $\Delta = (-1)^2 - 4 \cdot 1 \cdot (-n) = 1 + 4n$.
+
+b) $(d')$ tiếp xúc với $(P)$ khi và chỉ khi phương trình hoành độ có nghiệm kép, tức là $\Delta = 0 \Leftrightarrow 1 + 4n = 0 \Leftrightarrow n = -\dfrac{1}{4}$ (thoả mãn $n \neq 2$). Vậy $(d')\colon y = x - \dfrac{1}{4}$.
+
+b) Khi đó nghiệm kép là $x = \dfrac{-(-1)}{2 \cdot 1} = \dfrac{1}{2}$, tung độ $y = \left(\dfrac{1}{2}\right)^2 = \dfrac{1}{4}$. Tiếp điểm là $\left(\dfrac{1}{2}; \dfrac{1}{4}\right)$.
+
+Đáp số: a) $\boxed{A(-1; 1),\ B(2; 4)}$; b) $\boxed{(d')\colon y = x - \dfrac{1}{4},\ \text{tiếp điểm } \left(\dfrac{1}{2}; \dfrac{1}{4}\right)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm a rồi tìm giao điểm
+\begin{problem}[9DS-HSB2-006]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-01, 9DS-HSB2-03, 9DS-HSB2-02
+% do_kho_du_kien: 3
+Cho hàm số $y = ax^2$ có đồ thị là parabol $(P)$ đi qua điểm $M(2; -2)$.
+
+a) Tìm $a$ và cho biết $(P)$ nằm phía trên hay phía dưới trục hoành.
+
+b) Tìm toạ độ các giao điểm của $(P)$ với đường thẳng $(d)\colon y = x - 4$.
+
+\begin{solution}
+a) $M(2; -2)$ thuộc $(P)$ nên $-2 = a \cdot 2^2 = 4a$, suy ra $a = -\dfrac{1}{2}$ (thoả mãn $a \neq 0$); $(P)\colon y = -\dfrac{1}{2}x^2$.
+
+a) Vì $a = -\dfrac{1}{2} < 0$ nên $(P)$ nằm phía dưới trục hoành, $O$ là điểm cao nhất của $(P)$.
+
+b) Phương trình hoành độ giao điểm: $-\dfrac{1}{2}x^2 = x - 4$; nhân hai vế với $-2$ rồi chuyển vế: $x^2 + 2x - 8 = 0$.
+
+b) Dùng công thức nghiệm thu gọn với $b' = 1$: $\Delta' = 1^2 - 1 \cdot (-8) = 9$, $\sqrt{\Delta'} = 3$, nên $x_1 = -1 + 3 = 2$ và $x_2 = -1 - 3 = -4$.
+
+b) Tính tung độ từ $y = x - 4$: với $x = 2$ thì $y = -2$; với $x = -4$ thì $y = -8$.
+
+b) Kiểm tra trên $(P)$: $-\dfrac{1}{2} \cdot 2^2 = -2$ và $-\dfrac{1}{2} \cdot (-4)^2 = -8$ (đúng). Giao điểm thứ nhất chính là $M(2; -2)$.
+
+Đáp số: a) $\boxed{a = -\dfrac{1}{2},\ (P) \text{ nằm phía dưới trục hoành}}$; b) $\boxed{(2; -2) \text{ và } (-4; -8)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- vị trí theo tham số, dấu các nghiệm
+\begin{problem}[9DS-HSB2-007]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-04, 9DS-PT2-03
+% do_kho_du_kien: 4
+Cho parabol $(P)\colon y = x^2$ và đường thẳng $(d)\colon y = 2x + m$, với $m$ là tham số.
+
+a) Tìm $m$ để $(d)$ và $(P)$ không có điểm chung.
+
+b) Tìm $m$ để $(d)$ cắt $(P)$ tại hai điểm phân biệt cùng nằm bên phải trục tung.
+
+\begin{solution}
+a) Phương trình hoành độ giao điểm của $(P)$ và $(d)$: $x^2 = 2x + m \Leftrightarrow x^2 - 2x - m = 0$ $(*)$. Số điểm chung của $(d)$ và $(P)$ bằng số nghiệm của $(*)$.
+
+a) Phương trình $(*)$ có $b' = -1$, nên $\Delta' = (-1)^2 - 1 \cdot (-m) = 1 + m$.
+
+a) $(d)$ và $(P)$ không có điểm chung khi và chỉ khi $(*)$ vô nghiệm, tức là $\Delta' < 0 \Leftrightarrow m < -1$.
+
+b) Hai giao điểm nằm bên phải trục tung khi và chỉ khi $(*)$ có hai nghiệm phân biệt $x_1, x_2$ đều dương (hoành độ dương).
+
+b) Điều kiện có hai nghiệm phân biệt: $\Delta' > 0 \Leftrightarrow m > -1$.
+
+b) Khi đó, theo định lý Viète: $x_1 + x_2 = 2$ và $x_1 x_2 = -m$. Hai nghiệm cùng dương khi và chỉ khi $x_1 + x_2 > 0$ (luôn đúng vì $2 > 0$) và $x_1 x_2 > 0 \Leftrightarrow -m > 0 \Leftrightarrow m < 0$.
+
+b) Kết hợp các điều kiện $m > -1$ và $m < 0$: $-1 < m < 0$.
+
+Đáp số: a) $\boxed{m < -1}$; b) $\boxed{-1 < m < 0}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- luôn cắt, hệ thức Viète
+\begin{problem}[9DS-HSB2-008]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-04, 9DS-PT2-03
+% do_kho_du_kien: 4
+Cho parabol $(P)\colon y = x^2$ và đường thẳng $(d)\colon y = 2mx - 2m + 3$, với $m$ là tham số.
+
+a) Chứng minh rằng $(d)$ luôn cắt $(P)$ tại hai điểm phân biệt với mọi $m$.
+
+b) Gọi $x_1, x_2$ là hoành độ các giao điểm của $(d)$ và $(P)$. Tìm $m$ để $x_1^2 + x_2^2 = 14$.
+
+\begin{solution}
+a) Phương trình hoành độ giao điểm: $x^2 = 2mx - 2m + 3 \Leftrightarrow x^2 - 2mx + 2m - 3 = 0$ $(*)$.
+
+a) Phương trình $(*)$ có $b' = -m$: $\Delta' = m^2 - (2m - 3) = m^2 - 2m + 3 = (m - 1)^2 + 2$.
+
+a) Vì $(m - 1)^2 \geq 0$ nên $\Delta' \geq 2 > 0$ với mọi $m$; do đó $(*)$ luôn có hai nghiệm phân biệt, tức là $(d)$ luôn cắt $(P)$ tại hai điểm phân biệt.
+
+b) Theo định lý Viète: $x_1 + x_2 = 2m$ và $x_1 x_2 = 2m - 3$.
+
+b) Biến đổi theo tổng và tích: $x_1^2 + x_2^2 = (x_1 + x_2)^2 - 2x_1x_2 = 4m^2 - 2(2m - 3) = 4m^2 - 4m + 6$.
+
+b) Điều kiện đề bài: $4m^2 - 4m + 6 = 14 \Leftrightarrow m^2 - m - 2 = 0$; phương trình này có $a - b + c = 1 + 1 - 2 = 0$ nên $m = -1$ hoặc $m = 2$.
+
+b) Cả hai giá trị đều thoả mãn vì theo câu a) $(d)$ luôn cắt $(P)$ tại hai điểm phân biệt với mọi $m$. Thử lại với $m = 2$: $(*)$ là $x^2 - 4x + 1 = 0$, có $x_1^2 + x_2^2 = 16 - 2 = 14$ (đúng).
+
+Đáp số: a) $\boxed{\Delta' = (m - 1)^2 + 2 > 0 \text{ với mọi } m}$; b) $\boxed{m = -1 \text{ hoặc } m = 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: hai phía trục tung, tung độ, diện tích nhỏ nhất
+\begin{problem}[9DS-HSB2-009]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-04, 9DS-HSB2-03, 9DS-PT2-03
+% do_kho_du_kien: 5
+Cho parabol $(P)\colon y = x^2$ và đường thẳng $(d)\colon y = mx + 1$, với $m$ là tham số.
+
+a) Chứng minh rằng với mọi $m$, $(d)$ luôn cắt $(P)$ tại hai điểm phân biệt $A$, $B$ nằm về hai phía của trục tung.
+
+b) Gọi $x_1, x_2$ lần lượt là hoành độ và $y_1, y_2$ lần lượt là tung độ của $A$, $B$. Tìm $m$ để $y_1 + y_2 = 3(x_1 + x_2)$.
+
+c) Tìm $m$ để tam giác $OAB$ ($O$ là gốc toạ độ) có diện tích nhỏ nhất và tính diện tích nhỏ nhất đó.
+
+\begin{solution}
+a) Phương trình hoành độ giao điểm của $(P)$ và $(d)$: $x^2 = mx + 1 \Leftrightarrow x^2 - mx - 1 = 0$ $(*)$.
+
+a) Phương trình $(*)$ có $\Delta = m^2 + 4 > 0$ với mọi $m$, nên luôn có hai nghiệm phân biệt $x_1, x_2$; tức là $(d)$ luôn cắt $(P)$ tại hai điểm phân biệt $A(x_1; y_1)$, $B(x_2; y_2)$.
+
+a) Theo định lý Viète, $x_1 x_2 = -1 < 0$ nên $x_1$, $x_2$ trái dấu; vậy $A$ và $B$ nằm về hai phía của trục tung.
+
+b) Theo định lý Viète: $x_1 + x_2 = m$.
+
+b) $A$, $B$ thuộc $(d)$ nên $y_1 = mx_1 + 1$ và $y_2 = mx_2 + 1$; suy ra $y_1 + y_2 = m(x_1 + x_2) + 2 = m^2 + 2$.
+
+b) Điều kiện đề bài: $m^2 + 2 = 3m \Leftrightarrow m^2 - 3m + 2 = 0$; vì $a + b + c = 1 - 3 + 2 = 0$ nên $m = 1$ hoặc $m = 2$. Cả hai giá trị đều thoả mãn vì câu a) đúng với mọi $m$.
+
+c) $(d)$ cắt trục tung tại $C(0; 1)$, nên $OC = 1$. Vì $A$, $B$ nằm về hai phía của trục tung nên $C$ nằm giữa $A$ và $B$, và tam giác $OAB$ được chia thành hai tam giác $OAC$, $OBC$ có chung cạnh $OC$.
+
+c) Khoảng cách từ $A$, $B$ đến trục tung (đường cao hạ xuống cạnh $OC$) lần lượt là $|x_1|$, $|x_2|$, nên $S_{OAB} = S_{OAC} + S_{OBC} = \dfrac{1}{2} \cdot OC \cdot (|x_1| + |x_2|) = \dfrac{1}{2}(|x_1| + |x_2|)$.
+
+c) Vì $x_1$, $x_2$ trái dấu nên $|x_1| + |x_2| = |x_1 - x_2|$; mà $(x_1 - x_2)^2 = (x_1 + x_2)^2 - 4x_1x_2 = m^2 + 4$, nên $|x_1 - x_2| = \sqrt{m^2 + 4}$ và $S_{OAB} = \dfrac{1}{2}\sqrt{m^2 + 4}$.
+
+c) Vì $m^2 \geq 0$ nên $\sqrt{m^2 + 4} \geq \sqrt{4} = 2$, suy ra $S_{OAB} \geq 1$; dấu bằng xảy ra khi và chỉ khi $m = 0$.
+
+Đáp số: a) $\boxed{\Delta = m^2 + 4 > 0,\ x_1 x_2 = -1 < 0}$; b) $\boxed{m = 1 \text{ hoặc } m = 2}$; c) $\boxed{m = 0,\ S_{\min} = 1 \text{ (đơn vị diện tích)}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: lực gió
+\begin{problem}[9DS-HSB2-010]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-01
+% do_kho_du_kien: 2
+Lực $F$ (N) của gió tác động lên một cánh buồm tỉ lệ thuận với bình phương vận tốc $v$ (m/s) của gió, tức là $F = av^2$ ($a$ là hằng số). Biết khi vận tốc gió bằng $2$ m/s thì lực tác động lên cánh buồm bằng $120$ N.
+
+a) Tìm hằng số $a$.
+
+b) Tính lực $F$ khi vận tốc gió bằng $10$ m/s.
+
+c) Cánh buồm chỉ chịu được lực tối đa $12\,000$ N. Hỏi thuyền có thể đi được trong gió bão với vận tốc $90$ km/h hay không?
+
+\begin{solution}
+a) Thay $v = 2$, $F = 120$ vào công thức $F = av^2$: $120 = a \cdot 2^2 = 4a$, suy ra $a = 30$.
+
+b) Với $a = 30$ và $v = 10$: $F = 30 \cdot 10^2 = 3\,000$ (N).
+
+c) Đổi đơn vị vận tốc: $90$ km/h $= \dfrac{90\,000 \text{ m}}{3\,600 \text{ s}} = 25$ m/s.
+
+c) Lực của gió khi đó: $F = 30 \cdot 25^2 = 30 \cdot 625 = 18\,750$ (N).
+
+c) Vì $18\,750 > 12\,000$ nên cánh buồm không chịu được lực này; thuyền không thể đi trong gió bão $90$ km/h. (Cánh buồm chỉ chịu được khi $30v^2 \leq 12\,000$, tức là $v^2 \leq 400$, hay $v \leq 20$ m/s.)
+
+Đáp số: a) $\boxed{a = 30}$; b) $\boxed{F = 3\,000 \text{ N}}$; c) $\boxed{\text{Không, vì } F = 18\,750 \text{ N} > 12\,000 \text{ N}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bảng giá trị, tính đối xứng của đồ thị
+\begin{problem}[9DS-HSB2-011]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-01, 9DS-HSB2-02
+% do_kho_du_kien: 1
+Cho hàm số $y = -\dfrac{1}{2}x^2$.
+
+a) Tính các giá trị tương ứng của $y$ khi $x$ lần lượt bằng $-4$; $-2$; $0$; $2$; $4$.
+
+b) Nêu nhận xét về các cặp điểm của đồ thị có hoành độ đối nhau, và về vị trí của đồ thị so với trục hoành.
+
+\begin{solution}
+a) Thay từng giá trị của $x$ vào công thức $y = -\dfrac{1}{2}x^2$. Với $x = -4$ và $x = 4$: $(-4)^2 = 4^2 = 16$, nên $y = -\dfrac{1}{2} \cdot 16 = -8$.
+
+a) Với $x = -2$ và $x = 2$: $(-2)^2 = 2^2 = 4$, nên $y = -\dfrac{1}{2} \cdot 4 = -2$. Với $x = 0$: $y = 0$.
+
+b) Các điểm $(-4; -8)$ và $(4; -8)$, $(-2; -2)$ và $(2; -2)$ có hoành độ đối nhau và tung độ bằng nhau, nên đối xứng nhau qua trục $Oy$. Điều này đúng với mọi cặp hoành độ đối nhau vì $(-x)^2 = x^2$; do đó đồ thị nhận trục $Oy$ làm trục đối xứng.
+
+b) Vì $a = -\dfrac{1}{2} < 0$ và $x^2 \geq 0$ nên $y = -\dfrac{1}{2}x^2 \leq 0$ với mọi $x$, dấu bằng chỉ khi $x = 0$; vậy đồ thị nằm phía dưới trục hoành và $O(0; 0)$ là điểm cao nhất của đồ thị.
+
+Đáp số: a) $\boxed{y = -8;\ -2;\ 0;\ -2;\ -8}$; b) $\boxed{\text{Các điểm có hoành độ đối nhau đối xứng qua } Oy;\ \text{đồ thị nằm phía dưới trục hoành, } O \text{ là điểm cao nhất}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số trong hệ số a: vị trí đồ thị, đi qua điểm
+\begin{problem}[9DS-HSB2-012]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-02, 9DS-HSB2-01, 9DS-BPT-02
+% do_kho_du_kien: 2
+Cho hàm số $y = (2m - 3)x^2$, với $m$ là tham số, $m \neq \dfrac{3}{2}$.
+
+a) Tìm $m$ để đồ thị của hàm số nằm phía trên trục hoành.
+
+b) Tìm $m$ để đồ thị của hàm số đi qua điểm $A(-2; -6)$.
+
+\begin{solution}
+a) Hàm số có dạng $y = ax^2$ với $a = 2m - 3 \neq 0$. Đồ thị của hàm số $y = ax^2$ nằm phía trên trục hoành khi và chỉ khi $a > 0$.
+
+a) Giải bất phương trình $2m - 3 > 0$: chuyển vế được $2m > 3$, chia hai vế cho $2 > 0$ (giữ nguyên chiều) được $m > \dfrac{3}{2}$.
+
+b) Đồ thị đi qua $A(-2; -6)$ khi và chỉ khi toạ độ của $A$ thoả mãn công thức hàm số: $-6 = (2m - 3) \cdot (-2)^2 = 4(2m - 3)$.
+
+b) Chia hai vế cho $4$: $2m - 3 = -\dfrac{3}{2}$, suy ra $2m = \dfrac{3}{2}$, $m = \dfrac{3}{4}$ (thoả mãn $m \neq \dfrac{3}{2}$). Khi đó $a = -\dfrac{3}{2} < 0$, đồ thị nằm phía dưới trục hoành, phù hợp với việc $A$ có tung độ âm.
+
+Đáp số: a) $\boxed{m > \dfrac{3}{2}}$; b) $\boxed{m = \dfrac{3}{4}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: vật rơi tự do
+\begin{problem}[9DS-HSB2-013]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-01, 9DS-PT2-01
+% do_kho_du_kien: 2
+Khi thả rơi một vật từ trên cao (bỏ qua sức cản của không khí), quãng đường $s$ (m) vật rơi được sau $t$ giây được cho bởi công thức $s = 5t^2$.
+
+a) Sau $3$ giây, vật rơi được bao nhiêu mét?
+
+b) Một vật được thả rơi từ đỉnh một toà tháp cao $125$ m. Sau bao lâu thì vật chạm đất?
+
+c) Sau $2$ giây kể từ lúc thả, vật ở câu b) còn cách mặt đất bao nhiêu mét?
+
+\begin{solution}
+a) Thay $t = 3$ vào công thức: $s = 5 \cdot 3^2 = 5 \cdot 9 = 45$ (m).
+
+b) Gọi $t$ (giây, $t > 0$) là thời gian từ lúc thả đến lúc vật chạm đất; khi đó vật rơi được đúng $125$ m, nên $5t^2 = 125$.
+
+b) Chia hai vế cho $5$: $t^2 = 25$, suy ra $t = 5$ hoặc $t = -5$. Vì $t > 0$ nên $t = 5$ (giây).
+
+c) Sau $2$ giây vật rơi được $s = 5 \cdot 2^2 = 20$ (m); vì $2 < 5$ nên lúc đó vật chưa chạm đất.
+
+c) Khoảng cách từ vật đến mặt đất bằng độ cao ban đầu trừ quãng đường đã rơi: $125 - 20 = 105$ (m).
+
+Đáp số: a) $\boxed{45 \text{ m}}$; b) $\boxed{5 \text{ giây}}$; c) $\boxed{105 \text{ m}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phương trình đường thẳng qua hai điểm của parabol, hai cách
+\begin{problem}[9DS-HSB2-014]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-01, 9DS-HPT-08, 9DS-PT2-03
+% do_kho_du_kien: 3
+Cho parabol $(P)\colon y = \dfrac{1}{2}x^2$. Gọi $A$, $B$ là hai điểm thuộc $(P)$ có hoành độ lần lượt là $-2$ và $4$.
+
+a) Tìm toạ độ của $A$ và $B$.
+
+b) Viết phương trình đường thẳng $AB$.
+
+\begin{solution}[cách 1: lập hệ phương trình]
+a) $A$ thuộc $(P)$ và có hoành độ $-2$ nên tung độ của $A$ là $y = \dfrac{1}{2} \cdot (-2)^2 = 2$; vậy $A(-2; 2)$.
+
+a) $B$ thuộc $(P)$ và có hoành độ $4$ nên tung độ của $B$ là $y = \dfrac{1}{2} \cdot 4^2 = 8$; vậy $B(4; 8)$.
+
+b) $A$ và $B$ có hoành độ khác nhau nên đường thẳng $AB$ không song song với trục tung, có dạng $y = ax + b$. Vì $A$, $B$ thuộc đường thẳng này nên $2 = -2a + b$ $(1)$ và $8 = 4a + b$ $(2)$.
+
+b) Giải hệ bằng phương pháp cộng đại số: trừ vế theo vế $(2)$ cho $(1)$ được $6 = 6a$, suy ra $a = 1$; thay vào $(1)$: $b = 2 + 2a = 4$.
+
+b) Vậy $AB: y = x + 4$. Kiểm tra: $-2 + 4 = 2$ và $4 + 4 = 8$ (đúng).
+
+Đáp số: a) $\boxed{A(-2; 2),\ B(4; 8)}$; b) $\boxed{y = x + 4}$
+\end{solution}
+
+\begin{solution}[cách 2: dùng định lý Viète]
+a) Thay hoành độ vào công thức của $(P)$: $y_A = \dfrac{1}{2} \cdot (-2)^2 = 2$ và $y_B = \dfrac{1}{2} \cdot 4^2 = 8$; vậy $A(-2; 2)$, $B(4; 8)$.
+
+b) Đường thẳng $AB$ không song song với trục tung (vì $A$, $B$ có hoành độ khác nhau) nên có dạng $y = ax + b$. Hoành độ giao điểm của $AB$ và $(P)$ là nghiệm của phương trình $\dfrac{1}{2}x^2 = ax + b \Leftrightarrow x^2 - 2ax - 2b = 0$ $(*)$.
+
+b) $A$ và $B$ là hai điểm chung của $AB$ và $(P)$, nên $-2$ và $4$ là nghiệm của $(*)$; phương trình bậc hai $(*)$ có không quá hai nghiệm, nên đó là hai nghiệm của $(*)$. Theo định lý Viète: $-2 + 4 = 2a$ và $(-2) \cdot 4 = -2b$.
+
+b) Suy ra $a = 1$ và $b = 4$; vậy $AB: y = x + 4$.
+
+Đáp số: a) $\boxed{A(-2; 2),\ B(4; 8)}$; b) $\boxed{y = x + 4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đường thẳng y = m, tam giác vuông tại O, hai cách
+\begin{problem}[9DS-HSB2-015]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-02, 9DS-HSB2-03
+% do_kho_du_kien: 3
+Cho parabol $(P)\colon y = x^2$ và đường thẳng $(d)\colon y = m$ (với $m > 0$).
+
+a) Chứng minh rằng $(d)$ luôn cắt $(P)$ tại hai điểm phân biệt $A$, $B$ đối xứng nhau qua trục $Oy$.
+
+b) Tìm $m$ để tam giác $OAB$ vuông tại $O$ ($O$ là gốc toạ độ). Khi đó tính diện tích tam giác $OAB$.
+
+\begin{solution}[cách 1: dùng đường trung tuyến]
+a) Hoành độ giao điểm của $(P)$ và $(d)$ là nghiệm của phương trình $x^2 = m$. Vì $m > 0$ nên phương trình có hai nghiệm phân biệt $x = -\sqrt{m}$ và $x = \sqrt{m}$; hai giao điểm là $A\left(-\sqrt{m}; m\right)$ và $B\left(\sqrt{m}; m\right)$.
+
+a) $A$ và $B$ có hoành độ đối nhau và tung độ bằng nhau nên đối xứng nhau qua trục $Oy$ (phù hợp với tính chất đồ thị hàm số $y = ax^2$ nhận $Oy$ làm trục đối xứng).
+
+b) Gọi $H(0; m)$ là giao điểm của $(d)$ với trục tung. Vì $A$, $B$ đối xứng nhau qua $Oy$ nên $H$ là trung điểm của $AB$, với $HA = HB = \sqrt{m}$ và $OH = m$; do đó $OH$ là đường trung tuyến của tam giác $OAB$.
+
+b) Tam giác có đường trung tuyến ứng với một cạnh bằng nửa cạnh ấy thì là tam giác vuông (và ngược lại), nên tam giác $OAB$ vuông tại $O$ khi và chỉ khi $OH = \dfrac{AB}{2} = HA$, tức là $m = \sqrt{m}$.
+
+b) Vì $m > 0$, chia hai vế cho $\sqrt{m} > 0$ được $\sqrt{m} = 1$, suy ra $m = 1$.
+
+b) Khi $m = 1$: $A(-1; 1)$, $B(1; 1)$, $AB = 2$, $OH = 1$ và $OH \perp AB$ (vì $AB$ nằm trên đường thẳng $y = 1$ song song với trục hoành). Diện tích $S_{OAB} = \dfrac{1}{2} \cdot AB \cdot OH = \dfrac{1}{2} \cdot 2 \cdot 1 = 1$.
+
+Đáp số: a) $\boxed{A\left(-\sqrt{m}; m\right),\ B\left(\sqrt{m}; m\right) \text{ đối xứng nhau qua } Oy}$; b) $\boxed{m = 1,\ S_{OAB} = 1 \text{ (đơn vị diện tích)}}$
+\end{solution}
+
+\begin{solution}[cách 2: dùng định lí Pythagore]
+a) Phương trình hoành độ giao điểm $x^2 = m$ (với $m > 0$) có hai nghiệm phân biệt $x = \pm\sqrt{m}$, nên $(d)$ cắt $(P)$ tại $A\left(-\sqrt{m}; m\right)$ và $B\left(\sqrt{m}; m\right)$; hai điểm này có hoành độ đối nhau, tung độ bằng nhau nên đối xứng nhau qua $Oy$.
+
+b) Gọi $H(0; m)$. Tam giác $OHA$ vuông tại $H$ nên theo định lí Pythagore $OA^2 = OH^2 + HA^2 = m^2 + m$; tương tự $OB^2 = m^2 + m$; và $AB = 2\sqrt{m}$ nên $AB^2 = 4m$.
+
+b) Theo định lí Pythagore và định lí đảo, tam giác $OAB$ vuông tại $O$ khi và chỉ khi $OA^2 + OB^2 = AB^2$, tức là $2(m^2 + m) = 4m \Leftrightarrow 2m^2 - 2m = 0 \Leftrightarrow 2m(m - 1) = 0$.
+
+b) Suy ra $m = 0$ (loại vì $m > 0$) hoặc $m = 1$ (thoả mãn). Khi đó $AB = 2$, đường cao $OH = 1$, nên $S_{OAB} = \dfrac{1}{2} \cdot 2 \cdot 1 = 1$.
+
+Đáp số: a) $\boxed{A\left(-\sqrt{m}; m\right),\ B\left(\sqrt{m}; m\right) \text{ đối xứng nhau qua } Oy}$; b) $\boxed{m = 1,\ S_{OAB} = 1 \text{ (đơn vị diện tích)}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhẩm nghiệm phương trình hoành độ, tiếp xúc, hoành độ gấp đôi
+\begin{problem}[9DS-HSB2-016]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-04, 9DS-HSB2-03, 9DS-PT2-04
+% do_kho_du_kien: 3
+Cho parabol $(P)\colon y = x^2$ và đường thẳng $(d)\colon y = (m + 1)x - m$, với $m$ là tham số.
+
+a) Chứng minh rằng với mọi $m$, $(d)$ và $(P)$ luôn có điểm chung $A(1; 1)$. Tìm $m$ để $(d)$ tiếp xúc với $(P)$.
+
+b) Tìm $m$ để $(d)$ cắt $(P)$ tại hai điểm phân biệt mà hoành độ của điểm này gấp đôi hoành độ của điểm kia.
+
+\begin{solution}
+a) Phương trình hoành độ giao điểm của $(P)$ và $(d)$: $x^2 = (m + 1)x - m \Leftrightarrow x^2 - (m + 1)x + m = 0$ $(*)$.
+
+a) Phương trình $(*)$ có $a + b + c = 1 - (m + 1) + m = 0$ nên luôn có hai nghiệm $x_1 = 1$ và $x_2 = \dfrac{c}{a} = m$. Với $x = 1$ thì $y = 1^2 = 1$, nên $(d)$ và $(P)$ luôn có điểm chung $A(1; 1)$ (kiểm tra trên $(d)$: $(m + 1) \cdot 1 - m = 1$).
+
+a) $(d)$ tiếp xúc với $(P)$ khi và chỉ khi $(*)$ có nghiệm kép, tức là hai nghiệm $1$ và $m$ trùng nhau: $m = 1$ (khớp với $\Delta = (m + 1)^2 - 4m = (m - 1)^2 = 0$). Khi đó $(d)\colon y = 2x - 1$ và tiếp điểm là $A(1; 1)$.
+
+b) $(d)$ cắt $(P)$ tại hai điểm phân biệt khi và chỉ khi $(*)$ có hai nghiệm phân biệt, tức là $m \neq 1$; khi đó hoành độ hai giao điểm là $1$ và $m$.
+
+b) Hoành độ của điểm này gấp đôi hoành độ của điểm kia xảy ra trong hai trường hợp: $m = 2 \cdot 1 = 2$, hoặc $1 = 2m$, tức là $m = \dfrac{1}{2}$. Cả hai giá trị đều thoả mãn $m \neq 1$.
+
+b) Thử lại: với $m = 2$, hai giao điểm là $(1; 1)$ và $(2; 4)$; với $m = \dfrac{1}{2}$, hai giao điểm là $(1; 1)$ và $\left(\dfrac{1}{2}; \dfrac{1}{4}\right)$ (đúng).
+
+Đáp số: a) $\boxed{A(1; 1) \text{ luôn là điểm chung};\ \text{tiếp xúc khi } m = 1}$; b) $\boxed{m = 2 \text{ hoặc } m = \dfrac{1}{2}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đường thẳng qua một điểm cho trước tiếp xúc với parabol
+\begin{problem}[9DS-HSB2-017]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-04, 9DS-PT2-02, 8DS-HSBN-01
+% do_kho_du_kien: 4
+Cho parabol $(P)\colon y = x^2$ và điểm $A(1; -3)$. Viết phương trình các đường thẳng có dạng $y = ax + b$ đi qua $A$ và tiếp xúc với $(P)$; tìm toạ độ các tiếp điểm.
+
+\begin{solution}
+Đường thẳng $(d)\colon y = ax + b$ đi qua $A(1; -3)$ nên $-3 = a \cdot 1 + b$, suy ra $b = -a - 3$; vậy $(d)\colon y = ax - a - 3$.
+
+Phương trình hoành độ giao điểm của $(d)$ và $(P)$: $x^2 = ax - a - 3 \Leftrightarrow x^2 - ax + a + 3 = 0$ $(*)$.
+
+$(d)$ tiếp xúc với $(P)$ khi và chỉ khi $(*)$ có nghiệm kép, tức là $\Delta = (-a)^2 - 4 \cdot 1 \cdot (a + 3) = a^2 - 4a - 12 = 0$.
+
+Giải phương trình bậc hai ẩn $a$ bằng công thức nghiệm thu gọn ($b' = -2$): $\Delta' = (-2)^2 - 1 \cdot (-12) = 16$, $\sqrt{\Delta'} = 4$, nên $a = 2 + 4 = 6$ hoặc $a = 2 - 4 = -2$.
+
+Với $a = 6$: $b = -6 - 3 = -9$, ta được $(d_1)\colon y = 6x - 9$; nghiệm kép của $(*)$ là $x = \dfrac{a}{2} = 3$, tung độ $y = 3^2 = 9$, nên tiếp điểm là $(3; 9)$.
+
+Với $a = -2$: $b = 2 - 3 = -1$, ta được $(d_2)\colon y = -2x - 1$; nghiệm kép là $x = \dfrac{a}{2} = -1$, tung độ $y = (-1)^2 = 1$, nên tiếp điểm là $(-1; 1)$.
+
+Kiểm tra: với $(d_1)$, $(*)$ là $x^2 - 6x + 9 = (x - 3)^2 = 0$; với $(d_2)$, $(*)$ là $x^2 + 2x + 1 = (x + 1)^2 = 0$; cả hai đường thẳng đều đi qua $A$ vì $6 - 9 = -3$ và $-2 - 1 = -3$.
+
+Đáp số: $\boxed{y = 6x - 9 \text{ (tiếp điểm } (3; 9)\text{)};\ y = -2x - 1 \text{ (tiếp điểm } (-1; 1)\text{)}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- biểu thức không đối xứng của toạ độ giao điểm
+\begin{problem}[9DS-HSB2-018]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-04, 9DS-HSB2-03, 9DS-PT2-03
+% do_kho_du_kien: 4
+Cho parabol $(P)\colon y = x^2$ và đường thẳng $(d)\colon y = 2x - m + 3$, với $m$ là tham số.
+
+a) Tìm $m$ để $(d)$ cắt $(P)$ tại hai điểm phân biệt.
+
+b) Gọi $A(x_1; y_1)$ và $B(x_2; y_2)$ là hai giao điểm đó. Tìm $m$ để $y_1 + 2x_2 = 9$.
+
+\begin{solution}
+a) Phương trình hoành độ giao điểm của $(P)$ và $(d)$: $x^2 = 2x - m + 3 \Leftrightarrow x^2 - 2x + m - 3 = 0$ $(*)$; phương trình có $b' = -1$ nên $\Delta' = (-1)^2 - 1 \cdot (m - 3) = 4 - m$.
+
+a) $(d)$ cắt $(P)$ tại hai điểm phân biệt khi và chỉ khi $(*)$ có hai nghiệm phân biệt, tức là $\Delta' > 0 \Leftrightarrow 4 - m > 0 \Leftrightarrow m < 4$.
+
+b) Với $m < 4$, $x_1$, $x_2$ là hai nghiệm của $(*)$; theo định lý Viète: $x_1 + x_2 = 2$.
+
+b) Điểm $A(x_1; y_1)$ thuộc $(d)$ nên $y_1 = 2x_1 - m + 3$ (cũng có thể thấy từ $y_1 = x_1^2$ và $x_1^2 = 2x_1 - m + 3$ vì $x_1$ là nghiệm của $(*)$).
+
+b) Do đó $y_1 + 2x_2 = 2x_1 - m + 3 + 2x_2 = 2(x_1 + x_2) - m + 3 = 4 - m + 3 = 7 - m$.
+
+b) Điều kiện đề bài: $7 - m = 9$, suy ra $m = -2$ (thoả mãn $m < 4$).
+
+b) Thử lại: với $m = -2$, $(*)$ là $x^2 - 2x - 5 = 0$ có hai nghiệm $1 + \sqrt{6}$ và $1 - \sqrt{6}$. Nếu $x_1 = 1 + \sqrt{6}$, $x_2 = 1 - \sqrt{6}$ thì $y_1 + 2x_2 = 7 + 2\sqrt{6} + 2 - 2\sqrt{6} = 9$; nếu đổi vai trò, $y_1 + 2x_2 = 7 - 2\sqrt{6} + 2 + 2\sqrt{6} = 9$ (đúng).
+
+Đáp số: a) $\boxed{m < 4}$; b) $\boxed{m = -2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: cổng hình parabol
+\begin{problem}[9DS-HSB2-019]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-01, 9DS-HSB2-02, 9DS-BPT-05
+% do_kho_du_kien: 4
+Một chiếc cổng có dạng parabol, cao $8$ m (tính từ đỉnh cổng đến mặt đất), khoảng cách giữa hai chân cổng là $8$ m. Biết rằng trong một hệ trục toạ độ $Oxy$ thích hợp (đơn vị trên các trục là mét), cổng là một phần của parabol $y = ax^2$.
+
+a) Hãy chọn hệ trục toạ độ và tìm $a$.
+
+b) Một xe tải rộng $6$ m, cao $4$ m đi vào chính giữa cổng. Hỏi xe có đi qua cổng được không?
+
+c) Một xe tải khác cao $6$ m đi vào chính giữa cổng. Hỏi xe đó rộng tối đa bao nhiêu mét thì đi qua được cổng?
+
+\begin{solution}
+a) Chọn hệ trục $Oxy$ có gốc $O$ tại đỉnh cổng, trục $Oy$ là trục đối xứng của cổng, hướng lên trên, trục $Ox$ nằm ngang. Khi đó cổng là một phần của parabol $y = ax^2$ (đỉnh $O$, nhận $Oy$ làm trục đối xứng), nằm phía dưới đỉnh nên $a < 0$; mặt đất là đường thẳng $y = -8$.
+
+a) Hai chân cổng cách nhau $8$ m và đối xứng nhau qua $Oy$ nên có hoành độ $-4$ và $4$; chân cổng bên phải là điểm $(4; -8)$ thuộc parabol, nên $-8 = a \cdot 4^2 = 16a$, suy ra $a = -\dfrac{1}{2}$ (thoả mãn $a < 0$).
+
+b) Xe rộng $6$ m đi chính giữa cổng nên hai mép thùng xe ở các hoành độ $x = -3$ và $x = 3$; do tính đối xứng của parabol qua $Oy$, chỉ cần xét $x = 3$. Tại $x = 3$, điểm của cổng có tung độ $y = -\dfrac{1}{2} \cdot 3^2 = -\dfrac{9}{2}$, tức là cách mặt đất $-\dfrac{9}{2} - (-8) = \dfrac{7}{2}$ (m).
+
+b) Xe cao $4$ m mà tại mép thùng xe cổng chỉ cao $\dfrac{7}{2}$ m $< 4$ m, nên mép trên của thùng xe sẽ chạm vào cổng; vậy xe không đi qua được.
+
+c) Gọi chiều rộng của xe là $w$ (m, $w > 0$); hai mép thùng xe ở các hoành độ $x = \pm\dfrac{w}{2}$. Với $a < 0$, khi $|x|$ tăng thì $y = -\dfrac{1}{2}x^2$ giảm, nên phần cổng phía trên thùng xe thấp nhất tại hai mép. Xe đi qua được khi tại $x = \dfrac{w}{2}$ độ cao của cổng so với mặt đất không nhỏ hơn $6$ m: $-\dfrac{1}{2} \cdot \left(\dfrac{w}{2}\right)^2 + 8 \geq 6$.
+
+c) Biến đổi: $\dfrac{1}{2} \cdot \dfrac{w^2}{4} \leq 2 \Leftrightarrow w^2 \leq 16$. Vì $w > 0$ và $16 = 4^2$ nên $w^2 \leq 16 \Leftrightarrow w \leq 4$. Vậy xe rộng tối đa $4$ m (khi $w = 4$, tại mép xe cổng cao đúng $-\dfrac{1}{2} \cdot 2^2 + 8 = 6$ m).
+
+Đáp số: a) $\boxed{a = -\dfrac{1}{2}}$; b) $\boxed{\text{Không đi qua được (tại mép xe cổng chỉ cao } \dfrac{7}{2} \text{ m} < 4 \text{ m)}}$; c) $\boxed{4 \text{ m}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- độ dài dây cung qua điểm cố định, chứng minh hệ thức
+\begin{problem}[9DS-HSB2-020]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-04, 9DS-HSB2-03, 9DS-PT2-03
+% do_kho_du_kien: 5
+Cho parabol $(P)\colon y = \dfrac{1}{4}x^2$ và đường thẳng $(d)\colon y = mx + 1$, với $m$ là tham số.
+
+a) Chứng minh rằng với mọi $m$, $(d)$ luôn cắt $(P)$ tại hai điểm phân biệt $A(x_1; y_1)$ và $B(x_2; y_2)$.
+
+b) Chứng minh rằng $AB = 4(m^2 + 1)$. Tìm $m$ để $AB = 8$.
+
+c) Chứng minh rằng $AB = y_1 + y_2 + 2$.
+
+\begin{solution}
+a) Phương trình hoành độ giao điểm của $(P)$ và $(d)$: $\dfrac{1}{4}x^2 = mx + 1$; nhân hai vế với $4$ rồi chuyển vế: $x^2 - 4mx - 4 = 0$ $(*)$.
+
+a) Phương trình $(*)$ có $b' = -2m$ nên $\Delta' = (-2m)^2 - 1 \cdot (-4) = 4m^2 + 4 > 0$ với mọi $m$; do đó $(*)$ luôn có hai nghiệm phân biệt $x_1$, $x_2$, tức là $(d)$ luôn cắt $(P)$ tại hai điểm phân biệt $A(x_1; y_1)$, $B(x_2; y_2)$.
+
+b) Theo định lý Viète: $x_1 + x_2 = 4m$ và $x_1x_2 = -4$. Vì $A$, $B$ thuộc $(d)$ nên $y_1 = mx_1 + 1$, $y_2 = mx_2 + 1$, suy ra $y_1 - y_2 = m(x_1 - x_2)$.
+
+b) Gọi $K(x_2; y_1)$; khi đó $AK$ nằm trên đường thẳng song song với trục hoành và $BK$ nằm trên đường thẳng song song với trục tung, với $AK = |x_1 - x_2|$, $BK = |y_1 - y_2|$. Nếu $m \neq 0$ thì tam giác $AKB$ vuông tại $K$, theo định lí Pythagore $AB^2 = AK^2 + BK^2 = (x_1 - x_2)^2 + (y_1 - y_2)^2$; nếu $m = 0$ thì $y_1 = y_2$, $K$ trùng $B$ và đẳng thức này vẫn đúng.
+
+b) Thay $y_1 - y_2 = m(x_1 - x_2)$: $AB^2 = (x_1 - x_2)^2(1 + m^2)$. Mặt khác $(x_1 - x_2)^2 = (x_1 + x_2)^2 - 4x_1x_2 = 16m^2 + 16 = 16(m^2 + 1)$, nên $AB^2 = 16(m^2 + 1)^2$; vì $AB > 0$ và $m^2 + 1 > 0$ nên $AB = 4(m^2 + 1)$.
+
+b) $AB = 8 \Leftrightarrow 4(m^2 + 1) = 8 \Leftrightarrow m^2 = 1 \Leftrightarrow m = 1$ hoặc $m = -1$.
+
+c) Từ $y_1 = mx_1 + 1$, $y_2 = mx_2 + 1$ và $x_1 + x_2 = 4m$: $y_1 + y_2 = m(x_1 + x_2) + 2 = 4m^2 + 2$.
+
+c) Suy ra $y_1 + y_2 + 2 = 4m^2 + 4 = 4(m^2 + 1) = AB$ (theo câu b), điều phải chứng minh.
+
+Đáp số: a) $\boxed{\Delta' = 4m^2 + 4 > 0 \text{ với mọi } m}$; b) $\boxed{AB = 4(m^2 + 1);\ m = 1 \text{ hoặc } m = -1}$; c) $\boxed{y_1 + y_2 + 2 = 4(m^2 + 1) = AB}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhận biết vị trí đồ thị, tính đồng biến qua dấu của a
+\begin{problem}[9DS-HSB2-021]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-02
+% do_kho_du_kien: 1
+Cho các hàm số: $y = 3x^2$; $y = -\dfrac{2}{5}x^2$; $y = \left(1 - \sqrt{2}\right)x^2$; $y = \dfrac{1}{4}x^2$.
+
+a) Hàm số nào có đồ thị nằm phía trên trục hoành? Hàm số nào có đồ thị nằm phía dưới trục hoành?
+
+b) Hàm số nào đồng biến khi $x > 0$? Hàm số nào nghịch biến khi $x > 0$?
+
+\begin{solution}
+a) Mỗi hàm số đều có dạng $y = ax^2$ với $a \neq 0$; theo tính chất của đồ thị, đồ thị nằm phía trên trục hoành khi $a > 0$ và nằm phía dưới trục hoành khi $a < 0$. Ta xét dấu của từng hệ số $a$.
+
+a) Hàm số $y = 3x^2$ có $a = 3 > 0$; hàm số $y = \dfrac{1}{4}x^2$ có $a = \dfrac{1}{4} > 0$; hàm số $y = -\dfrac{2}{5}x^2$ có $a = -\dfrac{2}{5} < 0$.
+
+a) Hàm số $y = \left(1 - \sqrt{2}\right)x^2$ có $a = 1 - \sqrt{2}$; vì $1 = \sqrt{1} < \sqrt{2}$ nên $a < 0$.
+
+a) Vậy đồ thị của $y = 3x^2$ và $y = \dfrac{1}{4}x^2$ nằm phía trên trục hoành; đồ thị của $y = -\dfrac{2}{5}x^2$ và $y = \left(1 - \sqrt{2}\right)x^2$ nằm phía dưới trục hoành.
+
+b) Theo tính chất của hàm số $y = ax^2$: nếu $a > 0$ thì hàm số đồng biến khi $x > 0$; nếu $a < 0$ thì hàm số nghịch biến khi $x > 0$. Dựa vào dấu của $a$ đã xét ở câu a), hai hàm số $y = 3x^2$, $y = \dfrac{1}{4}x^2$ đồng biến khi $x > 0$; hai hàm số $y = -\dfrac{2}{5}x^2$, $y = \left(1 - \sqrt{2}\right)x^2$ nghịch biến khi $x > 0$.
+
+Đáp số: a) $\boxed{\text{Phía trên: } y = 3x^2,\ y = \dfrac{1}{4}x^2;\ \text{phía dưới: } y = -\dfrac{2}{5}x^2,\ y = \left(1 - \sqrt{2}\right)x^2}$; b) $\boxed{\text{Đồng biến khi } x > 0\colon y = 3x^2,\ y = \dfrac{1}{4}x^2;\ \text{nghịch biến khi } x > 0\colon y = -\dfrac{2}{5}x^2,\ y = \left(1 - \sqrt{2}\right)x^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giao điểm với ba đường thẳng: cắt, tiếp xúc, không cắt
+\begin{problem}[9DS-HSB2-022]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-03, 9DS-HSB2-02, 9DS-PT2-04
+% do_kho_du_kien: 2
+Cho parabol $(P)\colon y = -\dfrac{1}{2}x^2$. Tìm toạ độ giao điểm (nếu có) của $(P)$ với mỗi đường thẳng sau:
+
+a) $(d_1)\colon y = x - \dfrac{3}{2}$;
+
+b) $(d_2)\colon y = 2x + 2$;
+
+c) $(d_3)\colon y = 1$.
+
+\begin{solution}
+a) Hoành độ giao điểm của $(P)$ và $(d_1)$ là nghiệm của phương trình $-\dfrac{1}{2}x^2 = x - \dfrac{3}{2}$; nhân hai vế với $-2$ rồi chuyển vế: $x^2 + 2x - 3 = 0$.
+
+a) Phương trình có $a + b + c = 1 + 2 - 3 = 0$ nên có hai nghiệm $x_1 = 1$ và $x_2 = \dfrac{c}{a} = -3$.
+
+a) Tính tung độ từ $y = x - \dfrac{3}{2}$: với $x = 1$ thì $y = -\dfrac{1}{2}$; với $x = -3$ thì $y = -\dfrac{9}{2}$ (kiểm tra trên $(P)$: $-\dfrac{1}{2} \cdot 1^2 = -\dfrac{1}{2}$ và $-\dfrac{1}{2} \cdot (-3)^2 = -\dfrac{9}{2}$, đúng). Vậy $(d_1)$ cắt $(P)$ tại hai điểm $\left(1; -\dfrac{1}{2}\right)$ và $\left(-3; -\dfrac{9}{2}\right)$.
+
+b) Phương trình hoành độ giao điểm của $(P)$ và $(d_2)$: $-\dfrac{1}{2}x^2 = 2x + 2$; nhân hai vế với $-2$ rồi chuyển vế: $x^2 + 4x + 4 = 0$, tức là $(x + 2)^2 = 0$ (hằng đẳng thức bình phương của một tổng), nên $x = -2$.
+
+b) Phương trình có nghiệm kép $x = -2$, nên $(d_2)$ và $(P)$ có đúng một điểm chung ($(d_2)$ tiếp xúc với $(P)$). Tung độ: $y = 2 \cdot (-2) + 2 = -2$ (kiểm tra trên $(P)$: $-\dfrac{1}{2} \cdot (-2)^2 = -2$). Điểm chung là $(-2; -2)$.
+
+c) Phương trình hoành độ giao điểm của $(P)$ và $(d_3)$: $-\dfrac{1}{2}x^2 = 1 \Leftrightarrow x^2 = -2$; phương trình này vô nghiệm vì $x^2 \geq 0$ với mọi $x$.
+
+c) Vậy $(d_3)$ và $(P)$ không có điểm chung. Điều này phù hợp với tính chất của đồ thị: $a = -\dfrac{1}{2} < 0$ nên $(P)$ nằm phía dưới trục hoành, còn mọi điểm của $(d_3)$ có tung độ $1 > 0$.
+
+Đáp số: a) $\boxed{\left(1; -\dfrac{1}{2}\right) \text{ và } \left(-3; -\dfrac{9}{2}\right)}$; b) $\boxed{(-2; -2)}$; c) $\boxed{\text{Không có giao điểm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đọc bảng giá trị, rồi tìm giao điểm
+\begin{problem}[9DS-HSB2-023]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-03, 9DS-HSB2-01
+% do_kho_du_kien: 2
+Cho hàm số $y = ax^2$ ($a \neq 0$) có đồ thị là parabol $(P)$, và bảng giá trị chưa đầy đủ của hàm số như sau:
+\[
+\begin{array}{c|c|c|c|c|c}
+x & -4 & -2 & 0 & 2 & 6 \\ \hline
+y = ax^2 & \ldots & -1 & \ldots & \ldots & \ldots
+\end{array}
+\]
+
+a) Tìm $a$ và điền các giá trị còn thiếu vào bảng.
+
+b) Tìm toạ độ các giao điểm của $(P)$ với đường thẳng $(d)\colon y = -x - 3$. Các giao điểm đó có xuất hiện trong bảng giá trị ở câu a) không?
+
+\begin{solution}
+a) Theo bảng, khi $x = -2$ thì $y = -1$, tức là điểm $(-2; -1)$ thuộc $(P)$; thay vào công thức: $-1 = a \cdot (-2)^2 = 4a$, suy ra $a = -\dfrac{1}{4}$ (thoả mãn $a \neq 0$). Vậy $(P)\colon y = -\dfrac{1}{4}x^2$.
+
+a) Thay lần lượt các giá trị còn lại của $x$ vào $y = -\dfrac{1}{4}x^2$: với $x = -4$ thì $y = -\dfrac{1}{4} \cdot 16 = -4$; với $x = 0$ thì $y = 0$; với $x = 2$ thì $y = -\dfrac{1}{4} \cdot 4 = -1$; với $x = 6$ thì $y = -\dfrac{1}{4} \cdot 36 = -9$.
+
+b) Phương trình hoành độ giao điểm của $(P)$ và $(d)$: $-\dfrac{1}{4}x^2 = -x - 3$; nhân hai vế với $-4$ rồi chuyển vế: $x^2 - 4x - 12 = 0$.
+
+b) Dùng công thức nghiệm thu gọn với $b' = -2$: $\Delta' = (-2)^2 - 1 \cdot (-12) = 16 > 0$, $\sqrt{\Delta'} = 4$, nên phương trình có hai nghiệm $x_1 = 2 + 4 = 6$ và $x_2 = 2 - 4 = -2$.
+
+b) Tính tung độ từ $y = -x - 3$: với $x = 6$ thì $y = -9$; với $x = -2$ thì $y = -1$. Vậy hai giao điểm là $(6; -9)$ và $(-2; -1)$.
+
+b) Đối chiếu với bảng ở câu a): cột $x = 6$ có $y = -9$ và cột $x = -2$ có $y = -1$, nên cả hai giao điểm đều xuất hiện trong bảng (đó là hai điểm của $(P)$ đồng thời thuộc $(d)$; các điểm còn lại của bảng không thuộc $(d)$, chẳng hạn với $x = 0$ thì $-x - 3 = -3 \neq 0$).
+
+Đáp số: a) $\boxed{a = -\dfrac{1}{4};\ \text{các giá trị còn thiếu: } -4;\ 0;\ -1;\ -9}$; b) $\boxed{(6; -9) \text{ và } (-2; -1), \text{ cả hai đều có trong bảng}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- biết một giao điểm, tìm a và giao điểm còn lại
+\begin{problem}[9DS-HSB2-024]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-03, 9DS-HSB2-01, 9DS-PT2-03
+% do_kho_du_kien: 2
+Đường thẳng $(d)\colon y = -x + 6$ cắt parabol $(P)\colon y = ax^2$ ($a \neq 0$) tại điểm $A$ có hoành độ bằng $-2$. Tìm $a$ và toạ độ giao điểm còn lại $B$ của $(d)$ và $(P)$.
+
+\begin{solution}
+$A$ thuộc $(d)$ và có hoành độ $-2$ nên tung độ của $A$ là $y = -(-2) + 6 = 8$; vậy $A(-2; 8)$.
+
+$A$ cũng thuộc $(P)$ nên toạ độ của $A$ thoả mãn công thức của $(P)$: $8 = a \cdot (-2)^2 = 4a$, suy ra $a = 2$ (thoả mãn $a \neq 0$); $(P)\colon y = 2x^2$.
+
+Phương trình hoành độ giao điểm của $(P)$ và $(d)$: $2x^2 = -x + 6 \Leftrightarrow 2x^2 + x - 6 = 0$ $(*)$.
+
+Vì $A$ là một giao điểm nên $x_1 = -2$ là một nghiệm của $(*)$. Theo định lý Viète, $x_1 x_2 = \dfrac{c}{a} = \dfrac{-6}{2} = -3$, suy ra nghiệm còn lại là $x_2 = \dfrac{-3}{-2} = \dfrac{3}{2}$ (kiểm tra tổng: $-2 + \dfrac{3}{2} = -\dfrac{1}{2} = -\dfrac{b}{a}$, đúng).
+
+Với $x = \dfrac{3}{2}$: $y = -\dfrac{3}{2} + 6 = \dfrac{9}{2}$ (kiểm tra trên $(P)$: $2 \cdot \left(\dfrac{3}{2}\right)^2 = 2 \cdot \dfrac{9}{4} = \dfrac{9}{2}$, đúng). Vậy $B\left(\dfrac{3}{2}; \dfrac{9}{2}\right)$.
+
+Đáp số: $\boxed{a = 2,\ B\left(\dfrac{3}{2}; \dfrac{9}{2}\right)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giá trị lớn nhất, nhỏ nhất trên một đoạn
+\begin{problem}[9DS-HSB2-025]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-02, 9DS-HSB2-01
+% do_kho_du_kien: 3
+Cho hàm số $y = f(x) = -2x^2$.
+
+a) Tìm giá trị lớn nhất và giá trị nhỏ nhất của hàm số khi $1 \leq x \leq 3$.
+
+b) Tìm giá trị lớn nhất và giá trị nhỏ nhất của hàm số khi $-1 \leq x \leq 2$.
+
+\begin{solution}
+a) Hàm số có dạng $y = ax^2$ với $a = -2 < 0$, nên hàm số đồng biến khi $x < 0$ và nghịch biến khi $x > 0$.
+
+a) Các giá trị $1 \leq x \leq 3$ đều dương, nên trên đoạn này hàm số nghịch biến: $x$ càng lớn thì $y$ càng nhỏ. Do đó với $1 \leq x \leq 3$ ta có $f(3) \leq f(x) \leq f(1)$, trong đó $f(1) = -2 \cdot 1^2 = -2$ và $f(3) = -2 \cdot 3^2 = -18$.
+
+a) Vậy giá trị lớn nhất của hàm số là $-2$, đạt được khi $x = 1$; giá trị nhỏ nhất là $-18$, đạt được khi $x = 3$.
+
+b) Đoạn $-1 \leq x \leq 2$ chứa $x = 0$, nên ta chia thành hai phần. Với $-1 \leq x \leq 0$, hàm số đồng biến nên $f(-1) \leq f(x) \leq f(0)$, tức là $-2 \leq f(x) \leq 0$.
+
+b) Với $0 \leq x \leq 2$, hàm số nghịch biến nên $f(2) \leq f(x) \leq f(0)$, tức là $-8 \leq f(x) \leq 0$ (vì $f(2) = -2 \cdot 2^2 = -8$).
+
+b) Kết hợp hai phần: với $-1 \leq x \leq 2$ luôn có $-8 \leq f(x) \leq 0$; giá trị $0$ đạt được tại $x = 0$ (đỉnh $O$ là điểm cao nhất của đồ thị) và giá trị $-8$ đạt được tại $x = 2$.
+
+b) Vậy giá trị lớn nhất là $0$ khi $x = 0$, giá trị nhỏ nhất là $-8$ khi $x = 2$. Lưu ý: không thể chỉ tính giá trị tại hai đầu mút $x = -1$ và $x = 2$, vì hàm số không đồng biến hay nghịch biến trên cả đoạn $-1 \leq x \leq 2$.
+
+Đáp số: a) $\boxed{\text{GTLN} = -2 \text{ khi } x = 1;\ \text{GTNN} = -18 \text{ khi } x = 3}$; b) $\boxed{\text{GTLN} = 0 \text{ khi } x = 0;\ \text{GTNN} = -8 \text{ khi } x = 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đường thẳng qua một điểm, song song đường cho trước; giao điểm vô tỉ
+\begin{problem}[9DS-HSB2-026]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-03, 8DS-HSBN-05, 9DS-PT2-02
+% do_kho_du_kien: 3
+Cho parabol $(P)\colon y = -x^2$ và điểm $M(1; 1)$.
+
+a) Viết phương trình đường thẳng $(d)$ đi qua $M$ và song song với đường thẳng $y = 2x + 5$.
+
+b) Tìm toạ độ các giao điểm của $(d)$ và $(P)$.
+
+\begin{solution}
+a) $(d)$ song song với đường thẳng $y = 2x + 5$ nên có cùng hệ số góc $2$ và tung độ gốc khác $5$: $(d)\colon y = 2x + b$ với $b \neq 5$.
+
+a) $(d)$ đi qua $M(1; 1)$ nên $1 = 2 \cdot 1 + b$, suy ra $b = -1$ (thoả mãn $b \neq 5$). Vậy $(d)\colon y = 2x - 1$.
+
+b) Phương trình hoành độ giao điểm của $(d)$ và $(P)$: $-x^2 = 2x - 1 \Leftrightarrow x^2 + 2x - 1 = 0$.
+
+b) Dùng công thức nghiệm thu gọn với $b' = 1$: $\Delta' = 1^2 - 1 \cdot (-1) = 2 > 0$, nên phương trình có hai nghiệm phân biệt $x_1 = -1 + \sqrt{2}$ và $x_2 = -1 - \sqrt{2}$.
+
+b) Tính tung độ từ $y = 2x - 1$: với $x_1 = -1 + \sqrt{2}$ thì $y_1 = 2\left(-1 + \sqrt{2}\right) - 1 = -3 + 2\sqrt{2}$; với $x_2 = -1 - \sqrt{2}$ thì $y_2 = 2\left(-1 - \sqrt{2}\right) - 1 = -3 - 2\sqrt{2}$.
+
+b) Kiểm tra trên $(P)$ bằng hằng đẳng thức bình phương: $x_1^2 = 1 - 2\sqrt{2} + 2 = 3 - 2\sqrt{2}$ nên $-x_1^2 = -3 + 2\sqrt{2} = y_1$; $x_2^2 = 1 + 2\sqrt{2} + 2 = 3 + 2\sqrt{2}$ nên $-x_2^2 = -3 - 2\sqrt{2} = y_2$ (đúng).
+
+Đáp số: a) $\boxed{(d)\colon y = 2x - 1}$; b) $\boxed{\left(-1 + \sqrt{2}; -3 + 2\sqrt{2}\right) \text{ và } \left(-1 - \sqrt{2}; -3 - 2\sqrt{2}\right)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- điểm trên parabol cách đều hai trục, hai cách
+\begin{problem}[9DS-HSB2-027]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-03, 9DS-HSB2-01, 9DS-PT2-01
+% do_kho_du_kien: 3
+Cho parabol $(P)\colon y = \dfrac{1}{3}x^2$. Tìm các điểm thuộc $(P)$, khác gốc toạ độ $O$, cách đều hai trục toạ độ.
+
+\begin{solution}[cách 1: dùng điều kiện điểm thuộc parabol]
+Điểm $M$ thuộc $(P)$ có hoành độ $x_0$ thì có tung độ $y_0 = \dfrac{1}{3}x_0^2$, nên $M\left(x_0; \dfrac{1}{3}x_0^2\right)$; điều kiện $M$ khác $O$ là $x_0 \neq 0$.
+
+Khoảng cách từ $M$ đến trục hoành là $|y_0|$, đến trục tung là $|x_0|$. $M$ cách đều hai trục khi và chỉ khi $|y_0| = |x_0|$, tức là $\dfrac{1}{3}x_0^2 = |x_0|$ (vì $\dfrac{1}{3}x_0^2 \geq 0$ nên $|y_0| = y_0$).
+
+Vì $x_0^2 = |x_0|^2$ nên phương trình trở thành $\dfrac{1}{3}|x_0|^2 - |x_0| = 0 \Leftrightarrow |x_0|\left(\dfrac{1}{3}|x_0| - 1\right) = 0$. Do $x_0 \neq 0$ nên $|x_0| \neq 0$, suy ra $\dfrac{1}{3}|x_0| = 1$, tức là $|x_0| = 3$, hay $x_0 = 3$ hoặc $x_0 = -3$.
+
+Khi đó $y_0 = \dfrac{1}{3} \cdot 3^2 = 3$. Vậy có hai điểm cần tìm là $(3; 3)$ và $(-3; 3)$.
+
+Đáp số: $\boxed{(3; 3) \text{ và } (-3; 3)}$
+\end{solution}
+
+\begin{solution}[cách 2: giao điểm của parabol với hai đường phân giác]
+Điểm $M(x_0; y_0)$ cách đều hai trục toạ độ khi và chỉ khi $|y_0| = |x_0|$, tức là $y_0 = x_0$ hoặc $y_0 = -x_0$; nghĩa là $M$ thuộc đường thẳng $y = x$ hoặc đường thẳng $y = -x$. Vậy các điểm cần tìm là các giao điểm khác $O$ của $(P)$ với hai đường thẳng này.
+
+Giao điểm của $(P)$ và đường thẳng $y = x$: phương trình hoành độ $\dfrac{1}{3}x^2 = x \Leftrightarrow x\left(\dfrac{1}{3}x - 1\right) = 0$ (phương trình bậc hai khuyết hệ số tự do, đặt nhân tử chung), nên $x = 0$ hoặc $x = 3$. Loại $x = 0$ (ứng với điểm $O$); với $x = 3$ thì $y = 3$, được điểm $(3; 3)$.
+
+Giao điểm của $(P)$ và đường thẳng $y = -x$: $\dfrac{1}{3}x^2 = -x \Leftrightarrow x\left(\dfrac{1}{3}x + 1\right) = 0$, nên $x = 0$ hoặc $x = -3$. Loại $x = 0$; với $x = -3$ thì $y = -(-3) = 3$, được điểm $(-3; 3)$.
+
+Đáp số: $\boxed{(3; 3) \text{ và } (-3; 3)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- suy ra dấu của a từ một bất đẳng thức, so sánh, giải bất đẳng thức
+\begin{problem}[9DS-HSB2-028]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-02, 9DS-CAN-03, 9DS-BPT-01
+% do_kho_du_kien: 4
+Cho hàm số $y = f(x) = ax^2$ ($a \neq 0$). Biết rằng $f(-3) > f(2)$.
+
+a) Xác định dấu của $a$. Hàm số đồng biến, nghịch biến khi nào?
+
+b) Không tính $a$, hãy so sánh $f\left(1 + \sqrt{2}\right)$ và $f\left(-2\sqrt{2}\right)$.
+
+c) Tìm tất cả các giá trị của $x$ sao cho $f(x) < f(3)$.
+
+\begin{solution}
+a) Ta có $f(-3) = a \cdot (-3)^2 = 9a$ và $f(2) = a \cdot 2^2 = 4a$. Từ $f(-3) > f(2)$ suy ra $9a > 4a \Leftrightarrow 5a > 0 \Leftrightarrow a > 0$ (chia hai vế cho $5 > 0$, giữ nguyên chiều bất đẳng thức).
+
+a) Vì $a > 0$ nên theo tính chất của hàm số $y = ax^2$, hàm số nghịch biến khi $x < 0$ và đồng biến khi $x > 0$.
+
+b) Vì $\left(-2\sqrt{2}\right)^2 = \left(2\sqrt{2}\right)^2$ nên $f\left(-2\sqrt{2}\right) = f\left(2\sqrt{2}\right)$ (đồ thị nhận trục $Oy$ làm trục đối xứng). Do đó chỉ cần so sánh $f\left(1 + \sqrt{2}\right)$ với $f\left(2\sqrt{2}\right)$, trong đó $1 + \sqrt{2}$ và $2\sqrt{2}$ đều là số dương.
+
+b) So sánh hai số dương $1 + \sqrt{2}$ và $2\sqrt{2}$ qua bình phương của chúng: $\left(1 + \sqrt{2}\right)^2 = 3 + 2\sqrt{2}$ và $\left(2\sqrt{2}\right)^2 = 8$. Ta có $3 + 2\sqrt{2} < 8 \Leftrightarrow 2\sqrt{2} < 5$; đưa thừa số vào trong dấu căn, $2\sqrt{2} = \sqrt{8} < \sqrt{25} = 5$ (đúng). Vậy $\left(1 + \sqrt{2}\right)^2 < \left(2\sqrt{2}\right)^2$, suy ra $0 < 1 + \sqrt{2} < 2\sqrt{2}$.
+
+b) Hàm số đồng biến khi $x > 0$ (câu a), nên từ $0 < 1 + \sqrt{2} < 2\sqrt{2}$ suy ra $f\left(1 + \sqrt{2}\right) < f\left(2\sqrt{2}\right) = f\left(-2\sqrt{2}\right)$.
+
+c) $f(x) < f(3) \Leftrightarrow ax^2 < 9a \Leftrightarrow x^2 < 9$ (chia hai vế cho $a > 0$, giữ nguyên chiều bất đẳng thức).
+
+c) Vì $x^2 = |x|^2$ và $9 = 3^2$, với hai số không âm $|x|$ và $3$ ta có $|x|^2 < 3^2 \Leftrightarrow |x| < 3 \Leftrightarrow -3 < x < 3$.
+
+Đáp số: a) $\boxed{a > 0;\ \text{nghịch biến khi } x < 0, \text{ đồng biến khi } x > 0}$; b) $\boxed{f\left(1 + \sqrt{2}\right) < f\left(-2\sqrt{2}\right)}$; c) $\boxed{-3 < x < 3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hệ số a là tam thức theo tham số: dấu của một tích
+\begin{problem}[9DS-HSB2-029]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-02, 9DS-HSB2-01, 9DS-BPT-08
+% do_kho_du_kien: 4
+Cho hàm số $y = (m^2 - 4m + 3)x^2$, với $m$ là tham số, $m \neq 1$ và $m \neq 3$.
+
+a) Tìm $m$ để hàm số đồng biến khi $x > 0$.
+
+b) Tìm các giá trị nguyên của $m$ để đồ thị của hàm số nằm phía dưới trục hoành. Với giá trị $m$ đó, viết công thức của hàm số và tính giá trị của hàm số tại $x = -3$.
+
+\begin{solution}
+a) Phân tích hệ số thành nhân tử (tách hạng tử $-4m = -m - 3m$): $m^2 - 4m + 3 = m(m - 1) - 3(m - 1) = (m - 1)(m - 3)$. Với $m \neq 1$, $m \neq 3$ thì hệ số này khác $0$, nên hàm số có dạng $y = ax^2$ với $a = (m - 1)(m - 3)$.
+
+a) Theo tính chất của hàm số $y = ax^2$, hàm số đồng biến khi $x > 0$ khi và chỉ khi $a > 0$, tức là $(m - 1)(m - 3) > 0$; tích của hai thừa số lớn hơn $0$ khi và chỉ khi hai thừa số cùng dấu.
+
+a) Trường hợp hai thừa số cùng dương: $m - 1 > 0$ và $m - 3 > 0$, tức là $m > 1$ và $m > 3$; nghiệm chung là $m > 3$.
+
+a) Trường hợp hai thừa số cùng âm: $m - 1 < 0$ và $m - 3 < 0$, tức là $m < 1$ và $m < 3$; nghiệm chung là $m < 1$.
+
+a) Vậy hàm số đồng biến khi $x > 0$ khi và chỉ khi $m < 1$ hoặc $m > 3$ (các giá trị này đều thoả mãn $m \neq 1$, $m \neq 3$).
+
+b) Theo tính chất của hàm số $y = ax^2$, đồ thị nằm phía dưới trục hoành khi và chỉ khi $a < 0$, tức là $(m - 1)(m - 3) < 0$ (dùng phân tích ở câu a); tích của hai thừa số nhỏ hơn $0$ khi và chỉ khi hai thừa số trái dấu.
+
+b) Trường hợp $m - 1 > 0$ và $m - 3 < 0$: tức là $m > 1$ và $m < 3$; nghiệm chung là $1 < m < 3$.
+
+b) Trường hợp $m - 1 < 0$ và $m - 3 > 0$: tức là $m < 1$ và $m > 3$; hai bất phương trình này không có nghiệm chung vì không có số nào vừa nhỏ hơn $1$ vừa lớn hơn $3$.
+
+b) Vậy đồ thị nằm phía dưới trục hoành khi và chỉ khi $1 < m < 3$. Vì $m$ là số nguyên nên $m = 2$ (thoả mãn $m \neq 1$, $m \neq 3$).
+
+b) Với $m = 2$, hệ số $a = 2^2 - 4 \cdot 2 + 3 = -1$, nên hàm số là $y = -x^2$. Thay $x = -3$: $y = -(-3)^2 = -9$.
+
+Đáp số: a) $\boxed{m < 1 \text{ hoặc } m > 3}$; b) $\boxed{m = 2;\ y = -x^2;\ \text{tại } x = -3 \text{ thì } y = -9}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: điểm tiếp đất của vận động viên trượt tuyết
+\begin{problem}[9DS-HSB2-030]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-03, 9DS-PT2-07, 9DS-HSB2-01
+% do_kho_du_kien: 4
+Một vận động viên trượt tuyết rời bệ nhảy tại điểm $O$ theo phương nằm ngang. Chọn hệ trục toạ độ $Oxy$ có gốc $O$ tại mép bệ nhảy, trục $Ox$ nằm ngang theo hướng bay, trục $Oy$ thẳng đứng hướng lên (đơn vị trên các trục là mét). Khi đó đường bay của vận động viên là một phần của parabol $(P)\colon y = -\dfrac{1}{20}x^2$ (ứng với $x \geq 0$), còn mặt dốc tiếp đất nằm trên đường thẳng $(d)\colon y = -\dfrac{1}{2}x - 10$.
+
+a) Tìm toạ độ điểm tiếp đất $T$ (giao điểm của đường bay với mặt dốc).
+
+b) Gọi $C$ là giao điểm của mặt dốc với trục $Oy$. Tính độ dài đoạn dốc $CT$.
+
+c) Một vận động viên khác cũng rời bệ tại $O$ theo phương nằm ngang, có đường bay là một phần của parabol $y = ax^2$ và tiếp đất tại điểm của mặt dốc có hoành độ $30$. Tìm $a$.
+
+\begin{solution}
+a) Gọi hoành độ điểm tiếp đất là $x$ (mét, $x > 0$ vì vận động viên bay về phía trước). Hoành độ này là nghiệm của phương trình hoành độ giao điểm $-\dfrac{1}{20}x^2 = -\dfrac{1}{2}x - 10$; nhân hai vế với $-20$ rồi chuyển vế: $x^2 - 10x - 200 = 0$.
+
+a) Dùng công thức nghiệm thu gọn với $b' = -5$: $\Delta' = (-5)^2 - 1 \cdot (-200) = 225$, $\sqrt{\Delta'} = 15$, nên $x_1 = 5 + 15 = 20$ và $x_2 = 5 - 15 = -10$.
+
+a) Đối chiếu điều kiện $x > 0$: loại $x_2 = -10$ (nằm phía sau bệ nhảy, ngoài phần đường bay), nhận $x_1 = 20$. Tung độ: $y = -\dfrac{1}{2} \cdot 20 - 10 = -20$ (kiểm tra trên $(P)$: $-\dfrac{1}{20} \cdot 20^2 = -20$). Vậy $T(20; -20)$: vận động viên tiếp đất cách bệ $20$ m theo phương ngang và thấp hơn mép bệ $20$ m.
+
+b) Thay $x = 0$ vào phương trình của $(d)$ được $y = -10$, nên $C(0; -10)$.
+
+b) Gọi $H(20; -10)$. Khi đó $CH$ nằm ngang với $CH = 20 - 0 = 20$ (m), $HT$ thẳng đứng với $HT = -10 - (-20) = 10$ (m), nên tam giác $CHT$ vuông tại $H$. Theo định lí Pythagore: $CT^2 = CH^2 + HT^2 = 400 + 100 = 500$, suy ra $CT = \sqrt{500} = 10\sqrt{5}$ (m).
+
+c) Điểm tiếp đất mới thuộc mặt dốc và có hoành độ $30$ nên tung độ là $y = -\dfrac{1}{2} \cdot 30 - 10 = -25$; vậy điểm tiếp đất là $T'(30; -25)$.
+
+c) $T'$ thuộc đường bay $y = ax^2$ nên $-25 = a \cdot 30^2 = 900a$, suy ra $a = -\dfrac{25}{900} = -\dfrac{1}{36}$ (thoả mãn $a < 0$, đường bay đi xuống).
+
+Đáp số: a) $\boxed{T(20; -20)}$; b) $\boxed{CT = 10\sqrt{5} \text{ m}}$; c) $\boxed{a = -\dfrac{1}{36}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giao điểm, độ dài, diện tích; điểm trên cung AB cho diện tích lớn nhất
+\begin{problem}[9DS-HSB2-031]
+% nguon: dummy (tự sinh để test)
+% lop: 9
+% kc_du_kien: 9DS-HSB2-03, 8DS-HDT-01, 9DS-PT2-02
+% do_kho_du_kien: 5
+Cho parabol $(P)\colon y = x^2$ và đường thẳng $(d)\colon y = x + 6$.
+
+a) Tìm toạ độ các giao điểm $A$, $B$ của $(d)$ và $(P)$ (với hoành độ của $A$ nhỏ hơn hoành độ của $B$).
+
+b) Tính độ dài đoạn $AB$ và diện tích tam giác $OAB$ ($O$ là gốc toạ độ).
+
+c) Điểm $C$ thuộc $(P)$ có hoành độ $c$ với $-2 < c < 3$. Tìm toạ độ của $C$ để tam giác $ABC$ có diện tích lớn nhất và tính diện tích lớn nhất đó.
+
+\begin{solution}
+a) Phương trình hoành độ giao điểm của $(P)$ và $(d)$: $x^2 = x + 6 \Leftrightarrow x^2 - x - 6 = 0$; có $\Delta = (-1)^2 - 4 \cdot 1 \cdot (-6) = 25$, $\sqrt{\Delta} = 5$, nên $x = \dfrac{1 + 5}{2} = 3$ hoặc $x = \dfrac{1 - 5}{2} = -2$.
+
+a) Tính tung độ từ $y = x^2$: với $x = -2$ thì $y = 4$; với $x = 3$ thì $y = 9$ (thử lại bằng $y = x + 6$: $-2 + 6 = 4$, $3 + 6 = 9$). Vậy $A(-2; 4)$ và $B(3; 9)$.
+
+b) Gọi $K(3; 4)$; khi đó $AK$ nằm ngang với $AK = 3 - (-2) = 5$, $KB$ thẳng đứng với $KB = 9 - 4 = 5$, tam giác $AKB$ vuông tại $K$. Theo định lí Pythagore: $AB^2 = 5^2 + 5^2 = 50$, suy ra $AB = 5\sqrt{2}$.
+
+b) $(d)$ cắt trục tung tại $E(0; 6)$, $OE = 6$. Vì $A$, $B$ có hoành độ trái dấu nên nằm về hai phía của trục tung, $E$ nằm trên đoạn $AB$ và chia tam giác $OAB$ thành hai tam giác $OAE$, $OBE$ có chung cạnh $OE$ nằm trên trục tung; đường cao hạ từ $A$, $B$ xuống $OE$ lần lượt bằng $|-2| = 2$ và $|3| = 3$.
+
+b) Do đó $S_{OAB} = S_{OAE} + S_{OBE} = \dfrac{1}{2} \cdot 6 \cdot 2 + \dfrac{1}{2} \cdot 6 \cdot 3 = 6 + 9 = 15$ (đơn vị diện tích).
+
+c) Điểm $C$ thuộc $(P)$ nên $C(c; c^2)$. Đường thẳng đứng $x = c$ cắt $(d)$ tại $D(c; c + 6)$; vì $-2 < c < 3$ nên $D$ nằm trên đoạn $AB$ (giữa $A$ và $B$).
+
+c) Độ dài $CD = (c + 6) - c^2 = -(c^2 - c - 6) = -(c + 2)(c - 3)$; với $-2 < c < 3$ thì $c + 2 > 0$ và $c - 3 < 0$, nên $CD > 0$, tức là $D$ nằm phía trên $C$ và $CD = 6 + c - c^2$.
+
+c) Đoạn $CD$ chia tam giác $ABC$ thành hai tam giác $ACD$ và $BCD$ có chung cạnh $CD$ thẳng đứng; đường cao hạ từ $A$ và $B$ xuống đường thẳng $CD$ lần lượt bằng $c - (-2) = c + 2$ và $3 - c$. Do đó $S_{ABC} = \dfrac{1}{2} \cdot CD \cdot (c + 2) + \dfrac{1}{2} \cdot CD \cdot (3 - c) = \dfrac{5}{2} \cdot CD = \dfrac{5}{2}\left(6 + c - c^2\right)$.
+
+c) Biến đổi bằng hằng đẳng thức bình phương của một hiệu: $6 + c - c^2 = \dfrac{25}{4} - \left(c^2 - c + \dfrac{1}{4}\right) = \dfrac{25}{4} - \left(c - \dfrac{1}{2}\right)^2 \leq \dfrac{25}{4}$, dấu bằng xảy ra khi và chỉ khi $c = \dfrac{1}{2}$ (thoả mãn $-2 < c < 3$).
+
+c) Vậy $S_{ABC} \leq \dfrac{5}{2} \cdot \dfrac{25}{4} = \dfrac{125}{8}$; diện tích lớn nhất bằng $\dfrac{125}{8}$ khi $c = \dfrac{1}{2}$, lúc đó $C\left(\dfrac{1}{2}; \dfrac{1}{4}\right)$. (Kiểm tra với $c = 0$, tức $C$ trùng $O$: $S = \dfrac{5}{2} \cdot 6 = 15$, khớp với câu b.)
+
+Đáp số: a) $\boxed{A(-2; 4),\ B(3; 9)}$; b) $\boxed{AB = 5\sqrt{2},\ S_{OAB} = 15 \text{ (đơn vị diện tích)}}$; c) $\boxed{C\left(\dfrac{1}{2}; \dfrac{1}{4}\right),\ S_{\max} = \dfrac{125}{8} \text{ (đơn vị diện tích)}}$
+\end{solution}
+\end{problem}
+
+\end{document}

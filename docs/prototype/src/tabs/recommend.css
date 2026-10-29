@@ -1,0 +1,27 @@
+/* recommend — G4 Gợi ý bài */
+[data-tab="recommend"] .rc-pick { display: grid; gap: 12px 16px; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); align-items: start; }
+[data-tab="recommend"] .rc-pick select, [data-tab="recommend"] .rc-pick input { width: 100%; }
+[data-tab="recommend"] .rc-sliders { display: grid; gap: 10px 16px; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
+[data-tab="recommend"] .rc-slider { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); background: var(--sheet-2); border-radius: 3px; min-width: 0; }
+[data-tab="recommend"] .rc-slider input[type="range"] { width: 100%; accent-color: var(--accent); }
+[data-tab="recommend"] .rc-split { font: 600 17px/1.3 var(--font-head); color: var(--ink); }
+[data-tab="recommend"] .rc-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+[data-tab="recommend"] .rc-cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+[data-tab="recommend"] .rc-card { gap: 10px; }
+[data-tab="recommend"] .rc-stmt { max-height: 13em; overflow: auto; padding: 8px 10px; background: var(--sheet); border: 1px solid var(--line); border-radius: 3px; font-size: 13px; }
+[data-tab="recommend"] .rc-stats { display: grid; gap: 6px 10px; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); }
+[data-tab="recommend"] .rc-stats > div { display: flex; flex-direction: column; min-width: 0; }
+[data-tab="recommend"] .rc-stats b { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+[data-tab="recommend"] .rc-reason { font-size: 13px; color: var(--ink-2); }
+[data-tab="recommend"] .st-rejected .rc-reason, [data-tab="recommend"] .st-rejected .rc-stmt { opacity: .75; }
+[data-tab="recommend"] .st-rejected .rc-stmt { text-decoration: line-through; }
+[data-tab="recommend"] .rc-strike { text-decoration: line-through; }
+[data-tab="recommend"] .rc-foot { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; justify-content: space-between; padding-top: 10px; border-top: 1px dashed var(--line-strong); }
+[data-tab="recommend"] .rc-hist { border-radius: 3px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: color-mix(in srgb, var(--ok-soft) 35%, var(--sheet)); }
+[data-tab="recommend"] .rc-kc { gap: 6px; }
+.modal .rc-opt { gap: 6px; }
+.modal .rc-stmt { max-height: 10em; overflow: auto; padding: 6px 8px; background: var(--sheet-2); border: 1px solid var(--line); border-radius: 3px; font-size: 13px; }
+.modal .rc-search { width: 100%; }
+/* phone: let tables scroll inside .table-wrap instead of squeezing codes and names into one-word lines */
+[data-tab="recommend"] .tbl { min-width: 600px; }
+[data-tab="recommend"] .tbl .mono { white-space: nowrap; }

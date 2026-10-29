@@ -1,0 +1,817 @@
+% Ngân hàng bài mẫu: Phân tích đa thức thành nhân tử (lớp 8).
+% Quy ước:
+%   - Mỗi bài: begin{problem}[id] ... end{problem}; lời giải lồng bên trong.
+%   - id: duy nhất, không dấu, không đổi, không dùng lại. Dạng <lớp><phân môn>-<chủ đề>-<số>.
+%   - Mỗi bước lời giải là 1 đoạn, các bước cách nhau 1 dòng trống; mỗi bước có lý do.
+%   - Dòng cuối lời giải: Đáp số: $\boxed{...}$
+%   - Cách giải khác: thêm begin{solution}[cách 2].
+%   - Metadata bằng comment ngay sau begin{problem}: % nguon:, % lop:, % kc_du_kien:, % do_kho_du_kien:
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- đặt nhân tử chung
+\begin{problem}[8DS-PTNT-001]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-01
+% do_kho_du_kien: 1
+Phân tích các đa thức sau thành nhân tử:
+
+a) $4x^2y - 6xy^2$;
+
+b) $5x(x - 2) - 4(x - 2)$.
+
+\begin{solution}
+a) Hệ số $4$ và $6$ có ước chung lớn nhất là $2$; phần biến chung lấy mỗi biến với số mũ nhỏ nhất là $xy$. Vậy nhân tử chung của hai hạng tử là $2xy$.
+
+a) Đặt nhân tử chung $2xy$ ra ngoài dấu ngoặc: $4x^2y - 6xy^2 = 2xy \cdot 2x - 2xy \cdot 3y = 2xy(2x - 3y)$.
+
+b) Hai hạng tử $5x(x - 2)$ và $4(x - 2)$ có nhân tử chung là đa thức $x - 2$.
+
+b) Đặt nhân tử chung $x - 2$ ra ngoài dấu ngoặc: $5x(x - 2) - 4(x - 2) = (x - 2)(5x - 4)$.
+
+Đáp số: a) $\boxed{2xy(2x - 3y)}$; b) $\boxed{(x - 2)(5x - 4)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- dùng hằng đẳng thức
+\begin{problem}[8DS-PTNT-002]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-02
+% do_kho_du_kien: 2
+Phân tích các đa thức sau thành nhân tử:
+
+a) $x^2 - 10x + 25$;
+
+b) $4x^2 - 9y^2$;
+
+c) $8x^3 - 1$.
+
+\begin{solution}
+a) Viết $x^2 - 10x + 25 = x^2 - 2 \cdot x \cdot 5 + 5^2$, có dạng $A^2 - 2AB + B^2$ với $A = x$, $B = 5$. Theo hằng đẳng thức bình phương của một hiệu, đa thức bằng $(x - 5)^2$.
+
+b) Viết $4x^2 - 9y^2 = (2x)^2 - (3y)^2$, có dạng $A^2 - B^2$ với $A = 2x$, $B = 3y$. Theo hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$, đa thức bằng $(2x - 3y)(2x + 3y)$.
+
+c) Viết $8x^3 - 1 = (2x)^3 - 1^3$, có dạng $A^3 - B^3$ với $A = 2x$, $B = 1$. Theo hằng đẳng thức hiệu hai lập phương $A^3 - B^3 = (A - B)(A^2 + AB + B^2)$, đa thức bằng $(2x - 1)(4x^2 + 2x + 1)$.
+
+Đáp số: a) $\boxed{(x - 5)^2}$; b) $\boxed{(2x - 3y)(2x + 3y)}$; c) $\boxed{(2x - 1)(4x^2 + 2x + 1)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhóm hạng tử
+\begin{problem}[8DS-PTNT-003]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-03, 8DS-PTNT-01
+% do_kho_du_kien: 2
+Phân tích các đa thức sau thành nhân tử:
+
+a) $x^2 - xy + 3x - 3y$;
+
+b) $2xy + 3z + 6y + xz$.
+
+\begin{solution}
+a) Nhóm hai hạng tử đầu và hai hạng tử cuối (mỗi nhóm có nhân tử chung): $x^2 - xy + 3x - 3y = (x^2 - xy) + (3x - 3y)$.
+
+a) Đặt nhân tử chung trong từng nhóm: $(x^2 - xy) + (3x - 3y) = x(x - y) + 3(x - y)$.
+
+a) Đặt nhân tử chung $x - y$ ra ngoài: $x(x - y) + 3(x - y) = (x - y)(x + 3)$.
+
+b) Đổi chỗ các hạng tử (tính chất giao hoán) để nhóm những hạng tử có nhân tử chung: $2xy + 3z + 6y + xz = (2xy + 6y) + (xz + 3z)$.
+
+b) Đặt nhân tử chung trong từng nhóm: $(2xy + 6y) + (xz + 3z) = 2y(x + 3) + z(x + 3)$.
+
+b) Đặt nhân tử chung $x + 3$ ra ngoài: $2y(x + 3) + z(x + 3) = (x + 3)(2y + z)$.
+
+Đáp số: a) $\boxed{(x - y)(x + 3)}$; b) $\boxed{(x + 3)(2y + z)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế, tính nhanh
+\begin{problem}[8DS-PTNT-004]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-02, 8DS-PTNT-06
+% do_kho_du_kien: 2
+Từ một tấm bìa hình vuông cạnh $a$ cm, người ta cắt bỏ ở bốn góc bốn hình vuông nhỏ bằng nhau, mỗi hình vuông nhỏ có cạnh $b$ cm (với $0 < 2b < a$).
+
+a) Viết biểu thức tính diện tích $S$ của phần bìa còn lại rồi phân tích biểu thức đó thành nhân tử.
+
+b) Tính nhanh $S$ khi $a = 46$ và $b = 2$.
+
+\begin{solution}
+a) Tấm bìa có diện tích $a^2$ (cm$^2$), mỗi hình vuông nhỏ có diện tích $b^2$ (cm$^2$), nên phần bìa còn lại có diện tích $S = a^2 - 4b^2$ (cm$^2$).
+
+a) Viết $4b^2 = (2b)^2$ và áp dụng hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$ với $A = a$, $B = 2b$: $S = a^2 - (2b)^2 = (a - 2b)(a + 2b)$.
+
+b) Với $a = 46$, $b = 2$ thì $2b = 4$ và $0 < 4 < 46$ (thoả mãn điều kiện). Thay vào dạng tích: $S = (46 - 4)(46 + 4) = 42 \cdot 50$.
+
+b) Tính: $42 \cdot 50 = 2\,100$ (cm$^2$).
+
+Đáp số: a) $\boxed{S = (a - 2b)(a + 2b)}$; b) $\boxed{S = 2\,100 \text{ cm}^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phối hợp nhiều phương pháp
+\begin{problem}[8DS-PTNT-005]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-04, 8DS-PTNT-01, 8DS-PTNT-02
+% do_kho_du_kien: 3
+Phân tích đa thức $x^3 - 4x^2 + 4x - xy^2$ thành nhân tử.
+
+\begin{solution}
+Bốn hạng tử đều chứa nhân tử chung $x$; đặt $x$ ra ngoài dấu ngoặc: $x^3 - 4x^2 + 4x - xy^2 = x(x^2 - 4x + 4 - y^2)$.
+
+Trong ngoặc, ba hạng tử đầu có dạng bình phương của một hiệu: $x^2 - 4x + 4 = x^2 - 2 \cdot x \cdot 2 + 2^2 = (x - 2)^2$. Do đó $x^2 - 4x + 4 - y^2 = (x - 2)^2 - y^2$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương với $A = x - 2$, $B = y$: $(x - 2)^2 - y^2 = (x - 2 - y)(x - 2 + y)$.
+
+Vậy $x^3 - 4x^2 + 4x - xy^2 = x(x - y - 2)(x + y - 2)$. Các nhân tử đều có bậc nhất nên không phân tích được nữa.
+
+Đáp số: $\boxed{x(x - y - 2)(x + y - 2)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tách hạng tử, hai cách
+\begin{problem}[8DS-PTNT-006]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-05, 8DS-PTNT-02
+% do_kho_du_kien: 3
+Phân tích đa thức $3x^2 - 8x + 4$ thành nhân tử.
+
+\begin{solution}[cách 1: tách hạng tử bậc nhất]
+Tam thức có dạng $ax^2 + bx + c$ với $a = 3$, $b = -8$, $c = 4$. Ta tìm hai số có tích bằng $ac = 12$ và tổng bằng $b = -8$; đó là $-2$ và $-6$.
+
+Tách $-8x = -2x - 6x$: $3x^2 - 8x + 4 = 3x^2 - 2x - 6x + 4$.
+
+Nhóm hai hạng tử đầu và hai hạng tử cuối rồi đặt nhân tử chung trong từng nhóm: $(3x^2 - 2x) - (6x - 4) = x(3x - 2) - 2(3x - 2)$.
+
+Đặt nhân tử chung $3x - 2$ ra ngoài: $x(3x - 2) - 2(3x - 2) = (3x - 2)(x - 2)$.
+
+Đáp số: $\boxed{(3x - 2)(x - 2)}$
+\end{solution}
+
+\begin{solution}[cách 2: tách hạng tử bậc hai, đưa về hiệu hai bình phương]
+Tách $3x^2 = 4x^2 - x^2$ và nhóm: $3x^2 - 8x + 4 = (4x^2 - 8x + 4) - x^2$.
+
+Đặt nhân tử chung $4$ rồi dùng hằng đẳng thức bình phương của một hiệu: $4x^2 - 8x + 4 = 4(x^2 - 2x + 1) = 4(x - 1)^2 = (2x - 2)^2$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương với $A = 2x - 2$, $B = x$: $(2x - 2)^2 - x^2 = (2x - 2 - x)(2x - 2 + x) = (x - 2)(3x - 2)$.
+
+Đáp số: $\boxed{(3x - 2)(x - 2)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm x bằng phân tích nhân tử
+\begin{problem}[8DS-PTNT-007]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-06, 8DS-PTNT-03, 8DS-PTNT-02
+% do_kho_du_kien: 3
+Tìm $x$, biết $2x^3 - x^2 - 8x + 4 = 0$.
+
+\begin{solution}
+Nhóm hai hạng tử đầu và hai hạng tử cuối rồi đặt nhân tử chung trong từng nhóm: $2x^3 - x^2 - 8x + 4 = (2x^3 - x^2) - (8x - 4) = x^2(2x - 1) - 4(2x - 1)$.
+
+Đặt nhân tử chung $2x - 1$ ra ngoài: $x^2(2x - 1) - 4(2x - 1) = (2x - 1)(x^2 - 4)$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương: $x^2 - 4 = (x - 2)(x + 2)$. Do đó phương trình trở thành $(2x - 1)(x - 2)(x + 2) = 0$.
+
+Một tích bằng $0$ khi và chỉ khi có ít nhất một thừa số bằng $0$: $2x - 1 = 0$ hoặc $x - 2 = 0$ hoặc $x + 2 = 0$.
+
+Giải từng phương trình: $2x - 1 = 0$ cho $x = \dfrac{1}{2}$; $x - 2 = 0$ cho $x = 2$; $x + 2 = 0$ cho $x = -2$.
+
+Đáp số: $\boxed{x \in \left\{-2; \dfrac{1}{2}; 2\right\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đặt ẩn phụ kết hợp tách hạng tử
+\begin{problem}[8DS-PTNT-008]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-04, 8DS-PTNT-05, 8DS-PTNT-02
+% do_kho_du_kien: 4
+Phân tích đa thức $x^2 - 2xy + y^2 - 3x + 3y + 2$ thành nhân tử.
+
+\begin{solution}
+Nhóm ba hạng tử đầu và hai hạng tử tiếp theo: $x^2 - 2xy + y^2 - 3x + 3y + 2 = (x^2 - 2xy + y^2) - (3x - 3y) + 2$.
+
+Áp dụng hằng đẳng thức bình phương của một hiệu cho nhóm đầu và đặt nhân tử chung $3$ ở nhóm sau: $(x^2 - 2xy + y^2) - (3x - 3y) + 2 = (x - y)^2 - 3(x - y) + 2$.
+
+Đặt $t = x - y$, biểu thức trở thành tam thức $t^2 - 3t + 2$.
+
+Hai số $-1$ và $-2$ có tích bằng $2$ và tổng bằng $-3$, nên tách $-3t = -t - 2t$: $t^2 - 3t + 2 = t^2 - t - 2t + 2 = t(t - 1) - 2(t - 1) = (t - 1)(t - 2)$.
+
+Thay lại $t = x - y$: $(t - 1)(t - 2) = (x - y - 1)(x - y - 2)$. Các nhân tử đều có bậc nhất nên không phân tích được nữa.
+
+Đáp số: $\boxed{(x - y - 1)(x - y - 2)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh chia hết
+\begin{problem}[8DS-PTNT-009]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-04, 8DS-PTNT-01, 8DS-PTNT-02
+% do_kho_du_kien: 4
+Chứng minh rằng với mọi số nguyên $n$, số $n^3 - n$ chia hết cho $6$.
+
+\begin{solution}
+Đặt nhân tử chung $n$ ra ngoài: $n^3 - n = n(n^2 - 1)$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương: $n^2 - 1 = (n - 1)(n + 1)$, nên $n^3 - n = (n - 1)n(n + 1)$, là tích của ba số nguyên liên tiếp.
+
+Trong hai số nguyên liên tiếp $n - 1$ và $n$ luôn có một số chẵn, nên tích $(n - 1)n(n + 1)$ chia hết cho $2$.
+
+Trong ba số nguyên liên tiếp $n - 1$, $n$, $n + 1$ luôn có một số chia hết cho $3$, nên tích $(n - 1)n(n + 1)$ chia hết cho $3$.
+
+Tích chia hết cho cả $2$ và $3$, mà $2$ và $3$ là hai số nguyên tố cùng nhau, nên tích chia hết cho $2 \cdot 3 = 6$. Vậy $n^3 - n$ chia hết cho $6$ với mọi số nguyên $n$.
+
+Đáp số: $\boxed{n^3 - n = (n - 1)n(n + 1) \text{ chia hết cho } 6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhóm thừa số, đặt ẩn phụ
+\begin{problem}[8DS-PTNT-010]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-04, 8DS-PTNT-02, 8DS-PTNT-01
+% do_kho_du_kien: 5
+Phân tích đa thức $(x + 1)(x + 2)(x + 3)(x + 4) - 24$ thành nhân tử.
+
+\begin{solution}
+Nhóm thừa số thứ nhất với thứ tư, thứ hai với thứ ba (vì $1 + 4 = 2 + 3$) rồi nhân đa thức với đa thức: $(x + 1)(x + 4) = x^2 + 5x + 4$ và $(x + 2)(x + 3) = x^2 + 5x + 6$.
+
+Đa thức trở thành $(x^2 + 5x + 4)(x^2 + 5x + 6) - 24$. Đặt $t = x^2 + 5x + 5$ (trung bình cộng của hai thừa số), khi đó $x^2 + 5x + 4 = t - 1$ và $x^2 + 5x + 6 = t + 1$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương hai lần: $(t - 1)(t + 1) - 24 = t^2 - 1 - 24 = t^2 - 25 = (t - 5)(t + 5)$.
+
+Thay lại $t = x^2 + 5x + 5$: $t - 5 = x^2 + 5x$ và $t + 5 = x^2 + 5x + 10$. Đặt nhân tử chung $x$: $x^2 + 5x = x(x + 5)$.
+
+Do đó $(x + 1)(x + 2)(x + 3)(x + 4) - 24 = x(x + 5)(x^2 + 5x + 10)$.
+
+Đa thức $x^2 + 5x + 10$ không phân tích được nữa: $x^2 + 5x + 10 = \left(x + \dfrac{5}{2}\right)^2 + \dfrac{15}{4} > 0$ với mọi $x$, nên nó không có nghiệm, do đó không có nhân tử bậc nhất.
+
+Đáp số: $\boxed{x(x + 5)(x^2 + 5x + 10)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhân tử chung là đa thức, đổi dấu
+\begin{problem}[8DS-PTNT-011]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-01
+% do_kho_du_kien: 1
+Phân tích các đa thức sau thành nhân tử:
+
+a) $4(x - 3)^2 - 8(x - 3)$;
+
+b) $3x(x - y) + 5y(y - x)$.
+
+\begin{solution}
+a) Hai hạng tử có hệ số $4$ và $8$ với ước chung lớn nhất là $4$, và cùng chứa đa thức $x - 3$ với số mũ nhỏ nhất là $1$. Vậy nhân tử chung là $4(x - 3)$.
+
+a) Đặt nhân tử chung $4(x - 3)$ ra ngoài dấu ngoặc rồi thu gọn trong ngoặc: $4(x - 3)^2 - 8(x - 3) = 4(x - 3) \cdot (x - 3) - 4(x - 3) \cdot 2 = 4(x - 3)(x - 3 - 2) = 4(x - 3)(x - 5)$.
+
+b) Đổi dấu để làm xuất hiện nhân tử chung: vì $y - x = -(x - y)$ nên $5y(y - x) = -5y(x - y)$.
+
+b) Khi đó $3x(x - y) + 5y(y - x) = 3x(x - y) - 5y(x - y)$; đặt nhân tử chung $x - y$ ra ngoài dấu ngoặc: $3x(x - y) - 5y(x - y) = (x - y)(3x - 5y)$.
+
+Đáp số: a) $\boxed{4(x - 3)(x - 5)}$; b) $\boxed{(x - y)(3x - 5y)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính nhanh giá trị biểu thức nhờ phân tích
+\begin{problem}[8DS-PTNT-012]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-03, 8DS-PTNT-02, 8DS-PTNT-06
+% do_kho_du_kien: 2
+Tính nhanh giá trị của biểu thức $M = x^2 - y^2 - 2y - 1$ tại $x = 93$ và $y = 6$.
+
+\begin{solution}
+Nhóm ba hạng tử cuối và đặt dấu trừ ra trước ngoặc (đổi dấu các hạng tử trong ngoặc): $M = x^2 - (y^2 + 2y + 1)$.
+
+Áp dụng hằng đẳng thức bình phương của một tổng: $y^2 + 2y + 1 = (y + 1)^2$, nên $M = x^2 - (y + 1)^2$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$ với $A = x$, $B = y + 1$: $M = (x - y - 1)(x + y + 1)$.
+
+Thay $x = 93$, $y = 6$ vào dạng tích: $M = (93 - 6 - 1)(93 + 6 + 1) = 86 \cdot 100 = 8\,600$.
+
+Đáp số: $\boxed{M = 8\,600}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm x: đưa về phương trình tích
+\begin{problem}[8DS-PTNT-013]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-06, 8DS-PTNT-03, 8DS-PTNT-02
+% do_kho_du_kien: 2
+Tìm $x$, biết:
+
+a) $x(x - 3) - 2x + 6 = 0$;
+
+b) $x^3 - 16x = 0$.
+
+\begin{solution}
+a) Nhóm hai hạng tử cuối và đặt nhân tử chung $-2$: $-2x + 6 = -2(x - 3)$, nên vế trái bằng $x(x - 3) - 2(x - 3)$.
+
+a) Đặt nhân tử chung $x - 3$ ra ngoài: $x(x - 3) - 2(x - 3) = (x - 3)(x - 2)$. Phương trình trở thành $(x - 3)(x - 2) = 0$.
+
+a) Một tích bằng $0$ khi và chỉ khi có ít nhất một thừa số bằng $0$: $x - 3 = 0$ hoặc $x - 2 = 0$, tức là $x = 3$ hoặc $x = 2$.
+
+b) Đặt nhân tử chung $x$: $x^3 - 16x = x(x^2 - 16)$; áp dụng hằng đẳng thức hiệu hai bình phương: $x^2 - 16 = (x - 4)(x + 4)$. Phương trình trở thành $x(x - 4)(x + 4) = 0$.
+
+b) Một tích bằng $0$ khi và chỉ khi có ít nhất một thừa số bằng $0$: $x = 0$ hoặc $x - 4 = 0$ hoặc $x + 4 = 0$, tức là $x = 0$ hoặc $x = 4$ hoặc $x = -4$.
+
+Đáp số: a) $\boxed{x \in \{2; 3\}}$; b) $\boxed{x \in \{-4; 0; 4\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhóm hạng tử làm xuất hiện tổng, hiệu hai lập phương
+\begin{problem}[8DS-PTNT-014]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-03, 8DS-PTNT-02, 8DS-PTNT-04
+% do_kho_du_kien: 3
+Phân tích các đa thức sau thành nhân tử:
+
+a) $x^3 + y^3 + 2x + 2y$;
+
+b) $x^3 - 3x^2 + 3x - 1 - 8y^3$.
+
+\begin{solution}
+a) Nhóm hai hạng tử bậc ba với nhau và hai hạng tử bậc nhất với nhau: $x^3 + y^3 + 2x + 2y = (x^3 + y^3) + (2x + 2y)$.
+
+a) Áp dụng hằng đẳng thức tổng hai lập phương $A^3 + B^3 = (A + B)(A^2 - AB + B^2)$ cho nhóm đầu và đặt nhân tử chung $2$ ở nhóm sau: $(x^3 + y^3) + (2x + 2y) = (x + y)(x^2 - xy + y^2) + 2(x + y)$.
+
+a) Đặt nhân tử chung $x + y$ ra ngoài: $(x + y)(x^2 - xy + y^2) + 2(x + y) = (x + y)(x^2 - xy + y^2 + 2)$.
+
+b) Bốn hạng tử đầu là lập phương của một hiệu: $x^3 - 3x^2 + 3x - 1 = x^3 - 3 \cdot x^2 \cdot 1 + 3 \cdot x \cdot 1^2 - 1^3 = (x - 1)^3$; và $8y^3 = (2y)^3$. Do đó đa thức bằng $(x - 1)^3 - (2y)^3$.
+
+b) Áp dụng hằng đẳng thức hiệu hai lập phương $A^3 - B^3 = (A - B)(A^2 + AB + B^2)$ với $A = x - 1$, $B = 2y$: $(x - 1)^3 - (2y)^3 = (x - 1 - 2y)\left[(x - 1)^2 + 2y(x - 1) + 4y^2\right]$.
+
+b) Khai triển và thu gọn trong ngoặc vuông: $(x - 1)^2 + 2y(x - 1) + 4y^2 = x^2 - 2x + 1 + 2xy - 2y + 4y^2$. Vậy đa thức bằng $(x - 2y - 1)(x^2 + 2xy + 4y^2 - 2x - 2y + 1)$.
+
+Đáp số: a) $\boxed{(x + y)(x^2 - xy + y^2 + 2)}$; b) $\boxed{(x - 2y - 1)(x^2 + 2xy + 4y^2 - 2x - 2y + 1)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tách hạng tử với đa thức hai biến
+\begin{problem}[8DS-PTNT-015]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-05, 8DS-PTNT-03, 8DS-PTNT-04
+% do_kho_du_kien: 3
+a) Phân tích đa thức $x^2 - 5xy + 6y^2$ thành nhân tử.
+
+b) Dùng kết quả câu a), phân tích đa thức $x^2 - 5xy + 6y^2 - x + 2y$ thành nhân tử.
+
+\begin{solution}
+a) Coi đa thức là tam thức bậc hai đối với $x$: hệ số của $x^2$ là $1$, của $x$ là $-5y$, hạng tử không chứa $x$ là $6y^2$. Hai đơn thức có tích bằng $1 \cdot 6y^2 = 6y^2$ và tổng bằng $-5y$ là $-2y$ và $-3y$.
+
+a) Tách $-5xy = -2xy - 3xy$ rồi nhóm: $x^2 - 5xy + 6y^2 = (x^2 - 2xy) - (3xy - 6y^2)$.
+
+a) Đặt nhân tử chung trong từng nhóm: $(x^2 - 2xy) - (3xy - 6y^2) = x(x - 2y) - 3y(x - 2y)$; đặt nhân tử chung $x - 2y$ ra ngoài: $x(x - 2y) - 3y(x - 2y) = (x - 2y)(x - 3y)$.
+
+b) Nhóm hai hạng tử cuối và đặt dấu trừ ra trước ngoặc: $-x + 2y = -(x - 2y)$. Dùng câu a): $x^2 - 5xy + 6y^2 - x + 2y = (x - 2y)(x - 3y) - (x - 2y)$.
+
+b) Đặt nhân tử chung $x - 2y$ ra ngoài: $(x - 2y)(x - 3y) - (x - 2y) = (x - 2y)(x - 3y - 1)$.
+
+Đáp số: a) $\boxed{(x - 2y)(x - 3y)}$; b) $\boxed{(x - 2y)(x - 3y - 1)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: kích thước hình hộp chữ nhật
+\begin{problem}[8DS-PTNT-016]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-01, 8DS-PTNT-05, 8DS-PTNT-06
+% do_kho_du_kien: 3
+Một chiếc hộp có dạng hình hộp chữ nhật với chiều rộng $x$ (dm), $x > 0$, và thể tích $V = x^3 + 5x^2 + 6x$ (dm$^3$). Chiều dài và chiều cao của hộp lần lượt là $x + p$ (dm) và $x + q$ (dm), trong đó $p$, $q$ là các số nguyên dương và $p > q$.
+
+a) Tìm $p$ và $q$, từ đó biểu thị chiều dài và chiều cao của hộp theo $x$.
+
+b) Tính thể tích của hộp khi chiều cao của hộp bằng $6$ dm.
+
+\begin{solution}
+a) Đặt nhân tử chung $x$: $V = x^3 + 5x^2 + 6x = x(x^2 + 5x + 6)$.
+
+a) Phân tích $x^2 + 5x + 6$ bằng cách tách hạng tử: hai số có tích $1 \cdot 6 = 6$ và tổng $5$ là $2$ và $3$, nên tách $5x = 2x + 3x$: $x^2 + 2x + 3x + 6 = x(x + 2) + 3(x + 2) = (x + 2)(x + 3)$. Vậy $V = x(x + 2)(x + 3)$.
+
+a) Thể tích hình hộp chữ nhật bằng tích ba kích thước: $V = x(x + p)(x + q)$. Do đó $x(x + p)(x + q) = x(x + 2)(x + 3)$ với mọi $x > 0$; chia hai vế cho $x > 0$ được $(x + p)(x + q) = (x + 2)(x + 3)$, tức là $x^2 + (p + q)x + pq = x^2 + 5x + 6$ với mọi $x > 0$. Hai đa thức bằng nhau nên các hệ số tương ứng bằng nhau: $p + q = 5$ và $pq = 6$.
+
+a) Các cặp số nguyên dương có tổng bằng $5$ là $1$ và $4$ (tích $4$), $2$ và $3$ (tích $6$); chỉ cặp $2$ và $3$ có tích bằng $6$. Vì $p > q$ nên $p = 3$, $q = 2$: chiều dài là $x + 3$ (dm), chiều cao là $x + 2$ (dm).
+
+b) Chiều cao bằng $6$ dm nên $x + 2 = 6$, suy ra $x = 4$ (thoả mãn $x > 0$). Khi đó chiều rộng là $4$ dm, chiều dài là $4 + 3 = 7$ (dm).
+
+b) Thay $x = 4$ vào dạng tích: $V = 4 \cdot 6 \cdot 7 = 168$ (dm$^3$). Kiểm tra bằng biểu thức ban đầu: $4^3 + 5 \cdot 4^2 + 6 \cdot 4 = 64 + 80 + 24 = 168$ (đúng).
+
+Đáp số: a) $\boxed{p = 3,\ q = 2;\ \text{chiều dài } x + 3 \text{ (dm), chiều cao } x + 2 \text{ (dm)}}$; b) $\boxed{168 \text{ dm}^3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tách hạng tử với đa thức bậc ba, hai cách
+\begin{problem}[8DS-PTNT-017]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-05, 8DS-PTNT-04, 8DS-PTNT-02
+% do_kho_du_kien: 4
+Phân tích đa thức $x^3 - 7x + 6$ thành nhân tử.
+
+\begin{solution}[cách 1: tách hạng tử bậc nhất]
+Tách $-7x = -x - 6x$ để làm xuất hiện $x^3 - x$, rồi nhóm: $x^3 - 7x + 6 = (x^3 - x) - (6x - 6)$.
+
+Đặt nhân tử chung trong từng nhóm, nhóm đầu dùng thêm hằng đẳng thức hiệu hai bình phương: $x^3 - x = x(x^2 - 1) = x(x - 1)(x + 1)$ và $6x - 6 = 6(x - 1)$.
+
+Đặt nhân tử chung $x - 1$ ra ngoài: $x(x - 1)(x + 1) - 6(x - 1) = (x - 1)\left[x(x + 1) - 6\right] = (x - 1)(x^2 + x - 6)$.
+
+Phân tích tiếp $x^2 + x - 6$ bằng cách tách hạng tử: hai số có tích $-6$ và tổng $1$ là $3$ và $-2$, nên $x^2 + x - 6 = x^2 + 3x - 2x - 6 = x(x + 3) - 2(x + 3) = (x + 3)(x - 2)$.
+
+Vậy $x^3 - 7x + 6 = (x - 1)(x - 2)(x + 3)$; các nhân tử đều có bậc nhất nên không phân tích được nữa.
+
+Đáp số: $\boxed{(x - 1)(x - 2)(x + 3)}$
+\end{solution}
+
+\begin{solution}[cách 2: tách hạng tử tự do]
+Tách $6 = -1 + 7$ để làm xuất hiện hiệu hai lập phương $x^3 - 1$, rồi nhóm: $x^3 - 7x + 6 = (x^3 - 1) - (7x - 7)$.
+
+Áp dụng hằng đẳng thức hiệu hai lập phương: $x^3 - 1 = (x - 1)(x^2 + x + 1)$; đặt nhân tử chung: $7x - 7 = 7(x - 1)$.
+
+Đặt nhân tử chung $x - 1$ ra ngoài: $(x - 1)(x^2 + x + 1) - 7(x - 1) = (x - 1)(x^2 + x + 1 - 7) = (x - 1)(x^2 + x - 6)$.
+
+Tách $x = 3x - 2x$ như ở cách 1: $x^2 + x - 6 = x(x + 3) - 2(x + 3) = (x + 3)(x - 2)$. Vậy $x^3 - 7x + 6 = (x - 1)(x - 2)(x + 3)$.
+
+Đáp số: $\boxed{(x - 1)(x - 2)(x + 3)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- thêm và bớt cùng một hạng tử
+\begin{problem}[8DS-PTNT-018]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-04, 8DS-PTNT-02
+% do_kho_du_kien: 4
+Phân tích đa thức $x^4 + 64$ thành nhân tử.
+
+\begin{solution}
+Ta có $x^4 = (x^2)^2$ và $64 = 8^2$; để có bình phương của một tổng $(x^2 + 8)^2 = x^4 + 16x^2 + 64$ còn thiếu hạng tử $2 \cdot x^2 \cdot 8 = 16x^2$. Thêm và bớt $16x^2$ (giá trị đa thức không đổi): $x^4 + 64 = (x^4 + 16x^2 + 64) - 16x^2$.
+
+Áp dụng hằng đẳng thức bình phương của một tổng: $x^4 + 16x^2 + 64 = (x^2 + 8)^2$; lại có $16x^2 = (4x)^2$. Do đó $x^4 + 64 = (x^2 + 8)^2 - (4x)^2$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương với $A = x^2 + 8$, $B = 4x$: $(x^2 + 8)^2 - (4x)^2 = (x^2 + 8 - 4x)(x^2 + 8 + 4x) = (x^2 - 4x + 8)(x^2 + 4x + 8)$.
+
+Hai nhân tử bậc hai không phân tích được nữa: $x^2 - 4x + 8 = (x - 2)^2 + 4 > 0$ và $x^2 + 4x + 8 = (x + 2)^2 + 4 > 0$ với mọi $x$, nên chúng không có nghiệm, do đó không có nhân tử bậc nhất.
+
+Đáp số: $\boxed{(x^2 - 4x + 8)(x^2 + 4x + 8)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm nghiệm nguyên nhờ đưa về dạng tích
+\begin{problem}[8DS-PTNT-019]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-03, 8DS-PTNT-06
+% do_kho_du_kien: 4
+Tìm tất cả các cặp số nguyên $(x; y)$ thoả mãn $xy + 2x - 3y = 11$.
+
+\begin{solution}
+Nhóm các hạng tử chứa $x$ và đặt nhân tử chung: $xy + 2x - 3y = x(y + 2) - 3y$. Để hạng tử $-3y$ cũng tạo ra nhân tử $y + 2$, trừ $6$ ở cả hai vế: $x(y + 2) - 3y - 6 = 11 - 6 = 5$.
+
+Đặt nhân tử chung: $-3y - 6 = -3(y + 2)$, nên vế trái bằng $x(y + 2) - 3(y + 2) = (x - 3)(y + 2)$. Phương trình trở thành $(x - 3)(y + 2) = 5$.
+
+Vì $x$, $y$ là số nguyên nên $x - 3$ và $y + 2$ là hai số nguyên có tích bằng $5$. Các ước của $5$ là $\pm 1$, $\pm 5$, nên cặp $(x - 3; y + 2)$ là một trong các cặp $(1; 5)$, $(5; 1)$, $(-1; -5)$, $(-5; -1)$.
+
+Giải từng trường hợp: $x - 3 = 1$, $y + 2 = 5$ cho $(x; y) = (4; 3)$; $x - 3 = 5$, $y + 2 = 1$ cho $(8; -1)$; $x - 3 = -1$, $y + 2 = -5$ cho $(2; -7)$; $x - 3 = -5$, $y + 2 = -1$ cho $(-2; -3)$.
+
+Thử lại: $4 \cdot 3 + 8 - 9 = 11$; $8 \cdot (-1) + 16 + 3 = 11$; $2 \cdot (-7) + 4 + 21 = 11$; $(-2) \cdot (-3) - 4 + 9 = 11$ (đều đúng).
+
+Đáp số: $\boxed{(x; y) \in \{(4; 3); (8; -1); (2; -7); (-2; -3)\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- thêm bớt để xuất hiện nhân tử chung bậc hai
+\begin{problem}[8DS-PTNT-020]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-04, 8DS-PTNT-03, 8DS-PTNT-02
+% do_kho_du_kien: 5
+Phân tích đa thức $x^5 + x + 1$ thành nhân tử.
+
+\begin{solution}
+Nhận xét: $x^3 - 1 = (x - 1)(x^2 + x + 1)$ (hằng đẳng thức hiệu hai lập phương), nên đa thức chứa $x^3 - 1$ sẽ có nhân tử $x^2 + x + 1$. Thêm và bớt $x^2$ để tách đa thức thành nhóm chứa $x^3 - 1$ và nhóm $x^2 + x + 1$: $x^5 + x + 1 = (x^5 - x^2) + (x^2 + x + 1)$.
+
+Đặt nhân tử chung $x^2$ ở nhóm đầu rồi dùng hằng đẳng thức hiệu hai lập phương: $x^5 - x^2 = x^2(x^3 - 1) = x^2(x - 1)(x^2 + x + 1)$.
+
+Đặt nhân tử chung $x^2 + x + 1$ ra ngoài: $x^2(x - 1)(x^2 + x + 1) + (x^2 + x + 1) = (x^2 + x + 1)\left[x^2(x - 1) + 1\right] = (x^2 + x + 1)(x^3 - x^2 + 1)$.
+
+Nhân tử $x^2 + x + 1 = \left(x + \dfrac{1}{2}\right)^2 + \dfrac{3}{4} > 0$ với mọi $x$, nên nó không có nghiệm, do đó không có nhân tử bậc nhất và không phân tích được nữa.
+
+Nhân tử $x^3 - x^2 + 1$ có bậc ba; nếu nó phân tích được thì phải có dạng $(x - r)(x^2 + px + q)$ với $r$, $p$, $q$ nguyên. So sánh hạng tử tự do: $-rq = 1$, nên $r = 1$ hoặc $r = -1$, và khi đó $x = r$ làm đa thức bằng $0$. Nhưng tại $x = 1$ đa thức bằng $1 - 1 + 1 = 1 \neq 0$, tại $x = -1$ đa thức bằng $-1 - 1 + 1 = -1 \neq 0$. Vậy $x^3 - x^2 + 1$ không phân tích được nữa.
+
+Đáp số: $\boxed{(x^2 + x + 1)(x^3 - x^2 + 1)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đặt nhân tử chung: hệ số phân số âm, hạng tử bằng nhân tử chung
+\begin{problem}[8DS-PTNT-021]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-01
+% do_kho_du_kien: 1
+Phân tích các đa thức sau thành nhân tử:
+
+a) $-\dfrac{1}{2}x^3y + x^2y^2 - \dfrac{3}{2}x^2y$;
+
+b) $2x(x + 5) + x + 5$.
+
+\begin{solution}
+a) Các hệ số đều là tích của $-\dfrac{1}{2}$ với một số nguyên: $-\dfrac{1}{2} = -\dfrac{1}{2} \cdot 1$, $1 = -\dfrac{1}{2} \cdot (-2)$, $-\dfrac{3}{2} = -\dfrac{1}{2} \cdot 3$; phần biến chung lấy mỗi biến với số mũ nhỏ nhất là $x^2y$. Chọn nhân tử chung của ba hạng tử là $-\dfrac{1}{2}x^2y$ (lấy dấu trừ để hệ số của hạng tử đầu tiên trong ngoặc là số dương).
+
+a) Viết mỗi hạng tử thành tích có thừa số $-\dfrac{1}{2}x^2y$: $-\dfrac{1}{2}x^3y = -\dfrac{1}{2}x^2y \cdot x$, $x^2y^2 = -\dfrac{1}{2}x^2y \cdot (-2y)$, $-\dfrac{3}{2}x^2y = -\dfrac{1}{2}x^2y \cdot 3$. Đặt nhân tử chung ra ngoài dấu ngoặc: $-\dfrac{1}{2}x^3y + x^2y^2 - \dfrac{3}{2}x^2y = -\dfrac{1}{2}x^2y(x - 2y + 3)$.
+
+b) Viết $x + 5 = 1 \cdot (x + 5)$; khi đó hai hạng tử $2x(x + 5)$ và $1 \cdot (x + 5)$ có nhân tử chung là đa thức $x + 5$.
+
+b) Đặt nhân tử chung $x + 5$ ra ngoài dấu ngoặc: $2x(x + 5) + 1 \cdot (x + 5) = (x + 5)(2x + 1)$.
+
+Đáp số: a) $\boxed{-\dfrac{1}{2}x^2y(x - 2y + 3)}$; b) $\boxed{(x + 5)(2x + 1)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh chia hết: nhân tử chung là luỹ thừa
+\begin{problem}[8DS-PTNT-022]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-01
+% do_kho_du_kien: 2
+Chứng minh rằng với mọi số tự nhiên $n$, số $5^{n + 2} + 5^{n + 1} + 5^n$ chia hết cho $31$.
+
+\begin{solution}
+Theo quy tắc nhân hai luỹ thừa cùng cơ số $a^{m + k} = a^m \cdot a^k$: $5^{n + 2} = 5^n \cdot 5^2 = 25 \cdot 5^n$ và $5^{n + 1} = 5^n \cdot 5 = 5 \cdot 5^n$.
+
+Ba hạng tử $25 \cdot 5^n$, $5 \cdot 5^n$ và $1 \cdot 5^n$ có nhân tử chung $5^n$; đặt $5^n$ ra ngoài dấu ngoặc: $5^{n + 2} + 5^{n + 1} + 5^n = 5^n(25 + 5 + 1) = 31 \cdot 5^n$.
+
+Vì $n$ là số tự nhiên nên $5^n$ là số tự nhiên, do đó $31 \cdot 5^n$ chia hết cho $31$. Vậy $5^{n + 2} + 5^{n + 1} + 5^n$ chia hết cho $31$ với mọi số tự nhiên $n$.
+
+Đáp số: $\boxed{5^{n + 2} + 5^{n + 1} + 5^n = 31 \cdot 5^n \text{ chia hết cho } 31}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hằng đẳng thức với A, B là đa thức
+\begin{problem}[8DS-PTNT-023]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-02
+% do_kho_du_kien: 2
+Phân tích các đa thức sau thành nhân tử:
+
+a) $(2x + 1)^2 - (x - 3)^2$;
+
+b) $x^3 + 9x^2 + 27x + 27$;
+
+c) $(x - 1)^3 + 8$.
+
+\begin{solution}
+a) Đa thức có dạng $A^2 - B^2$ với $A = 2x + 1$, $B = x - 3$. Theo hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$: $(2x + 1)^2 - (x - 3)^2 = \left[(2x + 1) - (x - 3)\right]\left[(2x + 1) + (x - 3)\right]$.
+
+a) Bỏ ngoặc và thu gọn trong mỗi thừa số: $(2x + 1) - (x - 3) = 2x + 1 - x + 3 = x + 4$ và $(2x + 1) + (x - 3) = 3x - 2$. Vậy đa thức bằng $(x + 4)(3x - 2)$.
+
+b) Viết $x^3 + 9x^2 + 27x + 27 = x^3 + 3 \cdot x^2 \cdot 3 + 3 \cdot x \cdot 3^2 + 3^3$, có dạng $A^3 + 3A^2B + 3AB^2 + B^3$ với $A = x$, $B = 3$. Theo hằng đẳng thức lập phương của một tổng, đa thức bằng $(x + 3)^3$.
+
+c) Viết $8 = 2^3$; đa thức có dạng $A^3 + B^3$ với $A = x - 1$, $B = 2$. Theo hằng đẳng thức tổng hai lập phương $A^3 + B^3 = (A + B)(A^2 - AB + B^2)$: $(x - 1)^3 + 2^3 = (x - 1 + 2)\left[(x - 1)^2 - 2(x - 1) + 4\right]$.
+
+c) Thu gọn: $x - 1 + 2 = x + 1$ và $(x - 1)^2 - 2(x - 1) + 4 = x^2 - 2x + 1 - 2x + 2 + 4 = x^2 - 4x + 7$. Nhân tử $x^2 - 4x + 7 = (x - 2)^2 + 3 > 0$ với mọi $x$ nên không có nghiệm, do đó không phân tích tiếp được. Vậy đa thức bằng $(x + 1)(x^2 - 4x + 7)$.
+
+Đáp số: a) $\boxed{(x + 4)(3x - 2)}$; b) $\boxed{(x + 3)^3}$; c) $\boxed{(x + 1)(x^2 - 4x + 7)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- dùng hằng đẳng thức nhiều lần
+\begin{problem}[8DS-PTNT-024]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-02, 8DS-HDT-04
+% do_kho_du_kien: 3
+Phân tích các đa thức sau thành nhân tử:
+
+a) $(x^2 + 4)^2 - 16x^2$;
+
+b) $x^6 - 64$.
+
+\begin{solution}
+a) Viết $16x^2 = (4x)^2$; đa thức có dạng $A^2 - B^2$ với $A = x^2 + 4$, $B = 4x$. Theo hằng đẳng thức hiệu hai bình phương: $(x^2 + 4)^2 - (4x)^2 = (x^2 + 4 - 4x)(x^2 + 4 + 4x) = (x^2 - 4x + 4)(x^2 + 4x + 4)$.
+
+a) Mỗi thừa số là một bình phương: $x^2 - 4x + 4 = x^2 - 2 \cdot x \cdot 2 + 2^2 = (x - 2)^2$ (bình phương của một hiệu) và $x^2 + 4x + 4 = x^2 + 2 \cdot x \cdot 2 + 2^2 = (x + 2)^2$ (bình phương của một tổng). Vậy đa thức bằng $(x - 2)^2(x + 2)^2$.
+
+b) Viết $x^6 = (x^3)^2$ và $64 = 8^2$, rồi áp dụng hằng đẳng thức hiệu hai bình phương: $x^6 - 64 = (x^3 - 8)(x^3 + 8)$.
+
+b) Viết $8 = 2^3$, rồi áp dụng hằng đẳng thức hiệu hai lập phương và tổng hai lập phương: $x^3 - 8 = (x - 2)(x^2 + 2x + 4)$ và $x^3 + 8 = (x + 2)(x^2 - 2x + 4)$.
+
+b) Hai nhân tử bậc hai không phân tích tiếp được: $x^2 + 2x + 4 = (x + 1)^2 + 3 > 0$ và $x^2 - 2x + 4 = (x - 1)^2 + 3 > 0$ với mọi $x$, nên chúng không có nghiệm, do đó không có nhân tử bậc nhất. Vậy $x^6 - 64 = (x - 2)(x + 2)(x^2 + 2x + 4)(x^2 - 2x + 4)$.
+
+Đáp số: a) $\boxed{(x - 2)^2(x + 2)^2}$; b) $\boxed{(x - 2)(x + 2)(x^2 + 2x + 4)(x^2 - 2x + 4)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hiệu hai bình phương lồng nhau, ứng dụng tam giác
+\begin{problem}[8DS-PTNT-025]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-02, 8DS-PTNT-03
+% do_kho_du_kien: 4
+a) Phân tích đa thức $4x^2y^2 - (x^2 + y^2 - z^2)^2$ thành nhân tử.
+
+b) Chứng minh rằng nếu $x$, $y$, $z$ là độ dài ba cạnh của một tam giác thì $4x^2y^2 - (x^2 + y^2 - z^2)^2 > 0$.
+
+\begin{solution}
+a) Viết $4x^2y^2 = (2xy)^2$; đa thức có dạng $A^2 - B^2$ với $A = 2xy$, $B = x^2 + y^2 - z^2$. Theo hằng đẳng thức hiệu hai bình phương: $4x^2y^2 - (x^2 + y^2 - z^2)^2 = (2xy - x^2 - y^2 + z^2)(2xy + x^2 + y^2 - z^2)$.
+
+a) Nhóm hạng tử trong thừa số thứ nhất rồi dùng hằng đẳng thức bình phương của một hiệu: $2xy - x^2 - y^2 + z^2 = z^2 - (x^2 - 2xy + y^2) = z^2 - (x - y)^2$; áp dụng hằng đẳng thức hiệu hai bình phương: $z^2 - (x - y)^2 = (z - x + y)(z + x - y)$.
+
+a) Nhóm hạng tử trong thừa số thứ hai rồi dùng hằng đẳng thức bình phương của một tổng: $2xy + x^2 + y^2 - z^2 = (x^2 + 2xy + y^2) - z^2 = (x + y)^2 - z^2$; áp dụng hằng đẳng thức hiệu hai bình phương: $(x + y)^2 - z^2 = (x + y - z)(x + y + z)$.
+
+a) Vậy $4x^2y^2 - (x^2 + y^2 - z^2)^2 = (x + y + z)(x + y - z)(y + z - x)(z + x - y)$.
+
+b) Vì $x$, $y$, $z$ là độ dài ba cạnh của một tam giác nên $x > 0$, $y > 0$, $z > 0$, do đó $x + y + z > 0$.
+
+b) Theo bất đẳng thức tam giác, mỗi cạnh nhỏ hơn tổng hai cạnh còn lại: $z < x + y$, $x < y + z$, $y < z + x$. Do đó $x + y - z > 0$, $y + z - x > 0$ và $z + x - y > 0$.
+
+b) Tích của bốn số dương là số dương, nên theo câu a): $4x^2y^2 - (x^2 + y^2 - z^2)^2 = (x + y + z)(x + y - z)(y + z - x)(z + x - y) > 0$.
+
+Đáp số: a) $\boxed{(x + y + z)(x + y - z)(y + z - x)(z + x - y)}$; b) $\boxed{4x^2y^2 - (x^2 + y^2 - z^2)^2 > 0}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhóm theo luỹ thừa của một biến, đa thức ba biến
+\begin{problem}[8DS-PTNT-026]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-03, 8DS-PTNT-01, 8DS-PTNT-02
+% do_kho_du_kien: 4
+Phân tích đa thức $x^2y + xy^2 + x^2z + xz^2 + y^2z + yz^2 + 2xyz$ thành nhân tử.
+
+\begin{solution}
+Sắp xếp theo luỹ thừa giảm dần của $x$ và nhóm các hạng tử có cùng luỹ thừa của $x$: $x^2y + xy^2 + x^2z + xz^2 + y^2z + yz^2 + 2xyz = (x^2y + x^2z) + (xy^2 + 2xyz + xz^2) + (y^2z + yz^2)$.
+
+Đặt nhân tử chung trong từng nhóm: $x^2y + x^2z = x^2(y + z)$; $xy^2 + 2xyz + xz^2 = x(y^2 + 2yz + z^2) = x(y + z)^2$ (hằng đẳng thức bình phương của một tổng); $y^2z + yz^2 = yz(y + z)$.
+
+Ba nhóm có nhân tử chung $y + z$; đặt ra ngoài dấu ngoặc: $x^2(y + z) + x(y + z)^2 + yz(y + z) = (y + z)\left[x^2 + x(y + z) + yz\right] = (y + z)(x^2 + xy + xz + yz)$.
+
+Nhóm hạng tử trong ngoặc và đặt nhân tử chung: $x^2 + xy + xz + yz = (x^2 + xy) + (xz + yz) = x(x + y) + z(x + y) = (x + y)(x + z)$.
+
+Vậy đa thức bằng $(y + z)(x + y)(x + z) = (x + y)(y + z)(z + x)$; các nhân tử đều có bậc nhất nên không phân tích được nữa.
+
+Đáp số: $\boxed{(x + y)(y + z)(z + x)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tách hạng tử: hệ số tự do âm, hệ số bậc hai âm
+\begin{problem}[8DS-PTNT-027]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-05
+% do_kho_du_kien: 2
+Phân tích các đa thức sau thành nhân tử:
+
+a) $x^2 + 5x - 14$;
+
+b) $-x^2 + 4x + 5$.
+
+\begin{solution}
+a) Tam thức có dạng $ax^2 + bx + c$ với $a = 1$, $b = 5$, $c = -14$. Tìm hai số có tích bằng $ac = -14$ và tổng bằng $b = 5$: đó là $7$ và $-2$.
+
+a) Tách $5x = 7x - 2x$ rồi nhóm và đặt nhân tử chung trong từng nhóm: $x^2 + 5x - 14 = (x^2 + 7x) - (2x + 14) = x(x + 7) - 2(x + 7)$.
+
+a) Đặt nhân tử chung $x + 7$ ra ngoài: $x(x + 7) - 2(x + 7) = (x + 7)(x - 2)$.
+
+b) Đặt dấu trừ ra ngoài để hệ số của $x^2$ dương: $-x^2 + 4x + 5 = -(x^2 - 4x - 5)$. Tìm hai số có tích bằng $-5$ và tổng bằng $-4$: đó là $-5$ và $1$.
+
+b) Tách $-4x = -5x + x$ rồi nhóm: $x^2 - 4x - 5 = (x^2 - 5x) + (x - 5) = x(x - 5) + (x - 5) = (x - 5)(x + 1)$.
+
+b) Do đó $-x^2 + 4x + 5 = -(x - 5)(x + 1) = (5 - x)(x + 1)$.
+
+Đáp số: a) $\boxed{(x + 7)(x - 2)}$; b) $\boxed{(x + 1)(5 - x)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tách hạng tử với đa thức trùng phương
+\begin{problem}[8DS-PTNT-028]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-05, 8DS-PTNT-02
+% do_kho_du_kien: 3
+Phân tích các đa thức sau thành nhân tử:
+
+a) $x^4 - 5x^2 + 4$;
+
+b) $x^4 + x^2 - 20$.
+
+\begin{solution}
+a) Vì $x^4 = (x^2)^2$, coi đa thức là tam thức đối với $x^2$ với các hệ số $1$, $-5$, $4$. Hai số có tích bằng $4$ và tổng bằng $-5$ là $-1$ và $-4$, nên tách $-5x^2 = -x^2 - 4x^2$: $x^4 - 5x^2 + 4 = x^4 - x^2 - 4x^2 + 4$.
+
+a) Nhóm và đặt nhân tử chung trong từng nhóm: $(x^4 - x^2) - (4x^2 - 4) = x^2(x^2 - 1) - 4(x^2 - 1)$; đặt nhân tử chung $x^2 - 1$ ra ngoài: $(x^2 - 1)(x^2 - 4)$.
+
+a) Áp dụng hằng đẳng thức hiệu hai bình phương: $x^2 - 1 = (x - 1)(x + 1)$ và $x^2 - 4 = (x - 2)(x + 2)$. Vậy $x^4 - 5x^2 + 4 = (x - 1)(x + 1)(x - 2)(x + 2)$.
+
+b) Coi đa thức là tam thức đối với $x^2$ với các hệ số $1$, $1$, $-20$. Hai số có tích bằng $-20$ và tổng bằng $1$ là $5$ và $-4$, nên tách $x^2 = 5x^2 - 4x^2$: $x^4 + x^2 - 20 = x^4 + 5x^2 - 4x^2 - 20$.
+
+b) Nhóm và đặt nhân tử chung: $(x^4 + 5x^2) - (4x^2 + 20) = x^2(x^2 + 5) - 4(x^2 + 5) = (x^2 + 5)(x^2 - 4)$.
+
+b) Áp dụng hằng đẳng thức hiệu hai bình phương: $x^2 - 4 = (x - 2)(x + 2)$. Nhân tử $x^2 + 5 \geq 5 > 0$ với mọi $x$ nên không có nghiệm, do đó không phân tích tiếp được. Vậy $x^4 + x^2 - 20 = (x - 2)(x + 2)(x^2 + 5)$.
+
+Đáp số: a) $\boxed{(x - 1)(x + 1)(x - 2)(x + 2)}$; b) $\boxed{(x - 2)(x + 2)(x^2 + 5)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: kích thước mảnh vườn
+\begin{problem}[8DS-PTNT-029]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-06, 8DS-PTNT-05, 8DS-PT1-03
+% do_kho_du_kien: 3
+Một mảnh vườn hình chữ nhật có chiều dài hơn chiều rộng $3$ m và có diện tích bằng $40$ m$^2$. Tính chu vi của mảnh vườn.
+
+\begin{solution}
+Gọi chiều rộng của mảnh vườn là $x$ (m), điều kiện $x > 0$. Khi đó chiều dài của mảnh vườn là $x + 3$ (m).
+
+Diện tích hình chữ nhật bằng chiều dài nhân chiều rộng, nên ta có phương trình $x(x + 3) = 40$, tức là $x^2 + 3x - 40 = 0$.
+
+Phân tích vế trái thành nhân tử bằng cách tách hạng tử: hai số có tích bằng $-40$ và tổng bằng $3$ là $8$ và $-5$, nên tách $3x = 8x - 5x$: $x^2 + 8x - 5x - 40 = x(x + 8) - 5(x + 8) = (x + 8)(x - 5)$.
+
+Phương trình trở thành $(x + 8)(x - 5) = 0$. Một tích bằng $0$ khi và chỉ khi có ít nhất một thừa số bằng $0$: $x + 8 = 0$ hoặc $x - 5 = 0$, tức là $x = -8$ hoặc $x = 5$.
+
+Đối chiếu điều kiện $x > 0$: loại $x = -8$, nhận $x = 5$. Vậy chiều rộng là $5$ m, chiều dài là $5 + 3 = 8$ (m). Thử lại: $5 \cdot 8 = 40$ (đúng).
+
+Chu vi của mảnh vườn là $2(5 + 8) = 26$ (m).
+
+Đáp số: $\boxed{26 \text{ m}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm x: phương trình có các lập phương, hai cách
+\begin{problem}[8DS-PTNT-030]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-06, 8DS-HDT-03, 8DS-PTNT-03
+% do_kho_du_kien: 4
+Tìm $x$, biết $(x - 3)^3 + (x + 1)^3 = 8(x - 1)^3$.
+
+\begin{solution}[cách 1: đặt ẩn phụ, dùng dạng thu gọn của lập phương một tổng]
+Đặt $a = x - 3$ và $b = x + 1$. Khi đó $a + b = 2x - 2 = 2(x - 1)$, nên $8(x - 1)^3 = \left[2(x - 1)\right]^3 = (a + b)^3$. Phương trình trở thành $a^3 + b^3 = (a + b)^3$.
+
+Từ hằng đẳng thức lập phương của một tổng: $(a + b)^3 = a^3 + 3a^2b + 3ab^2 + b^3 = a^3 + b^3 + 3ab(a + b)$. Do đó phương trình tương đương với $3ab(a + b) = 0$.
+
+Thay lại $a = x - 3$, $b = x + 1$, $a + b = 2(x - 1)$: $3(x - 3)(x + 1) \cdot 2(x - 1) = 0$, tức là $6(x - 3)(x + 1)(x - 1) = 0$.
+
+Một tích bằng $0$ khi và chỉ khi có ít nhất một thừa số bằng $0$: $x - 3 = 0$ hoặc $x + 1 = 0$ hoặc $x - 1 = 0$, tức là $x = 3$ hoặc $x = -1$ hoặc $x = 1$.
+
+Đáp số: $\boxed{x \in \{-1; 1; 3\}}$
+\end{solution}
+
+\begin{solution}[cách 2: khai triển rồi phân tích thành nhân tử]
+Áp dụng hằng đẳng thức lập phương của một hiệu và lập phương của một tổng: $(x - 3)^3 = x^3 - 9x^2 + 27x - 27$, $(x + 1)^3 = x^3 + 3x^2 + 3x + 1$ và $8(x - 1)^3 = 8(x^3 - 3x^2 + 3x - 1) = 8x^3 - 24x^2 + 24x - 8$.
+
+Cộng hai lập phương ở vế trái: $(x - 3)^3 + (x + 1)^3 = 2x^3 - 6x^2 + 30x - 26$. Chuyển vế trái sang vế phải và thu gọn: $8x^3 - 24x^2 + 24x - 8 - (2x^3 - 6x^2 + 30x - 26) = 0$, tức là $6x^3 - 18x^2 - 6x + 18 = 0$.
+
+Đặt nhân tử chung $6$ rồi nhóm hạng tử: $6(x^3 - 3x^2 - x + 3) = 6\left[x^2(x - 3) - (x - 3)\right] = 6(x - 3)(x^2 - 1)$; áp dụng hằng đẳng thức hiệu hai bình phương: $x^2 - 1 = (x - 1)(x + 1)$. Phương trình trở thành $6(x - 3)(x - 1)(x + 1) = 0$.
+
+Một tích bằng $0$ khi và chỉ khi có ít nhất một thừa số bằng $0$: $x = 3$ hoặc $x = 1$ hoặc $x = -1$.
+
+Đáp số: $\boxed{x \in \{-1; 1; 3\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính nhanh tích nhiều phân số nhờ phân tích nhân tử
+\begin{problem}[8DS-PTNT-031]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PTNT-06, 8DS-PTNT-02
+% do_kho_du_kien: 5
+Tính giá trị của biểu thức
+\[ A = \dfrac{2^3 - 1}{2^3 + 1} \cdot \dfrac{3^3 - 1}{3^3 + 1} \cdot \dfrac{4^3 - 1}{4^3 + 1} \cdots \dfrac{10^3 - 1}{10^3 + 1}. \]
+
+\begin{solution}
+Với mỗi số tự nhiên $k \geq 2$, áp dụng hằng đẳng thức hiệu hai lập phương và tổng hai lập phương: $k^3 - 1 = (k - 1)(k^2 + k + 1)$ và $k^3 + 1 = (k + 1)(k^2 - k + 1)$. Do đó $\dfrac{k^3 - 1}{k^3 + 1} = \dfrac{k - 1}{k + 1} \cdot \dfrac{k^2 + k + 1}{k^2 - k + 1}$.
+
+Áp dụng cho $k = 2, 3, \ldots, 10$ và đổi chỗ các thừa số, ta được $A = B \cdot C$ với $B = \dfrac{1}{3} \cdot \dfrac{2}{4} \cdot \dfrac{3}{5} \cdots \dfrac{9}{11}$ (tích các phân số $\dfrac{k - 1}{k + 1}$) và $C = \dfrac{7}{3} \cdot \dfrac{13}{7} \cdot \dfrac{21}{13} \cdots \dfrac{111}{91}$ (tích các phân số $\dfrac{k^2 + k + 1}{k^2 - k + 1}$).
+
+Tính $B$: tử số là $1 \cdot 2 \cdot 3 \cdots 9$, mẫu số là $3 \cdot 4 \cdot 5 \cdots 11$; rút gọn các thừa số chung $3, 4, \ldots, 9$ được $B = \dfrac{1 \cdot 2}{10 \cdot 11} = \dfrac{1}{55}$.
+
+Tính $C$: theo hằng đẳng thức bình phương của một hiệu, $(k - 1)^2 + (k - 1) + 1 = k^2 - 2k + 1 + k - 1 + 1 = k^2 - k + 1$. Vậy mẫu số của phân số ứng với $k$ bằng tử số của phân số ứng với $k - 1$, nên các thừa số đó rút gọn liên tiếp, chỉ còn tử số ứng với $k = 10$ và mẫu số ứng với $k = 2$: $C = \dfrac{10^2 + 10 + 1}{2^2 - 2 + 1} = \dfrac{111}{3} = 37$.
+
+Do đó $A = B \cdot C = \dfrac{1}{55} \cdot 37 = \dfrac{37}{55}$.
+
+Đáp số: $\boxed{A = \dfrac{37}{55}}$
+\end{solution}
+\end{problem}
+
+\end{document}

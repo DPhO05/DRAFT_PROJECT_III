@@ -1,0 +1,41 @@
+/* Hôm nay */
+#view[data-tab="today"] .td-top { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px; align-items: start; }
+#view[data-tab="today"] .td-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1080px) { #view[data-tab="today"] .td-top, #view[data-tab="today"] .td-pair { grid-template-columns: minmax(0, 1fr); } }
+#view[data-tab="today"] .td-big { font: 600 22px/1 var(--font-head); color: var(--warn); }
+#view[data-tab="today"] .td-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink-2); }
+#view[data-tab="today"] .td-h3 { font-size: 14px; color: var(--ink-2); }
+#view[data-tab="today"] .td-tight { gap: 4px 6px; }
+#view[data-tab="today"] .td-gchips { gap: 6px; }
+#view[data-tab="today"] .td-gchip { display: inline-flex; align-items: center; gap: 4px; }
+#view[data-tab="today"] .td-gchip b { color: var(--c); }
+#view[data-tab="today"] .td-gchip .td-n { min-width: 18px; padding: 0 4px; border-radius: 2px; background: color-mix(in srgb, var(--c) 14%, var(--sheet)); color: var(--c); font-weight: 600; }
+#view[data-tab="today"] .td-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+#view[data-tab="today"] .td-item { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 12px; padding: 8px 10px; border-radius: 3px; }
+#view[data-tab="today"] .td-item-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 260px; }
+#view[data-tab="today"] .td-meta { color: var(--ink-2); }
+#view[data-tab="today"] .td-item .btn-wrap { max-width: 100%; margin-left: auto; align-items: flex-end; }
+#view[data-tab="today"] .td-item .cli { text-align: right; }
+#view[data-tab="today"] .td-warn .callout > .btn, #view[data-tab="today"] .td-warn .callout > .btn-wrap { align-self: flex-start; }
+#view[data-tab="today"] .td-err { color: var(--crit); overflow-wrap: anywhere; }
+#view[data-tab="today"] .td-card { gap: 10px; }
+#view[data-tab="today"] .td-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+#view[data-tab="today"] .td-card-body { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; }
+#view[data-tab="today"] .td-card-body .kpi-value { display: flex; align-items: center; gap: 6px; }
+#view[data-tab="today"] .td-card-acts { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; border-top: 1px dashed var(--line); padding-top: 10px; }
+#view[data-tab="today"] .td-lines { display: flex; flex-direction: column; gap: 4px; color: var(--ink-2); }
+#view[data-tab="today"] .td-att-row { display: grid; grid-template-columns: minmax(140px, 180px) minmax(0, 1fr) auto; gap: 8px 12px; align-items: start; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+#view[data-tab="today"] .td-att-row:last-child { border-bottom: 0; padding-bottom: 0; }
+#view[data-tab="today"] .td-reason { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
+#view[data-tab="today"] .td-reason .chip { white-space: normal; }
+@media (max-width: 560px) { #view[data-tab="today"] .td-att-row { grid-template-columns: minmax(0, 1fr); } }
+#view[data-tab="today"] .td-cost { gap: 4px; max-width: 280px; }
+#view[data-tab="today"] .td-acts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+#view[data-tab="today"] .td-acts li { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+#view[data-tab="today"] .td-acts li:last-child { border-bottom: 0; }
+#view[data-tab="today"] .td-act-at { padding-top: 2px; }
+@media (max-width: 560px) { #view[data-tab="today"] .td-acts li { grid-template-columns: minmax(0, 1fr); } }
+#view[data-tab="today"] .td-chip { white-space: normal; flex-wrap: wrap; column-gap: 4px; }
+#view[data-tab="today"] .td-chip > span { white-space: nowrap; }
+#view[data-tab="today"] .td-att-row > .btn { justify-self: start; }
+#view[data-tab="today"] .td-chip > .td-kc { max-width: 24ch; overflow: hidden; text-overflow: ellipsis; }

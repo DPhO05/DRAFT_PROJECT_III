@@ -1,0 +1,890 @@
+% Ngân hàng bài mẫu: Phương trình bậc nhất một ẩn (lớp 8).
+% Quy ước:
+%   - Mỗi bài: \begin{problem}[id] ... \end{problem}; lời giải lồng bên trong.
+%   - id: duy nhất, không dấu, không đổi, không dùng lại. Dạng <lớp><phân môn>-<chủ đề>-<số>.
+%   - Mỗi bước lời giải là 1 đoạn, các bước cách nhau 1 dòng trống; mỗi bước có lý do.
+%   - Dòng cuối lời giải: Đáp số: $\boxed{...}$
+%   - Cách giải khác: thêm \begin{solution}[cách 2].
+%   - Metadata bằng comment ngay sau \begin{problem}: % nguon:, % lop:
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- giải phương trình bậc nhất cơ bản
+\begin{problem}[8DS-PT1-001]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-01
+% do_kho_du_kien: 1
+Giải các phương trình sau:
+
+a) $4x - 20 = 0$;
+
+b) $5x + 8 = 3x - 4$.
+
+\begin{solution}
+a) Chuyển hạng tử $-20$ sang vế phải và đổi dấu (quy tắc chuyển vế): $4x = 20$.
+
+a) Chia hai vế cho $4$ (quy tắc nhân với một số khác $0$): $x = 5$.
+
+b) Chuyển $3x$ sang vế trái và $8$ sang vế phải, đổi dấu các hạng tử đó (quy tắc chuyển vế): $5x - 3x = -4 - 8$.
+
+b) Thu gọn hai vế: $2x = -12$.
+
+b) Chia hai vế cho $2$: $x = -6$. Thử lại: $5 \cdot (-6) + 8 = -22$ và $3 \cdot (-6) - 4 = -22$ (đúng).
+
+Đáp số: a) $\boxed{x = 5}$; b) $\boxed{x = -6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- kiểm tra nghiệm, tìm tham số
+\begin{problem}[8DS-PT1-002]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-04
+% do_kho_du_kien: 2
+a) Trong hai số $-2$ và $1$, số nào là nghiệm của phương trình $3x + 5 = x + 1$?
+
+b) Tìm $m$ để phương trình ẩn $x$: $2x + m = 5 - x$ nhận $x = 3$ làm nghiệm.
+
+\begin{solution}
+a) Thay $x = -2$ vào hai vế: vế trái $3 \cdot (-2) + 5 = -1$, vế phải $-2 + 1 = -1$. Hai vế bằng nhau nên $x = -2$ là nghiệm của phương trình.
+
+a) Thay $x = 1$ vào hai vế: vế trái $3 \cdot 1 + 5 = 8$, vế phải $1 + 1 = 2$. Vì $8 \neq 2$ nên $x = 1$ không là nghiệm của phương trình.
+
+b) Phương trình nhận $x = 3$ làm nghiệm khi và chỉ khi thay $x = 3$ vào hai vế ta được đẳng thức đúng: $2 \cdot 3 + m = 5 - 3$.
+
+b) Thu gọn: $6 + m = 2$; chuyển vế (quy tắc chuyển vế): $m = 2 - 6 = -4$.
+
+b) Thử lại: với $m = -4$, phương trình là $2x - 4 = 5 - x$; tại $x = 3$ hai vế đều bằng $2$ (đúng).
+
+Đáp số: a) $\boxed{x = -2 \text{ là nghiệm; } x = 1 \text{ không là nghiệm}}$; b) $\boxed{m = -4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- có dấu ngoặc
+\begin{problem}[8DS-PT1-003]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-02, 8DS-PT1-01
+% do_kho_du_kien: 2
+Giải phương trình $3(x - 2) - 2(x + 1) = 5 - x$.
+
+\begin{solution}
+Bỏ dấu ngoặc (nhân số với tổng, chú ý dấu trừ trước ngoặc thứ hai): $3x - 6 - 2x - 2 = 5 - x$.
+
+Thu gọn vế trái: $x - 8 = 5 - x$.
+
+Chuyển $-x$ sang vế trái và $-8$ sang vế phải, đổi dấu (quy tắc chuyển vế): $x + x = 5 + 8$, tức là $2x = 13$.
+
+Chia hai vế cho $2$: $x = \dfrac{13}{2}$.
+
+Thử lại: vế trái $3\left(\dfrac{13}{2} - 2\right) - 2\left(\dfrac{13}{2} + 1\right) = \dfrac{27}{2} - 15 = -\dfrac{3}{2}$; vế phải $5 - \dfrac{13}{2} = -\dfrac{3}{2}$ (đúng).
+
+Đáp số: $\boxed{x = \dfrac{13}{2}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- có mẫu số
+\begin{problem}[8DS-PT1-004]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-02
+% do_kho_du_kien: 3
+Giải phương trình $\dfrac{2x - 1}{3} - \dfrac{x + 2}{4} = \dfrac{x - 1}{6}$.
+
+\begin{solution}
+Mẫu chung của các mẫu số $3$, $4$, $6$ là $12$. Quy đồng mẫu hai vế: $\dfrac{4(2x - 1)}{12} - \dfrac{3(x + 2)}{12} = \dfrac{2(x - 1)}{12}$.
+
+Nhân hai vế với $12$ để khử mẫu (quy tắc nhân với một số khác $0$): $4(2x - 1) - 3(x + 2) = 2(x - 1)$.
+
+Bỏ dấu ngoặc: $8x - 4 - 3x - 6 = 2x - 2$; thu gọn vế trái: $5x - 10 = 2x - 2$.
+
+Chuyển vế: $5x - 2x = -2 + 10$, tức là $3x = 8$.
+
+Chia hai vế cho $3$: $x = \dfrac{8}{3}$.
+
+Thử lại: vế trái $\dfrac{2 \cdot \frac{8}{3} - 1}{3} - \dfrac{\frac{8}{3} + 2}{4} = \dfrac{13}{9} - \dfrac{7}{6} = \dfrac{5}{18}$; vế phải $\dfrac{\frac{8}{3} - 1}{6} = \dfrac{5}{18}$ (đúng).
+
+Đáp số: $\boxed{x = \dfrac{8}{3}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- dùng hằng đẳng thức, hạng tử bậc hai triệt tiêu
+\begin{problem}[8DS-PT1-005]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-02, 8DS-HDT-01, 8DS-HDT-02
+% do_kho_du_kien: 3
+Giải phương trình $(x + 2)^2 - (x - 3)(x + 3) = 5x + 1$.
+
+\begin{solution}
+Khai triển theo hằng đẳng thức bình phương của một tổng: $(x + 2)^2 = x^2 + 4x + 4$.
+
+Khai triển theo hằng đẳng thức hiệu hai bình phương: $(x - 3)(x + 3) = x^2 - 9$.
+
+Thay vào và bỏ ngoặc (chú ý dấu trừ trước ngoặc): $x^2 + 4x + 4 - x^2 + 9 = 5x + 1$; thu gọn vế trái ($x^2 - x^2 = 0$): $4x + 13 = 5x + 1$.
+
+Phương trình đã đưa được về dạng bậc nhất. Chuyển vế: $4x - 5x = 1 - 13$, tức là $-x = -12$.
+
+Nhân hai vế với $-1$: $x = 12$.
+
+Thử lại: vế trái $14^2 - 9 \cdot 15 = 196 - 135 = 61$; vế phải $5 \cdot 12 + 1 = 61$ (đúng).
+
+Đáp số: $\boxed{x = 12}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán về tuổi
+\begin{problem}[8DS-PT1-006]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-03
+% do_kho_du_kien: 3
+Năm nay tuổi mẹ gấp $3$ lần tuổi con. Sau $12$ năm nữa thì tuổi mẹ chỉ còn gấp $2$ lần tuổi con. Hỏi năm nay con bao nhiêu tuổi, mẹ bao nhiêu tuổi?
+
+\begin{solution}
+Gọi tuổi của con năm nay là $x$ (tuổi), điều kiện $x$ nguyên dương.
+
+Biểu diễn các đại lượng theo $x$: tuổi mẹ năm nay là $3x$ (tuổi); sau $12$ năm nữa tuổi con là $x + 12$ và tuổi mẹ là $3x + 12$ (tuổi).
+
+Sau $12$ năm nữa tuổi mẹ gấp $2$ lần tuổi con nên ta có phương trình: $3x + 12 = 2(x + 12)$.
+
+Giải phương trình: bỏ ngoặc được $3x + 12 = 2x + 24$; chuyển vế được $3x - 2x = 24 - 12$, tức là $x = 12$.
+
+Đối chiếu điều kiện: $x = 12$ nguyên dương (thoả mãn). Khi đó tuổi mẹ năm nay là $3 \cdot 12 = 36$ (tuổi).
+
+Thử lại: sau $12$ năm con $24$ tuổi, mẹ $48$ tuổi, và $48 = 2 \cdot 24$ (đúng).
+
+Đáp số: $\boxed{\text{Con } 12 \text{ tuổi, mẹ } 36 \text{ tuổi}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chuyển động trên dòng nước, có cách giải khác
+\begin{problem}[8DS-PT1-007]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-03, 8DS-PT1-02
+% do_kho_du_kien: 4
+Một ca nô xuôi dòng từ bến A đến bến B mất $4$ giờ và ngược dòng từ bến B về bến A mất $5$ giờ. Tính khoảng cách giữa hai bến A và B, biết vận tốc của dòng nước là $2$ km/h.
+
+\begin{solution}[cách 1: chọn ẩn là khoảng cách AB]
+Gọi khoảng cách giữa hai bến A và B là $x$ (km), điều kiện $x > 0$.
+
+Vận tốc bằng quãng đường chia cho thời gian: vận tốc xuôi dòng là $\dfrac{x}{4}$ (km/h), vận tốc ngược dòng là $\dfrac{x}{5}$ (km/h).
+
+Vận tốc xuôi dòng bằng vận tốc riêng của ca nô cộng vận tốc dòng nước, vận tốc ngược dòng bằng vận tốc riêng trừ vận tốc dòng nước; do đó vận tốc xuôi dòng lớn hơn vận tốc ngược dòng $2 \cdot 2 = 4$ (km/h). Ta có phương trình: $\dfrac{x}{4} - \dfrac{x}{5} = 4$.
+
+Nhân hai vế với mẫu chung $20$ để khử mẫu: $5x - 4x = 80$, tức là $x = 80$.
+
+Đối chiếu điều kiện: $x = 80 > 0$ (thoả mãn). Thử lại: vận tốc xuôi dòng $80 : 4 = 20$ km/h, ngược dòng $80 : 5 = 16$ km/h, hiệu bằng $4$ km/h (đúng).
+
+Đáp số: $\boxed{80 \text{ km}}$
+\end{solution}
+
+\begin{solution}[cách 2: chọn ẩn là vận tốc riêng của ca nô]
+Gọi vận tốc riêng của ca nô là $v$ (km/h), điều kiện $v > 2$ (để ca nô đi ngược dòng được).
+
+Vận tốc xuôi dòng là $v + 2$ (km/h), vận tốc ngược dòng là $v - 2$ (km/h). Quãng đường bằng vận tốc nhân thời gian: quãng đường xuôi dòng là $4(v + 2)$ (km), quãng đường ngược dòng là $5(v - 2)$ (km).
+
+Hai quãng đường này đều bằng khoảng cách AB nên ta có phương trình: $4(v + 2) = 5(v - 2)$.
+
+Giải phương trình: bỏ ngoặc được $4v + 8 = 5v - 10$; chuyển vế được $4v - 5v = -10 - 8$, tức là $-v = -18$, nên $v = 18$.
+
+Đối chiếu điều kiện: $v = 18 > 2$ (thoả mãn). Khoảng cách AB là $4 \cdot (18 + 2) = 80$ (km).
+
+Đáp số: $\boxed{80 \text{ km}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán năng suất
+\begin{problem}[8DS-PT1-008]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-03, 8DS-PT1-02
+% do_kho_du_kien: 4
+Theo kế hoạch, một tổ sản xuất mỗi ngày phải làm $50$ sản phẩm. Khi thực hiện, mỗi ngày tổ làm được $57$ sản phẩm, vì vậy tổ đã hoàn thành sớm hơn kế hoạch $1$ ngày và còn làm vượt mức $13$ sản phẩm. Hỏi theo kế hoạch, tổ phải làm bao nhiêu sản phẩm?
+
+\begin{solution}
+Gọi số sản phẩm tổ phải làm theo kế hoạch là $x$ (sản phẩm), điều kiện $x$ nguyên dương.
+
+Thời gian bằng số sản phẩm chia cho số sản phẩm làm mỗi ngày: thời gian làm theo kế hoạch là $\dfrac{x}{50}$ (ngày).
+
+Thực tế tổ làm được $x + 13$ sản phẩm, mỗi ngày $57$ sản phẩm, nên thời gian thực tế là $\dfrac{x + 13}{57}$ (ngày).
+
+Thời gian thực tế ít hơn kế hoạch $1$ ngày nên ta có phương trình: $\dfrac{x}{50} - \dfrac{x + 13}{57} = 1$.
+
+Nhân hai vế với mẫu chung $50 \cdot 57 = 2\,850$ để khử mẫu: $57x - 50(x + 13) = 2\,850$.
+
+Bỏ ngoặc và thu gọn: $57x - 50x - 650 = 2\,850$, tức là $7x = 3\,500$; chia hai vế cho $7$ được $x = 500$.
+
+Đối chiếu điều kiện: $x = 500$ nguyên dương (thoả mãn). Thử lại: theo kế hoạch làm trong $500 : 50 = 10$ ngày; thực tế làm $513$ sản phẩm trong $513 : 57 = 9$ ngày, sớm hơn $1$ ngày (đúng).
+
+Đáp số: $\boxed{500 \text{ sản phẩm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: nhận nghiệm của phương trình khác
+\begin{problem}[8DS-PT1-009]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-04, 8DS-PT1-01, 8DS-PTNT-06
+% do_kho_du_kien: 4
+Cho hai phương trình ẩn $x$ (với $m$ là tham số):
+\[ 2x - 3 = x + 1 \quad (1) \qquad\qquad (m + 1)x - 3(m - x) = m^2 + 10 \quad (2) \]
+a) Giải phương trình (1).
+
+b) Tìm $m$ để phương trình (2) nhận nghiệm của phương trình (1) làm nghiệm.
+
+c) Với mỗi giá trị $m$ tìm được ở câu b), giải phương trình (2).
+
+\begin{solution}
+a) Chuyển vế (quy tắc chuyển vế): $2x - x = 1 + 3$, tức là $x = 4$.
+
+b) Phương trình (2) nhận $x = 4$ làm nghiệm khi và chỉ khi thay $x = 4$ vào hai vế của (2) ta được đẳng thức đúng: $(m + 1) \cdot 4 - 3(m - 4) = m^2 + 10$.
+
+b) Bỏ ngoặc và thu gọn vế trái: $4m + 4 - 3m + 12 = m^2 + 10$, tức là $m + 16 = m^2 + 10$. Chuyển vế: $m^2 - m - 6 = 0$.
+
+b) Phân tích vế trái thành nhân tử bằng cách tách $-m = 2m - 3m$: $m^2 + 2m - 3m - 6 = m(m + 2) - 3(m + 2) = (m + 2)(m - 3)$.
+
+b) Tích $(m + 2)(m - 3)$ bằng $0$ khi một trong hai thừa số bằng $0$: $m + 2 = 0$ hoặc $m - 3 = 0$, tức là $m = -2$ hoặc $m = 3$.
+
+c) Bỏ ngoặc và thu gọn vế trái của (2): $(m + 1)x - 3m + 3x = (m + 4)x - 3m$; chuyển vế, (2) trở thành $(m + 4)x = m^2 + 3m + 10$.
+
+c) Với $m = 3$: (2) trở thành $7x = 28$; hệ số $7 \neq 0$ nên chia hai vế cho $7$, phương trình có nghiệm duy nhất $x = 4$.
+
+c) Với $m = -2$: (2) trở thành $2x = 8$; hệ số $2 \neq 0$ nên chia hai vế cho $2$, phương trình có nghiệm duy nhất $x = 4$.
+
+Đáp số: a) $\boxed{x = 4}$; b) $\boxed{m = 3 \text{ hoặc } m = -2}$; c) $\boxed{\text{Với } m = 3 \text{ và với } m = -2, \text{ phương trình (2) đều có nghiệm duy nhất } x = 4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phương trình đặc biệt (cộng thêm 1 vào mỗi phân số)
+\begin{problem}[8DS-PT1-010]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-02, 8DS-PT1-01
+% do_kho_du_kien: 5
+Giải phương trình
+\[ \dfrac{x + 1}{2025} + \dfrac{x + 2}{2024} = \dfrac{x + 3}{2023} + \dfrac{x + 4}{2022}. \]
+
+\begin{solution}
+Cộng $2$ vào hai vế (phương trình mới có cùng nghiệm với phương trình đã cho), viết $2 = 1 + 1$ và cộng $1$ vào mỗi phân số:
+\[ \left(\dfrac{x + 1}{2025} + 1\right) + \left(\dfrac{x + 2}{2024} + 1\right) = \left(\dfrac{x + 3}{2023} + 1\right) + \left(\dfrac{x + 4}{2022} + 1\right). \]
+
+Quy đồng trong từng ngoặc (ví dụ $\dfrac{x + 1}{2025} + 1 = \dfrac{x + 1 + 2025}{2025}$): $\dfrac{x + 2026}{2025} + \dfrac{x + 2026}{2024} = \dfrac{x + 2026}{2023} + \dfrac{x + 2026}{2022}$.
+
+Chuyển các hạng tử ở vế phải sang vế trái rồi đặt nhân tử chung $x + 2026$: $(x + 2026)\left(\dfrac{1}{2025} + \dfrac{1}{2024} - \dfrac{1}{2023} - \dfrac{1}{2022}\right) = 0$.
+
+Hai phân số cùng tử dương, phân số nào có mẫu lớn hơn thì nhỏ hơn, nên $\dfrac{1}{2025} < \dfrac{1}{2023}$ và $\dfrac{1}{2024} < \dfrac{1}{2022}$. Do đó $\dfrac{1}{2025} + \dfrac{1}{2024} < \dfrac{1}{2023} + \dfrac{1}{2022}$, tức là số trong ngoặc âm, nên khác $0$.
+
+Đặt $a$ là số trong ngoặc ($a \neq 0$), phương trình có dạng $a(x + 2026) = 0$; chia hai vế cho $a$ được $x + 2026 = 0$, suy ra $x = -2026$.
+
+Thử lại: với $x = -2026$, vế trái $\dfrac{-2025}{2025} + \dfrac{-2024}{2024} = -2$, vế phải $\dfrac{-2023}{2023} + \dfrac{-2022}{2022} = -2$ (đúng).
+
+Đáp số: $\boxed{x = -2026}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhận biết phương trình bậc nhất một ẩn, hệ số a, b
+\begin{problem}[8DS-PT1-011]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-01
+% do_kho_du_kien: 1
+Trong các phương trình sau, phương trình nào là phương trình bậc nhất một ẩn? Với mỗi phương trình bậc nhất một ẩn, hãy chỉ ra hệ số $a$, $b$ và giải phương trình đó.
+
+a) $2x - 7 = 0$;
+
+b) $x^2 - 4 = 0$;
+
+c) $3 - \dfrac{1}{2}x = 0$;
+
+d) $0x + 5 = 0$.
+
+\begin{solution}
+a) Phương trình bậc nhất một ẩn là phương trình dạng $ax + b = 0$, với $a$, $b$ là hai số đã cho và $a \neq 0$. Phương trình $2x - 7 = 0$ có dạng đó với $a = 2 \neq 0$, $b = -7$, nên là phương trình bậc nhất một ẩn.
+
+a) Chuyển $-7$ sang vế phải và đổi dấu (quy tắc chuyển vế): $2x = 7$; chia hai vế cho $2$ (quy tắc nhân với một số khác $0$): $x = \dfrac{7}{2}$.
+
+b) Phương trình $x^2 - 4 = 0$ chứa $x^2$ (ẩn có bậc $2$) nên không có dạng $ax + b = 0$; đây không phải phương trình bậc nhất một ẩn.
+
+c) Đổi chỗ hai hạng tử ở vế trái: $-\dfrac{1}{2}x + 3 = 0$, có dạng $ax + b = 0$ với $a = -\dfrac{1}{2} \neq 0$, $b = 3$; đây là phương trình bậc nhất một ẩn.
+
+c) Chuyển $3$ sang vế phải và đổi dấu: $-\dfrac{1}{2}x = -3$; nhân hai vế với $-2$ (quy tắc nhân với một số khác $0$): $x = 6$.
+
+d) Phương trình $0x + 5 = 0$ có hệ số của $x$ bằng $0$, không thoả điều kiện $a \neq 0$, nên không phải phương trình bậc nhất một ẩn.
+
+Đáp số: a) $\boxed{\text{là phương trình bậc nhất một ẩn},\ a = 2,\ b = -7,\ x = \dfrac{7}{2}}$; b) $\boxed{\text{không là phương trình bậc nhất một ẩn}}$; c) $\boxed{\text{là phương trình bậc nhất một ẩn},\ a = -\dfrac{1}{2},\ b = 3,\ x = 6}$; d) $\boxed{\text{không là phương trình bậc nhất một ẩn}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- ứng dụng thực tế: đổi nhiệt độ
+\begin{problem}[8DS-PT1-012]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-01, 8DS-PT1-03
+% do_kho_du_kien: 2
+Công thức đổi nhiệt độ từ độ C sang độ F là $F = \dfrac{9}{5}C + 32$, trong đó $C$ là số đo nhiệt độ theo độ C và $F$ là số đo nhiệt độ theo độ F.
+
+a) Nhiệt độ $95^\circ$F ứng với bao nhiêu độ C?
+
+b) Ở nhiệt độ nào thì số đo theo độ C và số đo theo độ F bằng nhau?
+
+\begin{solution}
+a) Thay $F = 95$ vào công thức, ta được phương trình ẩn $C$: $\dfrac{9}{5}C + 32 = 95$.
+
+a) Chuyển $32$ sang vế phải (quy tắc chuyển vế): $\dfrac{9}{5}C = 63$; nhân hai vế với $\dfrac{5}{9}$ (quy tắc nhân với một số khác $0$): $C = 35$.
+
+a) Thử lại: $\dfrac{9}{5} \cdot 35 + 32 = 63 + 32 = 95$ (đúng).
+
+b) Gọi số đo chung theo cả hai thang là $x$ (độ). Khi đó $C = x$ và $F = x$; thay vào công thức ta có phương trình: $x = \dfrac{9}{5}x + 32$.
+
+b) Chuyển vế: $x - \dfrac{9}{5}x = 32$, tức là $-\dfrac{4}{5}x = 32$; nhân hai vế với $-\dfrac{5}{4}$: $x = -40$.
+
+b) Thử lại: $\dfrac{9}{5} \cdot (-40) + 32 = -72 + 32 = -40$ (đúng).
+
+Đáp số: a) $\boxed{35^\circ\text{C}}$; b) $\boxed{-40^\circ\text{C (tức là } -40^\circ\text{F)}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phương trình vô nghiệm, nghiệm đúng với mọi x
+\begin{problem}[8DS-PT1-013]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-02, 8DS-PT1-01
+% do_kho_du_kien: 2
+Giải các phương trình sau:
+
+a) $2(x + 3) - 5 = 2x + 4$;
+
+b) $3(x - 1) + 2 = 3x - 1$.
+
+\begin{solution}
+a) Bỏ dấu ngoặc (nhân số với tổng): $2x + 6 - 5 = 2x + 4$; thu gọn vế trái: $2x + 1 = 2x + 4$.
+
+a) Chuyển $2x$ sang vế trái và $1$ sang vế phải, đổi dấu (quy tắc chuyển vế): $2x - 2x = 4 - 1$, tức là $0x = 3$.
+
+a) Với mọi $x$ ta có $0x = 0 \neq 3$, nên không có giá trị nào của $x$ thoả mãn: phương trình vô nghiệm.
+
+b) Bỏ dấu ngoặc: $3x - 3 + 2 = 3x - 1$; thu gọn vế trái: $3x - 1 = 3x - 1$.
+
+b) Chuyển vế: $3x - 3x = -1 + 1$, tức là $0x = 0$.
+
+b) Đẳng thức $0x = 0$ đúng với mọi giá trị của $x$, nên phương trình nghiệm đúng với mọi $x$.
+
+Đáp số: a) $\boxed{\text{Phương trình vô nghiệm}}$; b) $\boxed{\text{Phương trình nghiệm đúng với mọi } x}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: điều kiện là phương trình bậc nhất
+\begin{problem}[8DS-PT1-014]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-04, 8DS-PT1-01
+% do_kho_du_kien: 2
+Cho phương trình ẩn $x$: $(m - 3)x + 2m - 1 = 0$ (với $m$ là tham số).
+
+a) Tìm $m$ để phương trình đã cho là phương trình bậc nhất một ẩn.
+
+b) Giải phương trình khi $m = 1$.
+
+c) Khi $m = 3$, phương trình có nghiệm không? Vì sao?
+
+\begin{solution}
+a) Phương trình có dạng $ax + b = 0$ với $a = m - 3$, $b = 2m - 1$. Đây là phương trình bậc nhất một ẩn khi và chỉ khi $a \neq 0$, tức là $m - 3 \neq 0$, hay $m \neq 3$.
+
+b) Với $m = 1$, thay vào phương trình: $(1 - 3)x + 2 \cdot 1 - 1 = 0$, tức là $-2x + 1 = 0$.
+
+b) Chuyển vế (quy tắc chuyển vế): $-2x = -1$; chia hai vế cho $-2$: $x = \dfrac{1}{2}$.
+
+c) Với $m = 3$, thay vào phương trình: $(3 - 3)x + 2 \cdot 3 - 1 = 0$, tức là $0x + 5 = 0$, hay $0x = -5$.
+
+c) Với mọi $x$ ta có $0x = 0 \neq -5$, nên phương trình không có nghiệm.
+
+Đáp số: a) $\boxed{m \neq 3}$; b) $\boxed{x = \dfrac{1}{2}}$; c) $\boxed{\text{Không, vì phương trình trở thành } 0x = -5 \text{ nên vô nghiệm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán về cấu tạo số
+\begin{problem}[8DS-PT1-015]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-03, 8DS-PT1-01
+% do_kho_du_kien: 3
+Một số tự nhiên có hai chữ số, trong đó chữ số hàng chục gấp đôi chữ số hàng đơn vị. Nếu đổi chỗ hai chữ số cho nhau thì được một số mới nhỏ hơn số ban đầu $36$ đơn vị. Tìm số ban đầu.
+
+\begin{solution}
+Gọi chữ số hàng đơn vị là $x$. Khi đó chữ số hàng chục là $2x$; vì chữ số hàng chục là chữ số từ $1$ đến $9$ nên $1 \leq 2x \leq 9$. Điều kiện: $x$ nguyên và $1 \leq x \leq 4$.
+
+Theo cấu tạo số (giá trị = $10 \cdot$ chữ số hàng chục $+$ chữ số hàng đơn vị): số ban đầu là $10 \cdot 2x + x = 21x$.
+
+Sau khi đổi chỗ, chữ số hàng chục là $x$ và chữ số hàng đơn vị là $2x$, nên số mới là $10x + 2x = 12x$.
+
+Số mới nhỏ hơn số ban đầu $36$ đơn vị nên ta có phương trình: $21x - 12x = 36$.
+
+Thu gọn vế trái: $9x = 36$; chia hai vế cho $9$: $x = 4$.
+
+Đối chiếu điều kiện: $x = 4$ nguyên và $1 \leq 4 \leq 4$ (thoả mãn). Chữ số hàng chục là $8$, số ban đầu là $84$.
+
+Thử lại: đổi chỗ hai chữ số được $48$, và $84 - 48 = 36$ (đúng).
+
+Đáp số: $\boxed{84}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán phần trăm, giảm giá
+\begin{problem}[8DS-PT1-016]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-03, 8DS-PT1-02
+% do_kho_du_kien: 3
+Chị Mai mua một chiếc áo và một chiếc quần với tổng giá niêm yết là $750\,000$ đồng. Trong đợt khuyến mãi, áo được giảm $20\%$ và quần được giảm $10\%$ so với giá niêm yết, nên chị Mai chỉ phải trả $630\,000$ đồng. Tính giá niêm yết của chiếc áo và của chiếc quần.
+
+\begin{solution}
+Gọi giá niêm yết của chiếc áo là $x$ (đồng), điều kiện $0 < x < 750\,000$. Khi đó giá niêm yết của chiếc quần là $750\,000 - x$ (đồng).
+
+Áo giảm $20\%$ nên chị Mai trả $100\% - 20\% = 80\% = \dfrac{4}{5}$ giá niêm yết, tức là $\dfrac{4}{5}x$ (đồng).
+
+Quần giảm $10\%$ nên chị Mai trả $90\% = \dfrac{9}{10}$ giá niêm yết, tức là $\dfrac{9}{10}(750\,000 - x)$ (đồng).
+
+Tổng số tiền phải trả là $630\,000$ đồng nên ta có phương trình: $\dfrac{4}{5}x + \dfrac{9}{10}(750\,000 - x) = 630\,000$.
+
+Nhân hai vế với mẫu chung $10$ để khử mẫu: $8x + 9(750\,000 - x) = 6\,300\,000$.
+
+Bỏ dấu ngoặc: $8x + 6\,750\,000 - 9x = 6\,300\,000$; chuyển vế: $-x = 6\,300\,000 - 6\,750\,000 = -450\,000$, nên $x = 450\,000$.
+
+Đối chiếu điều kiện: $0 < 450\,000 < 750\,000$ (thoả mãn). Giá niêm yết của quần là $750\,000 - 450\,000 = 300\,000$ (đồng).
+
+Thử lại: $\dfrac{4}{5} \cdot 450\,000 = 360\,000$ và $\dfrac{9}{10} \cdot 300\,000 = 270\,000$; tổng $360\,000 + 270\,000 = 630\,000$ (đúng).
+
+Đáp số: $\boxed{\text{Áo } 450\,000 \text{ đồng, quần } 300\,000 \text{ đồng}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chuyển động ngược chiều, khởi hành lệch giờ, có cách giải khác
+\begin{problem}[8DS-PT1-017]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-03, 8DS-PT1-02
+% do_kho_du_kien: 3
+Lúc $7$ giờ sáng, một xe máy khởi hành từ A đi về phía B với vận tốc $40$ km/h. Lúc $8$ giờ, một ô tô khởi hành từ B đi về phía A trên cùng con đường đó với vận tốc $60$ km/h. Biết quãng đường AB dài $190$ km. Hỏi hai xe gặp nhau lúc mấy giờ?
+
+\begin{solution}[cách 1: chọn ẩn là thời gian xe máy đã đi]
+Gọi thời gian xe máy đi từ lúc khởi hành đến lúc hai xe gặp nhau là $t$ (giờ). Trong $1$ giờ đầu xe máy chỉ đi được $40$ km $< 190$ km, nên hai xe gặp nhau sau $8$ giờ; điều kiện $t > 1$.
+
+Ô tô khởi hành sau xe máy $1$ giờ nên thời gian ô tô đã đi là $t - 1$ (giờ). Quãng đường bằng vận tốc nhân thời gian: xe máy đi được $40t$ (km), ô tô đi được $60(t - 1)$ (km).
+
+Hai xe đi ngược chiều nhau nên khi gặp nhau, tổng quãng đường hai xe đã đi bằng quãng đường AB. Ta có phương trình: $40t + 60(t - 1) = 190$.
+
+Bỏ dấu ngoặc: $40t + 60t - 60 = 190$; thu gọn và chuyển vế: $100t = 250$; chia hai vế cho $100$: $t = \dfrac{5}{2}$.
+
+Đối chiếu điều kiện: $t = \dfrac{5}{2} > 1$ (thoả mãn). $\dfrac{5}{2}$ giờ $= 2$ giờ $30$ phút, nên hai xe gặp nhau lúc $7$ giờ $+ 2$ giờ $30$ phút $= 9$ giờ $30$ phút.
+
+Thử lại: xe máy đi $40 \cdot \dfrac{5}{2} = 100$ km, ô tô đi $60 \cdot \dfrac{3}{2} = 90$ km, tổng $190$ km (đúng).
+
+Đáp số: $\boxed{9 \text{ giờ } 30 \text{ phút}}$
+\end{solution}
+
+\begin{solution}[cách 2: chọn ẩn là quãng đường xe máy đã đi]
+Gọi quãng đường xe máy đi từ A đến chỗ gặp nhau là $x$ (km). Hai xe gặp nhau sau $8$ giờ nên xe máy đã đi hơn $40$ km; điều kiện $40 < x < 190$.
+
+Quãng đường ô tô đi từ B đến chỗ gặp là $190 - x$ (km). Thời gian bằng quãng đường chia cho vận tốc: xe máy đi trong $\dfrac{x}{40}$ (giờ), ô tô đi trong $\dfrac{190 - x}{60}$ (giờ).
+
+Xe máy khởi hành sớm hơn ô tô $1$ giờ và hai xe gặp nhau cùng lúc, nên thời gian xe máy đi nhiều hơn của ô tô $1$ giờ. Ta có phương trình: $\dfrac{x}{40} - \dfrac{190 - x}{60} = 1$.
+
+Nhân hai vế với mẫu chung $120$ để khử mẫu: $3x - 2(190 - x) = 120$; bỏ dấu ngoặc: $3x - 380 + 2x = 120$; chuyển vế: $5x = 500$, nên $x = 100$.
+
+Đối chiếu điều kiện: $40 < 100 < 190$ (thoả mãn). Thời gian xe máy đã đi là $\dfrac{100}{40} = \dfrac{5}{2}$ giờ $= 2$ giờ $30$ phút, nên hai xe gặp nhau lúc $9$ giờ $30$ phút.
+
+Đáp số: $\boxed{9 \text{ giờ } 30 \text{ phút}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán hình học: chu vi, diện tích
+\begin{problem}[8DS-PT1-018]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-03, 8DS-PT1-02
+% do_kho_du_kien: 4
+Một mảnh vườn hình chữ nhật có chu vi $56$ m. Nếu tăng chiều rộng thêm $4$ m và giảm chiều dài đi $4$ m thì diện tích mảnh vườn tăng thêm $8$ m$^2$. Tính chiều dài và chiều rộng ban đầu của mảnh vườn.
+
+\begin{solution}
+Nửa chu vi của mảnh vườn là $56 : 2 = 28$ (m). Gọi chiều rộng ban đầu là $x$ (m); khi đó chiều dài là $28 - x$ (m). Chiều rộng nhỏ hơn chiều dài nên $x < 28 - x$; điều kiện $0 < x < 14$.
+
+Diện tích ban đầu bằng chiều dài nhân chiều rộng: $x(28 - x)$ (m$^2$).
+
+Sau khi thay đổi, chiều rộng là $x + 4$ (m), chiều dài là $28 - x - 4 = 24 - x$ (m); diện tích mới là $(x + 4)(24 - x)$ (m$^2$).
+
+Diện tích mới lớn hơn diện tích ban đầu $8$ m$^2$ nên ta có phương trình: $(x + 4)(24 - x) = x(28 - x) + 8$.
+
+Bỏ dấu ngoặc (nhân đa thức với đa thức): vế trái $24x - x^2 + 96 - 4x = -x^2 + 20x + 96$; vế phải $28x - x^2 + 8 = -x^2 + 28x + 8$.
+
+Cộng $x^2$ vào hai vế (hạng tử bậc hai triệt tiêu), phương trình trở thành $20x + 96 = 28x + 8$; chuyển vế: $20x - 28x = 8 - 96$, tức là $-8x = -88$; chia hai vế cho $-8$: $x = 11$.
+
+Đối chiếu điều kiện: $0 < 11 < 14$ (thoả mãn). Chiều dài ban đầu là $28 - 11 = 17$ (m).
+
+Thử lại: diện tích ban đầu $11 \cdot 17 = 187$ m$^2$; sau khi thay đổi các cạnh là $15$ m và $13$ m, diện tích $15 \cdot 13 = 195$ m$^2$; $195 - 187 = 8$ (đúng).
+
+Đáp số: $\boxed{\text{Chiều dài } 17 \text{ m, chiều rộng } 11 \text{ m}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: xét các trường hợp của hệ số a
+\begin{problem}[8DS-PT1-019]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-04, 8DS-PT1-01, 8DS-HDT-02
+% do_kho_du_kien: 4
+Cho phương trình ẩn $x$: $m^2x + 2 = 4x + m$ (với $m$ là tham số).
+
+a) Giải phương trình khi $m = 1$.
+
+b) Tìm $m$ để phương trình vô nghiệm.
+
+c) Tìm $m$ để phương trình nghiệm đúng với mọi $x$.
+
+\begin{solution}
+a) Chuyển các hạng tử chứa $x$ sang vế trái, các hạng tử còn lại sang vế phải (quy tắc chuyển vế), rồi đặt nhân tử chung $x$: phương trình đã cho tương đương với $(m^2 - 4)x = m - 2 \quad (*)$.
+
+a) Với $m = 1$, phương trình $(*)$ trở thành $(1 - 4)x = 1 - 2$, tức là $-3x = -1$; chia hai vế cho $-3$: $x = \dfrac{1}{3}$. Thử lại trong phương trình ban đầu: $\dfrac{1}{3} + 2 = \dfrac{7}{3}$ và $4 \cdot \dfrac{1}{3} + 1 = \dfrac{7}{3}$ (đúng).
+
+b) Theo hằng đẳng thức hiệu hai bình phương, $m^2 - 4 = (m - 2)(m + 2)$. Nếu $m \neq 2$ và $m \neq -2$ thì hệ số $m^2 - 4 \neq 0$, phương trình $(*)$ có nghiệm duy nhất $x = \dfrac{m - 2}{(m - 2)(m + 2)} = \dfrac{1}{m + 2}$; khi đó phương trình có nghiệm.
+
+b) Nếu $m = 2$ thì $(*)$ trở thành $0x = 0$, đúng với mọi $x$; phương trình có nghiệm.
+
+b) Nếu $m = -2$ thì $(*)$ trở thành $0x = -4$; vì $0x = 0 \neq -4$ với mọi $x$ nên phương trình vô nghiệm. Vậy phương trình vô nghiệm khi và chỉ khi $m = -2$.
+
+c) Theo các trường hợp đã xét ở câu b): khi $m \neq \pm 2$ phương trình chỉ có một nghiệm, khi $m = -2$ phương trình vô nghiệm, còn khi $m = 2$ phương trình trở thành $0x = 0$, nghiệm đúng với mọi $x$. Vậy $m = 2$.
+
+Đáp số: a) $\boxed{x = \dfrac{1}{3}}$; b) $\boxed{m = -2}$; c) $\boxed{m = 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán chia thưởng, phương trình nhiều tầng
+\begin{problem}[8DS-PT1-020]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-03, 8DS-PT1-02
+% do_kho_du_kien: 5
+Một công ty chia toàn bộ số tiền thưởng cho một số nhân viên theo cách sau: người thứ nhất nhận $1$ triệu đồng và $\dfrac{1}{8}$ số tiền còn lại; sau đó người thứ hai nhận $2$ triệu đồng và $\dfrac{1}{8}$ số tiền còn lại; người thứ ba nhận $3$ triệu đồng và $\dfrac{1}{8}$ số tiền còn lại; cứ tiếp tục như vậy cho đến người cuối cùng thì vừa hết tiền. Biết rằng mọi người nhận được số tiền bằng nhau. Hỏi tổng số tiền thưởng là bao nhiêu, có bao nhiêu nhân viên được thưởng và mỗi người nhận bao nhiêu tiền?
+
+\begin{solution}
+Gọi tổng số tiền thưởng là $x$ (triệu đồng), điều kiện $x > 1$ (để sau khi người thứ nhất nhận $1$ triệu đồng vẫn còn tiền).
+
+Người thứ nhất nhận $1$ triệu đồng và $\dfrac{1}{8}$ của phần còn lại $x - 1$, tức là nhận $1 + \dfrac{x - 1}{8}$ (triệu đồng).
+
+Số tiền còn lại sau người thứ nhất là $x - 1 - \dfrac{x - 1}{8} = \dfrac{7(x - 1)}{8}$ (triệu đồng).
+
+Người thứ hai nhận $2$ triệu đồng và $\dfrac{1}{8}$ của phần còn lại $\dfrac{7(x - 1)}{8} - 2$, tức là nhận $2 + \dfrac{1}{8}\left(\dfrac{7(x - 1)}{8} - 2\right)$ (triệu đồng).
+
+Hai người đầu nhận số tiền bằng nhau nên ta có phương trình: $1 + \dfrac{x - 1}{8} = 2 + \dfrac{1}{8}\left(\dfrac{7(x - 1)}{8} - 2\right)$.
+
+Nhân hai vế với $64$ để khử mẫu: $64 + 8(x - 1) = 128 + 7(x - 1) - 16$.
+
+Bỏ dấu ngoặc và thu gọn: $8x + 56 = 7x + 105$; chuyển vế: $8x - 7x = 105 - 56$, tức là $x = 49$.
+
+Đối chiếu điều kiện: $x = 49 > 1$ (thoả mãn). Người thứ nhất nhận $1 + \dfrac{49 - 1}{8} = 7$ (triệu đồng). Mọi người nhận bằng nhau và chia vừa hết tiền nên số nhân viên là $49 : 7 = 7$ (người).
+
+Kiểm tra toàn bộ cách chia (số trong ngoặc là tiền còn lại, đơn vị triệu đồng): người 1 nhận $1 + \dfrac{48}{8} = 7$ (còn $42$); người 2 nhận $2 + \dfrac{40}{8} = 7$ (còn $35$); người 3 nhận $3 + \dfrac{32}{8} = 7$ (còn $28$); người 4 nhận $4 + \dfrac{24}{8} = 7$ (còn $21$); người 5 nhận $5 + \dfrac{16}{8} = 7$ (còn $14$); người 6 nhận $6 + \dfrac{8}{8} = 7$ (còn $7$); người 7 nhận $7 + \dfrac{0}{8} = 7$ (còn $0$), vừa hết tiền (đúng).
+
+Đáp số: $\boxed{\text{Tổng } 49 \text{ triệu đồng, } 7 \text{ nhân viên, mỗi người } 7 \text{ triệu đồng}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- ẩn là số đo góc của tam giác
+\begin{problem}[8DS-PT1-021]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-01, 8DS-PT1-03
+% do_kho_du_kien: 1
+Tam giác $ABC$ có số đo các góc là $\widehat{A} = x^\circ$, $\widehat{B} = (x + 20)^\circ$ và $\widehat{C} = (2x - 40)^\circ$. Tìm $x$ và số đo mỗi góc của tam giác $ABC$.
+
+\begin{solution}
+Số đo mỗi góc của tam giác phải dương nên $x > 0$, $x + 20 > 0$ và $2x - 40 > 0$; điều kiện: $x > 20$.
+
+Tổng ba góc của một tam giác bằng $180^\circ$, nên ta có phương trình: $x + (x + 20) + (2x - 40) = 180$.
+
+Bỏ dấu ngoặc và cộng các hạng tử đồng dạng ở vế trái: $4x - 20 = 180$.
+
+Chuyển $-20$ sang vế phải và đổi dấu (quy tắc chuyển vế): $4x = 200$; chia hai vế cho $4$ (quy tắc nhân với một số khác $0$): $x = 50$.
+
+Đối chiếu điều kiện: $x = 50 > 20$ (thoả mãn). Khi đó $\widehat{A} = 50^\circ$, $\widehat{B} = 50^\circ + 20^\circ = 70^\circ$, $\widehat{C} = 2 \cdot 50^\circ - 40^\circ = 60^\circ$. Thử lại: $50^\circ + 70^\circ + 60^\circ = 180^\circ$ (đúng).
+
+Đáp số: $\boxed{x = 50;\ \widehat{A} = 50^\circ,\ \widehat{B} = 70^\circ,\ \widehat{C} = 60^\circ}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- kiểm tra lời giải của bạn, tìm bước sai
+\begin{problem}[8DS-PT1-022]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-01, 8DS-PT1-04
+% do_kho_du_kien: 2
+Bạn Minh giải phương trình $7x - 5 = 3x + 11$ như sau:
+
+Bước 1: $7x - 3x = 11 - 5$;
+
+Bước 2: $4x = 6$;
+
+Bước 3: $x = \dfrac{3}{2}$.
+
+a) Thay $x = \dfrac{3}{2}$ vào hai vế của phương trình để kiểm tra kết quả của bạn Minh.
+
+b) Bạn Minh làm sai ở bước nào? Hãy sửa lại và giải đúng phương trình.
+
+\begin{solution}
+a) Thay $x = \dfrac{3}{2}$ vào hai vế: vế trái $7 \cdot \dfrac{3}{2} - 5 = \dfrac{21}{2} - \dfrac{10}{2} = \dfrac{11}{2}$; vế phải $3 \cdot \dfrac{3}{2} + 11 = \dfrac{9}{2} + \dfrac{22}{2} = \dfrac{31}{2}$.
+
+a) Vì $\dfrac{11}{2} \neq \dfrac{31}{2}$ nên $x = \dfrac{3}{2}$ không là nghiệm của phương trình; kết quả của bạn Minh sai.
+
+b) Bước 1 sai: theo quy tắc chuyển vế, khi chuyển hạng tử $-5$ từ vế trái sang vế phải phải đổi dấu thành $+5$, nhưng bạn Minh vẫn viết $-5$. Bước 1 đúng là: $7x - 3x = 11 + 5$.
+
+b) Thu gọn hai vế: $4x = 16$; chia hai vế cho $4$ (quy tắc nhân với một số khác $0$): $x = 4$. (Bước 2 và Bước 3 của bạn Minh tính đúng nhưng xuất phát từ dòng sai.)
+
+b) Thử lại: vế trái $7 \cdot 4 - 5 = 23$, vế phải $3 \cdot 4 + 11 = 23$ (đúng).
+
+Đáp số: a) $\boxed{x = \dfrac{3}{2} \text{ không là nghiệm}}$; b) $\boxed{\text{Sai ở Bước 1; nghiệm đúng là } x = 4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hệ số thập phân, phần trăm: đổi ra phân số
+\begin{problem}[8DS-PT1-023]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-01
+% do_kho_du_kien: 2
+Đổi các số thập phân và phần trăm ra phân số rồi giải phương trình $0{,}6x - 1{,}5 = 15\% \cdot x + 1{,}2$.
+
+\begin{solution}
+Đổi ra phân số tối giản: $0{,}6 = \dfrac{6}{10} = \dfrac{3}{5}$; $1{,}5 = \dfrac{3}{2}$; $15\% = \dfrac{15}{100} = \dfrac{3}{20}$; $1{,}2 = \dfrac{12}{10} = \dfrac{6}{5}$. Phương trình trở thành $\dfrac{3}{5}x - \dfrac{3}{2} = \dfrac{3}{20}x + \dfrac{6}{5}$.
+
+Chuyển $\dfrac{3}{20}x$ sang vế trái và $-\dfrac{3}{2}$ sang vế phải, đổi dấu các hạng tử đó (quy tắc chuyển vế): $\dfrac{3}{5}x - \dfrac{3}{20}x = \dfrac{6}{5} + \dfrac{3}{2}$.
+
+Thu gọn hai vế (quy đồng mẫu các phân số): vế trái $\dfrac{12}{20}x - \dfrac{3}{20}x = \dfrac{9}{20}x$; vế phải $\dfrac{12}{10} + \dfrac{15}{10} = \dfrac{27}{10}$. Ta được $\dfrac{9}{20}x = \dfrac{27}{10}$.
+
+Nhân hai vế với $\dfrac{20}{9}$ (quy tắc nhân với một số khác $0$): $x = \dfrac{27}{10} \cdot \dfrac{20}{9} = 6$.
+
+Thử lại: vế trái $0{,}6 \cdot 6 - 1{,}5 = 3{,}6 - 1{,}5 = 2{,}1$; vế phải $15\% \cdot 6 + 1{,}2 = 0{,}9 + 1{,}2 = 2{,}1$ (đúng).
+
+Đáp số: $\boxed{x = 6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hai phương trình tương đương (kiểm tra nghiệm)
+\begin{problem}[8DS-PT1-024]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-04, 8DS-PT1-01
+% do_kho_du_kien: 2
+Hai phương trình được gọi là tương đương nếu chúng có cùng tập nghiệm. Mỗi cặp phương trình sau có tương đương không? Vì sao?
+
+a) $2x - 4 = 0$ và $x^2 - 2x = 0$;
+
+b) $\dfrac{x}{3} + 1 = 0$ và $5x + 15 = 0$.
+
+\begin{solution}
+a) Giải phương trình $2x - 4 = 0$: chuyển vế (quy tắc chuyển vế) được $2x = 4$; chia hai vế cho $2$ được $x = 2$. Tập nghiệm của phương trình thứ nhất là $\{2\}$.
+
+a) Thay $x = 0$ vào phương trình $x^2 - 2x = 0$: vế trái $0^2 - 2 \cdot 0 = 0$ bằng vế phải, nên $x = 0$ là một nghiệm của phương trình thứ hai.
+
+a) Thay $x = 0$ vào phương trình thứ nhất: vế trái $2 \cdot 0 - 4 = -4 \neq 0$, nên $x = 0$ không là nghiệm của phương trình thứ nhất. Hai phương trình không có cùng tập nghiệm, do đó chúng không tương đương.
+
+b) Giải phương trình $\dfrac{x}{3} + 1 = 0$: chuyển vế được $\dfrac{x}{3} = -1$; nhân hai vế với $3$ (quy tắc nhân với một số khác $0$) được $x = -3$. Tập nghiệm là $\{-3\}$.
+
+b) Giải phương trình $5x + 15 = 0$: chuyển vế được $5x = -15$; chia hai vế cho $5$ được $x = -3$. Tập nghiệm là $\{-3\}$.
+
+b) Hai phương trình có cùng tập nghiệm $\{-3\}$ nên chúng tương đương.
+
+Đáp số: a) $\boxed{\text{Không tương đương, vì } x = 0 \text{ là nghiệm của phương trình thứ hai nhưng không là nghiệm của phương trình thứ nhất}}$; b) $\boxed{\text{Tương đương, vì cùng có tập nghiệm } \{-3\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hệ số là các số lẻ liên tiếp
+\begin{problem}[8DS-PT1-025]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-01
+% do_kho_du_kien: 3
+Giải phương trình $x + 3x + 5x + \dots + 19x - 120 = 4x + 360$, trong đó vế trái có các hạng tử chứa $x$ với hệ số là các số lẻ liên tiếp từ $1$ đến $19$.
+
+\begin{solution}
+Các hệ số $1, 3, 5, \dots, 19$ là các số lẻ liên tiếp, hai số liền nhau hơn kém nhau $2$, nên vế trái có $\dfrac{19 - 1}{2} + 1 = 10$ hạng tử chứa $x$.
+
+Cộng các hạng tử đồng dạng ở vế trái: $x + 3x + 5x + \dots + 19x = (1 + 3 + 5 + \dots + 19)x$. Ghép $10$ hệ số thành $5$ cặp có tổng bằng nhau: $1 + 19 = 3 + 17 = 5 + 15 = 7 + 13 = 9 + 11 = 20$, nên $1 + 3 + 5 + \dots + 19 = 5 \cdot 20 = 100$. Phương trình trở thành $100x - 120 = 4x + 360$.
+
+Chuyển $4x$ sang vế trái và $-120$ sang vế phải, đổi dấu các hạng tử đó (quy tắc chuyển vế): $100x - 4x = 360 + 120$, tức là $96x = 480$.
+
+Chia hai vế cho $96$ (quy tắc nhân với một số khác $0$): $x = \dfrac{480}{96} = 5$.
+
+Thử lại: vế trái $100 \cdot 5 - 120 = 380$; vế phải $4 \cdot 5 + 360 = 380$ (đúng).
+
+Đáp số: $\boxed{x = 5}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hai biểu thức có giá trị bằng nhau, đối nhau
+\begin{problem}[8DS-PT1-026]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-01
+% do_kho_du_kien: 2
+Cho hai biểu thức $A = 2x + 5$ và $B = 17 - x$. Tìm $x$ để:
+
+a) $A$ và $B$ có giá trị bằng nhau;
+
+b) $A$ và $B$ có giá trị đối nhau.
+
+\begin{solution}
+a) $A$ và $B$ có giá trị bằng nhau khi và chỉ khi $2x + 5 = 17 - x$.
+
+a) Chuyển $-x$ sang vế trái và $5$ sang vế phải, đổi dấu các hạng tử đó (quy tắc chuyển vế): $2x + x = 17 - 5$, tức là $3x = 12$; chia hai vế cho $3$ (quy tắc nhân với một số khác $0$): $x = 4$.
+
+a) Thử lại: $A = 2 \cdot 4 + 5 = 13$ và $B = 17 - 4 = 13$ (bằng nhau).
+
+b) Hai số đối nhau khi và chỉ khi tổng của chúng bằng $0$, nên $A$ và $B$ có giá trị đối nhau khi và chỉ khi $A + B = 0$, tức là $2x + 5 + 17 - x = 0$.
+
+b) Cộng các hạng tử đồng dạng ở vế trái: $x + 22 = 0$; chuyển $22$ sang vế phải và đổi dấu (quy tắc chuyển vế): $x = -22$.
+
+b) Thử lại: $A = 2 \cdot (-22) + 5 = -39$ và $B = 17 - (-22) = 39$; $-39$ và $39$ là hai số đối nhau (đúng).
+
+Đáp số: a) $\boxed{x = 4}$; b) $\boxed{x = -22}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phân số nhiều tầng
+\begin{problem}[8DS-PT1-027]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-02, 8DS-PT1-01
+% do_kho_du_kien: 3
+Giải phương trình
+\[ \dfrac{x - \dfrac{x - 2}{4}}{3} = \dfrac{\dfrac{2x + 1}{3} - 1}{2} + \dfrac{1}{6}. \]
+
+\begin{solution}
+Rút gọn tử của phân số ở vế trái (quy đồng mẫu $4$, chú ý dấu trừ trước phân số): $x - \dfrac{x - 2}{4} = \dfrac{4x - (x - 2)}{4} = \dfrac{3x + 2}{4}$. Chia cho $3$ là nhân mẫu với $3$, nên vế trái bằng $\dfrac{3x + 2}{12}$.
+
+Rút gọn tử của phân số ở vế phải (quy đồng mẫu $3$): $\dfrac{2x + 1}{3} - 1 = \dfrac{2x + 1 - 3}{3} = \dfrac{2x - 2}{3}$. Chia cho $2$ được $\dfrac{2x - 2}{6}$; cộng thêm $\dfrac{1}{6}$ (cùng mẫu): vế phải bằng $\dfrac{2x - 2 + 1}{6} = \dfrac{2x - 1}{6}$.
+
+Phương trình trở thành $\dfrac{3x + 2}{12} = \dfrac{2x - 1}{6}$. Nhân hai vế với mẫu chung $12$ để khử mẫu (quy tắc nhân với một số khác $0$): $3x + 2 = 2(2x - 1)$.
+
+Bỏ dấu ngoặc: $3x + 2 = 4x - 2$; chuyển vế (quy tắc chuyển vế): $3x - 4x = -2 - 2$, tức là $-x = -4$; nhân hai vế với $-1$: $x = 4$.
+
+Thử lại: vế trái $\dfrac{4 - \frac{2}{4}}{3} = \dfrac{\frac{7}{2}}{3} = \dfrac{7}{6}$; vế phải $\dfrac{3 - 1}{2} + \dfrac{1}{6} = 1 + \dfrac{1}{6} = \dfrac{7}{6}$ (đúng).
+
+Đáp số: $\boxed{x = 4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: luôn có nghiệm duy nhất với mọi m
+\begin{problem}[8DS-PT1-028]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-04, 8DS-HDT-06, 8DS-PTNT-06
+% do_kho_du_kien: 4
+Cho phương trình ẩn $x$: $(m^2 + 3)x - 3 = 2m(x + 1)$ (với $m$ là tham số).
+
+a) Chứng minh rằng với mọi giá trị của $m$, phương trình luôn có nghiệm duy nhất.
+
+b) Tìm $m$ để phương trình nhận $x = 1$ làm nghiệm.
+
+\begin{solution}
+a) Bỏ dấu ngoặc ở vế phải: $(m^2 + 3)x - 3 = 2mx + 2m$. Chuyển các hạng tử chứa $x$ sang vế trái, các hạng tử còn lại sang vế phải (quy tắc chuyển vế), rồi đặt nhân tử chung $x$: $(m^2 - 2m + 3)x = 2m + 3 \quad (*)$.
+
+a) Biến đổi hệ số của $x$ theo hằng đẳng thức bình phương của một hiệu: $m^2 - 2m + 3 = (m^2 - 2m + 1) + 2 = (m - 1)^2 + 2$. Vì $(m - 1)^2 \geq 0$ với mọi $m$ nên $m^2 - 2m + 3 \geq 2 > 0$, tức là hệ số của $x$ khác $0$ với mọi $m$.
+
+a) Do đó với mọi $m$, $(*)$ là phương trình bậc nhất ẩn $x$; chia hai vế cho $m^2 - 2m + 3 \neq 0$ (quy tắc nhân với một số khác $0$), phương trình có nghiệm duy nhất $x = \dfrac{2m + 3}{m^2 - 2m + 3}$.
+
+b) Phương trình nhận $x = 1$ làm nghiệm khi và chỉ khi thay $x = 1$ vào hai vế ta được đẳng thức đúng: $(m^2 + 3) \cdot 1 - 3 = 2m(1 + 1)$, tức là $m^2 = 4m$.
+
+b) Chuyển vế rồi đặt nhân tử chung: $m^2 - 4m = 0$, tức là $m(m - 4) = 0$. Tích bằng $0$ khi một trong hai thừa số bằng $0$: $m = 0$ hoặc $m - 4 = 0$, nên $m = 0$ hoặc $m = 4$.
+
+b) Thử lại: với $m = 0$ phương trình là $3x - 3 = 0$, có nghiệm $x = 1$; với $m = 4$ phương trình là $19x - 3 = 8(x + 1)$, tức là $11x = 11$, có nghiệm $x = 1$ (đúng).
+
+Đáp số: a) $\boxed{\text{Vì } m^2 - 2m + 3 = (m - 1)^2 + 2 > 0 \text{ nên phương trình luôn có nghiệm duy nhất } x = \dfrac{2m + 3}{m^2 - 2m + 3}}$; b) $\boxed{m = 0 \text{ hoặc } m = 4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: nghiệm nguyên
+\begin{problem}[8DS-PT1-029]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-04, 8DS-PT1-01
+% do_kho_du_kien: 4
+Cho phương trình ẩn $x$: $mx - 4 = x + 2m$ (với $m$ là tham số).
+
+a) Giải phương trình khi $m = 3$.
+
+b) Tìm tất cả các giá trị nguyên của $m$ để phương trình có nghiệm và nghiệm đó là một số nguyên.
+
+\begin{solution}
+a) Chuyển các hạng tử chứa $x$ sang vế trái, các hạng tử còn lại sang vế phải (quy tắc chuyển vế), rồi đặt nhân tử chung $x$: phương trình tương đương với $(m - 1)x = 2m + 4 \quad (*)$.
+
+a) Với $m = 3$, $(*)$ trở thành $2x = 10$; chia hai vế cho $2$: $x = 5$. Thử lại trong phương trình ban đầu: $3 \cdot 5 - 4 = 11$ và $5 + 2 \cdot 3 = 11$ (đúng).
+
+b) Nếu $m = 1$ thì $(*)$ trở thành $0x = 6$; vì $0x = 0 \neq 6$ với mọi $x$ nên phương trình vô nghiệm. Loại $m = 1$.
+
+b) Nếu $m \neq 1$ thì hệ số $m - 1 \neq 0$; chia hai vế của $(*)$ cho $m - 1$, phương trình có nghiệm duy nhất $x = \dfrac{2m + 4}{m - 1}$. Tách phần nguyên: $\dfrac{2m + 4}{m - 1} = \dfrac{2(m - 1) + 6}{m - 1} = 2 + \dfrac{6}{m - 1}$.
+
+b) Với $m$ nguyên, $m - 1$ là số nguyên khác $0$, nên $x$ là số nguyên khi và chỉ khi $\dfrac{6}{m - 1}$ là số nguyên, tức là $m - 1$ là ước của $6$: $m - 1 \in \{-6;\ -3;\ -2;\ -1;\ 1;\ 2;\ 3;\ 6\}$.
+
+b) Suy ra $m \in \{-5;\ -2;\ -1;\ 0;\ 2;\ 3;\ 4;\ 7\}$; các nghiệm tương ứng là $x = 1;\ 0;\ -1;\ -4;\ 8;\ 5;\ 4;\ 3$, đều là số nguyên (đúng).
+
+Đáp số: a) $\boxed{x = 5}$; b) $\boxed{m \in \{-5;\ -2;\ -1;\ 0;\ 2;\ 3;\ 4;\ 7\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: nhận một số làm nghiệm duy nhất
+\begin{problem}[8DS-PT1-030]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-04, 8DS-PT1-01, 8DS-PTNT-06
+% do_kho_du_kien: 4
+Cho phương trình ẩn $x$: $m(x - m) = 2(x - 2)$ (với $m$ là tham số). Tìm $m$ để phương trình có nghiệm duy nhất là $x = 2$.
+
+\begin{solution}
+Bỏ dấu ngoặc: $mx - m^2 = 2x - 4$. Chuyển các hạng tử chứa $x$ sang vế trái, các hạng tử còn lại sang vế phải (quy tắc chuyển vế), rồi đặt nhân tử chung $x$: phương trình tương đương với $(m - 2)x = m^2 - 4 \quad (*)$.
+
+Điều kiện cần: $x = 2$ là nghiệm khi và chỉ khi thay $x = 2$ vào hai vế của phương trình ban đầu ta được đẳng thức đúng: $m(2 - m) = 2(2 - 2)$, tức là $m(2 - m) = 0$. Tích bằng $0$ khi một trong hai thừa số bằng $0$, nên $m = 0$ hoặc $m = 2$.
+
+Xét $m = 0$: $(*)$ trở thành $-2x = -4$; hệ số $-2 \neq 0$ nên chia hai vế cho $-2$, phương trình có nghiệm duy nhất $x = 2$ (thoả mãn).
+
+Xét $m = 2$: $(*)$ trở thành $0x = 0$, đúng với mọi $x$, nên phương trình có vô số nghiệm; chẳng hạn $x = 0$ cũng là nghiệm (thay vào phương trình ban đầu: $2(0 - 2) = -4$ và $2(0 - 2) = -4$). Khi đó $x = 2$ không phải là nghiệm duy nhất (loại).
+
+Vậy chỉ có $m = 0$ thoả mãn yêu cầu.
+
+Đáp số: $\boxed{m = 0}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tổng phân số triệt tiêu (tách 1/(n(n+2)))
+\begin{problem}[8DS-PT1-031]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PT1-02, 8DS-PT1-01
+% do_kho_du_kien: 5
+Giải phương trình
+\[ \dfrac{x - 1}{1 \cdot 3} + \dfrac{x - 1}{3 \cdot 5} + \dfrac{x - 1}{5 \cdot 7} + \dots + \dfrac{x - 1}{23 \cdot 25} = \dfrac{2x + 18}{25}. \]
+
+\begin{solution}
+Các mẫu ở vế trái là tích hai số lẻ liên tiếp, từ $1 \cdot 3$ đến $23 \cdot 25$, và các tử đều bằng $x - 1$. Đặt nhân tử chung $x - 1$: vế trái bằng $(x - 1) \cdot S$, với $S = \dfrac{1}{1 \cdot 3} + \dfrac{1}{3 \cdot 5} + \dots + \dfrac{1}{23 \cdot 25}$.
+
+Với mọi số nguyên dương $n$, quy đồng mẫu ta có $\dfrac{1}{n} - \dfrac{1}{n + 2} = \dfrac{(n + 2) - n}{n(n + 2)} = \dfrac{2}{n(n + 2)}$, nên $\dfrac{1}{n(n + 2)} = \dfrac{1}{2}\left(\dfrac{1}{n} - \dfrac{1}{n + 2}\right)$.
+
+Áp dụng cho $n = 1, 3, 5, \dots, 23$ rồi cộng lại, các số hạng ở giữa triệt tiêu từng cặp: $S = \dfrac{1}{2}\left(1 - \dfrac{1}{3} + \dfrac{1}{3} - \dfrac{1}{5} + \dots + \dfrac{1}{23} - \dfrac{1}{25}\right) = \dfrac{1}{2}\left(1 - \dfrac{1}{25}\right) = \dfrac{1}{2} \cdot \dfrac{24}{25} = \dfrac{12}{25}$.
+
+Phương trình trở thành $\dfrac{12(x - 1)}{25} = \dfrac{2x + 18}{25}$. Nhân hai vế với $25$ để khử mẫu (quy tắc nhân với một số khác $0$): $12(x - 1) = 2x + 18$.
+
+Bỏ dấu ngoặc: $12x - 12 = 2x + 18$; chuyển vế (quy tắc chuyển vế): $12x - 2x = 18 + 12$, tức là $10x = 30$; chia hai vế cho $10$: $x = 3$.
+
+Thử lại: với $x = 3$, vế trái bằng $2 \cdot S = 2 \cdot \dfrac{12}{25} = \dfrac{24}{25}$; vế phải $\dfrac{2 \cdot 3 + 18}{25} = \dfrac{24}{25}$ (đúng).
+
+Đáp số: $\boxed{x = 3}$
+\end{solution}
+\end{problem}
+
+\end{document}

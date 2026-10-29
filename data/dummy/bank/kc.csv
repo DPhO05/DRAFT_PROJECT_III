@@ -1,0 +1,75 @@
+﻿code,name,description,parent_code,lop
+8DS-HDT,Hằng đẳng thức đáng nhớ,Nhóm kỹ năng: hằng đẳng thức đáng nhớ.,,8
+8DS-HDT-01,"Bình phương của một tổng, một hiệu",Khai triển hoặc thu gọn (A ± B)² = A² ± 2AB + B².,8DS-HDT,8
+8DS-HDT-02,Hiệu hai bình phương,Áp dụng A² − B² = (A − B)(A + B) theo cả hai chiều.,8DS-HDT,8
+8DS-HDT-03,"Lập phương của một tổng, một hiệu",Khai triển hoặc thu gọn (A ± B)³ = A³ ± 3A²B + 3AB² ± B³.,8DS-HDT,8
+8DS-HDT-04,"Tổng, hiệu hai lập phương",Áp dụng A³ + B³ = (A + B)(A² − AB + B²) và A³ − B³ = (A − B)(A² + AB + B²).,8DS-HDT,8
+8DS-HDT-05,"Tính nhanh, tính giá trị bằng hằng đẳng thức","Nhận ra dạng hằng đẳng thức trong biểu thức số hoặc chữ để tính nhanh, hoặc rút gọn rồi tính giá trị tại giá trị cho trước.",8DS-HDT,8
+8DS-HDT-06,"Chứng minh, tìm giá trị nhỏ nhất bằng hằng đẳng thức","Biến đổi một vế thành vế kia, hoặc đưa biểu thức về tổng bình phương cộng hằng số để chứng minh không âm hay tìm giá trị nhỏ nhất.",8DS-HDT,8
+8DS-PTNT,Phân tích đa thức thành nhân tử,Nhóm kỹ năng: phân tích đa thức thành nhân tử.,,8
+8DS-PTNT-01,Đặt nhân tử chung,Tìm nhân tử chung của các hạng tử (kể cả nhân tử là đa thức) và đặt ra ngoài dấu ngoặc.,8DS-PTNT,8
+8DS-PTNT-02,Phân tích bằng hằng đẳng thức,Nhận ra đa thức có dạng một hằng đẳng thức để viết thành tích.,8DS-PTNT,8
+8DS-PTNT-03,Nhóm hạng tử,Nhóm các hạng tử thích hợp để xuất hiện nhân tử chung hoặc hằng đẳng thức.,8DS-PTNT,8
+8DS-PTNT-04,Phối hợp nhiều phương pháp,"Kết hợp đặt nhân tử chung, nhóm hạng tử và hằng đẳng thức để phân tích đến khi không phân tích được nữa.",8DS-PTNT,8
+8DS-PTNT-05,Tách hạng tử,Tách hạng tử bậc nhất của tam thức ax² + bx + c thành hai hạng tử để nhóm và đặt nhân tử chung.,8DS-PTNT,8
+8DS-PTNT-06,"Ứng dụng: tìm x, tính nhanh",Phân tích thành nhân tử để giải phương trình dạng tích bằng 0 hoặc để tính nhanh.,8DS-PTNT,8
+8DS-PS,Phân thức đại số,Nhóm kỹ năng: phân thức đại số.,,8
+8DS-PS-01,Điều kiện xác định của phân thức,Tìm điều kiện để mọi mẫu thức khác 0 và đối chiếu kết quả cuối với điều kiện đó.,8DS-PS,8
+8DS-PS-02,Rút gọn phân thức,Phân tích tử và mẫu thành nhân tử rồi chia cả tử và mẫu cho nhân tử chung.,8DS-PS,8
+8DS-PS-03,"Quy đồng, cộng và trừ phân thức","Tìm mẫu thức chung, quy đồng mẫu rồi cộng hoặc trừ các tử, rút gọn kết quả.",8DS-PS,8
+8DS-PS-04,Nhân và chia phân thức,"Nhân tử với tử, mẫu với mẫu; chia là nhân với phân thức nghịch đảo; rút gọn kết quả.",8DS-PS,8
+8DS-PS-05,"Biến đổi biểu thức hữu tỉ, tính giá trị","Thực hiện dãy phép tính trên nhiều phân thức, rút gọn, rồi tính giá trị tại giá trị của biến thoả điều kiện xác định.",8DS-PS,8
+8DS-PS-06,Hai phân thức bằng nhau,Dùng định nghĩa A/B = C/D khi A·D = B·C để kiểm tra hai phân thức bằng nhau hoặc tìm đa thức chưa biết.,8DS-PS,8
+8DS-PT1,Phương trình bậc nhất một ẩn,Nhóm kỹ năng: phương trình bậc nhất một ẩn.,,8
+8DS-PT1-01,Giải phương trình bậc nhất một ẩn,"Chuyển vế, rút gọn về dạng ax = b với a khác 0 rồi tìm x = b/a.",8DS-PT1,8
+8DS-PT1-02,Phương trình đưa được về dạng ax + b = 0,"Bỏ ngoặc, quy đồng và khử mẫu số, chuyển vế, thu gọn về ax + b = 0 rồi giải.",8DS-PT1,8
+8DS-PT1-03,Giải bài toán bằng cách lập phương trình,"Chọn ẩn kèm đơn vị và điều kiện, biểu diễn các đại lượng qua ẩn, lập phương trình, giải, đối chiếu điều kiện và trả lời.",8DS-PT1,8
+8DS-PT1-04,Nghiệm của phương trình và tham số,"Thay giá trị vào hai vế để kiểm tra một số có là nghiệm, hoặc tìm tham số khi biết phương trình nhận một số cho trước làm nghiệm.",8DS-PT1,8
+8DS-HSBN,Hàm số bậc nhất,Nhóm kỹ năng: hàm số bậc nhất.,,8
+8DS-HSBN-01,Điểm thuộc đồ thị hàm số bậc nhất,Điểm M(x0; y0) thuộc đồ thị y = ax + b khi và chỉ khi y0 = a·x0 + b.,8DS-HSBN,8
+8DS-HSBN-02,"Giá trị hàm số, nhận biết hàm số bậc nhất",Tính f(x0) tại giá trị cho trước; y = ax + b là hàm số bậc nhất khi a khác 0.,8DS-HSBN,8
+8DS-HSBN-03,"Giao của đồ thị với hai trục, vẽ đồ thị",Tìm giao điểm của đường thẳng y = ax + b với trục tung và trục hoành để vẽ đồ thị.,8DS-HSBN,8
+8DS-HSBN-04,"Hệ số góc, vị trí hai đường thẳng","Hệ số góc của y = ax + b là a; hai đường thẳng song song khi a = a' và b khác b', cắt nhau khi a khác a', trùng nhau khi a = a' và b = b'.",8DS-HSBN,8
+8DS-HSBN-05,Xác định hàm số bậc nhất,"Tìm a, b từ điều kiện về hệ số góc, song song với đường thẳng cho trước hoặc đi qua điểm cho trước.",8DS-HSBN,8
+8DS-HSBN-06,Giao điểm hai đường thẳng,Giải phương trình hoành độ giao điểm ax + b = a'x + b' rồi tính tung độ để được toạ độ giao điểm.,8DS-HSBN,8
+9DS-HPT,Hệ hai phương trình bậc nhất hai ẩn,Nhóm kỹ năng: hệ hai phương trình bậc nhất hai ẩn.,,9
+9DS-HPT-01,Kiểm tra nghiệm của hệ,Thay cặp số (x0; y0) vào từng phương trình của hệ để kiểm tra hoặc thử lại nghiệm.,9DS-HPT,9
+9DS-HPT-02,Giải hệ bằng phương pháp thế,"Rút một ẩn từ một phương trình, thế vào phương trình còn lại để được phương trình một ẩn, giải rồi tìm ẩn kia.",9DS-HPT,9
+9DS-HPT-03,Giải hệ bằng phương pháp cộng đại số,"Nhân các phương trình với hệ số thích hợp để hệ số của một ẩn bằng nhau hoặc đối nhau, cộng hoặc trừ vế theo vế để khử ẩn đó, giải rồi thế ngược.",9DS-HPT,9
+9DS-HPT-04,Nhận biết hệ vô nghiệm hoặc vô số nghiệm,"Biến đổi hệ về phương trình dạng 0x + 0y = c; c khác 0 thì hệ vô nghiệm, c = 0 thì hệ có vô số nghiệm.",9DS-HPT,9
+9DS-HPT-05,Biện luận hệ theo tham số,"Đưa hệ về phương trình một ẩn dạng ax = b có tham số, rồi tìm điều kiện của tham số để hệ có nghiệm duy nhất, vô nghiệm hoặc vô số nghiệm.",9DS-HPT,9
+9DS-HPT-06,Đặt ẩn phụ đưa về hệ bậc nhất,"Tìm điều kiện xác định, đặt ẩn phụ để đưa hệ về hệ bậc nhất hai ẩn, giải, tìm lại ẩn ban đầu và đối chiếu điều kiện.",9DS-HPT,9
+9DS-HPT-07,Giải bài toán bằng cách lập hệ phương trình,"Chọn ẩn kèm đơn vị và điều kiện, lập hai phương trình từ dữ kiện, giải hệ, đối chiếu điều kiện và trả lời kèm đơn vị.",9DS-HPT,9
+9DS-HPT-08,Lập hệ từ điều kiện đồ thị đi qua điểm,"Thay toạ độ các điểm vào phương trình đường thẳng y = ax + b để được hệ phương trình ẩn a, b.",9DS-HPT,9
+9DS-HPT-09,"Hệ thức không phụ thuộc tham số, cực trị theo nghiệm của hệ","Khử tham số giữa hai phương trình để được hệ thức chỉ chứa x, y; dùng nghiệm biểu diễn theo tham số để tìm giá trị lớn nhất, nhỏ nhất của biểu thức.",9DS-HPT,9
+9DS-BPT,Bất đẳng thức và bất phương trình bậc nhất một ẩn,Nhóm kỹ năng: bất đẳng thức và bất phương trình bậc nhất một ẩn.,,9
+9DS-BPT-01,Tính chất của bất đẳng thức,"Cộng hai vế với cùng một số giữ nguyên chiều; nhân hai vế với số dương giữ chiều, với số âm thì đổi chiều.",9DS-BPT,9
+9DS-BPT-02,Giải bất phương trình bậc nhất một ẩn,"Chuyển vế, chia hai vế cho hệ số của ẩn (đổi chiều nếu hệ số âm) và viết tập nghiệm.",9DS-BPT,9
+9DS-BPT-03,Bất phương trình đưa về dạng bậc nhất,"Bỏ ngoặc, khử mẫu dương, chuyển vế, thu gọn về ax + b > 0 (hoặc <, ≥, ≤) rồi giải.",9DS-BPT,9
+9DS-BPT-04,"Nghiệm nguyên, nghiệm thoả điều kiện thêm","Giải bất phương trình rồi chọn các giá trị nguyên, hoặc kết hợp với điều kiện thêm của đề để kết luận.",9DS-BPT,9
+9DS-BPT-05,Bài toán thực tế dẫn tới bất phương trình,"Chọn ẩn, lập bất phương trình từ các cụm như 'không vượt quá', 'ít nhất', giải và trả lời theo điều kiện thực tế.",9DS-BPT,9
+9DS-BPT-06,Chứng minh bất đẳng thức đơn giản,"Xét hiệu hai vế, đưa về bình phương hoặc dùng tính chất bất đẳng thức để kết luận; chỉ ra khi nào xảy ra dấu bằng.",9DS-BPT,9
+9DS-BPT-07,Nghiệm của bất phương trình,"Thay giá trị của ẩn vào hai vế; được khẳng định đúng thì số đó là nghiệm. Phân biệt dấu ngặt (<, >) và không ngặt (≤, ≥).",9DS-BPT,9
+9DS-BPT-08,Nghiệm chung của hai bất phương trình,"Giải từng bất phương trình (kể cả bất phương trình kép) rồi lấy các giá trị thoả mãn đồng thời, tức là phần chung của hai tập nghiệm.",9DS-BPT,9
+9DS-CAN,Căn bậc hai và căn bậc ba,Nhóm kỹ năng: căn bậc hai và căn bậc ba.,,9
+9DS-CAN-01,"Căn bậc hai số học, điều kiện xác định",√A xác định khi A ≥ 0; √(A²) = |A|.,9DS-CAN,9
+9DS-CAN-02,"Khai phương một tích, một thương","√(AB) = √A·√B với A, B ≥ 0; √(A/B) = √A/√B với A ≥ 0, B > 0.",9DS-CAN,9
+9DS-CAN-03,"Đưa thừa số ra ngoài, vào trong dấu căn",√(A²B) = |A|·√B với B ≥ 0; dùng để so sánh hoặc thu gọn căn.,9DS-CAN,9
+9DS-CAN-04,Trục căn thức ở mẫu,Nhân cả tử và mẫu với căn hoặc biểu thức liên hợp thích hợp để khử căn ở mẫu.,9DS-CAN,9
+9DS-CAN-05,Rút gọn biểu thức chứa căn,"Tìm điều kiện, quy đồng, phân tích nhân tử và dùng hằng đẳng thức để rút gọn biểu thức chứa căn bậc hai.",9DS-CAN,9
+9DS-CAN-06,Căn bậc ba,"∛(a³) = a và ∛(ab) = ∛a·∛b với mọi số thực a, b.",9DS-CAN,9
+9DS-CAN-07,Phương trình chứa căn đơn giản,"Tìm điều kiện, bình phương hai vế khi hai vế không âm, giải phương trình nhận được và đối chiếu điều kiện.",9DS-CAN,9
+9DS-PT2,Phương trình bậc hai một ẩn và định lý Viète,Nhóm kỹ năng: phương trình bậc hai một ẩn và định lý viète.,,9
+9DS-PT2-01,Giải phương trình bậc hai khuyết,Giải ax² + bx = 0 bằng đặt nhân tử chung; giải ax² + c = 0 bằng cách đưa về x² = −c/a.,9DS-PT2,9
+9DS-PT2-02,Công thức nghiệm,"Tính Δ = b² − 4ac (hoặc Δ' = b'² − ac), xét dấu để kết luận số nghiệm và tính các nghiệm.",9DS-PT2,9
+9DS-PT2-03,Định lý Viète,Khi phương trình có nghiệm: x1 + x2 = −b/a và x1·x2 = c/a; dùng để tính biểu thức đối xứng của hai nghiệm.,9DS-PT2,9
+9DS-PT2-04,Nhẩm nghiệm,"Nếu a + b + c = 0 thì x1 = 1, x2 = c/a; nếu a − b + c = 0 thì x1 = −1, x2 = −c/a.",9DS-PT2,9
+9DS-PT2-05,Tìm hai số biết tổng và tích,"Hai số có tổng S và tích P là nghiệm của X² − SX + P = 0, với điều kiện S² ≥ 4P.",9DS-PT2,9
+9DS-PT2-06,Phương trình bậc hai chứa tham số,"Tìm tham số để phương trình có nghiệm, có hai nghiệm phân biệt, hoặc có nghiệm thoả một hệ thức, kết hợp Δ và Viète.",9DS-PT2,9
+9DS-PT2-07,Giải bài toán bằng cách lập phương trình bậc hai,"Chọn ẩn kèm điều kiện, lập phương trình bậc hai, giải, loại nghiệm không thoả điều kiện và trả lời.",9DS-PT2,9
+9DS-PT2-08,Phương trình quy về phương trình bậc hai,"Phương trình trùng phương (đặt t = x², t ≥ 0), đặt ẩn phụ, phương trình chứa ẩn ở mẫu (điều kiện xác định, khử mẫu, loại nghiệm không thoả điều kiện).",9DS-PT2,9
+9DS-HSB2,Hàm số y = ax² (a khác 0),Nhóm kỹ năng: hàm số y = ax² (a khác 0).,,9
+9DS-HSB2-01,"Giá trị hàm số, điểm thuộc parabol",Tính y = a·x0²; điểm (x0; y0) thuộc đồ thị khi y0 = a·x0²; tìm a khi biết một điểm thuộc đồ thị.,9DS-HSB2,9
+9DS-HSB2-02,Tính chất và đồ thị của y = ax²,"Đồ thị là parabol đỉnh O, nhận Oy làm trục đối xứng; a > 0 thì nằm phía trên trục hoành, a < 0 thì nằm phía dưới.",9DS-HSB2,9
+9DS-HSB2-03,Giao điểm của parabol và đường thẳng,Giải phương trình hoành độ giao điểm ax² = mx + n rồi tính tung độ để được toạ độ giao điểm.,9DS-HSB2,9
+9DS-HSB2-04,Vị trí parabol và đường thẳng theo tham số,"Dùng Δ của phương trình hoành độ giao điểm để biết đường thẳng cắt parabol tại hai điểm, tiếp xúc hay không cắt.",9DS-HSB2,9

@@ -1,0 +1,1504 @@
+<title>Trợ lý gia sư Toán</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=Patrick+Hand&display=swap">
+<style>
+/* Layout: grading workbench. Full-width ledger header, index rail on the left like notebook tabs,
+   white work sheets laid on graph paper. Red pen only for margin notes (explain mode) and teacher marks. */
+:root {
+  --paper: #eef2f1; --grid: #dde5e6; --sheet: #ffffff; --sheet-2: #f3f6f6;
+  --line: #cdd7da; --line-strong: #97a7ae;
+  --ink: #17212b; --ink-2: #44525e; --ink-3: #66737e;
+  --accent: #1f4aa8; --accent-ink: #ffffff; --accent-soft: #e2e9f8;
+  --redpen: #cc2d55;
+  --ok: #17733f; --ok-soft: #e0f2e6;
+  --warn: #8f5600; --warn-line: #cf8c14; --warn-soft: #fdf1d6;
+  --crit: #b3261e; --crit-soft: #fbe4e1;
+  --dim: #7c8790; --dim-soft: #e9edee;
+  --g1: #2b63c6; --g2: #0b7f78; --g3: #6e45bd; --g4: #b4541a; --g5: #b3307c;
+  --a01: #4d6a86; --a02: #2b63c6; --a03: #7e3fb3; --a04: #0b7f8c; --a05: #2c7d39;
+  --a06: #a86400; --a07: #a3412b; --a08: #5f7412; --a09: #b3307c;
+  --shadow: 0 1px 2px rgb(16 24 32 / .06), 0 8px 24px rgb(16 24 32 / .12);
+  --backdrop: rgb(16 24 32 / .45);
+  --font-ui: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-head: "Barlow Semi Condensed", "Be Vietnam Pro", "Arial Narrow", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-hand: "Patrick Hand", "Segoe Print", "Bradley Hand", cursive;
+  --side-w: 232px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #11161b; --grid: #19212a; --sheet: #171e25; --sheet-2: #1d252e;
+    --line: #2a3540; --line-strong: #4a5a68;
+    --ink: #e2e8ed; --ink-2: #a8b4be; --ink-3: #85929d;
+    --accent: #86a8ff; --accent-ink: #0c1424; --accent-soft: #1d2a47;
+    --redpen: #ff7896;
+    --ok: #5fcf8f; --ok-soft: #14301f; --warn: #f2b54e; --warn-line: #c99331; --warn-soft: #30250e;
+    --crit: #ff8b80; --crit-soft: #3b1b18; --dim: #8a96a0; --dim-soft: #222b33;
+    --g1: #7ea4ff; --g2: #4fc7bd; --g3: #b39cff; --g4: #f0965a; --g5: #f07ab9;
+    --a01: #9db4ca; --a02: #7ea4ff; --a03: #c79cf0; --a04: #55c6d2; --a05: #78cf84;
+    --a06: #e8b04f; --a07: #f08f78; --a08: #b9cf5a; --a09: #f07ab9;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .45); --backdrop: rgb(0 0 0 / .6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #11161b; --grid: #19212a; --sheet: #171e25; --sheet-2: #1d252e;
+  --line: #2a3540; --line-strong: #4a5a68;
+  --ink: #e2e8ed; --ink-2: #a8b4be; --ink-3: #85929d;
+  --accent: #86a8ff; --accent-ink: #0c1424; --accent-soft: #1d2a47;
+  --redpen: #ff7896;
+  --ok: #5fcf8f; --ok-soft: #14301f; --warn: #f2b54e; --warn-line: #c99331; --warn-soft: #30250e;
+  --crit: #ff8b80; --crit-soft: #3b1b18; --dim: #8a96a0; --dim-soft: #222b33;
+  --g1: #7ea4ff; --g2: #4fc7bd; --g3: #b39cff; --g4: #f0965a; --g5: #f07ab9;
+  --a01: #9db4ca; --a02: #7ea4ff; --a03: #c79cf0; --a04: #55c6d2; --a05: #78cf84;
+  --a06: #e8b04f; --a07: #f08f78; --a08: #b9cf5a; --a09: #f07ab9;
+  --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .45); --backdrop: rgb(0 0 0 / .6);
+  color-scheme: dark;
+}
+
+/* ---------- base ---------- */
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; color: var(--ink); font: 400 14px/1.5 var(--font-ui);
+  background-color: var(--paper);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-text-size-adjust: 100%;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--sheet); }
+img, svg { max-width: 100%; }
+h1, h2, h3, h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.2; margin: 0; text-wrap: balance; letter-spacing: .005em; }
+h1 { font-size: 28px; } h2 { font-size: 19px; } h3 { font-size: 16px; } h4 { font-size: 14px; }
+p { margin: 0; }
+a { color: var(--accent); }
+code, kbd, pre, .mono { font-family: var(--font-mono); font-size: .92em; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num, table, .kpi-value { font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-3); } .small { font-size: 12px; } .nowrap { white-space: nowrap; }
+.eyebrow { font: 600 11.5px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .09em; color: var(--ink-3); }
+.lead { color: var(--ink-2); max-width: 70ch; }
+input, select, textarea, button { font: inherit; color: inherit; }
+input:not([type=checkbox]):not([type=radio]), select, textarea {
+  background: var(--sheet); border: 1px solid var(--line-strong); border-radius: 3px; padding: 6px 8px; min-width: 0; max-width: 100%;
+}
+textarea { width: 100%; resize: vertical; }
+label { color: var(--ink-2); }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field > span:first-child { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+
+/* ---------- shell layout ---------- */
+#topbar {
+  background: var(--sheet); border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 8px;
+  z-index: 20;
+}
+.tb-inner { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; min-height: 40px; }
+.brand { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font: 600 19px/1 var(--font-head); letter-spacing: .01em; }
+.brand svg { flex: none; }
+.tb-date { color: var(--ink-2); font-size: 13px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--sheet-2); }
+.tb-spacer { flex: 1 1 auto; }
+.tb-action { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.tb-cli { display: none; }
+#topbar .menu-btn { display: none; }
+.shell-body { display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); align-items: start; }
+#sidebar {
+  position: sticky; top: calc(env(safe-area-inset-top, 0px) + 57px); max-height: calc(100vh - 57px); overflow-y: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 12px; padding-block: 16px 24px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-group > .eyebrow { padding: 0 10px 4px; }
+.nav-link {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 6px 10px; text-decoration: none; color: var(--ink-2);
+  border-left: 3px solid transparent; border-radius: 0 3px 3px 0; font-weight: 500;
+}
+.nav-link:hover { background: var(--sheet); color: var(--ink); }
+.nav-link[aria-current="page"] { background: var(--sheet); color: var(--ink); border-left-color: var(--accent); font-weight: 600; box-shadow: 0 1px 0 var(--line); }
+.nav-label { flex: 1 1 auto; }
+.nav-badge { font: 600 11.5px/1 var(--font-ui); padding: 3px 6px; border-radius: 3px; background: var(--warn-soft); color: var(--warn); border: 1px dashed var(--warn-line); font-variant-numeric: tabular-nums; }
+.nav-badge.is-crit { background: var(--crit-soft); color: var(--crit); border: 1px solid var(--crit); }
+.nav-phase { flex-basis: 100%; font-size: 11px; color: var(--ink-3); font-weight: 400; }
+.side-foot .seg-btn { padding: 4px 9px; font-size: 12px; }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 0 10px; }
+#side-back { position: fixed; inset: 0; background: var(--backdrop); z-index: 39; }
+.main { min-width: 0; padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-left: 20px; padding-block: 14px 24px; display: flex; flex-direction: column; gap: 16px; }
+#statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gauge, .meter, .chip-privacy-link {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 12.5px; text-decoration: none; color: var(--ink-2); background: var(--sheet); border: 1px solid var(--line); border-radius: 3px;
+}
+.gauge b, .meter b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.gauge.st-pending { border: 1.5px dashed var(--warn-line); background: var(--warn-soft); color: var(--warn); }
+.gauge.st-pending b { color: var(--warn); }
+.gauge.st-db { border: 1.5px solid var(--ok); background: var(--ok-soft); color: var(--ok); }
+.gauge.st-db b { color: var(--ok); }
+.gauge.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 45%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.meter .meter-bar { width: 56px; height: 6px; background: var(--dim-soft); border-radius: 3px; overflow: hidden; display: inline-block; }
+.meter .meter-bar > span { display: block; height: 100%; background: var(--accent); }
+.meter.is-warn .meter-bar > span { background: var(--warn-line); }
+.switch { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border: 1px solid var(--line); border-radius: 3px; background: var(--sheet); color: var(--ink-2); font-size: 12.5px; cursor: pointer; }
+.switch::before { content: ""; width: 26px; height: 14px; border-radius: 7px; background: var(--dim-soft); border: 1px solid var(--line-strong); box-shadow: inset -12px 0 0 0 var(--sheet); transition: box-shadow .15s, background .15s; }
+.switch[aria-pressed="true"] { color: var(--redpen); border-color: var(--redpen); }
+.switch[aria-pressed="true"]::before { background: var(--redpen); border-color: var(--redpen); box-shadow: inset 12px 0 0 0 var(--redpen), inset -12px 0 0 0 var(--sheet); }
+#view { min-width: 0; display: flex; flex-direction: column; gap: 16px; outline: none; }
+#footer { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; color: var(--ink-3); font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { display: inline-block; width: 22px; height: 12px; }
+.foot-meta { flex: 1 1 260px; }
+
+@media (min-width: 720px) {
+  #topbar { position: sticky; top: env(safe-area-inset-top, 0px); }
+}
+@media (min-width: 1100px) { .tb-cli { display: block; } }
+@media (max-width: 719px) {
+  #topbar .menu-btn { display: inline-flex; }
+  .tb-spacer { display: none; }
+  .shell-body { grid-template-columns: minmax(0, 1fr); }
+  #sidebar {
+    position: fixed; z-index: 40; top: 0; bottom: 0; left: 0; width: min(300px, 86vw); max-height: none;
+    background: var(--sheet); box-shadow: var(--shadow); padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  #sidebar:not(.open) { display: none; }
+  .main { padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+  #statusbar > * { flex: none; white-space: nowrap; }
+  .tb-hide-phone { display: none; }
+  h1 { font-size: 24px; }
+}
+
+/* ---------- page building blocks ---------- */
+.page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.page-head-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.page-head h1 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.page-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.section { background: var(--sheet); border: 1px solid var(--line); border-radius: 3px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.section-head > :first-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+.grid > * { min-width: 0; }
+.cols-2 { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
+.cols-3 { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+.cols-4 { grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+.stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.spread { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+:is(.section, .stack, .card, .kpi, .callout, .modal-body, .drawer-body, .pop-body, #view, .empty) > :is(.btn, .btn-wrap, .seg, .chip, .status, .store, .pv, .cli) { align-self: flex-start; }
+.row > .bar { flex: 1 1 120px; width: auto; }
+.card { border: 1px solid var(--line); background: var(--sheet); padding: 12px; border-radius: 3px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.kpi { display: flex; flex-direction: column; gap: 2px; padding: 12px; border: 1px solid var(--line); background: var(--sheet); border-radius: 3px; min-width: 0; }
+.kpi-label { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+.kpi-value { font: 600 26px/1.1 var(--font-head); color: var(--ink); }
+.kpi-sub { font-size: 12px; color: var(--ink-3); }
+.callout { border: 1px solid var(--line); border-left-width: 4px; padding: 10px 12px; background: var(--sheet); display: flex; flex-direction: column; gap: 6px; border-radius: 0 3px 3px 0; }
+.callout-info { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, var(--sheet)); }
+.callout-warn { border-left-color: var(--warn-line); background: var(--warn-soft); }
+.callout-crit { border-left-color: var(--crit); background: var(--crit-soft); }
+.callout-ok { border-left-color: var(--ok); background: var(--ok-soft); }
+pre.code { margin: 0; padding: 10px 12px; background: var(--sheet-2); border: 1px solid var(--line); border-radius: 3px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; line-height: 1.5; }
+.untrusted { border: 1.5px dashed var(--crit); background: color-mix(in srgb, var(--crit-soft) 40%, var(--sheet)); }
+.flash-hl { animation: hl 1.6s ease-out; }
+@keyframes hl { 0% { background: color-mix(in srgb, var(--warn-line) 45%, transparent); } 100% { background: transparent; } }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; min-height: 32px;
+  border: 1px solid var(--line-strong); border-radius: 3px; background: var(--sheet); color: var(--ink); font-weight: 500; font-size: 13.5px;
+  cursor: pointer; text-decoration: none; line-height: 1.2; text-align: center;
+}
+.btn:hover { border-color: var(--ink-3); background: var(--sheet-2); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); border-color: var(--accent); }
+.btn-danger { color: var(--crit); border-color: var(--crit); background: var(--sheet); }
+.btn-danger:hover { background: var(--crit-soft); }
+.btn-ghost { border-color: transparent; background: transparent; color: var(--accent); }
+.btn-ghost:hover { background: var(--accent-soft); border-color: transparent; }
+.btn-sm { min-height: 26px; padding: 3px 8px; font-size: 12.5px; }
+.btn:disabled { cursor: not-allowed; opacity: .7; background: var(--sheet-2); color: var(--ink-3); border-color: var(--line); }
+.btn-wrap { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; max-width: 100%; }
+.reason { font-size: 11.5px; color: var(--ink-3); line-height: 1.35; max-width: 42ch; }
+.reason::before { content: "Chưa bấm được: "; font-weight: 600; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--ink-2); font-size: 20px; line-height: 1; cursor: pointer; flex: none; }
+.icon-btn:hover { background: var(--sheet-2); border-color: var(--line); }
+.cli { font: 400 11.5px/1.3 var(--font-mono); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cli-p { color: var(--accent); font-weight: 500; }
+.why { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--sheet); color: var(--ink-2); font: 600 11px/1 var(--font-ui); cursor: pointer; vertical-align: middle; flex: none; }
+.why:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- chips, statuses, stores, provenance, annotations ---------- */
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; font-size: 12px; line-height: 1.6; border: 1px solid var(--line); border-radius: 3px; background: var(--sheet-2); color: var(--ink-2); white-space: nowrap; vertical-align: middle; }
+.chip-info { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-soft); }
+.chip-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: var(--ok-soft); }
+.chip-warn { color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft); }
+.chip-danger { color: var(--crit); border-color: color-mix(in srgb, var(--crit) 50%, transparent); background: var(--crit-soft); }
+.chip-tint { color: var(--c); border-color: color-mix(in srgb, var(--c) 45%, transparent); background: color-mix(in srgb, var(--c) 10%, var(--sheet)); font-weight: 600; }
+.chip-G1 { --c: var(--g1); } .chip-G2 { --c: var(--g2); } .chip-G3 { --c: var(--g3); } .chip-G4 { --c: var(--g4); } .chip-G5 { --c: var(--g5); }
+.chip-agent01 { --c: var(--a01); } .chip-agent02 { --c: var(--a02); } .chip-agent03 { --c: var(--a03); }
+.chip-agent04 { --c: var(--a04); } .chip-agent05 { --c: var(--a05); } .chip-agent06 { --c: var(--a06); }
+.chip-agent07 { --c: var(--a07); } .chip-agent08 { --c: var(--a08); } .chip-agent09 { --c: var(--a09); }
+.chip-phase { font-family: var(--font-ui); font-weight: 500; font-size: 11.5px; color: var(--ink-3); border-style: dashed; background: transparent; letter-spacing: 0; }
+.chip-privacy { color: var(--ink-2); border-color: var(--line-strong); background: var(--sheet); font-size: 11.5px; }
+.chip-wrap { white-space: normal; max-width: 100%; }
+.status { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; font-size: 12px; line-height: 1.6; border-radius: 3px; border: 1px solid var(--line); white-space: nowrap; vertical-align: middle; font-weight: 500; }
+.s-pending { border: 1.5px dashed var(--warn-line); background: var(--warn-soft); color: var(--warn); }
+.s-db { border: 1.5px solid var(--ok); background: var(--ok-soft); color: var(--ok); }
+.s-rejected { border: 1px solid var(--line); background: var(--dim-soft); color: var(--dim); text-decoration: line-through; }
+.s-crit { border: 1.5px solid var(--crit); background: var(--crit-soft); color: var(--crit); }
+.s-ok { border: 1px solid color-mix(in srgb, var(--ok) 50%, transparent); color: var(--ok); background: var(--sheet); }
+.s-warn { border: 1px solid var(--warn-line); color: var(--warn); background: var(--sheet); }
+.s-run { border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft); }
+.s-run::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.2s ease-in-out infinite; }
+.s-locked { border: 1px solid var(--line-strong); color: var(--ink-3); background: var(--dim-soft); }
+@keyframes pulse { 50% { opacity: .25; } }
+/* data-state language on any container */
+.st-pending { border: 1.5px dashed var(--warn-line) !important; background-color: color-mix(in srgb, var(--warn-soft) 70%, var(--sheet)); }
+.st-db { border: 1.5px solid var(--ok) !important; }
+.st-rejected { border-color: var(--line) !important; background-color: var(--dim-soft); color: var(--dim); }
+.st-rejected .strike, .st-rejected.strike { text-decoration: line-through; }
+.st-file { border: 1px solid var(--line-strong); border-radius: 0 !important; background-color: var(--sheet-2); }
+.store { display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; font: 500 11.5px/1.7 var(--font-mono); color: var(--ink-2); vertical-align: middle; white-space: nowrap; border-radius: 0; }
+.store.st-pending { color: var(--warn); }
+.store.st-db { color: var(--ok); background: var(--ok-soft); }
+.store.st-file::before { content: ""; width: 7px; height: 7px; background: var(--dim); }
+.pv { display: inline-flex; align-items: center; padding: 0 6px; font: 600 10.5px/1.6 var(--font-ui); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); border: 1.25px solid var(--ink-3); vertical-align: middle; white-space: nowrap; background: var(--sheet); }
+.pv-llm { border-radius: 999px; color: var(--a03); border-color: var(--a03); }
+.pv-code { border-radius: 0; color: var(--ink-2); }
+.pv-gv { border-style: dashed; border-radius: 0; color: var(--redpen); border-color: var(--redpen); }
+.annot-group { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.annot { display: none; align-items: center; font: 400 15px/1.15 var(--font-hand); color: var(--redpen); padding: 0 2px; cursor: help; white-space: nowrap; transform: rotate(-1.5deg); }
+.annot::before { content: "["; } .annot::after { content: "]"; }
+body.explain .annot { display: inline-flex; }
+body.explain .annot-group:empty { display: none; }
+
+/* ---------- tables, kv, empty ---------- */
+.table-wrap { overflow-x: auto; max-width: 100%; border: 1px solid var(--line); border-radius: 3px; background: var(--sheet); }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th { text-align: left; font: 600 12px/1.3 var(--font-ui); color: var(--ink-2); background: var(--sheet-2); padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; position: sticky; top: 0; }
+.tbl td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl .al-right { text-align: right; } .tbl .al-center { text-align: center; }
+.tbl tr.row-link { cursor: pointer; }
+.tbl tr.row-link:hover td { background: var(--accent-soft); }
+.tbl tr.is-dim td { color: var(--ink-3); background: var(--sheet-2); }
+.tbl tr.is-sel td { background: var(--accent-soft); }
+.kv { display: grid; grid-template-columns: minmax(110px, max-content) minmax(0, 1fr); gap: 4px 14px; margin: 0; }
+.kv dt { color: var(--ink-3); font-size: 12.5px; }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.empty { border: 1px dashed var(--line-strong); padding: 18px; color: var(--ink-3); display: flex; flex-direction: column; align-items: flex-start; gap: 10px; background: var(--sheet); border-radius: 3px; }
+
+/* ---------- segmented, bars, charts ---------- */
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-strong); border-radius: 3px; overflow: hidden; background: var(--sheet); max-width: 100%; }
+.seg-btn { border: 0; border-right: 1px solid var(--line); background: transparent; padding: 6px 12px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.seg-btn:last-child { border-right: 0; }
+.seg-btn[aria-pressed="true"] { background: var(--ink); color: var(--sheet); font-weight: 600; }
+.seg-btn:hover:not([aria-pressed="true"]) { background: var(--sheet-2); }
+.bar { position: relative; display: inline-block; width: 100%; min-width: 60px; height: 8px; background: var(--dim-soft); border-radius: 2px; overflow: hidden; vertical-align: middle; }
+.bar-fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--accent); }
+.bar-signed .bar-fill { left: auto; }
+.bar-zero { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
+.bar-pos { background: var(--ok); } .bar-neg { background: var(--crit); } .bar-warn { background: var(--warn-line); }
+.bar-ok { background: var(--ok); } .bar-danger { background: var(--crit); } .bar-accent { background: var(--accent); }
+.spark { display: inline-block; vertical-align: middle; overflow: visible; }
+.spark-line, .lc-line { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.spark-area, .lc-area { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: none; }
+.spark-dot, .lc-dot { fill: var(--accent); }
+.lc-dot-end { fill: var(--accent); stroke: var(--sheet); stroke-width: 2; }
+.lc-grid { stroke: var(--line); stroke-width: 1; }
+.lc-zero { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.lc-tick { fill: var(--ink-3); font: 11px var(--font-ui); }
+.lc-ylabel { fill: var(--ink-2); font: 600 11px var(--font-ui); }
+.chart-box { width: 100%; min-width: 0; overflow: hidden; }
+.chart { display: block; max-width: none; }
+
+/* ---------- graph strip ---------- */
+.strip { border: 1px solid var(--line); background: var(--sheet); padding: 10px 12px; overflow-x: auto; border-radius: 3px; max-width: 100%; }
+.strip-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin-bottom: 8px; font-size: 12.5px; color: var(--ink-2); }
+.strip-flow { display: flex; align-items: center; gap: 6px; width: max-content; }
+.strip-arrow { color: var(--ink-3); font-size: 13px; flex: none; }
+.gn { position: relative; display: inline-flex; flex-direction: column; gap: 2px; padding: 6px 9px; min-width: 88px; max-width: 170px; border: 1.5px solid var(--line-strong); background: var(--sheet); font-size: 12px; line-height: 1.3; flex: none; }
+.gn-top { display: flex; align-items: center; gap: 5px; font-weight: 600; color: var(--ink); }
+.gn-sub { color: var(--ink-3); font-size: 11px; }
+.gn-meta { color: var(--ink-3); font: 400 10.5px/1.3 var(--font-mono); }
+.gn-meta:empty { display: none; }
+.gn-agent { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 16px; padding: 0 3px; font: 600 10.5px/1 var(--font-mono); color: var(--sheet); background: var(--ac, var(--ink-3)); border-radius: 2px; }
+.gn-code { border-radius: 0; }
+.gn-llm { border-radius: 12px; }
+.gn-stop { border: 1.5px dashed var(--warn-line); background: var(--warn-soft); }
+.gn-stop .gn-top { color: var(--warn); }
+.gn-commit { border-color: var(--ok); background: var(--ok-soft); }
+.gn-commit .gn-top { color: var(--ok); }
+.gn.is-done { border-color: color-mix(in srgb, var(--ok) 70%, var(--line-strong)); }
+.gn.is-done .gn-top::after { content: "✓"; color: var(--ok); margin-left: auto; padding-left: 4px; }
+.gn.is-current { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); border-color: var(--accent); animation: nodepulse 1.4s ease-in-out infinite; }
+.gn-stop.is-current { box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn-line) 40%, transparent); border-color: var(--warn-line); }
+.gn-stop.is-current .gn-wait::after { content: "đang chờ thầy/cô"; }
+.gn-wait { font-size: 11px; color: var(--warn); font-weight: 600; }
+.gn-wait:empty::after { content: none; }
+.gn.is-failed { border: 1.5px solid var(--crit); background: var(--crit-soft); animation: none; box-shadow: none; }
+.gn.is-failed .gn-top { color: var(--crit); }
+.gn.is-failed .gn-top::after { content: "✕"; color: var(--crit); margin-left: auto; padding-left: 4px; }
+@keyframes nodepulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 12%, transparent); } }
+.strip-lanes { display: flex; flex-direction: column; gap: 5px; padding: 6px 8px; border: 1px dashed var(--line-strong); border-radius: 3px; position: relative; }
+.strip-lane { display: flex; align-items: center; gap: 6px; }
+.lane-label { font: 500 11px/1.2 var(--font-mono); color: var(--ink-3); min-width: 74px; }
+.strip-compact .gn { min-width: 0; max-width: 124px; padding: 3px 6px; font-size: 11px; }
+/* compact strips sit in ~1100px columns: wrap the chain rather than hide the commit node behind a sideways scroll */
+.strip-compact .strip-flow { width: auto; flex-wrap: wrap; row-gap: 6px; }
+.strip-compact .lane-label { min-width: 0; max-width: 84px; white-space: normal; text-wrap: balance; }
+.strip-compact .gn-sub, .strip-compact .gn-meta { display: none; }
+.strip-compact .strip-head { margin-bottom: 4px; }
+
+/* ---------- LaTeX ---------- */
+.tex { overflow-wrap: anywhere; }
+.tex-block { display: block; overflow-x: auto; max-width: 100%; }
+.tex-block > p + p { margin-top: 6px; }
+mjx-container[jax="SVG"] { max-width: 100%; }
+mjx-container[jax="SVG"][display="true"] { overflow-x: auto; overflow-y: hidden; margin: .4em 0 !important; }
+/* Overlay scrollbars are invisible: fade the right edge of any box that still has content to the right. */
+@supports (animation-timeline: scroll()) {
+  .tex-block, mjx-container[jax="SVG"], .strip, .table-wrap { animation: edge-fade linear both; animation-timeline: scroll(self inline); }
+  @keyframes edge-fade { from, 97% { mask-image: linear-gradient(to left, transparent, #000 32px); } to { mask-image: none; } }
+}
+
+/* ---------- rubric editor ---------- */
+.rubric { display: flex; flex-direction: column; gap: 8px; }
+.rubric-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 72px auto; gap: 8px; align-items: start; }
+.rubric-row .mono { padding-top: 7px; color: var(--ink-3); }
+.rubric-ro { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.rubric-total { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+@media (max-width: 520px) { .rubric-row { grid-template-columns: 30px minmax(0, 1fr); } .rubric-row > :nth-child(n+3) { grid-column: 2; } }
+
+/* ---------- overlays ---------- */
+.modal-back, .drawer-back { position: fixed; inset: 0; background: var(--backdrop); z-index: 60; display: flex; }
+.modal-back { align-items: flex-start; justify-content: center; overflow-y: auto; padding: calc(40px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.modal { background: var(--sheet); border: 1px solid var(--line-strong); box-shadow: var(--shadow); width: min(560px, 100%); border-radius: 3px; display: flex; flex-direction: column; max-width: 100%; }
+.modal-wide { width: min(920px, 100%); }
+.modal-head, .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 12px 10px 16px; border-bottom: 1px solid var(--line); }
+.modal-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.modal-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid var(--line); }
+.drawer-back { z-index: 50; justify-content: flex-end; }
+.drawer { background: var(--sheet); width: min(520px, 100%); height: 100%; overflow-y: auto; box-shadow: var(--shadow); border-left: 1px solid var(--line-strong); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.drawer-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.pop { inset: auto; margin: 0; padding: 0; width: 340px; max-width: calc(100vw - 32px); background: var(--sheet); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 3px; box-shadow: var(--shadow); z-index: 70; }
+.pop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 6px 6px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.pop-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; max-height: 60vh; overflow: auto; }
+#toasts { position: fixed; z-index: 80; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 8px; width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+.toast { pointer-events: none; background: var(--sheet); color: var(--ink); border: 1px solid var(--line-strong); border-left-width: 4px; box-shadow: var(--shadow); padding: 9px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 3px; border-radius: 0 3px 3px 0; animation: tin .18s ease-out; }
+.toast strong { font-weight: 600; }
+.toast .toast-line { font: 400 12px/1.45 var(--font-mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.toast-info { border-left-color: var(--accent); } .toast-ok { border-left-color: var(--ok); } .toast-warn { border-left-color: var(--warn-line); } .toast-error { border-left-color: var(--crit); }
+.toast.out { opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; }
+@keyframes tin { from { opacity: 0; transform: translateY(8px); } }
+#tour-root:empty { display: none; }
+.tour { position: fixed; z-index: 65; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100vw - 32px)); background: var(--sheet); border: 1.5px solid var(--accent); box-shadow: var(--shadow); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; border-radius: 3px; }
+.tour-text { font-size: 13.5px; color: var(--ink-2); }
+.tour-dots { display: flex; gap: 4px; }
+.tour-dots span { width: 18px; height: 4px; background: var(--line); }
+.tour-dots span.on { background: var(--accent); }
+@media (max-width: 719px) { .tour { left: max(16px, env(safe-area-inset-left, 0px)); width: auto; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+/*__TABS_CSS__*/
+</style>
+<!--__BODY__-->
+<div id="app" class="tex-ignore">
+  <header id="topbar">
+    <div class="tb-inner">
+      <button type="button" id="menu-btn" class="btn btn-secondary btn-sm menu-btn" aria-controls="sidebar" aria-expanded="false">Menu</button>
+      <a class="brand" href="#today" data-tab-link="today" aria-label="Trợ lý gia sư Toán — về Hôm nay">
+        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="2" fill="var(--sheet)" stroke="var(--ink)" stroke-width="1.5"/><path d="M1 8h22M1 16h22M8 1v22M16 1v22" stroke="var(--line-strong)" stroke-width="1"/><path d="M5.5 12.5l4 4 9-10" fill="none" stroke="var(--redpen)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="brand-name">Trợ lý gia sư Toán</span>
+      </a>
+      <span class="tb-date num" id="tb-date" title="Ngày trong dữ liệu mẫu">21/10/2026</span>
+      <span class="tb-spacer"></span>
+      <span class="tb-action">
+        <a class="btn btn-primary" href="#session" data-tab-link="session" data-params="step=1" title="&gt;_ tutor ingest &lt;hs&gt; &lt;file&gt;">Nộp bài</a>
+        <span class="cli tb-cli"><span class="cli-p">&gt;_</span> tutor ingest &lt;hs&gt; &lt;file&gt;</span>
+      </span>
+      <span class="tb-action">
+        <a class="btn btn-secondary" href="#review" data-tab-link="review" title="&gt;_ tutor review"><span>Chờ duyệt (<span class="num" id="tb-review-n">0</span>)</span></a>
+        <span class="cli tb-cli"><span class="cli-p">&gt;_</span> tutor review</span>
+      </span>
+    </div>
+  </header>
+  <div class="shell-body">
+    <nav id="sidebar" aria-label="Các màn hình">
+      <div id="nav-groups" class="stack"></div>
+      <div class="side-foot">
+        <span class="eyebrow">Giao diện</span>
+        <div class="seg" id="theme-seg" role="group" aria-label="Giao diện sáng tối">
+          <button type="button" class="seg-btn" data-theme-opt="system" aria-pressed="true">Theo máy</button>
+          <button type="button" class="seg-btn" data-theme-opt="light" aria-pressed="false">Sáng</button>
+          <button type="button" class="seg-btn" data-theme-opt="dark" aria-pressed="false">Tối</button>
+        </div>
+      </div>
+    </nav>
+    <div id="side-back" hidden></div>
+    <div class="main">
+      <div id="statusbar" aria-label="Trạng thái hệ thống">
+        <a class="gauge st-pending" id="g-pending" href="#review" data-tab-link="review" title="Đề xuất LLM đang chờ trong checkpoints.db — chưa phải dữ liệu chính thức"><span>Đề xuất chờ duyệt: <b id="g-pending-n">0</b><span class="tb-hide-phone"> · checkpoints.db</span></span></a>
+        <a class="gauge st-db" id="g-db" href="#ops" data-tab-link="ops" data-params="section=storage" title="Tổng số dòng trong tutor.db: dữ liệu đã duyệt, cộng dòng session của buổi vừa nộp (chưa duyệt). Lỗi, θ, gợi ý, báo cáo chỉ vào đây qua commit node."><span>tutor.db: <b id="g-db-n">0</b> dòng</span></a>
+        <a class="meter" id="g-cost" href="#logs" data-tab-link="logs" title="Chi phí LLM tháng này / ngân sách (đơn giá giả định)"><span id="g-cost-t">Tháng 10: —</span><span class="meter-bar"><span id="g-cost-bar" style="width:0%"></span></span></a>
+        <a class="chip-privacy-link" href="#ops" data-tab-link="ops" data-params="section=privacy" title="Tên học sinh chỉ lưu trên máy này; prompt chỉ chứa mã HS">
+          <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5.5" width="8" height="5.5" rx="1" fill="currentColor"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+          API chỉ nhận mã HS</a>
+        <button type="button" class="switch" id="explain-toggle" aria-pressed="false" title="Hiện chú thích: graph, agent, bảng, lệnh CLI đứng sau mỗi phần">Chú thích hệ thống</button>
+      </div>
+      <main id="view" tabindex="-1" aria-live="off"></main>
+      <footer id="footer">
+        <div class="legend" aria-label="Chú giải">
+          <span><i class="sw st-pending"></i>đề xuất trong checkpoints.db (chưa ghi)</span>
+          <span><i class="sw st-db" style="background:var(--ok-soft)"></i>dòng trong tutor.db</span>
+          <span><i class="sw st-rejected" style="border:1px solid var(--line)"></i><s>bị bỏ</s> (vẫn lưu để đo độ chính xác)</span>
+          <span><i class="sw st-file"></i>tệp trong data/</span>
+          <span><span class="pv pv-llm">LLM</span><span class="pv pv-code">code</span><span class="pv pv-gv">GV</span> nguồn của giá trị</span>
+        </div>
+        <p class="foot-meta">Chạy local · 1 người dùng · không đăng nhập · dữ liệu giả</p>
+        <button type="button" class="btn btn-ghost btn-sm" id="reset-btn" data-no-autoclick>Đặt lại dữ liệu mẫu</button>
+      </footer>
+    </div>
+  </div>
+</div>
+<div id="modal-root" class="tex-ignore"></div>
+<div id="drawer-root" class="tex-ignore"></div>
+<div id="toasts" class="tex-ignore" aria-live="polite"></div>
+<div id="tour-root" class="tex-ignore"></div>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global' },
+  options: { ignoreHtmlClass: 'tex-ignore', processHtmlClass: 'tex', enableMenu: false },
+  startup: {
+    typeset: false,
+    ready: function () {
+      MathJax.startup.defaultReady();
+      MathJax.startup.promise.then(function () { if (window.__texReady) window.__texReady(); });
+    }
+  }
+};
+</script>
+<script async id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+<script>
+/*__MOCK__*/
+</script>
+<script>
+(function () {
+  'use strict';
+  var D = document;
+  var $ = function (s, r) { return (r || D).querySelector(s); };
+  var arr = function (x) { return Array.isArray(x) ? x : []; };
+  var M = function () { if (!window.MOCK || typeof window.MOCK !== 'object') window.MOCK = {}; return window.MOCK; };
+  var meta = function () { return M().meta || {}; };
+  var db = function () { return M().db || {}; };
+  var threadsArr = function () { return arr((M().checkpoints || {}).threads); };
+  var today = function () { return meta().today || '2026-10-21'; };
+  var pad2 = function (n) { return String(n).padStart(2, '0'); };
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  var reduced = function () { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  var ls = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage blocked: convenience only */ } }
+  };
+  var uid = 0;
+
+  // Tabs from IA §1: id, title, sidebar group, phase chip.
+  var TABS = [
+    { id: 'today', title: 'Hôm nay', group: 'Mỗi ngày', line: 'Việc cần làm ngay, cảnh báo, nhịp dùng hằng ngày.' },
+    { id: 'review', title: 'Hộp duyệt', group: 'Mỗi ngày', line: 'Một hàng chờ cho mọi graph đang dừng (tutor review).' },
+    { id: 'session', title: 'Buổi học', group: 'Sau buổi học', line: 'G1: nộp bài → chạy → xác nhận → duyệt lỗi → ghi DB.' },
+    { id: 'recommend', title: 'Gợi ý bài', group: 'Trước buổi sau', phase: 'P6', line: 'G4: code chọn bài, 08 viết lý do, thầy/cô duyệt.' },
+    { id: 'report', title: 'Báo cáo tháng', group: 'Cuối tháng', phase: 'P7', line: 'G5: số liệu → 3 insight → 09 viết → audit → thầy/cô duyệt.' },
+    { id: 'students', title: 'Học sinh', group: 'Theo dõi', line: 'Hồ sơ, Elo theo KC, lỗi lặp lại, lịch sử (đọc từ tutor.db).' },
+    { id: 'bank', title: 'Ngân hàng bài', group: 'Chuẩn bị', phase: 'P5', line: 'Ngân hàng bài, G2 gắn KC + rubric, G3 xếp độ khó.' },
+    { id: 'catalog', title: 'Danh mục', group: 'Chuẩn bị', line: 'Danh sách KC, KC tiên quyết, 18 mã lỗi + ví dụ.' },
+    { id: 'ops', title: 'Vận hành', group: 'Hệ thống', line: 'Thread, checkpoint, chạy lại, sao lưu, cài đặt, riêng tư.' },
+    { id: 'logs', title: 'Nhật ký & chi phí', group: 'Hệ thống', line: 'Lời gọi LLM, chi phí, chất lượng agent, độ ổn định prompt.' },
+    { id: 'map', title: 'Bản đồ hệ thống', group: 'Hệ thống', line: 'Tầng, 9 agent, 5 graph, 16 bảng, CLI ↔ app, thuật ngữ.' }
+  ];
+  var PHASE_TEXT = 'làm sau bản đầu (P5–P7)';
+  var tabs = {};
+  var started = false;
+  var cur = { tab: null, params: {} };
+  var cleanupFn = null;
+  var renderListeners = [];
+  var queueListeners = new Set();
+  var explainOn = ls.get('tutor.explain') === '1';
+
+  /* ---------------- formatting ---------------- */
+  var fmt = {
+    date: function (d) { if (!d) return '—'; var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d)); return m ? m[3] + '/' + m[2] + '/' + m[1] : String(d); },
+    month: function (m) { var x = /^(\d{4})-(\d{2})/.exec(String(m || '')); return x ? x[2] + '/' + x[1] : (m || '—'); },
+    dt: function (ts) { if (!ts) return '—'; var s = String(ts); return fmt.date(s) + (s.length > 10 ? ' ' + s.slice(11, 16) : ''); },
+    num: function (x, d) { d = d == null ? 2 : d; return x == null || isNaN(x) ? '—' : (+x).toFixed(d); },
+    signed: function (x, d) {
+      d = d == null ? 2 : d; if (x == null || isNaN(x)) return '—';
+      var v = +(+x).toFixed(d); return v > 0 ? '+' + v.toFixed(d) : v < 0 ? '−' + Math.abs(v).toFixed(d) : (0).toFixed(d);
+    },
+    pct: function (x, d) { return x == null || isNaN(x) ? '—' : (x * 100).toFixed(d || 0) + '%'; },
+    usd: function (x) { if (x == null || isNaN(x)) return '—'; var v = +x; return (v < 0 ? '−$' : '$') + (v !== 0 && Math.abs(v) < 0.1 ? Math.abs(v).toFixed(3) : Math.abs(v).toFixed(2)); },
+    int: function (x) { return x == null || isNaN(x) ? '—' : Math.round(+x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); },
+    ms: function (x) { return x == null ? '—' : x < 1000 ? Math.round(x) + ' ms' : (x / 1000).toFixed(1) + ' s'; },
+    ago: function (ts) {
+      if (!ts) return '—'; var a = Date.parse(String(ts).slice(0, 10)), b = Date.parse(today()); if (isNaN(a)) return String(ts);
+      var d = Math.round((b - a) / 864e5); return d === 0 ? 'hôm nay' : d < 0 ? 'sau ' + (-d) + ' ngày' : d === 1 ? 'hôm qua' : d + ' ngày trước';
+    }
+  };
+  function nowISO() { var n = new Date(); return today() + 'T' + pad2(n.getHours()) + ':' + pad2(n.getMinutes()) + ':' + pad2(n.getSeconds()) + 'Z'; }
+  function dm(d) { var m = /^\d{4}-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? m[2] + '/' + m[1] : String(d || ''); }
+
+  /* ---------------- DOM helpers ---------------- */
+  function append(el, kids) {
+    kids.flat(Infinity).forEach(function (c) {
+      if (c == null || c === false || c === true) return;
+      el.append(c instanceof Node ? c : String(c));
+    });
+    return el;
+  }
+  function h(tag, attrs) {
+    var kids = Array.prototype.slice.call(arguments, 2);
+    var el = D.createElement(tag);
+    if (attrs != null && (typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs))) { kids.unshift(attrs); attrs = null; }
+    Object.keys(attrs || {}).forEach(function (k) {
+      var v = attrs[k];
+      if (v == null || v === false) return;
+      if (k === 'class' || k === 'className') el.className = v;
+      else if (k === 'style') { if (typeof v === 'string') el.style.cssText = v; else Object.assign(el.style, v); }
+      else if (k.slice(0, 2) === 'on' && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
+      else if (k.slice(0, 5) === 'data-' || k.slice(0, 5) === 'aria-' || k === 'role' || k === 'for' || k === 'list' || k === 'form') el.setAttribute(k, v === true ? '' : v);
+      else if (k in el) el[k] = v;
+      else el.setAttribute(k, v === true ? '' : v);
+    });
+    return append(el, kids);
+  }
+  function svg(str) { var t = D.createElement('template'); t.innerHTML = str.trim(); return t.content.firstChild; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function report(e, where) { console.error('[' + where + ']', e); toast('Lỗi: ' + ((e && e.message) || e), { kind: 'error' }); }
+  function safe(fn, where) {
+    try { var r = fn(); if (r && typeof r.then === 'function') r.then(null, function (e) { report(e, where); }); return r; }
+    catch (e) { report(e, where); }
+  }
+  var ICON_HAND = '<svg class="gn-hand" width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 8.5V3.5a1 1 0 0 1 2 0V7m0-4.5v-1a1 1 0 0 1 2 0V7m0-4.5a1 1 0 0 1 2 0V7.5m0-3a1 1 0 0 1 2 0V10a5 5 0 0 1-5 5H8.4a4 4 0 0 1-3.3-1.8L2.4 9.6a1 1 0 0 1 1.6-1.2L5 9.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var ICON_LOCK = '<svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5.5" width="8" height="5.5" rx="1" fill="currentColor"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+
+  /* ---------------- ui helpers ---------------- */
+  function cli(cmd) { return h('div', { class: 'cli', title: '>_ ' + cmd }, h('span', { class: 'cli-p', 'aria-hidden': 'true' }, '>_'), ' ' + cmd); }
+  function privacyChip(code) { var c = h('span', { class: 'chip chip-privacy', title: 'Tên học sinh không rời máy; prompt chỉ có mã' }); c.append(svg(ICON_LOCK), 'gửi API dưới mã ' + code); return c; }
+  function button(label, onClick, o) {
+    o = o || {};
+    var b = h('button', { type: 'button', class: 'btn btn-' + (o.kind || 'secondary') + (o.size === 'sm' ? ' btn-sm' : ''), title: o.title || null });
+    append(b, [label]);
+    if (o.noAutoclick) b.setAttribute('data-no-autoclick', '');
+    if (o.disabledReason) b.disabled = true;
+    b.addEventListener('click', function (ev) { if (!b.disabled && onClick) safe(function () { return onClick(ev, b); }, typeof label === 'string' ? label : 'button'); });
+    if (!o.cli && !o.privacy && !o.disabledReason) return b;
+    var w = h('span', { class: 'btn-wrap' }, b);
+    if (o.disabledReason) w.append(h('span', { class: 'reason' }, o.disabledReason));
+    if (o.privacy) w.append(privacyChip(o.privacy));
+    if (o.cli) w.append(cli(o.cli));
+    w.button = b;
+    return w;
+  }
+  function emptyEl(text, action) { return h('div', { class: 'empty' }, h('p', null, text || 'Không có dữ liệu.'), action || null); }
+  function table(o) {
+    o = o || {};
+    var columns = arr(o.columns), rows = arr(o.rows);
+    if (!rows.length) return emptyEl(o.empty || 'Không có dữ liệu.');
+    var al = function (c) { return c.align ? 'al-' + c.align : null; };
+    var thead = h('thead', null, h('tr', null, columns.map(function (c) { return h('th', { class: al(c), scope: 'col' }, c.label == null ? '' : c.label); })));
+    var tb = h('tbody');
+    rows.forEach(function (r) {
+      var tr = h('tr', { class: o.rowClass ? o.rowClass(r) : null });
+      columns.forEach(function (c) {
+        var v;
+        try { v = c.render ? c.render(r) : r[c.key]; } catch (e) { console.error('[table ' + (c.key || c.label) + ']', e); v = '⚠'; }
+        tr.append(h('td', { class: al(c) }, v == null ? '' : v));
+      });
+      if (o.onRow) {
+        tr.classList.add('row-link'); tr.tabIndex = 0;
+        tr.addEventListener('click', function (e) { if (e.target.closest('button,a,input,select,textarea,label,summary')) return; safe(function () { return o.onRow(r); }, 'row'); });
+        tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target === tr) safe(function () { return o.onRow(r); }, 'row'); });
+      }
+      tb.append(tr);
+    });
+    return h('div', { class: 'table-wrap' }, h('table', { class: 'tbl' }, thead, tb));
+  }
+  function chip(text, kind) {
+    kind = kind || 'neutral';
+    var tint = /^(G[1-5]|agent0[1-9])$/.test(kind);
+    return h('span', { class: 'chip chip-' + kind + (tint ? ' chip-tint' : '') }, text);
+  }
+  var STATUS = {
+    running: ['đang chạy', 's-run'], awaiting_review: ['chờ duyệt', 's-pending'], committed: ['đã ghi', 's-db'], failed: ['hỏng', 's-crit'],
+    confirmed: ['đã xác nhận', 's-db'], edited: ['đã sửa', 's-db'], rejected: ['đã bỏ', 's-rejected'], added: ['GV thêm', 's-db'],
+    approved: ['đã duyệt', 's-db'], waiting: ['đang chờ', 's-pending'], locked: ['khoá', 's-locked'],
+    pass: ['đạt', 's-ok'], rewritten: ['đã viết lại 1 lần', 's-warn'], dropped: ['bị bỏ', 's-rejected'],
+    ready: ['sẵn sàng', 's-ok'], thieu_rubric: ['thiếu rubric', 's-warn'], cho_do_kho: ['chờ độ khó', 's-pending'], cho_duyet_tag: ['chờ duyệt gắn KC', 's-pending']
+  };
+  function status(value) {
+    var s = STATUS[value] || [String(value == null ? '—' : value), ''];
+    var el = h('span', { class: 'status ' + s[1], title: 'status = ' + value, 'data-status': value });
+    if (value === 'locked') el.append(svg(ICON_LOCK));
+    el.append(s[0]);
+    return el;
+  }
+  function storeBadge(kind) {
+    var m = { checkpoint: ['checkpoints.db', 'st-pending', 'Đề xuất chờ duyệt — chưa phải dữ liệu chính thức'], db: ['tutor.db', 'st-db', 'Dòng đã duyệt — chỉ commit node ghi'], file: ['data/', 'st-file', 'Tệp trong thư mục data/'] }[kind] || [kind, '', ''];
+    return h('span', { class: 'store ' + m[1], title: m[2] }, m[0]);
+  }
+  function prov(kind, label) {
+    var m = { llm: ['LLM', 'LLM viết / đề xuất'], code: ['code', 'Code tính, xác định'], gv: ['GV', 'Giáo viên quyết / sửa'] }[kind] || [kind, ''];
+    return h('span', { class: 'pv pv-' + kind, title: m[1] }, label || m[0]);
+  }
+  var FILE_NOTES = {
+    'checkpoints.db': 'LangGraph lưu state và đề xuất đang chờ duyệt; chưa phải dữ liệu chính thức.',
+    'tutor.db': 'Chỉ chứa dòng đã duyệt; chỉ commit node được ghi.',
+    'llm.jsonl': 'Nhật ký mọi lời gọi LLM: agent, prompt_version, token, thời gian.',
+    'data/inbox/': 'Bài làm HS và file ngân hàng chờ nạp.', 'data/out/': 'File .md đã xuất (gợi ý, báo cáo).', 'data/backup/': 'Bản sao tutor.db trước mỗi commit.'
+  };
+  function gloss(term) {
+    var t = String(term || '').replace(/\(\)$/, '').toLowerCase();
+    var g = arr(meta().glossary).find(function (x) { return String(x.term || '').toLowerCase() === t; });
+    return g ? g.vi : '';
+  }
+  function annotInfo(tag) {
+    var s = String(tag), i = s.indexOf(':'), kind = i > 0 ? s.slice(0, i) : '', val = i > 0 ? s.slice(i + 1) : s, m = meta();
+    if (!kind && /^G[1-5]$/.test(val)) { var g = (m.graphs || {})[val]; return [val, g ? g.name + ' · ' + g.title_vi + (g.cli ? ' · ' + g.cli : '') : 'Graph ' + val]; }
+    if (kind === 'agent') { var a = arr(m.agents).find(function (x) { return x.id === val; }); return [(val + ' ' + (a ? a.name : '')).trim(), a ? a.role_vi : 'Agent LLM ' + val]; }
+    if (kind === 'table') { var tb = arr(m.tables).find(function (x) { return x.name === val; }); return ['bảng ' + val, tb ? tb.note + ' · ghi bởi ' + tb.writer : 'Bảng trong tutor.db']; }
+    if (kind === 'cli') return ['>_ ' + val, 'Lệnh CLI tương ứng'];
+    if (kind === 'file') return [val, FILE_NOTES[val] || gloss(val) || 'Tệp trong data/'];
+    return [val, gloss(val) || FILE_NOTES[val] || ''];
+  }
+  function annot(tags) {
+    var g = h('span', { class: 'annot-group' });
+    arr(tags).forEach(function (t) { var x = annotInfo(t); g.append(h('span', { class: 'annot', title: x[1], 'aria-label': x[0] + (x[1] ? ': ' + x[1] : '') }, x[0])); });
+    return g;
+  }
+  function phaseChip(p) { return h('span', { class: 'chip chip-phase', title: 'Bản đầu = P0–P4; màn hình này thuộc ' + p }, PHASE_TEXT); }
+  function pageHead(o) {
+    o = o || {};
+    var t = TABS.find(function (x) { return x.id === cur.tab; }) || {};
+    return h('header', { class: 'page-head' },
+      h('div', { class: 'page-head-text' },
+        h('p', { class: 'eyebrow' }, o.eyebrow || t.group || ''),
+        h('h1', null, o.title || t.title || '', t.phase ? phaseChip(t.phase) : null, o.annot ? annot(o.annot) : null),
+        o.lead ? h('p', { class: 'lead' }, o.lead) : null),
+      o.actions ? h('div', { class: 'page-actions' }, o.actions) : null);
+  }
+
+  // "Con số này từ đâu?" popover (native popover API; modal fallback).
+  var popEl = null;
+  function closePop() { if (!popEl) return; try { if (popEl.hidePopover) popEl.hidePopover(); } catch (e) { /* already closed */ } popEl.hidden = !popEl.showPopover; }
+  function openPop(anchor, title, content) {
+    if (!popEl) {
+      popEl = h('div', { id: 'pop', class: 'pop tex-ignore', role: 'dialog' });
+      if (popEl.showPopover) popEl.setAttribute('popover', 'auto'); else popEl.hidden = true;
+      D.body.append(popEl);
+    }
+    popEl.setAttribute('aria-label', title);
+    popEl.replaceChildren(
+      h('div', { class: 'pop-head' }, h('strong', null, title), h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Đóng', onclick: closePop }, '×')),
+      h('div', { class: 'pop-body' }, content == null ? '' : content));
+    if (popEl.showPopover) { closePop(); popEl.showPopover(); } else popEl.hidden = false;
+    popAnchor = anchor; placePop();
+    tex(popEl);
+  }
+  var popAnchor = null;
+  function placePop() {
+    if (!popEl || !popAnchor) return;
+    if (!popAnchor.isConnected) { closePop(); return; }
+    var r = popAnchor.getBoundingClientRect(), vw = D.documentElement.clientWidth, vh = window.innerHeight;
+    var w = Math.min(340, vw - 32);
+    popEl.style.position = 'fixed'; popEl.style.width = w + 'px';
+    popEl.style.left = Math.max(16, Math.min(r.left, vw - w - 16)) + 'px';
+    var ph = popEl.offsetHeight, top = r.bottom + 6;
+    if (top + ph > vh - 12) top = Math.max(12, r.top - ph - 6);
+    popEl.style.top = top + 'px';
+  }
+  function why(content) {
+    var b = h('button', { type: 'button', class: 'why', 'aria-label': 'Con số này từ đâu?', title: 'Con số này từ đâu?' }, '?');
+    b.addEventListener('click', function () { safe(function () { openPop(b, 'Con số này từ đâu?', typeof content === 'function' ? content() : content); }, 'why'); });
+    return b;
+  }
+
+  function graphDef(gid) { return (meta().graphs || {})[gid] || null; }
+  function nodeDef(nodeId) {
+    var gs = meta().graphs || {}, found = null;
+    Object.keys(gs).some(function (k) { found = arr(gs[k].nodes).find(function (n) { return n.id === nodeId; }) || null; return !!found; });
+    return found;
+  }
+  // A trailing "(a · b · c)" is the sub-line; splitting inside it would leave "(a" on top.
+  function labelParts(label) { var s = String(label), m = /^(.*?) \(([^()]* · [^()]*)\)$/.exec(s); return m ? [m[1], m[2]] : s.split(' · '); }
+  function nodeName(nodeId) { var n = nodeDef(nodeId); return n ? labelParts(n.label)[0] : String(nodeId || '—'); }
+  function graphStrip(gid, o) {
+    o = o || {};
+    var g = graphDef(gid);
+    var wrap = h('div', { class: 'strip' + (o.compact ? ' strip-compact' : ''), 'data-graph': gid });
+    if (!g) { wrap.append(h('span', { class: 'muted small' }, 'Chưa có định nghĩa graph ' + gid + '.')); return wrap; }
+    wrap.append(h('div', { class: 'strip-head' }, chip(gid, gid), h('span', { class: 'mono' }, g.name), h('span', null, g.title_vi || ''), g.cli && !o.compact ? cli(g.cli) : null));
+    var done = new Set(arr(o.done));
+    var stateOf = function (id, doneSet, failed, laneObj) {
+      if (failed === id) return 'failed';
+      if (doneSet.has(id)) return 'done';
+      if (o.current === id && !(laneObj && laneObj.failed)) return 'current';
+      return '';
+    };
+    var nodeEl = function (n, st) {
+      var parts = labelParts(n.label || n.id);
+      var top = h('span', { class: 'gn-top' });
+      if (n.agent) top.append(h('span', { class: 'gn-agent', style: '--ac: var(--a' + n.agent + ')' }, n.agent));
+      if (n.kind === 'stop') top.append(svg(ICON_HAND));
+      top.append(n.agent ? parts[0].replace(/^\d\d\s+/, '') : parts[0]);
+      return h('div', { class: 'gn gn-' + (n.kind || 'code') + (st ? ' is-' + st : ''), 'data-node': n.id, title: (n.label || n.id) + ' [' + ({ code: 'code', llm: 'LLM', stop: 'DỪNG', commit: 'commit' }[n.kind] || n.kind) + ']' },
+        top, parts.length > 1 ? h('span', { class: 'gn-sub' }, parts.slice(1).join(' · ')) : null,
+        n.kind === 'stop' ? h('span', { class: 'gn-wait' }) : null, h('span', { class: 'gn-meta' }));
+    };
+    var arrow = function () { return h('span', { class: 'strip-arrow', 'aria-hidden': 'true' }, '→'); };
+    var flow = h('div', { class: 'strip-flow' });
+    var nodes = arr(g.nodes), laneNodes = nodes.filter(function (n) { return n.lane; }), laneDone = false;
+    nodes.forEach(function (n) {
+      if (n.lane) {
+        if (laneDone) return; laneDone = true;
+        if (flow.childNodes.length) flow.append(arrow());
+        var box = h('div', { class: 'strip-lanes', title: 'Chạy song song, mỗi bài một làn' });
+        var lanes = arr(o.lanes).length ? o.lanes : [null];
+        lanes.forEach(function (l) {
+          var row = h('div', { class: 'strip-lane', 'data-lane': l ? l.seq : '' }, h('span', { class: 'lane-label' }, l ? (l.label || 'Bài ' + l.seq) : 'mỗi bài'));
+          var ds = l ? new Set(arr(l.done)) : done;
+          laneNodes.forEach(function (ln, i) { if (i) row.append(arrow()); row.append(nodeEl(ln, stateOf(ln.id, ds, l ? l.failed : o.failed, l))); });
+          box.append(row);
+        });
+        flow.append(box);
+      } else {
+        if (flow.childNodes.length) flow.append(arrow());
+        flow.append(nodeEl(n, stateOf(n.id, done, o.failed)));
+      }
+    });
+    wrap.append(flow);
+    return wrap;
+  }
+  function animateGraph(strip, steps, o) {
+    o = o || {};
+    var stepMs = reduced() ? 40 : (o.stepMs == null ? 350 : o.stepMs);
+    var prev = null;
+    return arr(steps).reduce(function (p, s) {
+      return p.then(function () {
+        if (!strip || !strip.isConnected) return;
+        var scope = (s.lane != null && strip.querySelector('[data-lane="' + s.lane + '"]')) || strip;
+        var el = scope.querySelector('[data-node="' + (window.CSS && CSS.escape ? CSS.escape(s.node) : s.node) + '"]');
+        if (el) {
+          if (prev && prev !== el && !prev.classList.contains('is-failed')) { prev.classList.remove('is-current'); prev.classList.add('is-done'); }
+          el.classList.remove('is-done', 'is-failed'); el.classList.add('is-current');
+          var m = el.querySelector('.gn-meta'), bits = [];
+          if (s.ms) bits.push(fmt.ms(s.ms));
+          if (s.tokens_in || s.tokens_out) bits.push(fmt.int((s.tokens_in || 0) + (s.tokens_out || 0)) + ' tok');
+          if (m && bits.length) m.textContent = bits.join(' · ');
+          prev = el;
+        }
+        return sleep(stepMs);
+      });
+    }, Promise.resolve()).then(function () {
+      if (prev && !prev.classList.contains('gn-stop')) { prev.classList.remove('is-current'); prev.classList.add('is-done'); }
+    });
+  }
+  function segmented(options, value, onChange) {
+    var w = h('div', { class: 'seg', role: 'group' });
+    arr(options).forEach(function (o) {
+      var b = h('button', { type: 'button', class: 'seg-btn', 'aria-pressed': String(o.id === value), 'data-seg': o.id }, o.label);
+      b.addEventListener('click', function () {
+        if (b.getAttribute('aria-pressed') === 'true') return;
+        w.querySelectorAll('.seg-btn').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+        if (onChange) safe(function () { return onChange(o.id); }, 'segmented');
+      });
+      w.append(b);
+    });
+    return w;
+  }
+  function sparkline(values, o) {
+    o = o || {};
+    var w = o.w || 80, hh = o.h || 20, v = arr(values).map(Number).filter(isFinite);
+    var label = v.length ? 'Xu hướng: ' + v.map(function (x) { return fmt.signed(x); }).join(', ') : 'Chưa có dữ liệu';
+    if (!v.length) return svg('<svg class="spark" width="' + w + '" height="' + hh + '" viewBox="0 0 ' + w + ' ' + hh + '" role="img" aria-label="' + label + '"><line class="lc-grid" x1="0" x2="' + w + '" y1="' + hh / 2 + '" y2="' + hh / 2 + '"/></svg>');
+    var lo = Math.min.apply(null, v), hi = Math.max.apply(null, v), yr = o.yRange === undefined ? [-1, 1] : o.yRange;
+    if (yr) { lo = Math.min(lo, yr[0]); hi = Math.max(hi, yr[1]); }   // θ scale by default: tiny θ drift stays visually small
+    if (hi === lo) { hi += 1; lo -= 1; }
+    var px = function (i) { return v.length === 1 ? w / 2 : 2 + i * (w - 4) / (v.length - 1); };
+    var py = function (x) { return 2 + (hi - x) * (hh - 4) / (hi - lo); };
+    var pts = v.map(function (x, i) { return px(i).toFixed(1) + ',' + py(x).toFixed(1); });
+    // Fill toward θ = 0 so a negative θ reads below the baseline, not like a small positive one.
+    var y0 = py(Math.min(hi, Math.max(lo, 0))).toFixed(1);
+    var area = 'M' + px(0).toFixed(1) + ',' + y0 + ' L' + pts.join(' L') + ' L' + px(v.length - 1).toFixed(1) + ',' + y0 + ' Z';
+    return svg('<svg class="spark" width="' + w + '" height="' + hh + '" viewBox="0 0 ' + w + ' ' + hh + '" role="img" aria-label="' + esc(label) + '"><title>' + esc(label) + '</title>' +
+      (lo < 0 && hi > 0 ? '<line class="lc-grid" x1="0" x2="' + w + '" y1="' + y0 + '" y2="' + y0 + '"/>' : '') +
+      '<path class="spark-area" d="' + area + '"/><polyline class="spark-line" points="' + pts.join(' ') + '"/>' +
+      '<circle class="spark-dot" cx="' + px(v.length - 1).toFixed(1) + '" cy="' + py(v[v.length - 1]).toFixed(1) + '" r="2.2"/></svg>');
+  }
+  function bar(value, max, o) {
+    o = o || {};
+    var v = +value || 0, m = Math.abs(+max) || 1, pct = Math.min(1, Math.abs(v) / m) * 100;
+    var el = h('span', { class: 'bar' + (o.signed ? ' bar-signed' : ''), role: 'img', 'aria-label': String(value), title: String(value) });
+    var fill = h('span', { class: 'bar-fill bar-' + (o.kind || (o.signed ? (v < 0 ? 'neg' : 'pos') : 'accent')) });
+    if (o.signed) { fill.style.width = (pct / 2) + '%'; if (v < 0) fill.style.right = '50%'; else fill.style.left = '50%'; el.append(fill, h('span', { class: 'bar-zero' })); }
+    else { fill.style.width = pct + '%'; el.append(fill); }
+    return el;
+  }
+  function niceStep(range) { var raw = range / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; }
+  function lineChart(points, o) {
+    o = o || {};
+    var pts = arr(points).filter(function (p) { return p && isFinite(+p.y); });
+    if (!pts.length) return emptyEl('Chưa có dữ liệu để vẽ.');
+    var box = h('div', { class: 'chart-box' }), lastW = 0;
+    var draw = function (w) { lastW = w; box.replaceChildren(lineSvg(pts, o, w)); };
+    draw(560);
+    if (window.ResizeObserver) new ResizeObserver(function () { var w = Math.round(box.clientWidth); if (w > 0 && Math.abs(w - lastW) > 2) draw(Math.max(240, w)); }).observe(box);
+    return box;
+  }
+  function lineSvg(pts, o, W) {
+    var H = o.h || 160, L = 40, R = 14, T = o.yLabel ? 22 : 10, B = 26;
+    var ys = pts.map(function (p) { return +p.y; }), lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys), yr = o.yRange === undefined ? [-1, 1] : o.yRange;
+    if (yr) { lo = Math.min(lo, yr[0]); hi = Math.max(hi, yr[1]); }   // θ scale by default (yRange: null fits data) so small θ changes look small
+    if (o.zero !== false && lo > 0 && lo < (hi - lo)) lo = 0;
+    if (hi === lo) { hi += 0.5; lo -= 0.5; }
+    var step = niceStep(hi - lo); lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+    var X = function (i) { return pts.length === 1 ? (L + W - R) / 2 : L + i * (W - L - R) / (pts.length - 1); };
+    var Y = function (y) { return T + (hi - y) * (H - T - B) / (hi - lo); };
+    var dec = Math.max(0, -Math.floor(Math.log10(step) + 1e-9)), s = '';   // step 0.005 → 3 decimals, so ticks stay distinct
+    for (var t = lo; t <= hi + step / 2; t += step) {
+      var yy = Y(t).toFixed(1), z = Math.abs(t) < step / 1000;
+      s += '<line class="' + (z ? 'lc-zero' : 'lc-grid') + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/>' +
+        '<text class="lc-tick" x="' + (L - 6) + '" y="' + yy + '" text-anchor="end" dominant-baseline="middle">' + (t < 0 && !z ? '−' : '') + Math.abs(t).toFixed(dec) + '</text>';
+    }
+    var every = Math.max(1, Math.ceil(pts.length / Math.max(2, Math.floor(W / 70))));
+    pts.forEach(function (p, i) { if (i % every === 0 || i === pts.length - 1) s += '<text class="lc-tick" x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(p.x) + '</text>'; });
+    var line = pts.map(function (p, i) { return X(i).toFixed(1) + ',' + Y(+p.y).toFixed(1); }).join(' ');
+    s += '<polyline class="lc-line" points="' + line + '"/>';
+    pts.forEach(function (p, i) {
+      var last = i === pts.length - 1;
+      s += '<circle class="' + (last ? 'lc-dot-end' : 'lc-dot') + '" cx="' + X(i).toFixed(1) + '" cy="' + Y(+p.y).toFixed(1) + '" r="' + (last ? 4.5 : 3) + '"><title>' + esc(p.x) + ': ' + fmt.num(p.y) + '</title></circle>';
+    });
+    if (o.yLabel) s += '<text class="lc-ylabel" x="' + L + '" y="12">' + esc(o.yLabel) + '</text>';
+    return svg('<svg class="chart" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.yLabel || 'Biểu đồ') + '">' + s + '</svg>');
+  }
+  function latex(src, o) {
+    o = o || {};
+    var s = String(src == null ? '' : src);
+    var el = h(o.block ? 'div' : 'span', { class: 'tex' + (o.block ? ' tex-block' : '') });
+    if (!s) return el;
+    // Pure math (no delimiters) gets wrapped; mixed text + $…$ is passed through.
+    if (!/\$|\\\(|\\\[|\\begin\{/.test(s)) { el.textContent = o.block ? '\\[' + s + '\\]' : '\\(' + s + '\\)'; return el; }
+    var paras = s.split(/\n\s*\n/);
+    if (o.block && paras.length > 1) paras.forEach(function (p) { el.append(h('p', null, p.trim())); });
+    else el.textContent = s;
+    return el;
+  }
+  function kv(pairs) {
+    var dl = h('dl', { class: 'kv' });
+    arr(pairs).forEach(function (p) { if (p) dl.append(h('dt', null, p[0]), h('dd', null, p[1] == null ? '—' : p[1])); });
+    return dl;
+  }
+  function rubricEditor(rubric, o) {
+    o = o || {};
+    var items = arr(rubric && rubric.items_json).map(function (x) { return Object.assign({}, x); });
+    var id = 'rub' + (++uid);
+    var root = h('div', { class: 'rubric' }), list = h('div', { class: 'stack', style: 'gap:8px' }), total = h('div', { class: 'rubric-total' });
+    var sum = function () { return items.reduce(function (s, i) { return s + (+i.points || 0); }, 0); };
+    var emit = function () {
+      total.replaceChildren(h('span', null, 'Tổng: ', h('b', { class: 'num' }, String(sum())), ' điểm = max_score'), prov('code'));
+      if (o.onChange) safe(function () { return o.onChange({ items_json: items.map(function (x) { return Object.assign({}, x); }), max_score: sum() }); }, 'rubric');
+    };
+    var draw = function () {
+      list.replaceChildren.apply(list, items.map(function (it, i) {
+        if (o.readOnly) return h('div', { class: 'rubric-ro' }, h('span', { class: 'mono small' }, it.item_id), latex(it.text, { block: true }), h('span', { class: 'num nowrap' }, (it.points == null ? 0 : it.points) + ' đ'));
+        var t = h('textarea', { id: id + '-t' + i, rows: 2, value: it.text || '', 'aria-label': 'Nội dung mục ' + it.item_id });
+        t.addEventListener('input', function () { it.text = t.value; emit(); });
+        var p = h('input', { id: id + '-p' + i, type: 'number', min: 0, step: 0.5, value: it.points == null ? 1 : it.points, 'aria-label': 'Điểm mục ' + it.item_id });
+        p.addEventListener('input', function () { it.points = +p.value || 0; emit(); });
+        return h('div', { class: 'rubric-row' }, h('span', { class: 'mono small' }, it.item_id), t, p,
+          button('Xoá mục', function () { items.splice(items.indexOf(it), 1); draw(); emit(); }, { kind: 'ghost', size: 'sm', disabledReason: items.length < 2 ? 'cần ít nhất 1 mục' : null }));
+      }));
+      tex(list);
+    };
+    draw();
+    root.append(list);
+    if (!o.readOnly) root.append(h('div', { class: 'row' }, button('Thêm mục', function () {
+      var n = items.reduce(function (m, x) { var k = parseInt(String(x.item_id).replace(/\D/g, ''), 10); return isNaN(k) ? m : Math.max(m, k); }, 0) + 1;
+      items.push({ item_id: 'r' + n, text: '', points: 1 }); draw(); emit();
+    }, { kind: 'secondary', size: 'sm' })));
+    root.append(total);
+    total.replaceChildren(h('span', null, 'Tổng: ', h('b', { class: 'num' }, String(sum())), ' điểm = max_score'), prov('code'));
+    return root;
+  }
+  function costChip(calls) {
+    var c = arr(calls), tok = 0, usd = 0;
+    c.forEach(function (x) { tok += (x.tokens_in || 0) + (x.tokens_out || 0) + (x.cache_read_tokens || 0); usd += +x.cost_usd || 0; });
+    return h('span', { class: 'chip', title: c.length + ' lời gọi LLM · đơn giá giả định cho bản nháp' }, '≈ ' + fmt.int(tok) + ' token · ' + fmt.usd(usd) + ' (giả định)');
+  }
+  function payloadModal(agentId, studentCode) {
+    var s = ((M().ui || {}).api_payload_samples || {})[agentId];
+    var a = arr(meta().agents).find(function (x) { return x.id === agentId; });
+    var code = studentCode || 'HS-03';
+    var body = s ? h('div', { class: 'stack' },
+      h('div', { class: 'callout callout-info' }, h('p', null, 'Chỉ mã ', h('b', null, code), ' được gửi. Tên học sinh chỉ lưu trên máy này (NFR7).')),
+      h('h3', null, 'Phần cố định (được cache) ', prov('code')), h('pre', { class: 'code' }, s.cached_system),
+      h('h3', null, 'Bài làm học sinh — dữ liệu không tin cậy'), h('pre', { class: 'code untrusted' }, String(s.untrusted || '').split('{code}').join(code)),
+      h('h3', null, 'Schema đầu ra ', prov('llm')), h('pre', { class: 'code' }, s.schema))
+      : emptyEl('Chưa có mẫu nội dung gửi API cho agent ' + agentId + '.');
+    return modal({ title: 'Nội dung gửi API · ' + agentId + (a ? ' ' + a.name : ''), wide: true, body: body, actions: [{ label: 'Đóng' }] });
+  }
+  function download(filename, text) {
+    // Artifact viewers block file downloads, so show the file and offer copy instead.
+    var pre = h('pre', { class: 'code', tabindex: 0 }, String(text == null ? '' : text));
+    return modal({
+      title: 'Tệp ' + filename, wide: true,
+      body: h('div', { class: 'stack' }, h('p', { class: 'muted small' }, 'Bản nháp không tải file xuống được trong khung xem — nội dung tệp ở dưới.'), pre),
+      actions: [{ label: 'Sao chép nội dung', kind: 'primary', onClick: function () {
+        var sel = function () { var r = D.createRange(); r.selectNodeContents(pre); var s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Đã chọn sẵn nội dung — bấm Ctrl/Cmd + C để sao chép.'); };
+        try { navigator.clipboard.writeText(pre.textContent).then(function () { toast('Đã sao chép nội dung ' + filename, { kind: 'ok' }); }, sel); } catch (e) { sel(); }
+      } }, { label: 'Đóng' }]
+    });
+  }
+
+  /* ---------------- toasts, receipts ---------------- */
+  function toast(msg, o) {
+    o = o || {};
+    var root = $('#toasts'); if (!root) return null;
+    var t = h('div', { class: 'toast toast-' + (o.kind || 'info'), role: o.kind === 'error' ? 'alert' : 'status' },
+      o.title ? h('strong', null, o.title) : null, o.title ? h('span', { class: 'toast-line' }, msg) : h('span', null, msg));
+    root.append(t);
+    while (root.children.length > 4) root.firstChild.remove();
+    setTimeout(function () { t.classList.add('out'); setTimeout(function () { t.remove(); }, 220); }, o.ms || 4000);
+    return t;
+  }
+  function receipt(title, rows, o) {
+    o = o || {};
+    var at = nowISO(), m = M();
+    if (o.backup) {
+      var files = m.files || (m.files = {});
+      files.backups = arr(files.backups);
+      var path = ((m.settings || {}).backup_dir || 'data/backup/') + 'tutor-' + today() + '.db';
+      files.backups.unshift({ path: path, at: at, size_kb: ((files.backups[0] || {}).size_kb || 2048) + 12 });
+      toast('Đã sao lưu ' + path, { kind: 'info' });
+    }
+    var parts = arr(rows).map(function (r) { return typeof r[1] === 'number' ? '+' + r[1] + ' ' + r[0] : r[0] + (r[1] && r[1] !== 'cập nhật' ? ' ' + r[1] : ''); });
+    var line = '1 transaction · ' + parts.join(' · ');
+    toast(line, { kind: 'ok', title: title + ' → tutor.db', ms: 6500 });
+    var ui = m.ui || (m.ui = {});
+    ui.activity = arr(ui.activity);
+    ui.activity.unshift({ at: at, text: title + ' — ' + line, graph: o.graph || null, agent: null, table: (arr(rows)[0] || [])[0] || null });
+    refresh();
+  }
+
+  /* ---------------- modal, confirm, drawer ---------------- */
+  var modals = [];
+  var drawerApi = null;
+  function syncInert() {
+    var app = $('#app'), dr = $('#drawer-root');
+    if (app) app.inert = modals.length > 0 || !!drawerApi;
+    if (dr) dr.inert = modals.length > 0;
+  }
+  function modal(o) {
+    o = o || {};
+    var prevFocus = D.activeElement, tid = 'mt' + (++uid);
+    var box = h('div', { class: 'modal' + (o.wide ? ' modal-wide' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': tid });
+    var back = h('div', { class: 'modal-back' }, box);
+    var api = { el: box, close: null };
+    api.close = function () {
+      if (!back.isConnected) return;
+      back.remove(); modals.splice(modals.indexOf(api), 1); syncInert();
+      if (o.onClose) safe(o.onClose, 'modal.onClose');
+      if (prevFocus && prevFocus.isConnected && prevFocus.focus) prevFocus.focus({ preventScroll: true });
+    };
+    var bodyEl = h('div', { class: 'modal-body' });
+    if (typeof o.body === 'function') safe(function () { return o.body(bodyEl, api); }, 'modal.body');
+    else if (o.body != null) append(bodyEl, [typeof o.body === 'string' ? h('p', null, o.body) : o.body]);
+    box.append(h('div', { class: 'modal-head' }, h('h2', { id: tid }, o.title || ''), h('button', { type: 'button', class: 'icon-btn', 'data-modal-close': '', 'aria-label': 'Đóng', onclick: api.close }, '×')), bodyEl);
+    var acts = arr(o.actions);
+    if (acts.length) box.append(h('div', { class: 'modal-foot' }, acts.map(function (a) {
+      return button(a.label, function () { return a.onClick ? a.onClick(api.close) : api.close(); }, { kind: a.kind || 'secondary', noAutoclick: a.noAutoclick, disabledReason: a.disabledReason });
+    })));
+    back.addEventListener('mousedown', function (e) { if (e.target === back) api.close(); });
+    $('#modal-root').append(back); modals.push(api); syncInert();
+    var f = box.querySelector('[autofocus]') || box.querySelector('.modal-foot .btn-primary') || box.querySelector('[data-modal-close]');
+    if (f) f.focus({ preventScroll: true });
+    tex(box);
+    return api;
+  }
+  function confirmDlg(msg, o) {
+    o = o || {};
+    return new Promise(function (res) {
+      var answered = false;
+      var done = function (v, close) { answered = true; res(v); close(); };
+      modal({
+        title: o.title || 'Xác nhận', body: typeof msg === 'string' ? h('p', null, msg) : msg,
+        onClose: function () { if (!answered) res(false); },
+        actions: [{ label: o.cancel || 'Huỷ', onClick: function (c) { done(false, c); } }, { label: o.ok || 'Đồng ý', kind: o.danger ? 'danger' : 'primary', onClick: function (c) { done(true, c); } }]
+      });
+    });
+  }
+  function drawer(o) {
+    o = o || {};
+    if (drawerApi) drawerApi.close();
+    var prevFocus = D.activeElement, tid = 'dt' + (++uid);
+    var panel = h('aside', { class: 'drawer', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': tid });
+    var back = h('div', { class: 'drawer-back' }, panel);
+    var api = { el: panel, close: null };
+    api.close = function () {
+      if (!back.isConnected) return;
+      back.remove(); if (drawerApi === api) drawerApi = null; syncInert();
+      if (prevFocus && prevFocus.isConnected && prevFocus.focus) prevFocus.focus({ preventScroll: true });
+    };
+    var bodyEl = h('div', { class: 'drawer-body' });
+    if (typeof o.body === 'function') safe(function () { return o.body(bodyEl, api); }, 'drawer.body');
+    else if (o.body != null) append(bodyEl, [typeof o.body === 'string' ? h('p', null, o.body) : o.body]);
+    panel.append(h('div', { class: 'drawer-head' }, h('h2', { id: tid }, o.title || ''), h('button', { type: 'button', class: 'icon-btn', 'data-modal-close': '', 'aria-label': 'Đóng', onclick: api.close }, '×')), bodyEl);
+    back.addEventListener('mousedown', function (e) { if (e.target === back) api.close(); });
+    $('#drawer-root').append(back); drawerApi = api; syncInert();
+    panel.querySelector('[data-modal-close]').focus({ preventScroll: true });
+    tex(panel);
+    return api;
+  }
+  function closeOverlays() {
+    modals.slice().reverse().forEach(function (m) { m.close(); });
+    if (drawerApi) drawerApi.close();
+    closePop(); closeSidebar();
+  }
+
+  /* ---------------- MathJax ---------------- */
+  var texReady = false, texChain = Promise.resolve(), texWaiting = [];
+  function queueTex(el) {
+    texChain = texChain.then(function () {
+      if (!el || !el.isConnected || !window.MathJax || !MathJax.typesetPromise) return;
+      // Only .tex elements hold math: plain text such as "$0.62 / $30" must stay text.
+      var els = el.classList && el.classList.contains('tex') ? [el] : Array.prototype.slice.call(el.querySelectorAll('.tex'));
+      if (els.length) return MathJax.typesetPromise(els);
+    }).catch(function (e) { console.warn('MathJax', e); });
+    return texChain;
+  }
+  function tex(el) {
+    if (!el) return Promise.resolve();
+    if (!texReady) return new Promise(function (r) { texWaiting.push([el, r]); });
+    return queueTex(el);
+  }
+  window.__texReady = function () {
+    if (texReady) return; texReady = true;
+    texWaiting.splice(0).forEach(function (x) { queueTex(x[0]).then(x[1]); });
+  };
+  if (window.MathJax && MathJax.startup && MathJax.startup.promise && MathJax.typesetPromise) MathJax.startup.promise.then(window.__texReady);
+
+  /* ---------------- lookups ---------------- */
+  var LK = null;
+  function idx() {
+    if (LK) return LK;
+    var d = db(), by = function (a, k) { var m = new Map(); arr(a).forEach(function (r) { m.set(r[k], r); }); return m; };
+    LK = {
+      student: by(d.student, 'id'), kc: by(d.kc, 'id'), kcCode: by(d.kc, 'code'), problem: by(d.problem, 'id'), problemRef: by(d.problem, 'ref'),
+      err: by(d.error_code, 'code'), thread: by(threadsArr(), 'thread_id'), sessionThread: by(d.session, 'thread_id')
+    };
+    return LK;
+  }
+  function pick(map, key, list, pred) { var v = map.get(key); return v !== undefined ? v : (arr(list).find(pred) || null); }
+  function studentCode(s) { return s ? (s.code || 'HS-' + pad2(s.id)) : '—'; }
+  var lookup = {
+    student: function (id) { return pick(idx().student, +id, db().student, function (s) { return s.id == id; }); },
+    studentByCode: function (code) { return arr(db().student).find(function (s) { return studentCode(s) === code; }) || null; },
+    kc: function (id) { return pick(idx().kc, +id, db().kc, function (k) { return k.id == id; }); },
+    kcByCode: function (code) { return pick(idx().kcCode, code, db().kc, function (k) { return k.code === code; }); },
+    problem: function (id) { return pick(idx().problem, +id, db().problem, function (p) { return p.id == id; }); },
+    problemByRef: function (ref) { return pick(idx().problemRef, ref, db().problem, function (p) { return p.ref === ref; }); },
+    errorCode: function (code) { return pick(idx().err, code, db().error_code, function (e) { return e.code === code; }); },
+    rubricFor: function (pid) {
+      var best = null;
+      arr(db().rubric).forEach(function (r) { if (r.problem_id == pid && (!best || r.version > best.version)) best = r; });
+      return best;
+    },
+    problemStatus: function (p) {
+      if (!p) return null;
+      if (p.id == null || !lookup.problem(p.id)) return 'cho_duyet_tag';
+      if (!arr(db().problem_kc).some(function (x) { return x.problem_id === p.id; })) return 'cho_duyet_tag';
+      if (!lookup.rubricFor(p.id)) return 'thieu_rubric';
+      if (!p.difficulty_approved_at) return 'cho_do_kho';
+      return 'ready';
+    },
+    thread: function (id) { return pick(idx().thread, id, threadsArr(), function (t) { return t.thread_id === id; }); },
+    sessionByThread: function (id) { return pick(idx().sessionThread, id, db().session, function (s) { return s.thread_id === id; }); },
+    studentCode: studentCode
+  };
+  function sessionFor(t) {
+    if (!t) return null;
+    if (t.session_id != null) { var s = arr(db().session).find(function (x) { return x.id === t.session_id; }); if (s) return s; }
+    return lookup.sessionByThread(t.thread_id);
+  }
+  function heldOn(t) {
+    var s = sessionFor(t); if (s && s.held_on) return s.held_on;
+    var m = /(\d{4})(\d{2})(\d{2})$/.exec(t.thread_id || ''); return m ? m[1] + '-' + m[2] + '-' + m[3] : '';
+  }
+
+  /* ---------------- review queue ---------------- */
+  var GORDER = { G1: 1, G2: 2, G3: 3, G4: 4, G5: 5 };
+  function annotateLocks() {
+    var aw = threadsArr().filter(function (t) { return t.status === 'awaiting_review'; });
+    aw.forEach(function (t) {
+      t.locked = false; t.lock_reason = null; t.blocker = null;
+      if (t.graph !== 'G1' || t.student_id == null) return;
+      var ho = heldOn(t);
+      // Earlier failed/running G1 blocks too (same rule as session tab blockerOf).
+      var earlier = threadsArr().filter(function (o) { return o !== t && o.graph === 'G1' && o.student_id === t.student_id && /^(awaiting_review|failed|running)$/.test(o.status) && heldOn(o) < ho; })
+        .sort(function (a, b) { return heldOn(a) < heldOn(b) ? -1 : 1; })[0];
+      if (earlier) {
+        t.locked = true; t.blocker = earlier.thread_id;
+        var bs = earlier.status === 'failed' ? ' đang lỗi — chạy lại và duyệt buổi đó trước' : earlier.status === 'running' ? ' đang chạy — chờ xong và duyệt buổi đó trước' : null;
+        t.lock_reason = 'Elo cập nhật tuần tự: ' + (bs ? 'buổi ' : 'duyệt buổi ') + dm(heldOn(earlier)) + ' của ' + studentCode(lookup.student(t.student_id)) + (bs || ' trước');
+      }
+    });
+    return aw;
+  }
+  function stampOf(t) { var c = arr(t.checkpoints); return (c.length ? c[c.length - 1].at : '') || t.started_at || ''; }
+  var queueApi = {
+    list: function (f) {
+      f = f || {};
+      return annotateLocks().filter(function (t) { return (!f.graph || t.graph === f.graph) && (f.student_id == null || t.student_id == f.student_id); })
+        .sort(function (a, b) {
+          var ga = GORDER[a.graph] || 9, gb = GORDER[b.graph] || 9;
+          if (ga !== gb) return ga - gb;
+          if (a.graph === 'G1') {
+            if (a.student_id !== b.student_id) return (a.student_id || 0) - (b.student_id || 0);
+            return heldOn(a) < heldOn(b) ? -1 : heldOn(a) > heldOn(b) ? 1 : 0;
+          }
+          return stampOf(a) < stampOf(b) ? -1 : stampOf(a) > stampOf(b) ? 1 : 0;
+        });
+    },
+    count: function () { return threadsArr().filter(function (t) { return t.status === 'awaiting_review'; }).length; },
+    open: function (id) {
+      var t = lookup.thread(id);
+      if (!t) { toast('Không tìm thấy thread ' + id + '.', { kind: 'warn' }); return false; }
+      annotateLocks();
+      if (t.locked) { toast(t.lock_reason, { kind: 'warn' }); return false; }
+      var node = t.interrupted_at || t.current_node;
+      var routes = {
+        G1: ['session', t.status === 'awaiting_review' ? { thread: id, step: node === 'g1.confirm_match' ? 3 : 4 } : { thread: id }],
+        G2: ['bank', { review: id }], G3: ['bank', { difficulty: id }], G4: ['recommend', { thread: id }], G5: ['report', { thread: id }]
+      };
+      var r = routes[t.graph] || ['ops', { thread: id }];
+      nav(r[0], r[1]);
+      return true;
+    },
+    resolve: function (id) {
+      var t = lookup.thread(id);
+      if (!t || t.status === 'committed') return;
+      var before = new Set(annotateLocks().filter(function (x) { return x.locked; }).map(function (x) { return x.thread_id; }));
+      var g = graphDef(t.graph), nodes = g ? arr(g.nodes) : [];
+      t.status = 'committed'; t.interrupted_at = null; t.error = null;
+      if (nodes.length) t.current_node = nodes[nodes.length - 1].id;
+      if (t.graph === 'G1') { var s = sessionFor(t); if (s && s.status !== 'committed') { s.status = 'committed'; s.committed_at = s.committed_at || nowISO(); } }
+      refresh();
+      annotateLocks().forEach(function (x) { if (before.has(x.thread_id) && !x.locked) toast('Đã mở khoá: ' + (x.subject || x.thread_id) + ' — giờ có thể duyệt.', { kind: 'ok' }); });
+    },
+    add: function (thread) {
+      if (!thread || !thread.thread_id) return;
+      var m = M(), cp = m.checkpoints || (m.checkpoints = {});
+      cp.threads = arr(cp.threads); if (cp.threads !== m.checkpoints.threads) m.checkpoints.threads = cp.threads;
+      if (!lookup.thread(thread.thread_id)) cp.threads.push(thread);
+      refresh();
+    },
+    on: function (fn) { queueListeners.add(fn); renderListeners.push(fn); return function () { queueListeners.delete(fn); }; },
+    heldOn: heldOn
+  };
+
+  /* ---------------- thread operations ---------------- */
+  var merged = new WeakSet();
+  var threadsApi = {
+    resume: function (id) {
+      var t = lookup.thread(id);
+      if (!t) { toast('Không tìm thấy thread ' + id + '.', { kind: 'warn' }); return; }
+      if (t.status === 'running') { toast('Thread đang chạy.', { kind: 'info' }); return; }
+      if (t.status !== 'failed') { toast('Chỉ chạy lại được thread bị hỏng.', { kind: 'info' }); return; }
+      var who = t.student_id != null ? studentCode(lookup.student(t.student_id)) : (t.subject || id);
+      var from = nodeName(t.current_node);
+      t.status = 'running'; t.error = null;
+      var s = t.graph === 'G1' ? sessionFor(t) : null; if (s) s.status = 'running';
+      refresh(); afterThreadChange();
+      toast('Chạy tiếp ' + who + ' từ node ' + from + ' — các bài đã xong không chạy lại.', { kind: 'info' });
+      setTimeout(function () {
+        if (t.status !== 'running') return;
+        var run = ((M().ui || {}).demo_runs || {})[t.demo_run];
+        var st = t.state || (t.state = {});
+        if (run && !merged.has(t)) {
+          merged.add(t);
+          st.attempts = arr(st.attempts);
+          arr(run.attempts).forEach(function (a) { var i = st.attempts.findIndex(function (x) { return x.seq === a.seq; }); if (i >= 0) st.attempts[i] = a; else st.attempts.push(a); });
+          st.proposals = arr(st.proposals);
+          arr(run.proposals).forEach(function (p) { if (!st.proposals.some(function (x) { return x.pid === p.pid; })) st.proposals.push(p); });
+          t.checkpoints = arr(t.checkpoints);
+          arr(run.node_timings).forEach(function (n) { t.checkpoints.push({ node: n.node, lane: n.lane, at: nowISO(), ms: n.ms, tokens_in: n.tokens_in, tokens_out: n.tokens_out }); });
+          var f = M().files || (M().files = {}); f.llm_log = arr(f.llm_log); Array.prototype.push.apply(f.llm_log, arr(run.llm_calls));
+        }
+        var stop = String(t.graph || 'G1').toLowerCase() + '.review';
+        t.status = 'awaiting_review'; t.current_node = stop; t.interrupted_at = stop;
+        if (s) s.status = 'awaiting_review';
+        refresh(); afterThreadChange();
+        toast((t.subject || who) + ' đã tới DỪNG — chờ duyệt (' + arr(st.proposals).length + ' đề xuất).', { kind: 'ok' });
+      }, 1200);
+    },
+    fail: function (id, node, error) {
+      var t = lookup.thread(id); if (!t) return;
+      t.status = 'failed'; if (node) t.current_node = node; t.interrupted_at = null;
+      t.error = error || 'APITimeoutError: hết thời gian chờ';
+      var s = t.graph === 'G1' ? sessionFor(t) : null; if (s) s.status = 'failed';
+      refresh(); afterThreadChange();
+      toast('Lỗi ở ' + nodeName(t.current_node) + ' — xem Vận hành. Có thể chạy lại từ checkpoint.', { kind: 'error' });
+    },
+    cancel: function (id, o) {
+      o = o || {};
+      var t = lookup.thread(id);
+      if (!t) return Promise.resolve(false);
+      if (t.status === 'committed') { toast('Thread đã commit — dùng "Dọn thread đã commit".', { kind: 'info' }); return Promise.resolve(false); }
+      var s = t.graph === 'G1' ? sessionFor(t) : null;
+      var dbNote = s && s.status !== 'committed' ? 'dòng session ghi ở bước ① vẫn nằm trong tutor.db với trạng thái hỏng (failed), nên nộp lại đúng file này sẽ bị chặn vì trùng (cách xử lý chưa chốt).' : 'tutor.db không đổi vì chưa commit.';
+      var ask = o.confirm === false ? Promise.resolve(true)
+        : confirmDlg('Huỷ thread ' + id + '? Đề xuất trong checkpoints.db bị xoá; ' + dbNote, { title: 'Huỷ thread', ok: 'Huỷ thread', cancel: 'Giữ lại', danger: true });
+      return ask.then(function (yes) {
+        if (!yes) return false;
+        var list = (M().checkpoints || {}).threads, i = arr(list).indexOf(t);
+        if (i >= 0) list.splice(i, 1);
+        if (s && s.status !== 'committed') { s.status = 'failed'; s.cancel_note = 'thread đã huỷ ' + today(); } // † mock-only field
+        refresh(); afterThreadChange();
+        toast('Đã huỷ ' + id + ' — ' + dbNote, { kind: 'info' });
+        return true;
+      });
+    }
+  };
+  // Tabs that registered a queue listener update themselves; otherwise re-render the open tab.
+  function afterThreadChange() { if (!renderListeners.length && started) rerender(); }
+
+  /* ---------------- shell chrome: badges, gauges ---------------- */
+  var lastDbRows = null, notifying = false;
+  function setBadge(id, n, crit) {
+    var b = D.querySelector('[data-badge="' + id + '"]'); if (!b) return;
+    b.hidden = !n; b.textContent = n; b.classList.toggle('is-crit', !!crit);
+    b.setAttribute('aria-label', n + (crit ? ' thread hỏng' : ' mục chờ duyệt'));
+  }
+  function refresh() {
+    LK = null;
+    var ths = threadsArr();
+    var n = queueApi.count(), failed = ths.filter(function (t) { return t.status === 'failed'; }).length;
+    setBadge('review', n); setBadge('ops', failed, true);
+    var rn = $('#tb-review-n'); if (rn) rn.textContent = n;
+    var pend = ths.filter(function (t) { return t.status === 'awaiting_review'; }).reduce(function (s, t) { return s + arr(t.state && t.state.proposals).length; }, 0);
+    var d = db(), rows = Object.keys(d).reduce(function (s, k) { return s + (Array.isArray(d[k]) ? d[k].length : 0); }, 0);
+    var pe = $('#g-pending-n'); if (pe) pe.textContent = fmt.int(pend);
+    var de = $('#g-db-n'); if (de) de.textContent = fmt.int(rows);
+    if (lastDbRows != null && rows !== lastDbRows) { var g = $('#g-db'); if (g) { g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash'); } }
+    lastDbRows = rows;
+    var month = today().slice(0, 7), spent = 0;
+    arr((M().files || {}).llm_log).forEach(function (c) { if (String(c.ts || '').slice(0, 7) === month) spent += +c.cost_usd || 0; });
+    var budget = (M().settings || {}).budget_usd_month;
+    var ct = $('#g-cost-t'); if (ct) ct.textContent = 'Tháng ' + (+month.slice(5)) + ': ' + fmt.usd(spent) + ' / ' + (budget != null ? fmt.usd(budget) : 'chưa đặt');
+    var cb = $('#g-cost-bar'); if (cb) cb.style.width = (budget ? Math.min(100, spent / budget * 100) : 0) + '%';
+    var cm = $('#g-cost'); if (cm) cm.classList.toggle('is-warn', !!budget && spent > budget * 0.8);
+    var td = $('#tb-date'); if (td) td.textContent = fmt.date(today());
+    if (notifying) return;
+    notifying = true;
+    try { Array.from(queueListeners).forEach(function (fn) { safe(fn, 'queue listener'); }); } finally { notifying = false; }
+  }
+
+  /* ---------------- routing ---------------- */
+  function validTab(id) { return TABS.some(function (t) { return t.id === id; }) ? id : 'today'; }
+  function strParams(p) { var o = {}; Object.keys(p || {}).forEach(function (k) { if (p[k] != null && p[k] !== '') o[k] = String(p[k]); }); return o; }
+  function parseHash() {
+    var raw = decodeURIComponent((location.hash || '').replace(/^#\/?/, ''));
+    var q = raw.indexOf('?');
+    return { id: (q >= 0 ? raw.slice(0, q) : raw).split('/')[0], params: q >= 0 ? Object.fromEntries(new URLSearchParams(raw.slice(q + 1))) : {} };
+  }
+  var suppressHash = null;
+  function nav(tabId, params) {
+    var id = validTab(tabId), p = strParams(params);
+    closeOverlays();
+    if (location.hash !== '#' + id) { suppressHash = id; try { location.hash = id; } catch (e) { suppressHash = null; } }
+    renderTab(id, p, false);
+  }
+  function rerender() { if (cur.tab) renderTab(cur.tab, cur.params, true); }
+  function makeCtx(params) {
+    return {
+      data: M(), params: Object.assign({}, params), nav: nav, rerender: rerender, refresh: refresh, toast: toast, receipt: receipt,
+      modal: modal, confirm: confirmDlg, drawer: drawer, tex: tex, calc: window.TutorCalc || {}, lookup: lookup,
+      queue: queueApi, threads: threadsApi, get explain() { return explainOn; }, setExplain: setExplain, ui: ui, tab: cur.tab
+    };
+  }
+  function placeholder(id) {
+    var t = TABS.find(function (x) { return x.id === id; }) || { title: id, line: '' };
+    return h('div', { class: 'stack' }, pageHead({}),
+      h('div', { class: 'callout callout-info' }, h('strong', null, 'Màn hình này chưa được dựng trong bản nháp.'), h('p', null, t.line),
+        h('p', { class: 'small muted' }, 'Nhóm: ' + t.group + ' · mã màn hình: ', h('code', null, id))));
+  }
+  function errorBox(id, e) {
+    var t = TABS.find(function (x) { return x.id === id; }) || { title: id };
+    return h('div', { class: 'callout callout-crit', role: 'alert' }, h('strong', null, 'Màn hình “' + t.title + '” gặp lỗi khi hiển thị.'),
+      h('p', { class: 'mono small' }, String((e && e.message) || e)), h('div', null, button('Thử lại', rerender)));
+  }
+  function markNav(id) {
+    D.querySelectorAll('#sidebar [data-tab-link]').forEach(function (a) { if (a.dataset.tabLink === id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  }
+  function renderTab(id, params, keepScroll) {
+    var y = window.scrollY;
+    if (typeof cleanupFn === 'function') safe(cleanupFn, 'cleanup');
+    cleanupFn = null;
+    renderListeners.forEach(function (fn) { queueListeners.delete(fn); }); renderListeners = [];
+    cur = { tab: id, params: params || {} };
+    var view = $('#view');
+    if (texReady && window.MathJax && MathJax.typesetClear) { try { MathJax.typesetClear([view]); } catch (e) { /* nothing typeset yet */ } }
+    view.replaceChildren(); view.dataset.tab = id;
+    markNav(id);
+    var t = tabs[id];
+    if (!t) view.append(placeholder(id));
+    else {
+      try {
+        var r = t.render(view, makeCtx(cur.params));
+        if (typeof r === 'function') cleanupFn = r;
+        else if (r && typeof r.then === 'function') r.then(function (fn) { if (typeof fn === 'function') cleanupFn = fn; }, function (e) { console.error('[tab ' + id + ']', e); view.append(errorBox(id, e)); });
+      } catch (e) { console.error('[tab ' + id + ']', e); view.append(errorBox(id, e)); }
+    }
+    tex(view);
+    window.scrollTo(0, keepScroll ? y : 0);
+  }
+
+  /* ---------------- sidebar, explain, theme, tour ---------------- */
+  function buildNav() {
+    var root = $('#nav-groups'); if (!root) return;
+    var groups = [];
+    TABS.forEach(function (t) { var g = groups.find(function (x) { return x.name === t.group; }); if (!g) groups.push(g = { name: t.group, tabs: [] }); g.tabs.push(t); });
+    root.replaceChildren.apply(root, groups.map(function (g) {
+      return h('div', { class: 'nav-group' }, h('span', { class: 'eyebrow' }, g.name), g.tabs.map(function (t) {
+        return h('a', { class: 'nav-link', href: '#' + t.id, 'data-tab-link': t.id },
+          h('span', { class: 'nav-label' }, t.title),
+          (t.id === 'review' || t.id === 'ops') ? h('span', { class: 'nav-badge', 'data-badge': t.id, hidden: true }) : null,
+          t.phase ? h('span', { class: 'nav-phase' }, PHASE_TEXT) : null);
+      }));
+    }));
+  }
+  function closeSidebar() {
+    var sb = $('#sidebar'); if (!sb || !sb.classList.contains('open')) return;
+    sb.classList.remove('open'); $('#side-back').hidden = true; $('#menu-btn').setAttribute('aria-expanded', 'false');
+  }
+  function toggleSidebar() {
+    var sb = $('#sidebar'), open = !sb.classList.contains('open');
+    sb.classList.toggle('open', open); $('#side-back').hidden = !open; $('#menu-btn').setAttribute('aria-expanded', String(open));
+    if (open) { var a = sb.querySelector('[aria-current="page"]') || sb.querySelector('a'); if (a) a.focus(); }
+  }
+  function setExplain(on) {
+    explainOn = !!on;
+    D.body.classList.toggle('explain', explainOn);
+    var b = $('#explain-toggle'); if (b) b.setAttribute('aria-pressed', String(explainOn));
+    ls.set('tutor.explain', explainOn ? '1' : '0');
+  }
+  function setTheme(t, save) {
+    var r = D.documentElement;
+    if (t === 'light' || t === 'dark') r.setAttribute('data-theme', t); else r.removeAttribute('data-theme');
+    D.querySelectorAll('[data-theme-opt]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.themeOpt === (t || 'system'))); });
+    if (save) ls.set('tutor.theme', t || 'system');
+  }
+  var TOUR = [
+    { tab: 'today', params: {}, title: 'Hôm nay', text: 'Mở app mỗi ngày: việc chờ duyệt, cảnh báo (thread hỏng, buổi bị khoá) và 4 nhịp dùng. Mọi đề xuất còn nằm trong checkpoints.db.' },
+    { tab: 'session', params: { thread: 'g1-hs03-20261020', step: 4 }, title: 'Buổi học HS-03 · 20/10', text: '03 Diagnoser đề xuất lỗi, 04 Verifier kiểm tra độc lập; mục bất đồng và mục độ tin cậy thấp lên đầu. Thầy/cô chấp nhận, sửa, bỏ hoặc thêm lỗi bị sót.' },
+    { tab: 'session', params: { thread: 'g1-hs03-20261013', step: 5 }, title: 'Ghi vào tutor.db · buổi 13/10', text: 'Đây là buổi 13/10 đã ghi. Quyết xong mọi lỗi: 05 Profiler tính Elo bằng code, sao lưu tutor.db, rồi 1 transaction ghi attempt, mistake, skill_event, skill_state, misconception_log. Buổi 20/10 sẽ được ghi y như vậy khi thầy/cô duyệt xong.' },
+    { tab: 'students', params: { student: 3, tab: 'progress' }, title: 'Học sinh HS-03 · θ đổi', text: 'θ theo từng KC đổi sau buổi vừa ghi (13/10); Δθ so với buổi trước, lỗi lặp lại / mới / đã hết. Buổi 20/10 chưa duyệt nên chưa được tính. Mọi con số do code tính, LLM chỉ viết tóm tắt.' },
+    { tab: 'recommend', params: { thread: 'g4-hs02-20261023' }, title: 'Gợi ý bài · HS-02', text: 'select.py chọn 6 bài: 40% ôn, 50% vừa sức, 10% thử thách, trộn ≥ 3 KC. 08 chỉ viết lý do 1 dòng; thầy/cô duyệt, bỏ hoặc thay.' },
+    { tab: 'report', params: { thread: 'g5-hs02-2026-09' }, title: 'Báo cáo tháng 09/2026 · HS-02', text: 'Mỗi câu phải trích fact_id và số phải khớp. Sai thì viết lại 1 lần, vẫn sai thì bỏ câu. Kết quả thấp thì không khen quá tay.' },
+    { tab: 'ops', params: {}, title: 'Vận hành', text: 'Mọi thread của G1–G5: dừng ở đâu, checkpoint, chạy lại từ chỗ hỏng, sao lưu, cài đặt, riêng tư (chỉ gửi mã HS).' },
+    { tab: 'logs', params: {}, title: 'Nhật ký & chi phí', text: 'Từng lời gọi LLM: agent, prompt_version, token, thời gian, chi phí. Chất lượng agent đo từ quyết định của thầy/cô.' }
+  ];
+  var tourI = -1;
+  function showTour() {
+    var s = TOUR[tourI], root = $('#tour-root');
+    nav(s.tab, s.params);
+    root.replaceChildren(h('div', { class: 'tour', role: 'dialog', 'aria-label': 'Chạy thử một vòng' },
+      h('div', { class: 'spread' }, h('span', { class: 'eyebrow' }, 'Chạy thử một vòng · bước ' + (tourI + 1) + '/' + TOUR.length),
+        h('div', { class: 'tour-dots', 'aria-hidden': 'true' }, TOUR.map(function (_, i) { return h('span', { class: i <= tourI ? 'on' : '' }); }))),
+      h('h3', null, s.title), h('p', { class: 'tour-text' }, s.text),
+      h('div', { class: 'row' },
+        h('button', { type: 'button', class: 'btn btn-secondary btn-sm', disabled: tourI === 0, onclick: function () { tour.prev(); } }, 'Trước'),
+        h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { tour.next(); } }, tourI === TOUR.length - 1 ? 'Kết thúc' : 'Tiếp'),
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { tour.stop(); } }, 'Thoát'))));
+  }
+  var tour = {
+    start: function () { tourI = 0; showTour(); },
+    next: function () { if (tourI < 0) return; if (tourI < TOUR.length - 1) { tourI++; showTour(); } else tour.stop(); },
+    prev: function () { if (tourI > 0) { tourI--; showTour(); } },
+    stop: function () { tourI = -1; var r = $('#tour-root'); if (r) r.replaceChildren(); },
+    steps: TOUR
+  };
+
+  var ui = {
+    h: h, button: button, table: table, chip: chip, status: status, store: storeBadge, prov: prov, annot: annot, why: why, cli: cli,
+    graphStrip: graphStrip, animateGraph: animateGraph, segmented: segmented, sparkline: sparkline, bar: bar, lineChart: lineChart,
+    rubricEditor: rubricEditor, latex: latex, kv: kv, empty: emptyEl, payloadModal: payloadModal, download: download, fmt: fmt,
+    pageHead: pageHead, costChip: costChip, privacy: privacyChip, nodeName: nodeName, svg: svg
+  };
+
+  function start() {
+    if (started) return; started = true;
+    buildNav();
+    var savedTheme = ls.get('tutor.theme');
+    if (savedTheme) setTheme(savedTheme, false);
+    else setTheme(D.documentElement.getAttribute('data-theme') || 'system', false);
+    setExplain(explainOn);
+    D.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[data-tab-link]');
+      if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      nav(a.dataset.tabLink, Object.fromEntries(new URLSearchParams(a.dataset.params || '')));
+    });
+    D.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (modals.length) { modals[modals.length - 1].close(); e.preventDefault(); }
+      else if (drawerApi) { drawerApi.close(); e.preventDefault(); }
+      else if ($('#sidebar').classList.contains('open')) { closeSidebar(); $('#menu-btn').focus(); }
+    });
+    window.addEventListener('scroll', placePop, { passive: true });
+    window.addEventListener('hashchange', function () {
+      var p = parseHash(), id = validTab(p.id);
+      if (suppressHash === id) { suppressHash = null; return; }
+      suppressHash = null;
+      closeOverlays(); renderTab(id, strParams(p.params), false);
+    });
+    $('#menu-btn').addEventListener('click', toggleSidebar);
+    $('#side-back').addEventListener('click', closeSidebar);
+    $('#explain-toggle').addEventListener('click', function () { setExplain(!explainOn); });
+    D.querySelectorAll('[data-theme-opt]').forEach(function (b) { b.addEventListener('click', function () { setTheme(b.dataset.themeOpt, true); }); });
+    $('#reset-btn').addEventListener('click', function () {
+      confirmDlg('Tải lại trang và đưa mọi dữ liệu mẫu về trạng thái ban đầu? Các thao tác thử trong bản nháp sẽ mất.', { title: 'Đặt lại dữ liệu mẫu', ok: 'Đặt lại', danger: true })
+        .then(function (yes) { if (yes) location.reload(); });
+    });
+    refresh();
+    var p = parseHash();
+    renderTab(validTab(p.id), strParams(p.params), false);
+  }
+
+  window.App = {
+    registerTab: function (id, def) {
+      if (!id || !def || typeof def.render !== 'function') { console.error('App.registerTab: cần id và render()', id); return; }
+      tabs[id] = def;
+      if (started && cur.tab === id) rerender();
+    },
+    start: start,
+    tour: tour,
+    nav: nav,
+    refresh: refresh,
+    tabs: TABS,
+    registered: function () { return Object.keys(tabs); },
+    texReady: function () { return texReady; },
+    texDone: function () { return texReady ? texChain.then(function () { return 'ok'; }) : Promise.resolve('not-ready'); },
+    get started() { return started; }
+  };
+})();
+</script>
+<script>
+/*__TABS_JS__*/
+</script>
+<script>
+if (window.App) App.start();
+</script>

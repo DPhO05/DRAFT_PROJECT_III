@@ -1,0 +1,36 @@
+.ops-dots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.ops-dot { display: inline-flex; align-items: center; font: 500 10.5px/1.5 var(--font-mono); padding: 0 6px; border-radius: 999px; border: 1.5px solid var(--line-strong); background: var(--sheet); color: var(--ink-2); white-space: nowrap; }
+button.ops-dot { cursor: pointer; }
+button.ops-dot:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.ops-dot.is-awaiting_review { border-style: dashed; border-color: var(--warn-line); background: var(--warn-soft); color: var(--warn); }
+.ops-dot.is-running { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.ops-dot.is-failed { border-color: var(--crit); background: var(--crit-soft); color: var(--crit); }
+.ops-dot.is-locked { border-color: var(--line-strong); background: var(--dim-soft); color: var(--ink-3); }
+.ops-dot.is-committed { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.ops-acts { flex-wrap: nowrap; }
+.ops-path { overflow-wrap: anywhere; font-weight: 500; }
+.ops-preview { display: inline-flex; align-items: center; gap: 6px; }
+.ops-err { color: var(--crit); font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+.ops-err:empty { display: none; }
+.ops-acts .btn { white-space: nowrap; }
+.ops-rules { grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); }
+/* Lưu trữ table: keep the group name readable on phone; the table scrolls inside .table-wrap. */
+.ops-grp { display: inline-block; min-width: 150px; }
+/* thread table on phone: each row becomes a card so status and actions show without sideways scroll */
+@media (max-width: 600px) {
+  .ops-thr-tbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .ops-thr-tbl table, .ops-thr-tbl tbody { display: block; }
+  .ops-thr-tbl tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .ops-thr-tbl tr:last-child { border-bottom: 0; }
+  .ops-thr-tbl tr.is-dim { background: var(--sheet-2); }
+  .ops-thr-tbl tr.is-dim td { background: transparent; }
+  .ops-thr-tbl td { display: block; padding: 0; border: 0; text-align: left; }
+  .ops-thr-tbl td:nth-child(3) { flex: 1 1 auto; min-width: 0; font-weight: 500; }
+  .ops-thr-tbl td:nth-child(5) { order: 1; flex: 1 0 100%; font-size: 12.5px; }
+  .ops-thr-tbl td:nth-child(5)::before { content: "Node hiện tại: "; color: var(--ink-3); }
+  .ops-thr-tbl td:nth-child(1), .ops-thr-tbl td:nth-child(4), .ops-thr-tbl td:nth-child(7) { order: 2; font-size: 12px; color: var(--ink-2); }
+  .ops-thr-tbl td:nth-child(1) > .nowrap { white-space: normal; overflow-wrap: anywhere; }
+  .ops-thr-tbl td:nth-child(7)::before { content: "Checkpoint "; color: var(--ink-3); }
+  .ops-thr-tbl td:nth-child(8) { order: 3; flex: 1 0 100%; }
+  .ops-thr-tbl .ops-acts { flex-wrap: wrap; }
+}

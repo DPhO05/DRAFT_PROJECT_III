@@ -1,0 +1,28 @@
+/* logs tab: cost bars, filters, prompt parts */
+.lg-sec { scroll-margin-top: 72px; }
+.lg-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.lg-bars { display: flex; flex-direction: column; gap: 10px; }
+.lg-bar-row { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 6px 16px; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.lg-bar-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.lg-bar-label { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.lg-bar-pair { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lg-bar-line { display: grid; grid-template-columns: 30px minmax(60px, 1fr) 64px 92px; gap: 8px; align-items: center; }
+.lg-bar-line .bar { height: 10px; }
+.bar-m9 { background: var(--ink-3); }
+.lg-sw { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+.lg-sw.lg-m9 { background: var(--ink-3); }
+.lg-sw.lg-m10 { background: var(--accent); }
+.lg-filters { display: grid; gap: 8px 12px; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); }
+.lg-filters select { width: 100%; }
+.tbl tr.lg-row-bad td { background: color-mix(in srgb, var(--warn-soft) 55%, var(--sheet)); }
+.tbl tr.lg-row-warn td { background: color-mix(in srgb, var(--warn-soft) 45%, var(--sheet)); }
+.lg-tight { gap: 3px; }
+.lg-warn-text { color: var(--warn); }
+.lg-part { display: flex; flex-direction: column; gap: 6px; }
+.lg-kpi-warn { border-color: var(--warn-line); }
+@media (max-width: 640px) {
+  .lg-bar-row { grid-template-columns: minmax(0, 1fr); }
+  .lg-bar-line { grid-template-columns: 30px minmax(40px, 1fr) 56px; }
+  .lg-bar-line .lg-n { display: none; }
+}
+.lg-nowrap .tbl td { white-space: nowrap; }

@@ -1,0 +1,49 @@
+/* report — G5 Báo cáo tháng */
+[data-tab="report"] .rp-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--ink-2); }
+[data-tab="report"] .rp-dot { display: inline-block; width: 18px; height: 12px; border-radius: 2px; }
+[data-tab="report"] .rp-note { font-weight: 400; color: var(--warn); }
+[data-tab="report"] .rp-cell { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 128px; padding: 5px 10px; border-radius: 3px; cursor: pointer; text-align: left; font-size: 13px; line-height: 1.3; }
+[data-tab="report"] .rp-cell-st { font-weight: 600; }
+[data-tab="report"] .rp-cell-n { font-size: 11.5px; color: var(--ink-3); }
+[data-tab="report"] .rp-cell-none { border: 1px dashed var(--line-strong); background: var(--sheet); color: var(--ink-2); }
+[data-tab="report"] .rp-cell-pending { border: 1.5px dashed var(--warn-line); background: var(--warn-soft); color: var(--warn); }
+[data-tab="report"] .rp-cell-approved { border: 1.5px solid var(--ok); background: var(--ok-soft); color: var(--ok); }
+[data-tab="report"] .rp-cell:hover { filter: brightness(.97); }
+[data-tab="report"] .rp-cell[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+[data-tab="report"] .rp-sents { display: flex; flex-direction: column; }
+[data-tab="report"] .rp-sent { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 6px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
+[data-tab="report"] .rp-sent:last-child { border-bottom: 0; }
+[data-tab="report"] .rp-idx { font: 600 13px/1.6 var(--font-mono); color: var(--ink-3); }
+[data-tab="report"] .rp-sent-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+[data-tab="report"] .rp-sent-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+[data-tab="report"] .rp-text { font-size: 14.5px; line-height: 1.6; }
+[data-tab="report"] .rp-sent.is-fail .rp-text { color: var(--crit); }
+[data-tab="report"] .rp-fail-note { font-size: 12.5px; color: var(--crit); font-weight: 500; }
+[data-tab="report"] .rp-ok-note { color: var(--ok); }
+[data-tab="report"] .rp-tone-flag { outline: 2px solid var(--warn-line); outline-offset: -2px; border-radius: 3px; padding-left: 8px; padding-right: 8px; }
+[data-tab="report"] .rp-dropped { display: flex; flex-direction: column; gap: 8px; }
+[data-tab="report"] .rp-drop { border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+[data-tab="report"] .rp-approve { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-start; padding-top: 10px; border-top: 1px dashed var(--line-strong); }
+[data-tab="report"] .rp-final { display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; line-height: 1.65; max-width: 80ch; }
+[data-tab="report"] tr.rp-hl td { background: var(--warn-soft); }
+.rp-fact { display: inline-flex; align-items: center; margin: 0 1px; padding: 0 4px; font: 500 11.5px/1.5 var(--font-mono); color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 3px; cursor: pointer; vertical-align: baseline; }
+.rp-fact:hover { border-color: var(--accent); }
+@media (max-width: 560px) {
+  [data-tab="report"] .rp-sent { grid-template-columns: 22px minmax(0, 1fr); }
+  [data-tab="report"] .rp-sent-side { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; }
+  [data-tab="report"] .rp-cell { min-width: 112px; }
+}
+/* phone: let tables scroll inside .table-wrap instead of squeezing labels into one-word lines */
+[data-tab="report"] .tbl { min-width: 560px; }
+[data-tab="report"] .tbl .mono { white-space: nowrap; }
+[data-tab="report"] .rp-gridsec .tbl { min-width: 0; }
+[data-tab="report"] .rp-who { display: flex; flex-direction: column; line-height: 1.35; }
+[data-tab="report"] .rp-kpis { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 560px) {
+  [data-tab="report"] .rp-gridsec .tbl td, [data-tab="report"] .rp-gridsec .tbl th { padding: 6px 6px; }
+  [data-tab="report"] .rp-cell { min-width: 0; padding: 4px 7px; }
+  [data-tab="report"] .rp-kpis .kpi { padding: 8px; }
+  [data-tab="report"] .rp-kpis .kpi-value { font-size: 20px; }
+}
+[data-tab="report"] .rp-gridsec th { white-space: normal; vertical-align: bottom; }
+[data-tab="report"] .rp-gridsec .rp-note { display: block; font-size: 11.5px; }

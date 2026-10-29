@@ -1,0 +1,144 @@
+/* session: G1 stepper, review columns, mistake cards. Colours only from shell tokens. */
+.sx-stepper { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.sx-stepper li { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px 5px 6px; border: 1px solid var(--line); background: var(--sheet); border-radius: 3px; font-size: 13px; color: var(--ink-3); }
+.sx-stepper li small { font-size: 11.5px; color: var(--ink-3); font-weight: 400; }
+.sx-num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line-strong); font: 600 11px/1 var(--font-ui); flex: none; }
+.sx-stepper li.is-done { color: var(--ink-2); }
+.sx-stepper li.is-done .sx-num { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+.sx-stepper li.is-cur { color: var(--ink); border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); font-weight: 600; }
+.sx-stepper li.is-cur .sx-num { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.sx-stepper li.is-fail { color: var(--crit); border-color: var(--crit); font-weight: 600; }
+.sx-stepper li.is-fail .sx-num { border-color: var(--crit); background: var(--crit); color: var(--sheet); }
+.sx-stepper li.is-skip { border-style: dashed; }
+.sx-stepper li.is-skip .sx-num { border-style: dashed; }
+
+.sx-filters { align-items: flex-end; }
+.sx-filters .field { min-width: 150px; }
+.tbl tr.sx-row-open td { background: color-mix(in srgb, var(--warn-soft) 35%, var(--sheet)); }
+.sx-src { gap: 6px 8px; }
+.sx-info { gap: 6px 10px; }
+.sx-wrap { overflow-wrap: anywhere; word-break: break-all; }
+
+/* step 1 */
+.sx-files { display: flex; flex-direction: column; gap: 6px; }
+.sx-file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 10px; }
+.sx-file-row.is-picked { border-color: var(--accent) !important; box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); }
+.sx-howto { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--ink-2); }
+.sx-submit { align-items: start; }
+
+/* review columns */
+.sx-cols { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 760px) and (max-width: 1279px) {
+  .sx-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sx-col-cards { grid-column: 1 / -1; }
+}
+@media (min-width: 1280px) {
+  .sx-cols { grid-template-columns: minmax(0, 1fr) minmax(0, .9fr) minmax(0, 1.25fr); }
+  /* keep the student's work and the grade in view while scrolling the cards */
+  .sx-col-work, .sx-col-grade { position: sticky; top: 72px; max-height: calc(100vh - 88px); overflow-y: auto; }
+}
+.sx-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; background: var(--sheet); border: 1px solid var(--line); border-radius: 3px; padding: 12px; }
+.sx-col h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sx-prob { display: flex; flex-direction: column; gap: 4px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.sx-untrusted { padding: 8px 10px; border-radius: 3px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sx-untrusted-h { font: 600 11px/1.4 var(--font-mono); letter-spacing: .06em; color: var(--crit); }
+.sx-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sx-step { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 8px; padding: 6px 4px; border-bottom: 1px dashed var(--line); border-radius: 2px; }
+.sx-step:last-child { border-bottom: 0; }
+.sx-step-n { font: 600 12px/1.7 var(--font-mono); color: var(--ink-3); text-align: right; }
+.sx-step-body { min-width: 0; }
+.sx-step.is-hit { background: color-mix(in srgb, var(--warn-soft) 80%, var(--sheet)); }
+.sx-step.is-sel { box-shadow: inset 3px 0 0 var(--warn-line); }
+.sx-step-tags { grid-column: 2; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.sx-sol { background: var(--sheet-2); }
+.sx-score { font: 600 28px/1 var(--font-head); color: var(--ink); }
+.sx-grade { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sx-gi { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 2px 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.sx-gi:last-child { border-bottom: 0; }
+.sx-tick { font-weight: 700; line-height: 1.6; }
+.sx-tick.ok { color: var(--ok); } .sx-tick.no { color: var(--crit); }
+.sx-ev { grid-column: 2 / -1; font-size: 12.5px; color: var(--ink-2); min-width: 0; }
+
+/* mistake cards */
+.sx-group { gap: 8px; }
+.sx-group-h { font: 600 12px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); margin-top: 4px; display: flex; gap: 6px; align-items: center; }
+.sx-card { border: 1px solid var(--line); border-radius: 3px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background: var(--sheet); min-width: 0; scroll-margin: 80px; }
+.sx-card.is-open { border: 1.5px dashed var(--warn-line); background: color-mix(in srgb, var(--warn-soft) 40%, var(--sheet)); }
+.sx-card.is-ok { border: 1.5px dashed var(--ok); background: color-mix(in srgb, var(--ok-soft) 55%, var(--sheet)); }
+.sx-card.is-rej { border: 1px solid var(--line); background: var(--dim-soft); color: var(--dim); }
+.sx-card.is-rej .sx-strike { text-decoration: line-through; }
+.sx-card.is-sel { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sx-card-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; justify-content: space-between; }
+.sx-evid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sx-says { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 3px; background: var(--sheet); }
+.sx-say { padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.sx-say-h { font: 600 12px/1.3 var(--font-ui); color: var(--ink-2); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sx-rule { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-3); padding: 0 10px; }
+.sx-rule::before, .sx-rule::after { content: ""; flex: 1; border-top: 1.5px dashed var(--line-strong); }
+.sx-foot-note { font-size: 11.5px; color: var(--ink-3); font-style: italic; }
+.sx-conf { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.sx-conf .bar { width: 64px; min-width: 64px; }
+.sx-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.sx-diffline { border-left: 3px solid var(--redpen); padding: 2px 8px; }
+.sx-diffline s { color: var(--ink-3); }
+
+.sx-foot { align-items: stretch; }
+.sx-ctx { gap: 6px; }
+.sx-actbar { gap: 10px 14px; align-items: flex-start; }
+.sx-kbd kbd { border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; font: 500 11px/1.5 var(--font-mono); background: var(--sheet); color: var(--ink-2); }
+.sx-profile { gap: 12px; }
+.sx-ks { max-width: 75ch; line-height: 1.6; }
+.sx-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.sx-codechips .chip { white-space: normal; }
+.sx-dtheta { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(70px, 1fr) auto; gap: 8px 10px; align-items: center; }
+
+/* step 3 */
+.sx-flagcard { gap: 12px; }
+.sx-flagcard.sx-done { border: 1.5px dashed var(--ok); background: color-mix(in srgb, var(--ok-soft) 35%, var(--sheet)); }
+.sx-flag { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.sx-cand.is-picked { border: 1.5px solid var(--ok); box-shadow: inset 3px 0 0 var(--ok); }
+.sx-diff { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 8px; }
+.sx-diff-box { border: 1px solid var(--line); background: var(--sheet); padding: 8px 10px; border-radius: 3px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sx-src-code { font: 400 13px/1.5 var(--font-mono); overflow-wrap: anywhere; }
+mark.sx-mark { background: var(--warn-soft); color: var(--warn); outline: 1.5px solid var(--warn-line); border-radius: 2px; padding: 0 2px; font-weight: 600; }
+
+/* detail */
+.sx-att { gap: 10px; }
+.sx-mrow { border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sx-mrow.st-db { background: color-mix(in srgb, var(--ok-soft) 30%, var(--sheet)); }
+.sx-mrow.is-rej { background: var(--dim-soft); color: var(--dim); }
+.sx-mrow.is-old { background: var(--dim-soft); color: var(--dim); border-style: dashed; }
+.sx-strike-all { text-decoration: line-through; }
+.sx-details > summary { cursor: pointer; font-size: 13px; color: var(--ink-2); padding: 2px 0; }
+.sx-details[open] > summary { margin-bottom: 8px; }
+.sx-pick .card { gap: 6px; }
+.sx-plain { white-space: normal; }
+.sx-submit .field > .chip, .sx-submit .field > .small { align-self: flex-start; }
+
+/* Inline math keeps 1em and scrolls instead of shrinking (shell sets svg max-width:100%). */
+#view[data-tab="session"] mjx-container[jax="SVG"]:not([display="true"]), .sx-tr mjx-container[jax="SVG"]:not([display="true"]), .sx-pick mjx-container[jax="SVG"]:not([display="true"]) {
+  display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: middle;
+}
+#view[data-tab="session"] mjx-container[jax="SVG"] > svg, .sx-tr mjx-container[jax="SVG"] > svg, .sx-pick mjx-container[jax="SVG"] > svg { max-width: none; }
+
+/* session list on phone: each row becomes a card so status shows without horizontal scroll */
+@media (max-width: 600px) {
+  .sx-sess-tbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .sx-sess-tbl table, .sx-sess-tbl tbody { display: block; }
+  .sx-sess-tbl tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .sx-sess-tbl tr:last-child { border-bottom: 0; }
+  /* the row is a flex box here, so tint the row, not each cell (gaps would show white) */
+  .sx-sess-tbl tr.sx-row-open { background: color-mix(in srgb, var(--warn-soft) 35%, var(--sheet)); }
+  .sx-sess-tbl tr.sx-row-open td { background: transparent; }
+  .sx-sess-tbl td { display: block; padding: 0; border: 0; text-align: left; }
+  .sx-sess-tbl td:nth-child(2) { flex: 1 1 auto; min-width: 0; }
+  .sx-sess-tbl td:nth-child(2) > .nowrap { white-space: normal; }
+  .sx-sess-tbl td:nth-child(7) { order: 1; flex: 1 0 100%; }
+  .sx-sess-tbl td:nth-child(7) > .row { white-space: normal; flex-wrap: wrap; }
+  .sx-sess-tbl td:nth-child(n+3):nth-child(-n+6), .sx-sess-tbl td:nth-child(8) { order: 2; font-size: 12px; color: var(--ink-2); }
+  .sx-sess-tbl td:nth-child(4)::before { content: "Số bài "; color: var(--ink-3); }
+  .sx-sess-tbl td:nth-child(5)::before { content: "Điểm "; color: var(--ink-3); }
+  .sx-sess-tbl td:nth-child(6)::before { content: "Lỗi đã duyệt "; color: var(--ink-3); }
+  .sx-sess-tbl td:nth-child(8) { flex: 1 0 100%; overflow-wrap: anywhere; }
+  .sx-sess-tbl td:nth-child(8) > .nowrap { white-space: normal; }
+}

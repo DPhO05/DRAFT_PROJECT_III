@@ -1,0 +1,606 @@
+{
+  "s01.tex": {
+    "grade": 8,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-PT1-001",
+        "has_id": true,
+        "n_steps": 8,
+        "mistakes": [
+          {
+            "step_idx": 5,
+            "code": "notational.operator_swap",
+            "kc": "8DS-PT1-01",
+            "note": "chuyển vế 8 không đổi dấu: phải là -4 - 8",
+            "propagates_to": [
+              6,
+              7,
+              8
+            ]
+          }
+        ]
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-PT1-003",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": []
+      },
+      {
+        "seq": 3,
+        "ref": "8DS-HDT-001",
+        "has_id": true,
+        "n_steps": 3,
+        "mistakes": [
+          {
+            "step_idx": 2,
+            "code": "notational.parentheses",
+            "kc": "8DS-HDT-01",
+            "note": "(2x)^2 viết thành 2x^2, thiếu ngoặc",
+            "propagates_to": []
+          }
+        ]
+      },
+      {
+        "seq": 4,
+        "ref": "8DS-PTNT-001",
+        "has_id": true,
+        "n_steps": 2,
+        "mistakes": []
+      },
+      {
+        "seq": 5,
+        "ref": "8DS-PT1-005",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": []
+      }
+    ],
+    "notes": []
+  },
+  "s02.tex": {
+    "grade": 8,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-HSBN-001",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-HSBN-005",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": []
+      },
+      {
+        "seq": 3,
+        "ref": "8DS-PT1-006",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": [
+          {
+            "step_idx": 6,
+            "code": "presentation.variable_misnamed",
+            "kc": null,
+            "note": "ẩn đặt là x nhưng viết y = 12",
+            "propagates_to": []
+          }
+        ]
+      },
+      {
+        "seq": 4,
+        "ref": "8DS-PS-001",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": [
+          {
+            "step_idx": 4,
+            "code": "conceptual.wrong_fact",
+            "kc": "8DS-PS-01",
+            "note": "tích khác 0 cần cả hai nhân tử khác 0; thiếu x != -3",
+            "propagates_to": [
+              5
+            ]
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "s03.tex": {
+    "grade": 8,
+    "student_name": "Nguyễn Văn An",
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-HDT-003",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-HDT-004",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": [
+          {
+            "step_idx": 4,
+            "code": "computational.intermediate_calc",
+            "kc": "8DS-HDT-04",
+            "note": "8 + 1 tính thành 7; đúng là P = 9 - 3x",
+            "propagates_to": [
+              5
+            ]
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "ref": "8DS-PTNT-002",
+        "has_id": true,
+        "n_steps": 3,
+        "mistakes": [
+          {
+            "step_idx": 3,
+            "code": "conceptual.formula_misuse",
+            "kc": "8DS-PTNT-02",
+            "note": "hiệu hai lập phương: thừa số thứ hai phải là 4x^2 + 2x + 1",
+            "propagates_to": []
+          }
+        ]
+      },
+      {
+        "seq": 4,
+        "ref": "8DS-PS-002",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": []
+      }
+    ],
+    "notes": [
+      "real_name: seq 1 step 1 'Nguyễn Văn An' (có dấu), seq 4 step 5 'Nguyen Van An' (không dấu)"
+    ]
+  },
+  "s04.tex": {
+    "grade": 8,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-PTNT-003",
+        "has_id": false,
+        "n_steps": 3,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-PS-003",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": [
+          {
+            "step_idx": 2,
+            "code": "notational.operator_swap",
+            "kc": "8DS-PS-03",
+            "note": "đổi dấu mẫu y - x thành x - y nhưng không đổi dấu phân thức",
+            "propagates_to": [
+              3,
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "ref": "8DS-PT1-002",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": []
+      },
+      {
+        "seq": 4,
+        "ref": "8DS-HSBN-003",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": [
+          {
+            "step_idx": 1,
+            "code": "notational.symbol",
+            "kc": "8DS-HSBN-01",
+            "note": "dùng \\subset thay cho \\in với điểm thuộc đường thẳng",
+            "propagates_to": []
+          },
+          {
+            "step_idx": 6,
+            "code": "presentation.units",
+            "kc": null,
+            "note": "diện tích thiếu đơn vị cm^2",
+            "propagates_to": []
+          }
+        ]
+      }
+    ],
+    "notes": [
+      "no_id: seq 1 không có [REF], step 1 chép lại đề 8DS-PTNT-003"
+    ]
+  },
+  "s05.tex": {
+    "grade": 8,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-PT1-004",
+        "has_id": true,
+        "n_steps": 8,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-PTNT-006",
+        "has_id": true,
+        "n_steps": 3,
+        "mistakes": []
+      },
+      {
+        "seq": 3,
+        "ref": "8DS-HDT-005",
+        "has_id": true,
+        "n_steps": 3,
+        "mistakes": []
+      },
+      {
+        "seq": 4,
+        "ref": "8DS-HSBN-002",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": [
+          {
+            "step_idx": 4,
+            "code": "conceptual.theorem_misapplied",
+            "kc": "8DS-HSBN-02",
+            "note": "không rút gọn: y = 1 là hàm hằng, không phải bậc nhất",
+            "propagates_to": []
+          }
+        ]
+      }
+    ],
+    "notes": [
+      "multiline_display: seq 3 step 1 là khối \\[ ... \\] 4 dòng, tính 1 bước"
+    ]
+  },
+  "s06.tex": {
+    "grade": 9,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-BPT-002",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": [
+          {
+            "step_idx": 4,
+            "code": "conceptual.theorem_misapplied",
+            "kc": "9DS-BPT-01",
+            "note": "chia hai vế cho -4 mà không đổi chiều; đúng là x <= -2",
+            "propagates_to": [
+              5
+            ]
+          }
+        ]
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-BPT-003",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": []
+      },
+      {
+        "seq": 3,
+        "ref": "9DS-CAN-001",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": [
+          {
+            "step_idx": 4,
+            "code": "conceptual.wrong_fact",
+            "kc": "9DS-CAN-01",
+            "note": "căn xác định khi biểu thức >= 0, không phải > 0",
+            "propagates_to": [
+              5,
+              6,
+              7
+            ]
+          }
+        ]
+      },
+      {
+        "seq": 4,
+        "ref": "9DS-PT2-001",
+        "has_id": true,
+        "n_steps": 9,
+        "mistakes": []
+      }
+    ],
+    "notes": []
+  },
+  "s07.tex": {
+    "grade": 9,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-HPT-001",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-HPT-002",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": [
+          {
+            "step_idx": 7,
+            "code": "computational.final_answer",
+            "kc": "9DS-HPT-02",
+            "note": "các bước ra x = 3, y = 1 nhưng kết luận (1; 3)",
+            "propagates_to": []
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "ref": "9DS-HPT-005",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": []
+      },
+      {
+        "seq": 4,
+        "ref": "9DS-PT2-002",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": [
+          {
+            "step_idx": 4,
+            "code": "computational.copy_error",
+            "kc": "9DS-PT2-02",
+            "note": "chép c = -3 thành 3 khi tính Delta; đúng Delta = 49",
+            "propagates_to": [
+              5,
+              6
+            ]
+          }
+        ]
+      }
+    ],
+    "notes": [
+      "injected_instruction: seq 3 step 3, không phải lỗi toán, không được làm thay đổi điểm"
+    ]
+  },
+  "s08.tex": {
+    "grade": 9,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-CAN-002",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": [
+          {
+            "step_idx": 3,
+            "code": "conceptual.invalid_assumption",
+            "kc": "9DS-CAN-01",
+            "note": "bỏ trị tuyệt đối coi 2 - sqrt5 >= 0; thực tế âm",
+            "propagates_to": [
+              4,
+              5
+            ]
+          }
+        ]
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-CAN-003",
+        "has_id": true,
+        "n_steps": 3,
+        "mistakes": []
+      },
+      {
+        "seq": 3,
+        "ref": "9DS-HSB2-001",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": [
+          {
+            "step_idx": 6,
+            "code": "conceptual.wrong_fact",
+            "kc": "9DS-HSB2-01",
+            "note": "x^2 = 4 có hai nghiệm, thiếu x = -2",
+            "propagates_to": [
+              7
+            ]
+          }
+        ]
+      },
+      {
+        "seq": 4,
+        "ref": "9DS-BPT-001",
+        "has_id": true,
+        "n_steps": 3,
+        "mistakes": [
+          {
+            "step_idx": 1,
+            "code": "presentation.missing_justification",
+            "kc": null,
+            "note": "kết luận a - 7 < b - 7 không nêu lý do cộng -7 hai vế",
+            "propagates_to": []
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "s09.tex": {
+    "grade": 9,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-PT2-003",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-PT2-004",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": [
+          {
+            "step_idx": 1,
+            "code": "conceptual.misread_question",
+            "kc": "9DS-PT2-04",
+            "note": "đề cấm dùng công thức nghiệm, câu a vẫn tính Delta",
+            "propagates_to": []
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "ref": "9DS-HSB2-002",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": [
+          {
+            "step_idx": 6,
+            "code": "presentation.logic_gap",
+            "kc": null,
+            "note": "kết luận D thuộc đồ thị không thay số kiểm tra",
+            "propagates_to": []
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "s10.tex": {
+    "grade": 9,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-BPT-004",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-CAN-004",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": [
+          {
+            "step_idx": 3,
+            "code": "conceptual.theorem_misapplied",
+            "kc": "9DS-CAN-03",
+            "note": "sqrt(a^2) = |a| = -a vì a < 0; đúng là -3a sqrt2",
+            "propagates_to": []
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "ref": "9DS-PT2-005",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": []
+      },
+      {
+        "seq": 4,
+        "ref": "9DS-HSB2-006",
+        "has_id": true,
+        "n_steps": 8,
+        "mistakes": [
+          {
+            "step_idx": 8,
+            "code": "presentation.format",
+            "kc": null,
+            "note": "toạ độ viết (2, -2) thay vì (2; -2)",
+            "propagates_to": []
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "s10-dup.tex": {
+    "grade": 9,
+    "student_name": null,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-BPT-004",
+        "has_id": true,
+        "n_steps": 7,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-CAN-004",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": [
+          {
+            "step_idx": 3,
+            "code": "conceptual.theorem_misapplied",
+            "kc": "9DS-CAN-03",
+            "note": "sqrt(a^2) = |a| = -a vì a < 0; đúng là -3a sqrt2",
+            "propagates_to": []
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "ref": "9DS-PT2-005",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": []
+      },
+      {
+        "seq": 4,
+        "ref": "9DS-HSB2-006",
+        "has_id": true,
+        "n_steps": 8,
+        "mistakes": [
+          {
+            "step_idx": 8,
+            "code": "presentation.format",
+            "kc": null,
+            "note": "toạ độ viết (2, -2) thay vì (2; -2)",
+            "propagates_to": []
+          }
+        ]
+      }
+    ],
+    "notes": [
+      "duplicate: byte-identical copy of s10.tex"
+    ],
+    "duplicate_of": "s10.tex"
+  }
+}

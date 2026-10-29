@@ -1,0 +1,866 @@
+% Ngân hàng bài mẫu: Hằng đẳng thức đáng nhớ (lớp 8).
+% Quy ước:
+%   - Mỗi bài: begin{problem}[id] ... end{problem}; lời giải lồng bên trong.
+%   - id: duy nhất, không dấu, không đổi, không dùng lại. Dạng <lớp><phân môn>-<chủ đề>-<số>.
+%   - Mỗi bước lời giải là 1 đoạn, các bước cách nhau 1 dòng trống; mỗi bước có lý do.
+%   - Dòng cuối lời giải: Đáp số: $\boxed{...}$
+%   - Cách giải khác: thêm begin{solution}[cách 2].
+%   - Metadata bằng comment ngay sau begin{problem}: % nguon:, % lop:, % kc_du_kien:, % do_kho_du_kien:
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- khai triển bình phương, hiệu hai bình phương
+\begin{problem}[8DS-HDT-001]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-01, 8DS-HDT-02
+% do_kho_du_kien: 1
+Khai triển các biểu thức sau:
+
+a) $(x + 3)^2$;
+
+b) $(2x - y)^2$;
+
+c) $(x - 4)(x + 4)$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức bình phương của một tổng $(A + B)^2 = A^2 + 2AB + B^2$ với $A = x$, $B = 3$: $(x + 3)^2 = x^2 + 2 \cdot x \cdot 3 + 3^2 = x^2 + 6x + 9$.
+
+b) Áp dụng hằng đẳng thức bình phương của một hiệu $(A - B)^2 = A^2 - 2AB + B^2$ với $A = 2x$, $B = y$: $(2x - y)^2 = (2x)^2 - 2 \cdot 2x \cdot y + y^2 = 4x^2 - 4xy + y^2$.
+
+c) Áp dụng hằng đẳng thức hiệu hai bình phương $(A - B)(A + B) = A^2 - B^2$ với $A = x$, $B = 4$: $(x - 4)(x + 4) = x^2 - 4^2 = x^2 - 16$.
+
+Đáp số: a) $\boxed{x^2 + 6x + 9}$; b) $\boxed{4x^2 - 4xy + y^2}$; c) $\boxed{x^2 - 16}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- lập phương: khai triển và thu gọn
+\begin{problem}[8DS-HDT-002]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-03
+% do_kho_du_kien: 2
+a) Khai triển $(2x - 1)^3$.
+
+b) Viết biểu thức $x^3 + 6x^2 + 12x + 8$ dưới dạng lập phương của một tổng.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức lập phương của một hiệu $(A - B)^3 = A^3 - 3A^2B + 3AB^2 - B^3$ với $A = 2x$, $B = 1$.
+
+a) Thay vào: $(2x - 1)^3 = (2x)^3 - 3 \cdot (2x)^2 \cdot 1 + 3 \cdot 2x \cdot 1^2 - 1^3 = 8x^3 - 12x^2 + 6x - 1$.
+
+b) Hạng tử đầu là $x^3$ và hạng tử cuối là $8 = 2^3$, nên xét hằng đẳng thức lập phương của một tổng $(A + B)^3 = A^3 + 3A^2B + 3AB^2 + B^3$ với $A = x$, $B = 2$.
+
+b) Kiểm tra hai hạng tử giữa: $3A^2B = 3 \cdot x^2 \cdot 2 = 6x^2$ và $3AB^2 = 3 \cdot x \cdot 2^2 = 12x$, đúng bằng hai hạng tử giữa của biểu thức đã cho.
+
+b) Vậy $x^3 + 6x^2 + 12x + 8 = x^3 + 3 \cdot x^2 \cdot 2 + 3 \cdot x \cdot 2^2 + 2^3 = (x + 2)^3$.
+
+Đáp số: a) $\boxed{8x^3 - 12x^2 + 6x - 1}$; b) $\boxed{(x + 2)^3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính nhanh biểu thức số
+\begin{problem}[8DS-HDT-003]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-05, 8DS-HDT-01, 8DS-HDT-02
+% do_kho_du_kien: 2
+Tính nhanh:
+
+a) $99^2$;
+
+b) $101 \cdot 99$;
+
+c) $36^2 + 2 \cdot 36 \cdot 14 + 14^2$.
+
+\begin{solution}
+a) Viết $99 = 100 - 1$ rồi áp dụng hằng đẳng thức bình phương của một hiệu: $99^2 = (100 - 1)^2 = 100^2 - 2 \cdot 100 \cdot 1 + 1^2$.
+
+a) Tính các số tròn trăm: $100^2 - 2 \cdot 100 \cdot 1 + 1^2 = 10\,000 - 200 + 1 = 9\,801$.
+
+b) Viết $101 = 100 + 1$, $99 = 100 - 1$ rồi áp dụng hằng đẳng thức hiệu hai bình phương: $101 \cdot 99 = (100 + 1)(100 - 1) = 100^2 - 1^2 = 10\,000 - 1 = 9\,999$.
+
+c) Biểu thức có dạng $A^2 + 2AB + B^2$ với $A = 36$, $B = 14$, nên theo hằng đẳng thức bình phương của một tổng nó bằng $(A + B)^2$: $36^2 + 2 \cdot 36 \cdot 14 + 14^2 = (36 + 14)^2 = 50^2 = 2\,500$.
+
+Đáp số: a) $\boxed{9\,801}$; b) $\boxed{9\,999}$; c) $\boxed{2\,500}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn rồi tính giá trị
+\begin{problem}[8DS-HDT-004]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-04, 8DS-HDT-03, 8DS-HDT-05
+% do_kho_du_kien: 3
+Cho biểu thức $P = (x + 2)(x^2 - 2x + 4) - (x - 1)^3 - 3x^2$.
+
+a) Rút gọn $P$.
+
+b) Tính giá trị của $P$ tại $x = -\dfrac{2}{3}$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức tổng hai lập phương $(A + B)(A^2 - AB + B^2) = A^3 + B^3$ với $A = x$, $B = 2$: $(x + 2)(x^2 - 2x + 4) = x^3 + 2^3 = x^3 + 8$.
+
+a) Áp dụng hằng đẳng thức lập phương của một hiệu $(A - B)^3 = A^3 - 3A^2B + 3AB^2 - B^3$ với $A = x$, $B = 1$: $(x - 1)^3 = x^3 - 3x^2 + 3x - 1$.
+
+a) Thay vào $P$ và bỏ ngoặc (trước ngoặc có dấu trừ thì đổi dấu mọi hạng tử trong ngoặc): $P = x^3 + 8 - x^3 + 3x^2 - 3x + 1 - 3x^2$.
+
+a) Thu gọn các hạng tử đồng dạng: $P = (x^3 - x^3) + (3x^2 - 3x^2) - 3x + (8 + 1) = 9 - 3x$.
+
+b) Thay $x = -\dfrac{2}{3}$ vào biểu thức đã rút gọn: $P = 9 - 3 \cdot \left(-\dfrac{2}{3}\right) = 9 + 2 = 11$.
+
+Đáp số: a) $\boxed{P = 9 - 3x}$; b) $\boxed{P = 11}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh không phụ thuộc biến, hai cách
+\begin{problem}[8DS-HDT-005]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-01
+% do_kho_du_kien: 3
+Chứng minh rằng giá trị của biểu thức
+\[ B = (2x + 5)^2 + (2x - 1)^2 - 2(2x + 5)(2x - 1) \]
+không phụ thuộc vào giá trị của biến $x$.
+
+\begin{solution}[cách 1: nhận dạng hằng đẳng thức]
+Đặt $M = 2x + 5$ và $N = 2x - 1$, khi đó $B = M^2 + N^2 - 2MN$.
+
+Theo hằng đẳng thức bình phương của một hiệu, $M^2 - 2MN + N^2 = (M - N)^2$, nên $B = (M - N)^2$.
+
+Tính $M - N = (2x + 5) - (2x - 1) = 2x + 5 - 2x + 1 = 6$.
+
+Do đó $B = 6^2 = 36$ với mọi giá trị của $x$, tức là giá trị của $B$ không phụ thuộc vào biến $x$.
+
+Đáp số: $\boxed{B = 36}$
+\end{solution}
+
+\begin{solution}[cách 2: khai triển rồi thu gọn]
+Khai triển bằng hằng đẳng thức bình phương của một tổng: $(2x + 5)^2 = 4x^2 + 20x + 25$.
+
+Khai triển bằng hằng đẳng thức bình phương của một hiệu: $(2x - 1)^2 = 4x^2 - 4x + 1$.
+
+Nhân đa thức với đa thức: $2(2x + 5)(2x - 1) = 2(4x^2 - 2x + 10x - 5) = 2(4x^2 + 8x - 5) = 8x^2 + 16x - 10$.
+
+Thay vào $B$ và thu gọn các hạng tử đồng dạng: $B = 4x^2 + 20x + 25 + 4x^2 - 4x + 1 - 8x^2 - 16x + 10 = (4x^2 + 4x^2 - 8x^2) + (20x - 4x - 16x) + (25 + 1 + 10) = 36$.
+
+Kết quả là một hằng số, nên giá trị của $B$ không phụ thuộc vào biến $x$.
+
+Đáp số: $\boxed{B = 36}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế, có đơn vị
+\begin{problem}[8DS-HDT-006]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-02, 8DS-HDT-01, 8DS-PT1-03
+% do_kho_du_kien: 3
+Một mảnh vườn có dạng hình vuông. Nếu tăng mỗi cạnh của mảnh vườn thêm $3$ m thì diện tích mảnh vườn tăng thêm $81$ m$^2$. Tính độ dài cạnh của mảnh vườn lúc đầu.
+
+\begin{solution}
+Gọi độ dài cạnh mảnh vườn lúc đầu là $x$ (m), điều kiện $x > 0$.
+
+Diện tích lúc đầu là $x^2$ (m$^2$). Sau khi tăng mỗi cạnh thêm $3$ m, cạnh mới là $x + 3$ (m) nên diện tích mới là $(x + 3)^2$ (m$^2$).
+
+Diện tích tăng thêm $81$ m$^2$ nên ta có phương trình $(x + 3)^2 - x^2 = 81$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$ với $A = x + 3$, $B = x$: $(x + 3)^2 - x^2 = (x + 3 - x)(x + 3 + x) = 3(2x + 3)$.
+
+Do đó $3(2x + 3) = 81$. Chia hai vế cho $3$: $2x + 3 = 27$, suy ra $2x = 24$, $x = 12$.
+
+Đối chiếu điều kiện: $x = 12 > 0$ (thoả mãn). Thử lại: $15^2 - 12^2 = 225 - 144 = 81$ (đúng).
+
+Đáp số: $\boxed{12 \text{ m}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính giá trị biểu thức đối xứng
+\begin{problem}[8DS-HDT-007]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-05, 8DS-HDT-01, 8DS-HDT-04
+% do_kho_du_kien: 4
+Cho hai số $x$, $y$ thoả mãn $x + y = 3$ và $xy = -10$. Không tìm $x$, $y$, hãy tính:
+
+a) $x^2 + y^2$;
+
+b) $x^3 + y^3$;
+
+c) $x - y$, biết $x > y$.
+
+\begin{solution}
+a) Từ hằng đẳng thức bình phương của một tổng $(x + y)^2 = x^2 + 2xy + y^2$ suy ra $x^2 + y^2 = (x + y)^2 - 2xy$.
+
+a) Thay $x + y = 3$, $xy = -10$: $x^2 + y^2 = 3^2 - 2 \cdot (-10) = 9 + 20 = 29$.
+
+b) Áp dụng hằng đẳng thức tổng hai lập phương: $x^3 + y^3 = (x + y)(x^2 - xy + y^2)$.
+
+b) Dùng kết quả câu a): $x^2 - xy + y^2 = (x^2 + y^2) - xy = 29 - (-10) = 39$, nên $x^3 + y^3 = 3 \cdot 39 = 117$.
+
+c) Theo hằng đẳng thức bình phương của một hiệu: $(x - y)^2 = x^2 - 2xy + y^2 = (x^2 + y^2) - 2xy = 29 - 2 \cdot (-10) = 49$.
+
+c) Vì $x > y$ nên $x - y > 0$. Số dương có bình phương bằng $49$ là $7$, do đó $x - y = 7$.
+
+Đáp số: a) $\boxed{29}$; b) $\boxed{117}$; c) $\boxed{7}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giá trị nhỏ nhất, hai biến
+\begin{problem}[8DS-HDT-008]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-01
+% do_kho_du_kien: 4
+Tìm giá trị nhỏ nhất của biểu thức $Q = x^2 - 2xy + 2y^2 + 4y + 7$ và các giá trị của $x$, $y$ để $Q$ đạt giá trị nhỏ nhất đó.
+
+\begin{solution}
+Tách $2y^2 = y^2 + y^2$ và $7 = 4 + 3$ rồi nhóm các hạng tử: $Q = (x^2 - 2xy + y^2) + (y^2 + 4y + 4) + 3$.
+
+Áp dụng hằng đẳng thức bình phương của một hiệu và bình phương của một tổng: $x^2 - 2xy + y^2 = (x - y)^2$ và $y^2 + 4y + 4 = (y + 2)^2$, nên $Q = (x - y)^2 + (y + 2)^2 + 3$.
+
+Bình phương của mọi số đều không âm: $(x - y)^2 \geq 0$ và $(y + 2)^2 \geq 0$ với mọi $x$, $y$. Do đó $Q \geq 3$ với mọi $x$, $y$.
+
+Dấu bằng xảy ra khi và chỉ khi $x - y = 0$ và $y + 2 = 0$, tức là $y = -2$ và $x = y = -2$.
+
+Thử lại: tại $x = y = -2$ có $Q = 4 - 8 + 8 - 8 + 7 = 3$. Vậy giá trị nhỏ nhất của $Q$ là $3$, đạt được khi $x = y = -2$.
+
+Đáp số: $\boxed{\min Q = 3 \text{ khi } x = y = -2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh đẳng thức có điều kiện, hai cách
+\begin{problem}[8DS-HDT-009]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-03, 8DS-HDT-06
+% do_kho_du_kien: 4
+Chứng minh rằng nếu $a + b + c = 0$ thì $a^3 + b^3 + c^3 = 3abc$.
+
+\begin{solution}[cách 1: rút c theo a, b rồi thế]
+Từ $a + b + c = 0$ suy ra $c = -(a + b)$, do đó $c^3 = -(a + b)^3$ (lập phương của số đối bằng số đối của lập phương).
+
+Áp dụng hằng đẳng thức lập phương của một tổng $(a + b)^3 = a^3 + 3a^2b + 3ab^2 + b^3$, nên $c^3 = -a^3 - 3a^2b - 3ab^2 - b^3$.
+
+Cộng $a^3 + b^3$ với $c^3$ rồi thu gọn: $a^3 + b^3 + c^3 = a^3 + b^3 - a^3 - 3a^2b - 3ab^2 - b^3 = -3a^2b - 3ab^2$.
+
+Theo tính chất phân phối của phép nhân đối với phép cộng: $-3a^2b - 3ab^2 = -3ab(a + b)$.
+
+Vì $a + b = -c$ nên $-3ab(a + b) = -3ab \cdot (-c) = 3abc$. Vậy $a^3 + b^3 + c^3 = 3abc$ (điều phải chứng minh).
+
+Đáp số: $\boxed{a^3 + b^3 + c^3 = 3abc}$
+\end{solution}
+
+\begin{solution}[cách 2: dùng dạng thu gọn của lập phương một tổng]
+Từ hằng đẳng thức lập phương của một tổng: $(a + b)^3 = a^3 + b^3 + 3a^2b + 3ab^2 = a^3 + b^3 + 3ab(a + b)$, suy ra $a^3 + b^3 = (a + b)^3 - 3ab(a + b)$.
+
+Vì $a + b + c = 0$ nên $a + b = -c$. Thay vào: $a^3 + b^3 = (-c)^3 - 3ab \cdot (-c) = -c^3 + 3abc$.
+
+Cộng $c^3$ vào hai vế: $a^3 + b^3 + c^3 = 3abc$ (điều phải chứng minh).
+
+Đáp số: $\boxed{a^3 + b^3 + c^3 = 3abc}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính giá trị có điều kiện, nhiều bước
+\begin{problem}[8DS-HDT-010]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-05, 8DS-HDT-01
+% do_kho_du_kien: 5
+Cho ba số $a$, $b$, $c$ thoả mãn $a + b + c = 0$ và $a^2 + b^2 + c^2 = 14$. Tính giá trị của biểu thức $M = a^4 + b^4 + c^4$.
+
+\begin{solution}
+Áp dụng hai lần hằng đẳng thức bình phương của một tổng: $(a + b + c)^2 = (a + b)^2 + 2(a + b)c + c^2 = a^2 + 2ab + b^2 + 2ac + 2bc + c^2 = a^2 + b^2 + c^2 + 2(ab + bc + ca)$.
+
+Vì $a + b + c = 0$ và $a^2 + b^2 + c^2 = 14$ nên $0 = 14 + 2(ab + bc + ca)$, suy ra $ab + bc + ca = -7$.
+
+Áp dụng cùng công thức bình phương của tổng ba số cho ba số $ab$, $bc$, $ca$: $(ab + bc + ca)^2 = a^2b^2 + b^2c^2 + c^2a^2 + 2(ab \cdot bc + bc \cdot ca + ca \cdot ab) = a^2b^2 + b^2c^2 + c^2a^2 + 2(ab^2c + abc^2 + a^2bc)$. Đặt nhân tử chung $abc$ trong ngoặc cuối: $2(ab^2c + abc^2 + a^2bc) = 2abc(a + b + c)$.
+
+Vì $a + b + c = 0$ nên $2abc(a + b + c) = 0$; lại có $(ab + bc + ca)^2 = (-7)^2 = 49$. Do đó $a^2b^2 + b^2c^2 + c^2a^2 = 49$.
+
+Áp dụng công thức bình phương của tổng ba số cho ba số $a^2$, $b^2$, $c^2$: $(a^2 + b^2 + c^2)^2 = a^4 + b^4 + c^4 + 2(a^2b^2 + b^2c^2 + c^2a^2)$.
+
+Suy ra $M = (a^2 + b^2 + c^2)^2 - 2(a^2b^2 + b^2c^2 + c^2a^2) = 14^2 - 2 \cdot 49 = 196 - 98 = 98$.
+
+Đáp số: $\boxed{M = 98}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- điền vào chỗ trống để được hằng đẳng thức
+\begin{problem}[8DS-HDT-011]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-01, 8DS-HDT-02, 8DS-HDT-04
+% do_kho_du_kien: 1
+Điền đơn thức thích hợp vào mỗi chỗ trống ($\ldots$) để được hằng đẳng thức đúng:
+
+a) $x^2 + 10x + \ldots = (x + \ldots)^2$;
+
+b) $(2x - \ldots)(2x + \ldots) = 4x^2 - 9$;
+
+c) $(x + 1)(x^2 - \ldots + 1) = x^3 + 1$.
+
+\begin{solution}
+a) Vế phải có dạng bình phương của một tổng $(A + B)^2 = A^2 + 2AB + B^2$ với $A = x$. Hạng tử $2AB = 10x = 2 \cdot x \cdot 5$ nên $B = 5$, do đó hạng tử còn thiếu ở vế trái là $B^2 = 5^2 = 25$.
+
+b) Vế trái có dạng $(A - B)(A + B) = A^2 - B^2$ (hằng đẳng thức hiệu hai bình phương) với $A = 2x$. Vế phải là $4x^2 - 9 = (2x)^2 - 3^2$ nên $B = 3$; cả hai chỗ trống đều điền $3$.
+
+c) Vế phải là tổng hai lập phương $x^3 + 1 = x^3 + 1^3$, có dạng $A^3 + B^3 = (A + B)(A^2 - AB + B^2)$ với $A = x$, $B = 1$. Khi đó $AB = x \cdot 1 = x$, nên chỗ trống là $x$.
+
+Đáp số: a) $\boxed{x^2 + 10x + 25 = (x + 5)^2}$; b) $\boxed{(2x - 3)(2x + 3) = 4x^2 - 9}$; c) $\boxed{(x + 1)(x^2 - x + 1) = x^3 + 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhận dạng lập phương để tính giá trị
+\begin{problem}[8DS-HDT-012]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-03, 8DS-HDT-05
+% do_kho_du_kien: 2
+Tính giá trị của các biểu thức sau:
+
+a) $M = x^3 + 3x^2 + 3x + 1$ tại $x = 99$;
+
+b) $N = x^3 - 6x^2 + 12x - 8$ tại $x = 22$.
+
+\begin{solution}
+a) Viết $M = x^3 + 3 \cdot x^2 \cdot 1 + 3 \cdot x \cdot 1^2 + 1^3$, có dạng $A^3 + 3A^2B + 3AB^2 + B^3$ với $A = x$, $B = 1$. Theo hằng đẳng thức lập phương của một tổng, $M = (x + 1)^3$.
+
+a) Thay $x = 99$ vào dạng thu gọn: $M = (99 + 1)^3 = 100^3 = 1\,000\,000$.
+
+b) Viết $N = x^3 - 3 \cdot x^2 \cdot 2 + 3 \cdot x \cdot 2^2 - 2^3$, có dạng $A^3 - 3A^2B + 3AB^2 - B^3$ với $A = x$, $B = 2$. Theo hằng đẳng thức lập phương của một hiệu, $N = (x - 2)^3$.
+
+b) Thay $x = 22$ vào dạng thu gọn: $N = (22 - 2)^3 = 20^3 = 8\,000$.
+
+Đáp số: a) $\boxed{M = 1\,000\,000}$; b) $\boxed{N = 8\,000}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: so sánh diện tích
+\begin{problem}[8DS-HDT-013]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-02, 8DS-HDT-05
+% do_kho_du_kien: 2
+Bác Ba có một mảnh đất hình vuông cạnh $a$ m ($a > 4$). Bác đổi mảnh đất đó lấy một mảnh đất hình chữ nhật có chiều dài hơn cạnh hình vuông $4$ m và chiều rộng kém cạnh hình vuông $4$ m.
+
+a) Diện tích mảnh đất mới lớn hơn hay nhỏ hơn diện tích mảnh đất cũ, và chênh lệch bao nhiêu mét vuông?
+
+b) Tính diện tích mảnh đất mới khi $a = 54$.
+
+\begin{solution}
+a) Mảnh đất hình vuông có diện tích $a^2$ (m$^2$). Mảnh đất hình chữ nhật có chiều dài $a + 4$ (m) và chiều rộng $a - 4$ (m) (dương vì $a > 4$), nên có diện tích $(a + 4)(a - 4)$ (m$^2$).
+
+a) Áp dụng hằng đẳng thức hiệu hai bình phương $(A + B)(A - B) = A^2 - B^2$ với $A = a$, $B = 4$: $(a + 4)(a - 4) = a^2 - 16$.
+
+a) Hiệu giữa diện tích mới và diện tích cũ là $(a^2 - 16) - a^2 = -16 < 0$. Vậy với mọi $a > 4$, mảnh đất mới có diện tích nhỏ hơn mảnh đất cũ $16$ m$^2$.
+
+b) Với $a = 54$ (thoả mãn $a > 4$), mảnh đất mới có chiều dài $58$ m và chiều rộng $50$ m, nên diện tích là $58 \cdot 50 = 2\,900$ (m$^2$).
+
+b) Kiểm tra bằng kết quả câu a): $a^2 - 16 = 54^2 - 16 = 2\,916 - 16 = 2\,900$ (m$^2$), khớp với kết quả trên.
+
+Đáp số: a) $\boxed{\text{nhỏ hơn } 16 \text{ m}^2}$; b) $\boxed{2\,900 \text{ m}^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm x: rút gọn bằng hằng đẳng thức rồi giải
+\begin{problem}[8DS-HDT-014]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-01, 8DS-HDT-03, 8DS-PT1-02
+% do_kho_du_kien: 2
+Tìm $x$, biết:
+
+a) $(x + 3)^2 - (x - 2)(x + 2) = 31$;
+
+b) $(x - 1)^3 - x(x^2 - 3x) = 14$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức bình phương của một tổng: $(x + 3)^2 = x^2 + 6x + 9$; áp dụng hằng đẳng thức hiệu hai bình phương: $(x - 2)(x + 2) = x^2 - 4$.
+
+a) Thay vào vế trái và bỏ ngoặc (trước ngoặc có dấu trừ thì đổi dấu các hạng tử trong ngoặc): $x^2 + 6x + 9 - x^2 + 4 = 6x + 13$. Phương trình trở thành $6x + 13 = 31$.
+
+a) Chuyển vế: $6x = 31 - 13 = 18$; chia hai vế cho $6$: $x = 3$.
+
+b) Áp dụng hằng đẳng thức lập phương của một hiệu: $(x - 1)^3 = x^3 - 3x^2 + 3x - 1$; nhân đơn thức với đa thức: $x(x^2 - 3x) = x^3 - 3x^2$.
+
+b) Thay vào vế trái, bỏ ngoặc và thu gọn các hạng tử đồng dạng: $x^3 - 3x^2 + 3x - 1 - x^3 + 3x^2 = 3x - 1$. Phương trình trở thành $3x - 1 = 14$.
+
+b) Chuyển vế: $3x = 14 + 1 = 15$; chia hai vế cho $3$: $x = 5$.
+
+Đáp số: a) $\boxed{x = 3}$; b) $\boxed{x = 5}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh luôn dương, tìm giá trị lớn nhất
+\begin{problem}[8DS-HDT-015]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-01
+% do_kho_du_kien: 3
+a) Chứng minh rằng $x^2 - 6x + 10 > 0$ với mọi giá trị của $x$.
+
+b) Tìm giá trị lớn nhất của biểu thức $D = 4x - x^2 + 3$ và giá trị của $x$ để $D$ đạt giá trị lớn nhất đó.
+
+\begin{solution}
+a) Tách $10 = 9 + 1$ để làm xuất hiện bình phương của một hiệu: $x^2 - 6x + 10 = (x^2 - 2 \cdot x \cdot 3 + 3^2) + 1 = (x - 3)^2 + 1$.
+
+a) Bình phương của mọi số đều không âm nên $(x - 3)^2 \geq 0$, do đó $(x - 3)^2 + 1 \geq 1 > 0$ với mọi $x$. Vậy $x^2 - 6x + 10 > 0$ với mọi $x$.
+
+b) Đặt dấu trừ ra ngoài các hạng tử chứa $x$: $D = -(x^2 - 4x) + 3$. Thêm và bớt $4$ để có bình phương của một hiệu: $D = -(x^2 - 4x + 4) + 4 + 3 = -(x - 2)^2 + 7$.
+
+b) Vì $(x - 2)^2 \geq 0$ nên $-(x - 2)^2 \leq 0$, do đó $D \leq 7$ với mọi $x$.
+
+b) Dấu bằng xảy ra khi và chỉ khi $(x - 2)^2 = 0$, tức là $x = 2$. Thử lại: tại $x = 2$ có $D = 8 - 4 + 3 = 7$. Vậy giá trị lớn nhất của $D$ là $7$, đạt được khi $x = 2$.
+
+Đáp số: a) $\boxed{x^2 - 6x + 10 = (x - 3)^2 + 1 > 0}$; b) $\boxed{\max D = 7 \text{ khi } x = 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm x, y từ tổng các bình phương bằng 0
+\begin{problem}[8DS-HDT-016]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-01
+% do_kho_du_kien: 3
+Tìm các số $x$, $y$ thoả mãn $x^2 + y^2 - 4x + 6y + 13 = 0$.
+
+\begin{solution}
+Tách $13 = 4 + 9$ và nhóm các hạng tử cùng một biến: $x^2 + y^2 - 4x + 6y + 13 = (x^2 - 4x + 4) + (y^2 + 6y + 9)$.
+
+Áp dụng hằng đẳng thức bình phương của một hiệu và bình phương của một tổng: $x^2 - 4x + 4 = (x - 2)^2$ và $y^2 + 6y + 9 = (y + 3)^2$. Đẳng thức đã cho trở thành $(x - 2)^2 + (y + 3)^2 = 0$.
+
+Vì $(x - 2)^2 \geq 0$ và $(y + 3)^2 \geq 0$ với mọi $x$, $y$, nên tổng của chúng bằng $0$ khi và chỉ khi cả hai cùng bằng $0$: $x - 2 = 0$ và $y + 3 = 0$.
+
+Suy ra $x = 2$ và $y = -3$. Thử lại: $2^2 + (-3)^2 - 4 \cdot 2 + 6 \cdot (-3) + 13 = 4 + 9 - 8 - 18 + 13 = 0$ (đúng).
+
+Đáp số: $\boxed{x = 2,\ y = -3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: xếp khối lập phương
+\begin{problem}[8DS-HDT-017]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-03, 8DS-HDT-05, 8DS-PT1-03
+% do_kho_du_kien: 3
+Bạn Minh dùng các khối lập phương nhỏ cạnh $1$ cm xếp thành một khối lập phương lớn đặc có cạnh $n$ cm ($n$ là số nguyên dương). Để được khối lập phương đặc có cạnh $n + 1$ cm, bạn ấy cần dùng thêm một số khối nhỏ.
+
+a) Tính số khối nhỏ cần thêm theo $n$, rồi tính số đó khi $n = 10$.
+
+b) Biết bạn Minh đã dùng thêm đúng $217$ khối nhỏ. Hỏi khối lập phương lúc đầu có cạnh bao nhiêu xăng-ti-mét?
+
+\begin{solution}
+a) Khối lập phương đặc cạnh $n$ cm gồm $n^3$ khối nhỏ, khối lập phương đặc cạnh $n + 1$ cm gồm $(n + 1)^3$ khối nhỏ. Do đó số khối nhỏ cần thêm là $(n + 1)^3 - n^3$.
+
+a) Áp dụng hằng đẳng thức lập phương của một tổng: $(n + 1)^3 = n^3 + 3n^2 + 3n + 1$, nên $(n + 1)^3 - n^3 = 3n^2 + 3n + 1$.
+
+a) Với $n = 10$: $3 \cdot 10^2 + 3 \cdot 10 + 1 = 300 + 30 + 1 = 331$ (khối).
+
+b) Gọi cạnh khối lập phương lúc đầu là $n$ (cm), điều kiện $n$ nguyên dương. Theo câu a), số khối nhỏ dùng thêm là $3n^2 + 3n + 1$, nên ta có phương trình $3n^2 + 3n + 1 = 217$.
+
+b) Chuyển vế: $3n^2 + 3n = 216$; chia hai vế cho $3$: $n^2 + n = 72$; đặt nhân tử chung $n$: $n(n + 1) = 72$.
+
+b) Tích $n(n + 1)$ tăng khi $n$ tăng. Nếu $n \leq 7$ thì $n(n + 1) \leq 7 \cdot 8 = 56 < 72$; nếu $n \geq 9$ thì $n(n + 1) \geq 9 \cdot 10 = 90 > 72$. Vậy $n = 8$, và thật vậy $8 \cdot 9 = 72$.
+
+b) Đối chiếu điều kiện: $n = 8$ là số nguyên dương (thoả mãn). Thử lại: $9^3 - 8^3 = 729 - 512 = 217$ (đúng).
+
+Đáp số: a) $\boxed{3n^2 + 3n + 1 \text{ khối; khi } n = 10 \text{ là } 331 \text{ khối}}$; b) $\boxed{8 \text{ cm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- so sánh hai số bằng hiệu hai bình phương liên tiếp
+\begin{problem}[8DS-HDT-018]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-02, 8DS-HDT-05
+% do_kho_du_kien: 4
+Không tính giá trị cụ thể, hãy so sánh hai số
+\[ A = (5 + 1)(5^2 + 1)(5^4 + 1)(5^8 + 1) \quad \text{và} \quad B = 5^{16}. \]
+
+\begin{solution}
+Nhân $A$ với $5 - 1 = 4$ để làm xuất hiện hằng đẳng thức hiệu hai bình phương: $4A = (5 - 1)(5 + 1)(5^2 + 1)(5^4 + 1)(5^8 + 1)$.
+
+Áp dụng hằng đẳng thức $(M - N)(M + N) = M^2 - N^2$: $(5 - 1)(5 + 1) = 5^2 - 1$, nên $4A = (5^2 - 1)(5^2 + 1)(5^4 + 1)(5^8 + 1)$.
+
+Tiếp tục áp dụng hằng đẳng thức đó ba lần: $(5^2 - 1)(5^2 + 1) = 5^4 - 1$; $(5^4 - 1)(5^4 + 1) = 5^8 - 1$; $(5^8 - 1)(5^8 + 1) = 5^{16} - 1$. Do đó $4A = 5^{16} - 1$, hay $A = \dfrac{5^{16} - 1}{4}$.
+
+Vì $5^{16} - 1 > 0$ nên $\dfrac{5^{16} - 1}{4} < 5^{16} - 1$, mà $5^{16} - 1 < 5^{16}$. Suy ra $A < 5^{16} = B$.
+
+Đáp số: $\boxed{A < B}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh đẳng thức lập phương ba số, hai cách
+\begin{problem}[8DS-HDT-019]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-03, 8DS-HDT-04, 8DS-HDT-06
+% do_kho_du_kien: 4
+Chứng minh rằng với mọi số $a$, $b$, $c$ ta có
+\[ (a + b + c)^3 - a^3 - b^3 - c^3 = 3(a + b)(b + c)(c + a). \]
+
+\begin{solution}[cách 1: dùng hiệu và tổng hai lập phương]
+Nhóm vế trái thành hai nhóm: $(a + b + c)^3 - a^3 - b^3 - c^3 = \left[(a + b + c)^3 - a^3\right] - (b^3 + c^3)$.
+
+Áp dụng hằng đẳng thức hiệu hai lập phương $M^3 - N^3 = (M - N)(M^2 + MN + N^2)$ với $M = a + b + c$, $N = a$ (khi đó $M - N = b + c$): $(a + b + c)^3 - a^3 = (b + c)\left[(a + b + c)^2 + a(a + b + c) + a^2\right]$.
+
+Áp dụng hằng đẳng thức tổng hai lập phương: $b^3 + c^3 = (b + c)(b^2 - bc + c^2)$. Đặt nhân tử chung $b + c$, vế trái bằng $(b + c)\left[(a + b + c)^2 + a(a + b + c) + a^2 - b^2 + bc - c^2\right]$.
+
+Áp dụng hai lần hằng đẳng thức bình phương của một tổng: $(a + b + c)^2 = a^2 + b^2 + c^2 + 2ab + 2bc + 2ca$; nhân đơn thức với đa thức: $a(a + b + c) = a^2 + ab + ac$. Thu gọn biểu thức trong ngoặc vuông: $a^2 + b^2 + c^2 + 2ab + 2bc + 2ca + a^2 + ab + ac + a^2 - b^2 + bc - c^2 = 3a^2 + 3ab + 3ac + 3bc$.
+
+Đặt nhân tử chung $3$ rồi nhóm hạng tử: $3a^2 + 3ab + 3ac + 3bc = 3\left[a(a + b) + c(a + b)\right] = 3(a + b)(c + a)$.
+
+Vậy vế trái bằng $(b + c) \cdot 3(a + b)(c + a) = 3(a + b)(b + c)(c + a)$, bằng vế phải (điều phải chứng minh).
+
+Đáp số: $\boxed{(a + b + c)^3 - a^3 - b^3 - c^3 = 3(a + b)(b + c)(c + a)}$
+\end{solution}
+
+\begin{solution}[cách 2: dùng dạng thu gọn của lập phương một tổng]
+Từ hằng đẳng thức lập phương của một tổng: $(M + N)^3 = M^3 + 3M^2N + 3MN^2 + N^3 = M^3 + N^3 + 3MN(M + N)$.
+
+Áp dụng với $M = a + b$, $N = c$: $(a + b + c)^3 = (a + b)^3 + c^3 + 3(a + b)c(a + b + c)$.
+
+Áp dụng tiếp với $M = a$, $N = b$: $(a + b)^3 = a^3 + b^3 + 3ab(a + b)$. Thay vào: $(a + b + c)^3 = a^3 + b^3 + c^3 + 3ab(a + b) + 3c(a + b)(a + b + c)$.
+
+Trừ hai vế cho $a^3 + b^3 + c^3$ rồi đặt nhân tử chung $3(a + b)$: $(a + b + c)^3 - a^3 - b^3 - c^3 = 3(a + b)\left[ab + c(a + b + c)\right] = 3(a + b)(ab + ac + bc + c^2)$.
+
+Nhóm hạng tử trong ngoặc: $ab + ac + bc + c^2 = a(b + c) + c(b + c) = (b + c)(c + a)$. Vậy vế trái bằng $3(a + b)(b + c)(c + a)$ (điều phải chứng minh).
+
+Đáp số: $\boxed{(a + b + c)^3 - a^3 - b^3 - c^3 = 3(a + b)(b + c)(c + a)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm n để biểu thức là số chính phương
+\begin{problem}[8DS-HDT-020]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-01, 8DS-HDT-02
+% do_kho_du_kien: 5
+Tìm tất cả các số tự nhiên $n$ sao cho $n^2 + 4n + 97$ là số chính phương.
+
+\begin{solution}
+Giả sử $n^2 + 4n + 97 = k^2$ với $k$ là số tự nhiên. Tách $97 = 4 + 93$ và dùng hằng đẳng thức bình phương của một tổng: $n^2 + 4n + 97 = (n^2 + 4n + 4) + 93 = (n + 2)^2 + 93$.
+
+Do đó $k^2 = (n + 2)^2 + 93$, hay $k^2 - (n + 2)^2 = 93$. Vì $93 > 0$ nên $k^2 > (n + 2)^2$, mà $k$ và $n + 2$ đều không âm nên $k > n + 2$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương: $k^2 - (n + 2)^2 = (k - n - 2)(k + n + 2)$, nên $(k - n - 2)(k + n + 2) = 93$. Hai thừa số đều là số nguyên dương (vì $k > n + 2 > 0$) và $k - n - 2 < k + n + 2$.
+
+Ta có $93 = 3 \cdot 31$ với $3$ và $31$ là số nguyên tố, nên $93$ chỉ viết được thành tích hai số nguyên dương, số nhỏ đứng trước, theo hai cách $1 \cdot 93$ và $3 \cdot 31$. Do đó có hai trường hợp.
+
+Trường hợp 1: $k - n - 2 = 1$ và $k + n + 2 = 93$. Trừ vế theo vế: $2(n + 2) = 93 - 1 = 92$, suy ra $n + 2 = 46$, $n = 44$ (khi đó $k = 47$).
+
+Trường hợp 2: $k - n - 2 = 3$ và $k + n + 2 = 31$. Trừ vế theo vế: $2(n + 2) = 31 - 3 = 28$, suy ra $n + 2 = 14$, $n = 12$ (khi đó $k = 17$).
+
+Thử lại: với $n = 12$ có $144 + 48 + 97 = 289 = 17^2$; với $n = 44$ có $1\,936 + 176 + 97 = 2\,209 = 47^2$ (đều đúng).
+
+Đáp số: $\boxed{n \in \{12; 44\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- viết dưới dạng tích bằng tổng, hiệu hai lập phương
+\begin{problem}[8DS-HDT-021]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-04
+% do_kho_du_kien: 1
+Thực hiện các yêu cầu sau:
+
+a) Viết đa thức $x^3 + 27$ dưới dạng tích;
+
+b) Viết đa thức $8 - y^3$ dưới dạng tích;
+
+c) Rút gọn biểu thức $(x - 2)(x^2 + 2x + 4)$.
+
+\begin{solution}
+a) Viết $27 = 3^3$, nên $x^3 + 27 = x^3 + 3^3$ có dạng $A^3 + B^3$ với $A = x$, $B = 3$. Áp dụng hằng đẳng thức tổng hai lập phương $A^3 + B^3 = (A + B)(A^2 - AB + B^2)$: $x^3 + 27 = (x + 3)(x^2 - 3x + 9)$.
+
+b) Viết $8 = 2^3$, nên $8 - y^3 = 2^3 - y^3$ có dạng $A^3 - B^3$ với $A = 2$, $B = y$. Áp dụng hằng đẳng thức hiệu hai lập phương $A^3 - B^3 = (A - B)(A^2 + AB + B^2)$: $8 - y^3 = (2 - y)(4 + 2y + y^2)$.
+
+c) Biểu thức có dạng $(A - B)(A^2 + AB + B^2)$ với $A = x$, $B = 2$ (vì $x^2 = A^2$, $2x = AB$, $4 = B^2$). Theo hằng đẳng thức hiệu hai lập phương: $(x - 2)(x^2 + 2x + 4) = x^3 - 2^3 = x^3 - 8$.
+
+Đáp số: a) $\boxed{(x + 3)(x^2 - 3x + 9)}$; b) $\boxed{(2 - y)(4 + 2y + y^2)}$; c) $\boxed{x^3 - 8}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bình phương của tổng ba hạng tử
+\begin{problem}[8DS-HDT-022]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-01
+% do_kho_du_kien: 2
+a) Chứng minh rằng $(a + b + c)^2 = a^2 + b^2 + c^2 + 2ab + 2bc + 2ca$ với mọi số $a$, $b$, $c$.
+
+b) Áp dụng câu a), khai triển $(x - 2y + 3)^2$.
+
+\begin{solution}
+a) Coi $a + b$ là một hạng tử và áp dụng hằng đẳng thức bình phương của một tổng $(A + B)^2 = A^2 + 2AB + B^2$ với $A = a + b$, $B = c$: $(a + b + c)^2 = (a + b)^2 + 2(a + b)c + c^2$.
+
+a) Áp dụng tiếp hằng đẳng thức bình phương của một tổng: $(a + b)^2 = a^2 + 2ab + b^2$; nhân đơn thức với đa thức: $2(a + b)c = 2ac + 2bc$. Do đó $(a + b + c)^2 = a^2 + 2ab + b^2 + 2ac + 2bc + c^2 = a^2 + b^2 + c^2 + 2ab + 2bc + 2ca$ (điều phải chứng minh).
+
+b) Viết $x - 2y + 3 = x + (-2y) + 3$ và áp dụng câu a) với $a = x$, $b = -2y$, $c = 3$: $(x - 2y + 3)^2 = x^2 + (-2y)^2 + 3^2 + 2 \cdot x \cdot (-2y) + 2 \cdot (-2y) \cdot 3 + 2 \cdot 3 \cdot x$.
+
+b) Tính từng hạng tử: $(-2y)^2 = 4y^2$, $3^2 = 9$, $2 \cdot x \cdot (-2y) = -4xy$, $2 \cdot (-2y) \cdot 3 = -12y$, $2 \cdot 3 \cdot x = 6x$. Vậy $(x - 2y + 3)^2 = x^2 + 4y^2 - 4xy + 6x - 12y + 9$.
+
+Đáp số: a) $\boxed{(a + b + c)^2 = a^2 + b^2 + c^2 + 2ab + 2bc + 2ca}$; b) $\boxed{x^2 + 4y^2 - 4xy + 6x - 12y + 9}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm x từ hiệu hai bình phương bằng 0, hai cách
+\begin{problem}[8DS-HDT-023]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-02, 8DS-PTNT-06
+% do_kho_du_kien: 2
+Tìm $x$, biết $(2x - 1)^2 - (x + 3)^2 = 0$.
+
+\begin{solution}[cách 1: dùng hằng đẳng thức hiệu hai bình phương]
+Áp dụng hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$ với $A = 2x - 1$, $B = x + 3$: $(2x - 1)^2 - (x + 3)^2 = \left[(2x - 1) - (x + 3)\right]\left[(2x - 1) + (x + 3)\right]$.
+
+Bỏ ngoặc và thu gọn trong mỗi thừa số: $(2x - 1) - (x + 3) = 2x - 1 - x - 3 = x - 4$ và $(2x - 1) + (x + 3) = 3x + 2$. Phương trình trở thành $(x - 4)(3x + 2) = 0$.
+
+Một tích bằng $0$ khi và chỉ khi có ít nhất một thừa số bằng $0$: $x - 4 = 0$ hoặc $3x + 2 = 0$, tức là $x = 4$ hoặc $x = -\dfrac{2}{3}$.
+
+Đáp số: $\boxed{x \in \left\{-\dfrac{2}{3}; 4\right\}}$
+\end{solution}
+
+\begin{solution}[cách 2: hai số có bình phương bằng nhau]
+Chuyển vế: $(2x - 1)^2 = (x + 3)^2$. Hai số có bình phương bằng nhau khi và chỉ khi chúng bằng nhau hoặc đối nhau, nên $2x - 1 = x + 3$ hoặc $2x - 1 = -(x + 3)$.
+
+Giải $2x - 1 = x + 3$: chuyển vế được $2x - x = 3 + 1$, tức là $x = 4$.
+
+Giải $2x - 1 = -x - 3$: chuyển vế được $2x + x = -3 + 1$, tức là $3x = -2$, $x = -\dfrac{2}{3}$.
+
+Đáp số: $\boxed{x \in \left\{-\dfrac{2}{3}; 4\right\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hiệu bình phương hai số lẻ liên tiếp
+\begin{problem}[8DS-HDT-024]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-02, 8DS-PT1-03
+% do_kho_du_kien: 3
+a) Chứng minh rằng hiệu các bình phương của hai số lẻ liên tiếp luôn chia hết cho $8$.
+
+b) Tìm hai số tự nhiên lẻ liên tiếp, biết bình phương của số lớn trừ bình phương của số nhỏ bằng $136$.
+
+\begin{solution}
+a) Hai số lẻ liên tiếp hơn kém nhau $2$ đơn vị, nên có dạng $2k + 1$ và $2k + 3$ với $k$ là số nguyên.
+
+a) Áp dụng hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$ với $A = 2k + 3$, $B = 2k + 1$: $(2k + 3)^2 - (2k + 1)^2 = \left[(2k + 3) - (2k + 1)\right]\left[(2k + 3) + (2k + 1)\right] = 2(4k + 4)$.
+
+a) Đặt nhân tử chung $4$: $2(4k + 4) = 2 \cdot 4(k + 1) = 8(k + 1)$. Vì $k + 1$ là số nguyên nên $8(k + 1)$ chia hết cho $8$; hiệu lấy theo thứ tự ngược lại bằng $-8(k + 1)$, cũng chia hết cho $8$. Vậy hiệu các bình phương của hai số lẻ liên tiếp luôn chia hết cho $8$.
+
+b) Gọi hai số tự nhiên lẻ liên tiếp cần tìm là $2k + 1$ và $2k + 3$, với $k$ là số tự nhiên. Theo câu a), $(2k + 3)^2 - (2k + 1)^2 = 8(k + 1)$, nên ta có $8(k + 1) = 136$.
+
+b) Chia hai vế cho $8$: $k + 1 = 17$, suy ra $k = 16$ (là số tự nhiên, thoả mãn). Hai số cần tìm là $2 \cdot 16 + 1 = 33$ và $2 \cdot 16 + 3 = 35$.
+
+b) Thử lại: $35^2 - 33^2 = 1\,225 - 1\,089 = 136$ (đúng).
+
+Đáp số: a) $\boxed{(2k + 3)^2 - (2k + 1)^2 = 8(k + 1) \text{ chia hết cho } 8}$; b) $\boxed{33 \text{ và } 35}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nghiệm nguyên dương của hiệu hai lập phương
+\begin{problem}[8DS-HDT-025]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-04, 8DS-PTNT-05
+% do_kho_du_kien: 4
+Tìm các số nguyên dương $x$, $y$ thoả mãn $x^3 - y^3 = 19$.
+
+\begin{solution}
+Áp dụng hằng đẳng thức hiệu hai lập phương $A^3 - B^3 = (A - B)(A^2 + AB + B^2)$: $x^3 - y^3 = (x - y)(x^2 + xy + y^2)$. Phương trình trở thành $(x - y)(x^2 + xy + y^2) = 19$.
+
+Vì $x$, $y$ nguyên dương nên $x^2 + xy + y^2$ là số nguyên dương; tích bằng $19 > 0$ nên $x - y$ cũng là số nguyên dương. Mà $19$ là số nguyên tố, nên chỉ có hai khả năng: $x - y = 1$ và $x^2 + xy + y^2 = 19$, hoặc $x - y = 19$ và $x^2 + xy + y^2 = 1$.
+
+Khả năng thứ hai bị loại: vì $x \geq 1$ và $y \geq 1$ nên $x^2 + xy + y^2 \geq 1 + 1 + 1 = 3 > 1$.
+
+Khả năng thứ nhất: $x = y + 1$. Thay vào $x^2 + xy + y^2 = 19$, rồi khai triển bằng hằng đẳng thức bình phương của một tổng và nhân đơn thức với đa thức: $(y + 1)^2 + (y + 1)y + y^2 = y^2 + 2y + 1 + y^2 + y + y^2 = 3y^2 + 3y + 1$, nên $3y^2 + 3y + 1 = 19$.
+
+Chuyển vế rồi chia hai vế cho $3$: $y^2 + y - 6 = 0$. Tách $y = 3y - 2y$ (hai số $3$ và $-2$ có tích $-6$, tổng $1$): $y^2 + 3y - 2y - 6 = y(y + 3) - 2(y + 3) = (y + 3)(y - 2)$. Do đó $(y + 3)(y - 2) = 0$, tức là $y = -3$ hoặc $y = 2$.
+
+Vì $y$ nguyên dương nên $y = 2$, khi đó $x = y + 1 = 3$. Thử lại: $3^3 - 2^3 = 27 - 8 = 19$ (đúng).
+
+Đáp số: $\boxed{x = 3,\ y = 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh chia hết bằng tổng, hiệu hai lập phương
+\begin{problem}[8DS-HDT-026]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-04, 8DS-HDT-05
+% do_kho_du_kien: 3
+Chứng minh rằng:
+
+a) $29^3 + 43^3$ chia hết cho $72$;
+
+b) $(n + 5)^3 - (n - 1)^3$ chia hết cho $6$ với mọi số nguyên $n$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức tổng hai lập phương $A^3 + B^3 = (A + B)(A^2 - AB + B^2)$ với $A = 29$, $B = 43$: $29^3 + 43^3 = (29 + 43)(29^2 - 29 \cdot 43 + 43^2) = 72 \cdot (29^2 - 29 \cdot 43 + 43^2)$.
+
+a) Thừa số $29^2 - 29 \cdot 43 + 43^2 = 841 - 1\,247 + 1\,849 = 1\,443$ là số nguyên, nên $29^3 + 43^3 = 72 \cdot 1\,443$ chia hết cho $72$.
+
+b) Áp dụng hằng đẳng thức hiệu hai lập phương $A^3 - B^3 = (A - B)(A^2 + AB + B^2)$ với $A = n + 5$, $B = n - 1$: $(n + 5)^3 - (n - 1)^3 = \left[(n + 5) - (n - 1)\right]\left[(n + 5)^2 + (n + 5)(n - 1) + (n - 1)^2\right]$.
+
+b) Thừa số thứ nhất: $(n + 5) - (n - 1) = n + 5 - n + 1 = 6$. Thừa số thứ hai là số nguyên vì $n$ nguyên (tổng, tích các số nguyên là số nguyên). Do đó $(n + 5)^3 - (n - 1)^3$ bằng $6$ nhân với một số nguyên, tức là chia hết cho $6$ với mọi số nguyên $n$.
+
+Đáp số: a) $\boxed{29^3 + 43^3 = 72 \cdot 1\,443 \text{ chia hết cho } 72}$; b) $\boxed{(n + 5)^3 - (n - 1)^3 = 6\left[(n + 5)^2 + (n + 5)(n - 1) + (n - 1)^2\right] \text{ chia hết cho } 6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn tích bốn thừa số, tìm x
+\begin{problem}[8DS-HDT-027]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-04, 8DS-HDT-02, 8DS-PTNT-06
+% do_kho_du_kien: 3
+Cho biểu thức $P = (x - 1)(x + 1)(x^2 + x + 1)(x^2 - x + 1)$.
+
+a) Rút gọn $P$.
+
+b) Tìm $x$ để $P = 63$.
+
+\begin{solution}
+a) Đổi chỗ các thừa số (tính chất giao hoán và kết hợp của phép nhân): $P = \left[(x - 1)(x^2 + x + 1)\right]\left[(x + 1)(x^2 - x + 1)\right]$.
+
+a) Áp dụng hằng đẳng thức hiệu hai lập phương và tổng hai lập phương với $A = x$, $B = 1$: $(x - 1)(x^2 + x + 1) = x^3 - 1$ và $(x + 1)(x^2 - x + 1) = x^3 + 1$.
+
+a) Áp dụng hằng đẳng thức hiệu hai bình phương với $A = x^3$, $B = 1$: $P = (x^3 - 1)(x^3 + 1) = (x^3)^2 - 1^2 = x^6 - 1$.
+
+b) $P = 63$ khi và chỉ khi $x^6 - 1 = 63$, tức là $x^6 = 64$. Viết $x^6 = (x^3)^2$, $64 = 8^2$ và áp dụng hằng đẳng thức hiệu hai bình phương: $(x^3)^2 - 8^2 = (x^3 - 8)(x^3 + 8) = 0$. Một tích bằng $0$ khi và chỉ khi có ít nhất một thừa số bằng $0$, nên $x^3 - 8 = 0$ hoặc $x^3 + 8 = 0$, tức là $x^3 = 8$ hoặc $x^3 = -8$.
+
+b) Áp dụng hằng đẳng thức hiệu hai lập phương: $x^3 - 8 = (x - 2)(x^2 + 2x + 4)$, mà $x^2 + 2x + 4 = (x + 1)^2 + 3 > 0$ với mọi $x$, nên $x^3 = 8$ khi và chỉ khi $x = 2$.
+
+b) Áp dụng hằng đẳng thức tổng hai lập phương: $x^3 + 8 = (x + 2)(x^2 - 2x + 4)$, mà $x^2 - 2x + 4 = (x - 1)^2 + 3 > 0$ với mọi $x$, nên $x^3 = -8$ khi và chỉ khi $x = -2$. Thử lại: $2^6 - 1 = (-2)^6 - 1 = 64 - 1 = 63$ (đúng).
+
+Đáp số: a) $\boxed{P = x^6 - 1}$; b) $\boxed{x \in \{-2; 2\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: hai khối lập phương
+\begin{problem}[8DS-HDT-028]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-04, 8DS-HDT-01
+% do_kho_du_kien: 4
+Hai khối gỗ có dạng hình lập phương, khối thứ nhất có cạnh dài hơn cạnh khối thứ hai. Tổng độ dài cạnh của hai khối là $10$ cm và tổng thể tích của hai khối là $370$ cm$^3$.
+
+a) Tính tổng diện tích một mặt của khối thứ nhất và một mặt của khối thứ hai.
+
+b) Tính độ dài cạnh của mỗi khối.
+
+\begin{solution}
+a) Gọi độ dài cạnh của khối thứ nhất và khối thứ hai lần lượt là $a$ (cm) và $b$ (cm), điều kiện $a > b > 0$. Theo đề bài: $a + b = 10$ và $a^3 + b^3 = 370$; tổng diện tích một mặt của hai khối là $a^2 + b^2$ (cm$^2$).
+
+a) Áp dụng hằng đẳng thức tổng hai lập phương: $a^3 + b^3 = (a + b)(a^2 - ab + b^2)$, nên $10(a^2 - ab + b^2) = 370$, suy ra $a^2 - ab + b^2 = 37$.
+
+a) Áp dụng hằng đẳng thức bình phương của một tổng: $(a + b)^2 = a^2 + 2ab + b^2$, nên $a^2 + 2ab + b^2 = 10^2 = 100$.
+
+a) Trừ vế theo vế hai đẳng thức trên: $(a^2 + 2ab + b^2) - (a^2 - ab + b^2) = 100 - 37$, tức là $3ab = 63$, $ab = 21$. Do đó $a^2 + b^2 = 37 + ab = 37 + 21 = 58$ (cm$^2$).
+
+b) Áp dụng hằng đẳng thức bình phương của một hiệu: $(a - b)^2 = a^2 - 2ab + b^2 = 58 - 2 \cdot 21 = 16$. Vì $a > b$ nên $a - b > 0$; số dương có bình phương bằng $16$ là $4$, do đó $a - b = 4$.
+
+b) Từ $a + b = 10$ và $a - b = 4$, cộng vế theo vế được $2a = 14$, $a = 7$; suy ra $b = 10 - 7 = 3$.
+
+b) Đối chiếu điều kiện: $7 > 3 > 0$ (thoả mãn). Thử lại: $7 + 3 = 10$ và $7^3 + 3^3 = 343 + 27 = 370$ (đúng).
+
+Đáp số: a) $\boxed{58 \text{ cm}^2}$; b) $\boxed{7 \text{ cm và } 3 \text{ cm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính nhanh biểu thức số và phân số
+\begin{problem}[8DS-HDT-029]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-05, 8DS-HDT-02
+% do_kho_du_kien: 2
+Tính nhanh:
+
+a) $2025^2 - 2024 \cdot 2026$;
+
+b) $\dfrac{63^2 - 47^2}{215^2 - 105^2}$.
+
+\begin{solution}
+a) Viết $2024 = 2025 - 1$ và $2026 = 2025 + 1$, rồi áp dụng hằng đẳng thức hiệu hai bình phương: $2024 \cdot 2026 = (2025 - 1)(2025 + 1) = 2025^2 - 1$.
+
+a) Do đó $2025^2 - 2024 \cdot 2026 = 2025^2 - (2025^2 - 1) = 1$.
+
+b) Áp dụng hằng đẳng thức hiệu hai bình phương cho tử số: $63^2 - 47^2 = (63 - 47)(63 + 47) = 16 \cdot 110$.
+
+b) Áp dụng hằng đẳng thức hiệu hai bình phương cho mẫu số: $215^2 - 105^2 = (215 - 105)(215 + 105) = 110 \cdot 320$.
+
+b) Rút gọn thừa số chung $110$ ở tử và mẫu: $\dfrac{16 \cdot 110}{110 \cdot 320} = \dfrac{16}{320} = \dfrac{1}{20}$.
+
+Đáp số: a) $\boxed{1}$; b) $\boxed{\dfrac{1}{20}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính giá trị khi biết x^2 + 1/x^2
+\begin{problem}[8DS-HDT-030]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-05, 8DS-HDT-01, 8DS-HDT-04
+% do_kho_du_kien: 4
+Cho số $x > 0$ thoả mãn $x^2 + \dfrac{1}{x^2} = 7$. Không tìm $x$, hãy tính:
+
+a) $x + \dfrac{1}{x}$;
+
+b) $x^3 + \dfrac{1}{x^3}$;
+
+c) $x^5 + \dfrac{1}{x^5}$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức bình phương của một tổng với $A = x$, $B = \dfrac{1}{x}$, chú ý $x \cdot \dfrac{1}{x} = 1$: $\left(x + \dfrac{1}{x}\right)^2 = x^2 + \dfrac{1}{x^2} + 2 = 7 + 2 = 9$.
+
+a) Vì $x > 0$ nên $\dfrac{1}{x} > 0$, do đó $x + \dfrac{1}{x} > 0$. Số dương có bình phương bằng $9$ là $3$, nên $x + \dfrac{1}{x} = 3$.
+
+b) Áp dụng hằng đẳng thức tổng hai lập phương với $A = x$, $B = \dfrac{1}{x}$: $x^3 + \dfrac{1}{x^3} = \left(x + \dfrac{1}{x}\right)\left(x^2 - x \cdot \dfrac{1}{x} + \dfrac{1}{x^2}\right) = \left(x + \dfrac{1}{x}\right)\left(x^2 + \dfrac{1}{x^2} - 1\right)$.
+
+b) Thay $x + \dfrac{1}{x} = 3$ (kết quả câu a)) và $x^2 + \dfrac{1}{x^2} = 7$ (giả thiết): $x^3 + \dfrac{1}{x^3} = 3 \cdot (7 - 1) = 18$.
+
+c) Nhân đa thức với đa thức, chú ý $x^2 \cdot \dfrac{1}{x^3} = \dfrac{1}{x}$ và $\dfrac{1}{x^2} \cdot x^3 = x$: $\left(x^2 + \dfrac{1}{x^2}\right)\left(x^3 + \dfrac{1}{x^3}\right) = x^5 + \dfrac{1}{x} + x + \dfrac{1}{x^5}$.
+
+c) Suy ra $x^5 + \dfrac{1}{x^5} = \left(x^2 + \dfrac{1}{x^2}\right)\left(x^3 + \dfrac{1}{x^3}\right) - \left(x + \dfrac{1}{x}\right) = 7 \cdot 18 - 3 = 123$.
+
+Đáp số: a) $\boxed{3}$; b) $\boxed{18}$; c) $\boxed{123}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh bất đẳng thức ba lập phương
+\begin{problem}[8DS-HDT-031]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-04, 8DS-HDT-03
+% do_kho_du_kien: 5
+Cho ba số $a$, $b$, $c$ không âm. Chứng minh rằng $a^3 + b^3 + c^3 \geq 3abc$. Dấu bằng xảy ra khi nào?
+
+\begin{solution}
+Từ hằng đẳng thức lập phương của một tổng: $(a + b)^3 = a^3 + 3a^2b + 3ab^2 + b^3 = a^3 + b^3 + 3ab(a + b)$, suy ra $a^3 + b^3 = (a + b)^3 - 3ab(a + b)$.
+
+Do đó $a^3 + b^3 + c^3 - 3abc = \left[(a + b)^3 + c^3\right] - 3ab(a + b) - 3abc = \left[(a + b)^3 + c^3\right] - 3ab(a + b + c)$.
+
+Áp dụng hằng đẳng thức tổng hai lập phương với $A = a + b$, $B = c$: $(a + b)^3 + c^3 = (a + b + c)\left[(a + b)^2 - (a + b)c + c^2\right]$.
+
+Đặt nhân tử chung $a + b + c$: $a^3 + b^3 + c^3 - 3abc = (a + b + c)\left[(a + b)^2 - (a + b)c + c^2 - 3ab\right]$. Khai triển và thu gọn trong ngoặc vuông: $a^2 + 2ab + b^2 - ac - bc + c^2 - 3ab = a^2 + b^2 + c^2 - ab - bc - ca$.
+
+Nhân biểu thức đó với $2$ rồi nhóm thành ba bình phương của một hiệu: $2(a^2 + b^2 + c^2 - ab - bc - ca) = (a^2 - 2ab + b^2) + (b^2 - 2bc + c^2) + (c^2 - 2ca + a^2) = (a - b)^2 + (b - c)^2 + (c - a)^2$. Vậy $a^3 + b^3 + c^3 - 3abc = \dfrac{1}{2}(a + b + c)\left[(a - b)^2 + (b - c)^2 + (c - a)^2\right]$.
+
+Vì $a$, $b$, $c$ không âm nên $a + b + c \geq 0$; các bình phương đều không âm nên tổng trong ngoặc vuông không âm. Tích của các số không âm là số không âm, do đó $a^3 + b^3 + c^3 - 3abc \geq 0$, tức là $a^3 + b^3 + c^3 \geq 3abc$.
+
+Dấu bằng xảy ra khi và chỉ khi $a + b + c = 0$ hoặc $(a - b)^2 + (b - c)^2 + (c - a)^2 = 0$. Trường hợp đầu: ba số không âm có tổng bằng $0$ nên $a = b = c = 0$. Trường hợp sau: ba bình phương không âm có tổng bằng $0$ nên $a - b = b - c = c - a = 0$, tức là $a = b = c$. Ngược lại, khi $a = b = c$ thì hai vế cùng bằng $3a^3$. Vậy dấu bằng xảy ra khi và chỉ khi $a = b = c$.
+
+Đáp số: $\boxed{a^3 + b^3 + c^3 \geq 3abc, \text{ dấu bằng khi } a = b = c}$
+\end{solution}
+\end{problem}
+
+\end{document}

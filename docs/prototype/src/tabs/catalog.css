@@ -1,0 +1,30 @@
+.cat-split { display: grid; grid-template-columns: minmax(250px, 340px) minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 900px) { .cat-split { grid-template-columns: minmax(0, 1fr); } }
+.cat-tree { display: flex; flex-direction: column; gap: 4px; }
+.cat-group { border: 1px solid var(--line); border-radius: 3px; background: var(--sheet); }
+.cat-group > summary { cursor: pointer; padding: 7px 10px; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; list-style: none; }
+.cat-group > summary::-webkit-details-marker { display: none; }
+.cat-group > summary::before { content: "▸"; color: var(--ink-3); width: 10px; }
+.cat-group[open] > summary::before { content: "▾"; }
+.cat-group[open] > summary { border-bottom: 1px solid var(--line); background: var(--sheet-2); }
+.cat-leaves { display: flex; flex-direction: column; gap: 2px; padding: 4px; }
+.btn.cat-leaf { justify-content: flex-start; flex-wrap: wrap; gap: 2px 8px; width: 100%; text-align: left; color: var(--ink); font-weight: 400; border: 1px solid transparent; }
+.btn.cat-leaf .mono { color: var(--ink-3); }
+.btn.cat-leaf[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.btn.cat-leaf[aria-pressed="true"] .mono { color: var(--accent); }
+.cat-err { color: var(--crit); font-size: 12.5px; }
+.cat-err:empty { display: none; }
+.cat-theta { flex-wrap: nowrap; min-width: 170px; }
+.cat-rel { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+@media (max-width: 900px) { .cat-rel { grid-template-columns: minmax(0, 1fr); } }
+.cat-rel-mid { border-color: var(--accent); }
+.cat-list { display: flex; flex-direction: column; gap: 4px; }
+.cat-list-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.cat-list .btn-ghost, .cat-list-row .btn-ghost { justify-content: flex-start; text-align: left; flex-wrap: wrap; }
+.cat-details > summary { cursor: pointer; font-weight: 500; color: var(--ink-2); padding: 4px 0; }
+.cat-details[open] > summary { margin-bottom: 8px; }
+.cat-preview { min-height: 2em; padding: 6px 8px; border: 1px dashed var(--line-strong); background: var(--sheet); }
+.cat-mark { background: var(--warn-soft); color: var(--ink); padding: 0 2px; }
+.cat-kpis { grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
+.cat-w { display: block; min-width: 160px; }
+.cat-w2 { min-width: 220px; }

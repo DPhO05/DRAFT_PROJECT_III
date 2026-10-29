@@ -1,0 +1,893 @@
+% Ngân hàng bài mẫu: Phân thức đại số (lớp 8).
+% Quy ước:
+%   - Mỗi bài: \begin{problem}[id] ... \end{problem}; lời giải lồng bên trong.
+%   - id: duy nhất, không dấu, không đổi, không dùng lại. Dạng <lớp><phân môn>-<chủ đề>-<số>.
+%   - Mỗi bước lời giải là 1 đoạn, các bước cách nhau 1 dòng trống; mỗi bước có lý do.
+%   - Dòng cuối lời giải: Đáp số: $\boxed{...}$
+%   - Cách giải khác: thêm \begin{solution}[cách 2].
+%   - Metadata bằng comment ngay sau \begin{problem}: % nguon:, % lop:
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- điều kiện xác định
+\begin{problem}[8DS-PS-001]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-01, 8DS-HDT-02
+% do_kho_du_kien: 1
+Tìm điều kiện xác định của mỗi phân thức sau:
+
+a) $\dfrac{3x}{x - 2}$;
+
+b) $\dfrac{x + 1}{x^2 - 9}$.
+
+\begin{solution}
+a) Phân thức xác định khi mẫu thức khác $0$: $x - 2 \neq 0$.
+
+a) Chuyển vế $-2$ sang vế phải: $x \neq 2$.
+
+b) Phân thức xác định khi mẫu thức khác $0$: $x^2 - 9 \neq 0$.
+
+b) Phân tích mẫu thành nhân tử theo hằng đẳng thức hiệu hai bình phương: $x^2 - 9 = (x - 3)(x + 3)$.
+
+b) Tích $(x - 3)(x + 3)$ khác $0$ khi và chỉ khi cả hai thừa số đều khác $0$: $x - 3 \neq 0$ và $x + 3 \neq 0$, tức là $x \neq 3$ và $x \neq -3$.
+
+Đáp số: a) $\boxed{x \neq 2}$; b) $\boxed{x \neq 3 \text{ và } x \neq -3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn phân thức
+\begin{problem}[8DS-PS-002]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-02, 8DS-PTNT-01, 8DS-PTNT-02
+% do_kho_du_kien: 2
+Rút gọn phân thức $\dfrac{3x^2 - 6x}{x^2 - 4x + 4}$.
+
+\begin{solution}
+Điều kiện xác định: mẫu $x^2 - 4x + 4 \neq 0$. Theo hằng đẳng thức bình phương của một hiệu, $x^2 - 4x + 4 = (x - 2)^2$, nên điều kiện là $x \neq 2$.
+
+Phân tích tử thức thành nhân tử bằng cách đặt nhân tử chung $3x$: $3x^2 - 6x = 3x(x - 2)$.
+
+Viết lại phân thức dưới dạng tích: $\dfrac{3x^2 - 6x}{x^2 - 4x + 4} = \dfrac{3x(x - 2)}{(x - 2)^2}$.
+
+Chia cả tử và mẫu cho nhân tử chung $x - 2$ (khác $0$ do $x \neq 2$), theo tính chất cơ bản của phân thức: $\dfrac{3x(x - 2)}{(x - 2)^2} = \dfrac{3x}{x - 2}$.
+
+Đáp số: $\boxed{\dfrac{3x}{x - 2} \text{ với } x \neq 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- cộng hai phân thức, đổi dấu, chữ
+\begin{problem}[8DS-PS-003]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-03, 8DS-PS-02
+% do_kho_du_kien: 2
+Thực hiện phép tính $\dfrac{x^2}{x - y} + \dfrac{y^2}{y - x}$.
+
+\begin{solution}
+Điều kiện xác định: $x - y \neq 0$ và $y - x \neq 0$, tức là $x \neq y$.
+
+Đổi dấu cả tử và mẫu của phân thức thứ hai (quy tắc đổi dấu): $\dfrac{y^2}{y - x} = \dfrac{-y^2}{x - y}$.
+
+Hai phân thức có cùng mẫu $x - y$, nên cộng các tử và giữ nguyên mẫu: $\dfrac{x^2}{x - y} + \dfrac{-y^2}{x - y} = \dfrac{x^2 - y^2}{x - y}$.
+
+Phân tích tử theo hằng đẳng thức hiệu hai bình phương: $x^2 - y^2 = (x - y)(x + y)$.
+
+Chia cả tử và mẫu cho $x - y$ (khác $0$ do $x \neq y$): $\dfrac{(x - y)(x + y)}{x - y} = x + y$.
+
+Đáp số: $\boxed{x + y \text{ với } x \neq y}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhân và chia phân thức
+\begin{problem}[8DS-PS-004]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-04, 8DS-PS-02, 8DS-PS-01
+% do_kho_du_kien: 3
+Thực hiện các phép tính sau:
+
+a) $\dfrac{x^2 - 9}{2x + 4} \cdot \dfrac{x + 2}{x^2 - 3x}$;
+
+b) $\dfrac{x^2 - 4x + 4}{x + 1} : \dfrac{x - 2}{x^2 + x}$.
+
+\begin{solution}
+a) Phân tích các tử và mẫu thành nhân tử: $x^2 - 9 = (x - 3)(x + 3)$ (hiệu hai bình phương), $2x + 4 = 2(x + 2)$ và $x^2 - 3x = x(x - 3)$ (đặt nhân tử chung).
+
+a) Điều kiện xác định: các mẫu khác $0$, tức là $2(x + 2) \neq 0$ và $x(x - 3) \neq 0$, hay $x \neq -2$, $x \neq 0$, $x \neq 3$.
+
+a) Nhân tử với tử, mẫu với mẫu (quy tắc nhân phân thức):
+\[ \dfrac{x^2 - 9}{2x + 4} \cdot \dfrac{x + 2}{x^2 - 3x} = \dfrac{(x - 3)(x + 3)(x + 2)}{2(x + 2) \cdot x(x - 3)}. \]
+
+a) Chia cả tử và mẫu cho nhân tử chung $(x - 3)(x + 2)$ (khác $0$ theo điều kiện), được $\dfrac{x + 3}{2x}$.
+
+b) Phân tích thành nhân tử: $x^2 - 4x + 4 = (x - 2)^2$ (bình phương của một hiệu) và $x^2 + x = x(x + 1)$ (đặt nhân tử chung).
+
+b) Điều kiện xác định: các mẫu khác $0$ nên $x + 1 \neq 0$ và $x(x + 1) \neq 0$; ngoài ra phân thức chia $\dfrac{x - 2}{x^2 + x}$ phải khác $0$ nên $x - 2 \neq 0$. Vậy $x \neq -1$, $x \neq 0$, $x \neq 2$.
+
+b) Chia cho một phân thức là nhân với phân thức nghịch đảo của nó:
+\[ \dfrac{(x - 2)^2}{x + 1} : \dfrac{x - 2}{x(x + 1)} = \dfrac{(x - 2)^2}{x + 1} \cdot \dfrac{x(x + 1)}{x - 2} = \dfrac{(x - 2)^2 \cdot x(x + 1)}{(x + 1)(x - 2)}. \]
+
+b) Chia cả tử và mẫu cho nhân tử chung $(x + 1)(x - 2)$ (khác $0$ theo điều kiện), được $x(x - 2)$.
+
+Đáp số: a) $\boxed{\dfrac{x + 3}{2x} \text{ với } x \neq 0,\ x \neq -2,\ x \neq 3}$; b) $\boxed{x(x - 2) \text{ với } x \neq 0,\ x \neq -1,\ x \neq 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- cộng trừ ba phân thức
+\begin{problem}[8DS-PS-005]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-03, 8DS-PS-02
+% do_kho_du_kien: 3
+Thực hiện phép tính $\dfrac{x + 1}{2x - 2} - \dfrac{x - 1}{2x + 2} - \dfrac{2}{x^2 - 1}$.
+
+\begin{solution}
+Phân tích các mẫu thành nhân tử: $2x - 2 = 2(x - 1)$, $2x + 2 = 2(x + 1)$ (đặt nhân tử chung) và $x^2 - 1 = (x - 1)(x + 1)$ (hiệu hai bình phương).
+
+Điều kiện xác định: các mẫu khác $0$, tức là $x \neq 1$ và $x \neq -1$.
+
+Mẫu thức chung là $2(x - 1)(x + 1)$; nhân tử phụ của ba phân thức lần lượt là $x + 1$, $x - 1$ và $2$.
+
+Quy đồng mẫu rồi trừ các tử, giữ nguyên mẫu chung:
+\[ \dfrac{x + 1}{2x - 2} - \dfrac{x - 1}{2x + 2} - \dfrac{2}{x^2 - 1} = \dfrac{(x + 1)^2 - (x - 1)^2 - 4}{2(x - 1)(x + 1)}. \]
+
+Khai triển tử theo hằng đẳng thức bình phương của một tổng, một hiệu: $(x^2 + 2x + 1) - (x^2 - 2x + 1) - 4 = 4x - 4 = 4(x - 1)$.
+
+Chia cả tử và mẫu cho $2(x - 1)$ (khác $0$ vì $x \neq 1$): $\dfrac{4(x - 1)}{2(x - 1)(x + 1)} = \dfrac{2}{x + 1}$.
+
+Đáp số: $\boxed{\dfrac{2}{x + 1} \text{ với } x \neq 1,\ x \neq -1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế, có đơn vị
+\begin{problem}[8DS-PS-006]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-03, 8DS-PS-05
+% do_kho_du_kien: 3
+Một ô tô đi từ A đến B trên quãng đường dài $120$ km với vận tốc $x$ (km/h). Lúc về, ô tô tăng vận tốc thêm $10$ km/h.
+
+a) Viết biểu thức biểu thị tổng thời gian cả đi và về của ô tô theo $x$ dưới dạng một phân thức.
+
+b) Tính tổng thời gian đó khi $x = 30$.
+
+\begin{solution}
+a) Vận tốc là số dương nên $x > 0$; khi đó các mẫu $x$ và $x + 10$ đều khác $0$.
+
+a) Thời gian bằng quãng đường chia cho vận tốc: thời gian đi là $\dfrac{120}{x}$ (giờ); vận tốc lúc về là $x + 10$ (km/h) nên thời gian về là $\dfrac{120}{x + 10}$ (giờ).
+
+a) Tổng thời gian là $T = \dfrac{120}{x} + \dfrac{120}{x + 10}$. Quy đồng với mẫu thức chung $x(x + 10)$ rồi cộng các tử:
+\[ T = \dfrac{120(x + 10) + 120x}{x(x + 10)} = \dfrac{240x + 1200}{x(x + 10)} = \dfrac{240(x + 5)}{x(x + 10)} \text{ (giờ)}. \]
+
+b) Giá trị $x = 30$ thoả điều kiện $x > 0$. Thay vào phân thức vừa tìm: $T = \dfrac{240 \cdot (30 + 5)}{30 \cdot (30 + 10)} = \dfrac{8\,400}{1\,200} = 7$ (giờ).
+
+b) Kiểm tra lại: thời gian đi $\dfrac{120}{30} = 4$ giờ, thời gian về $\dfrac{120}{40} = 3$ giờ, tổng $7$ giờ (đúng).
+
+Đáp số: a) $\boxed{T = \dfrac{240(x + 5)}{x(x + 10)} \text{ (giờ)}}$; b) $\boxed{7 \text{ giờ}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn rồi tính giá trị, đối chiếu ĐKXĐ
+\begin{problem}[8DS-PS-007]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-05, 8DS-PS-01, 8DS-PTNT-05
+% do_kho_du_kien: 4
+Cho biểu thức $P = \left(\dfrac{1}{x + 1} + \dfrac{2}{x^2 - 1}\right) \cdot \dfrac{x^2 - 2x + 1}{x}$.
+
+a) Tìm điều kiện xác định và rút gọn $P$.
+
+b) Tính giá trị của $P$ biết $x^2 - 4x + 3 = 0$.
+
+\begin{solution}
+a) Các mẫu thức là $x + 1$, $x^2 - 1 = (x - 1)(x + 1)$ và $x$. Điều kiện xác định: các mẫu khác $0$, tức là $x \neq 0$, $x \neq 1$, $x \neq -1$.
+
+a) Quy đồng trong ngoặc với mẫu thức chung $(x - 1)(x + 1)$, rồi chia tử và mẫu cho $x + 1 \neq 0$:
+\[ \dfrac{1}{x + 1} + \dfrac{2}{(x - 1)(x + 1)} = \dfrac{(x - 1) + 2}{(x - 1)(x + 1)} = \dfrac{x + 1}{(x - 1)(x + 1)} = \dfrac{1}{x - 1}. \]
+
+a) Theo hằng đẳng thức bình phương của một hiệu, $x^2 - 2x + 1 = (x - 1)^2$. Nhân hai phân thức rồi chia tử và mẫu cho $x - 1 \neq 0$: $P = \dfrac{1}{x - 1} \cdot \dfrac{(x - 1)^2}{x} = \dfrac{(x - 1)^2}{(x - 1)x} = \dfrac{x - 1}{x}$.
+
+b) Phân tích vế trái thành nhân tử bằng cách tách $-4x = -x - 3x$: $x^2 - 4x + 3 = x^2 - x - 3x + 3 = x(x - 1) - 3(x - 1) = (x - 1)(x - 3)$.
+
+b) Tích $(x - 1)(x - 3)$ bằng $0$ khi một trong hai thừa số bằng $0$: $x - 1 = 0$ hoặc $x - 3 = 0$, tức là $x = 1$ hoặc $x = 3$.
+
+b) Đối chiếu điều kiện xác định: $x = 1$ không thoả mãn điều kiện $x \neq 1$ nên loại; $x = 3$ thoả mãn.
+
+b) Thay $x = 3$ vào biểu thức đã rút gọn: $P = \dfrac{3 - 1}{3} = \dfrac{2}{3}$.
+
+Đáp số: a) $\boxed{P = \dfrac{x - 1}{x} \text{ với } x \neq 0,\ x \neq 1,\ x \neq -1}$; b) $\boxed{P = \dfrac{2}{3}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh không phụ thuộc biến
+\begin{problem}[8DS-PS-008]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-05, 8DS-PS-03, 8DS-PS-04
+% do_kho_du_kien: 4
+Chứng minh rằng với $x \neq 3$ và $x \neq -3$, giá trị của biểu thức
+\[ Q = \left(\dfrac{2x}{x + 3} + \dfrac{x}{x - 3} - \dfrac{3x^2 + 9}{x^2 - 9}\right) : \dfrac{3}{3 - x} \]
+không phụ thuộc vào giá trị của biến $x$.
+
+\begin{solution}
+Với $x \neq 3$ và $x \neq -3$, các mẫu $x + 3$, $x - 3$, $x^2 - 9 = (x - 3)(x + 3)$ và $3 - x$ đều khác $0$; phân thức chia $\dfrac{3}{3 - x}$ có tử $3 \neq 0$ nên khác $0$. Do đó biểu thức $Q$ xác định.
+
+Quy đồng trong ngoặc với mẫu thức chung $(x - 3)(x + 3)$; nhân tử phụ lần lượt là $x - 3$, $x + 3$ và $1$:
+\[ \dfrac{2x}{x + 3} + \dfrac{x}{x - 3} - \dfrac{3x^2 + 9}{x^2 - 9} = \dfrac{2x(x - 3) + x(x + 3) - (3x^2 + 9)}{(x - 3)(x + 3)}. \]
+
+Bỏ ngoặc và thu gọn tử: $2x^2 - 6x + x^2 + 3x - 3x^2 - 9 = -3x - 9 = -3(x + 3)$.
+
+Chia cả tử và mẫu cho $x + 3 \neq 0$: biểu thức trong ngoặc bằng $\dfrac{-3(x + 3)}{(x - 3)(x + 3)} = \dfrac{-3}{x - 3}$.
+
+Chia cho một phân thức là nhân với phân thức nghịch đảo: $Q = \dfrac{-3}{x - 3} \cdot \dfrac{3 - x}{3} = \dfrac{-3(3 - x)}{3(x - 3)}$.
+
+Vì $-(3 - x) = x - 3$ nên $Q = \dfrac{3(x - 3)}{3(x - 3)} = 1$ (chia tử và mẫu cho $3(x - 3) \neq 0$).
+
+Vậy với mọi $x \neq 3$, $x \neq -3$ ta có $Q = 1$, giá trị của $Q$ không phụ thuộc vào $x$.
+
+Đáp số: $\boxed{Q = 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- có cách giải khác: tách phân thức
+\begin{problem}[8DS-PS-009]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-03, 8DS-PS-02
+% do_kho_du_kien: 4
+Rút gọn biểu thức
+\[ M = \dfrac{1}{x(x + 1)} + \dfrac{1}{(x + 1)(x + 2)} + \dfrac{1}{(x + 2)(x + 3)}. \]
+
+\begin{solution}[cách 1: quy đồng mẫu]
+Điều kiện xác định: các mẫu khác $0$, tức là $x \neq 0$, $x \neq -1$, $x \neq -2$, $x \neq -3$.
+
+Mẫu thức chung là $x(x + 1)(x + 2)(x + 3)$; nhân tử phụ của ba phân thức lần lượt là $(x + 2)(x + 3)$, $x(x + 3)$ và $x(x + 1)$.
+
+Quy đồng rồi cộng các tử, giữ nguyên mẫu chung: $M = \dfrac{(x + 2)(x + 3) + x(x + 3) + x(x + 1)}{x(x + 1)(x + 2)(x + 3)}$.
+
+Bỏ ngoặc và thu gọn tử: $(x^2 + 5x + 6) + (x^2 + 3x) + (x^2 + x) = 3x^2 + 9x + 6 = 3(x^2 + 3x + 2)$.
+
+Phân tích $x^2 + 3x + 2$ thành nhân tử bằng cách tách $3x = x + 2x$: $x^2 + x + 2x + 2 = x(x + 1) + 2(x + 1) = (x + 1)(x + 2)$. Vậy tử bằng $3(x + 1)(x + 2)$.
+
+Chia cả tử và mẫu cho $(x + 1)(x + 2) \neq 0$: $M = \dfrac{3(x + 1)(x + 2)}{x(x + 1)(x + 2)(x + 3)} = \dfrac{3}{x(x + 3)}$.
+
+Đáp số: $\boxed{M = \dfrac{3}{x(x + 3)} \text{ với } x \neq 0,\ x \neq -1,\ x \neq -2,\ x \neq -3}$
+\end{solution}
+
+\begin{solution}[cách 2: tách mỗi phân thức thành hiệu]
+Điều kiện xác định: các mẫu khác $0$, tức là $x \neq 0$, $x \neq -1$, $x \neq -2$, $x \neq -3$.
+
+Với $k \neq 0$ và $k \neq -1$, quy đồng hai phân thức ta có $\dfrac{1}{k} - \dfrac{1}{k + 1} = \dfrac{(k + 1) - k}{k(k + 1)} = \dfrac{1}{k(k + 1)}$.
+
+Áp dụng đẳng thức trên với $k = x$, $k = x + 1$, $k = x + 2$:
+\[ M = \left(\dfrac{1}{x} - \dfrac{1}{x + 1}\right) + \left(\dfrac{1}{x + 1} - \dfrac{1}{x + 2}\right) + \left(\dfrac{1}{x + 2} - \dfrac{1}{x + 3}\right). \]
+
+Các cặp phân thức đối nhau có tổng bằng $0$ nên triệt tiêu: $M = \dfrac{1}{x} - \dfrac{1}{x + 3}$.
+
+Quy đồng với mẫu thức chung $x(x + 3)$ rồi trừ các tử: $M = \dfrac{(x + 3) - x}{x(x + 3)} = \dfrac{3}{x(x + 3)}$.
+
+Đáp số: $\boxed{M = \dfrac{3}{x(x + 3)} \text{ với } x \neq 0,\ x \neq -1,\ x \neq -2,\ x \neq -3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tổng hợp: rút gọn, tính giá trị, giá trị nguyên
+\begin{problem}[8DS-PS-010]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-05, 8DS-PS-01, 8DS-PS-03
+% do_kho_du_kien: 5
+Cho biểu thức
+\[ A = \left(\dfrac{x}{x^2 - 4} + \dfrac{2}{2 - x} + \dfrac{1}{x + 2}\right) : \left(x - 2 + \dfrac{10 - x^2}{x + 2}\right). \]
+a) Tìm điều kiện xác định và rút gọn $A$.
+
+b) Tính giá trị của $A$ tại $x$ thoả mãn $|x| = \dfrac{1}{2}$.
+
+c) Tìm các giá trị nguyên của $x$ để $A$ có giá trị nguyên.
+
+\begin{solution}
+a) Các mẫu là $x^2 - 4 = (x - 2)(x + 2)$, $2 - x$ và $x + 2$; chúng khác $0$ khi $x \neq 2$ và $x \neq -2$.
+
+a) Biến đổi ngoặc thứ hai bằng cách quy đồng với mẫu $x + 2$: $x - 2 + \dfrac{10 - x^2}{x + 2} = \dfrac{(x - 2)(x + 2) + 10 - x^2}{x + 2} = \dfrac{x^2 - 4 + 10 - x^2}{x + 2} = \dfrac{6}{x + 2}$. Phân thức này có tử $6 \neq 0$ nên luôn khác $0$; vậy điều kiện xác định của $A$ là $x \neq 2$ và $x \neq -2$.
+
+a) Biến đổi ngoặc thứ nhất: đổi dấu $\dfrac{2}{2 - x} = \dfrac{-2}{x - 2}$, rồi quy đồng với mẫu thức chung $(x - 2)(x + 2)$:
+\[ \dfrac{x}{(x - 2)(x + 2)} - \dfrac{2}{x - 2} + \dfrac{1}{x + 2} = \dfrac{x - 2(x + 2) + (x - 2)}{(x - 2)(x + 2)} = \dfrac{-6}{(x - 2)(x + 2)}. \]
+
+a) Chia là nhân với phân thức nghịch đảo, rồi chia tử và mẫu cho $6(x + 2) \neq 0$: $A = \dfrac{-6}{(x - 2)(x + 2)} \cdot \dfrac{x + 2}{6} = \dfrac{-1}{x - 2} = \dfrac{1}{2 - x}$.
+
+b) Từ $|x| = \dfrac{1}{2}$ suy ra $x = \dfrac{1}{2}$ hoặc $x = -\dfrac{1}{2}$ (định nghĩa giá trị tuyệt đối); cả hai giá trị đều thoả điều kiện $x \neq 2$, $x \neq -2$.
+
+b) Với $x = \dfrac{1}{2}$, thay vào biểu thức đã rút gọn: $A = \dfrac{1}{2 - \frac{1}{2}} = \dfrac{1}{\frac{3}{2}} = \dfrac{2}{3}$.
+
+b) Với $x = -\dfrac{1}{2}$: $A = \dfrac{1}{2 + \frac{1}{2}} = \dfrac{1}{\frac{5}{2}} = \dfrac{2}{5}$.
+
+c) Với $x$ nguyên, $x \neq 2$ thì $2 - x$ là số nguyên khác $0$. Khi đó $A = \dfrac{1}{2 - x}$ là số nguyên khi và chỉ khi $2 - x$ là ước của $1$, tức là $2 - x = 1$ hoặc $2 - x = -1$.
+
+c) Giải: $2 - x = 1$ cho $x = 1$; $2 - x = -1$ cho $x = 3$.
+
+c) Đối chiếu điều kiện: $x = 1$ và $x = 3$ đều khác $2$ và $-2$ (thoả mãn). Thử lại: $x = 1$ cho $A = 1$; $x = 3$ cho $A = -1$ (đều là số nguyên).
+
+Đáp số: a) $\boxed{A = \dfrac{1}{2 - x} \text{ với } x \neq 2,\ x \neq -2}$; b) $\boxed{A = \dfrac{2}{3} \text{ khi } x = \dfrac{1}{2};\ A = \dfrac{2}{5} \text{ khi } x = -\dfrac{1}{2}}$; c) $\boxed{x = 1 \text{ hoặc } x = 3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giá trị của phân thức tại một giá trị của biến
+\begin{problem}[8DS-PS-011]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-01, 8DS-PS-05
+% do_kho_du_kien: 1
+Tính giá trị của phân thức $P = \dfrac{x^2 - 4}{x + 5}$ tại $x = -1$ và tại $x = -5$ (nếu có).
+
+\begin{solution}
+Điều kiện xác định: mẫu thức khác $0$, tức là $x + 5 \neq 0$, hay $x \neq -5$.
+
+Giá trị $x = -1$ thoả mãn điều kiện xác định. Thay $x = -1$ vào phân thức: $P = \dfrac{(-1)^2 - 4}{-1 + 5} = \dfrac{1 - 4}{4} = -\dfrac{3}{4}$.
+
+Giá trị $x = -5$ không thoả mãn điều kiện xác định (mẫu bằng $-5 + 5 = 0$), nên tại $x = -5$ phân thức $P$ không xác định và không có giá trị.
+
+Đáp số: $\boxed{P = -\dfrac{3}{4} \text{ tại } x = -1;\ P \text{ không xác định tại } x = -5}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hai phân thức bằng nhau, tìm đa thức chưa biết
+\begin{problem}[8DS-PS-012]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-06, 8DS-PTNT-02, 8DS-PTNT-01
+% do_kho_du_kien: 2
+a) Dùng định nghĩa hai phân thức bằng nhau, chứng tỏ rằng $\dfrac{x - 3}{x + 3} = \dfrac{x^2 - 6x + 9}{x^2 - 9}$ với $x \neq 3$, $x \neq -3$.
+
+b) Tìm đa thức $A$ thoả mãn $\dfrac{A}{2x - 6} = \dfrac{x^2 + 3x}{x^2 - 9}$ với $x \neq 3$, $x \neq -3$.
+
+\begin{solution}
+a) Với $x \neq 3$, $x \neq -3$, các mẫu $x + 3$ và $x^2 - 9 = (x - 3)(x + 3)$ đều khác $0$. Theo định nghĩa, $\dfrac{A}{B} = \dfrac{C}{D}$ khi $A \cdot D = B \cdot C$, nên ta so sánh hai tích chéo.
+
+a) Tích thứ nhất, phân tích $x^2 - 9$ theo hằng đẳng thức hiệu hai bình phương: $(x - 3)(x^2 - 9) = (x - 3)(x - 3)(x + 3) = (x - 3)^2(x + 3)$.
+
+a) Tích thứ hai, viết $x^2 - 6x + 9$ theo hằng đẳng thức bình phương của một hiệu: $(x + 3)(x^2 - 6x + 9) = (x + 3)(x - 3)^2$.
+
+a) Hai tích chéo bằng nhau nên theo định nghĩa, hai phân thức đã cho bằng nhau.
+
+b) Theo định nghĩa hai phân thức bằng nhau: $A \cdot (x^2 - 9) = (2x - 6)(x^2 + 3x)$.
+
+b) Phân tích vế phải thành nhân tử (đặt nhân tử chung, rồi dùng hiệu hai bình phương): $(2x - 6)(x^2 + 3x) = 2(x - 3) \cdot x(x + 3) = 2x(x - 3)(x + 3) = 2x(x^2 - 9)$.
+
+b) Vậy $A \cdot (x^2 - 9) = 2x \cdot (x^2 - 9)$. Hai vế là tích của cùng đa thức $x^2 - 9$ (khác $0$) với $A$ và với $2x$, nên $A = 2x$.
+
+b) Thử lại: $\dfrac{2x}{2x - 6} = \dfrac{2x}{2(x - 3)} = \dfrac{x}{x - 3}$ và $\dfrac{x^2 + 3x}{x^2 - 9} = \dfrac{x(x + 3)}{(x - 3)(x + 3)} = \dfrac{x}{x - 3}$ (đúng).
+
+Đáp số: a) $\boxed{(x - 3)(x^2 - 9) = (x + 3)(x^2 - 6x + 9) \text{ nên hai phân thức bằng nhau}}$; b) $\boxed{A = 2x}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm x để phân thức bằng 0, đối chiếu ĐKXĐ
+\begin{problem}[8DS-PS-013]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-01, 8DS-PTNT-06, 8DS-PTNT-01
+% do_kho_du_kien: 2
+Tìm giá trị của $x$ để giá trị của phân thức $\dfrac{x^2 - 4x}{x^2 - 16}$ bằng $0$.
+
+\begin{solution}
+Điều kiện xác định: $x^2 - 16 \neq 0$. Theo hằng đẳng thức hiệu hai bình phương, $x^2 - 16 = (x - 4)(x + 4)$, nên điều kiện là $x \neq 4$ và $x \neq -4$.
+
+Một phân thức xác định có giá trị bằng $0$ khi và chỉ khi tử thức bằng $0$: $x^2 - 4x = 0$.
+
+Đặt nhân tử chung $x$: $x(x - 4) = 0$. Tích bằng $0$ khi một trong hai thừa số bằng $0$: $x = 0$ hoặc $x = 4$.
+
+Đối chiếu điều kiện xác định: $x = 4$ không thoả mãn ($x \neq 4$) nên loại; $x = 0$ thoả mãn.
+
+Thử lại: với $x = 0$, phân thức bằng $\dfrac{0}{-16} = 0$ (đúng).
+
+Đáp số: $\boxed{x = 0}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- quy đồng mẫu thức nhiều phân thức
+\begin{problem}[8DS-PS-014]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-03, 8DS-PTNT-01, 8DS-PTNT-02
+% do_kho_du_kien: 2
+Quy đồng mẫu thức các phân thức $\dfrac{1}{x^2 + 2x}$, $\dfrac{3}{x^2 - 4}$ và $\dfrac{x}{2x - 4}$.
+
+\begin{solution}
+Phân tích các mẫu thành nhân tử: $x^2 + 2x = x(x + 2)$ và $2x - 4 = 2(x - 2)$ (đặt nhân tử chung); $x^2 - 4 = (x - 2)(x + 2)$ (hiệu hai bình phương).
+
+Điều kiện xác định: các mẫu khác $0$, tức là $x \neq 0$, $x \neq 2$, $x \neq -2$.
+
+Mẫu thức chung là tích của các nhân tử $2$, $x$, $x - 2$, $x + 2$, mỗi nhân tử lấy với số mũ lớn nhất: $2x(x - 2)(x + 2)$.
+
+Nhân tử phụ của mỗi mẫu bằng mẫu thức chung chia cho mẫu đó: của $x(x + 2)$ là $2(x - 2)$; của $(x - 2)(x + 2)$ là $2x$; của $2(x - 2)$ là $x(x + 2)$.
+
+Nhân cả tử và mẫu của mỗi phân thức với nhân tử phụ tương ứng (tính chất cơ bản của phân thức):
+\[ \dfrac{1}{x^2 + 2x} = \dfrac{2(x - 2)}{2x(x - 2)(x + 2)}, \qquad \dfrac{3}{x^2 - 4} = \dfrac{6x}{2x(x - 2)(x + 2)}, \qquad \dfrac{x}{2x - 4} = \dfrac{x^2(x + 2)}{2x(x - 2)(x + 2)}. \]
+
+Đáp số: $\boxed{\dfrac{2(x - 2)}{2x(x - 2)(x + 2)},\ \dfrac{6x}{2x(x - 2)(x + 2)},\ \dfrac{x^2(x + 2)}{2x(x - 2)(x + 2)}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn phân thức hai biến, hiệu hai lập phương
+\begin{problem}[8DS-PS-015]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-02, 8DS-PTNT-05, 8DS-HDT-04
+% do_kho_du_kien: 3
+Rút gọn phân thức $\dfrac{x^2 + xy - 2y^2}{x^3 - y^3}$.
+
+\begin{solution}
+Phân tích mẫu theo hằng đẳng thức hiệu hai lập phương: $x^3 - y^3 = (x - y)(x^2 + xy + y^2)$.
+
+Điều kiện xác định: $x^3 - y^3 \neq 0$, tức là $x^3 \neq y^3$; hai số có lập phương bằng nhau thì bằng nhau, nên điều kiện là $x \neq y$. Khi đó tích $(x - y)(x^2 + xy + y^2)$ khác $0$ nên cả hai thừa số đều khác $0$.
+
+Phân tích tử thành nhân tử bằng cách tách $xy = 2xy - xy$ rồi nhóm hạng tử: $x^2 + 2xy - xy - 2y^2 = x(x + 2y) - y(x + 2y) = (x - y)(x + 2y)$.
+
+Chia cả tử và mẫu cho nhân tử chung $x - y$ (khác $0$ do $x \neq y$), theo tính chất cơ bản của phân thức:
+\[ \dfrac{(x - y)(x + 2y)}{(x - y)(x^2 + xy + y^2)} = \dfrac{x + 2y}{x^2 + xy + y^2}. \]
+
+Đáp số: $\boxed{\dfrac{x + 2y}{x^2 + xy + y^2} \text{ với } x \neq y}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: tỉ số thời gian (chia phân thức)
+\begin{problem}[8DS-PS-016]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-04, 8DS-PS-05
+% do_kho_du_kien: 3
+Hai tổ sản xuất, mỗi tổ phải làm $360$ sản phẩm. Mỗi giờ tổ I làm được $x$ sản phẩm, tổ II làm được ít hơn tổ I $6$ sản phẩm ($x > 6$).
+
+a) Viết các phân thức biểu thị thời gian hoàn thành công việc của mỗi tổ.
+
+b) Viết phân thức (đã rút gọn) biểu thị tỉ số giữa thời gian hoàn thành của tổ II và thời gian hoàn thành của tổ I.
+
+c) Tính tỉ số đó khi $x = 30$.
+
+\begin{solution}
+a) Thời gian hoàn thành bằng số sản phẩm chia cho số sản phẩm làm được mỗi giờ. Tổ I làm $x$ sản phẩm mỗi giờ nên thời gian là $\dfrac{360}{x}$ (giờ).
+
+a) Tổ II mỗi giờ làm $x - 6$ sản phẩm ($x - 6 > 0$ do $x > 6$) nên thời gian là $\dfrac{360}{x - 6}$ (giờ). Vì $x > 6$ nên các mẫu $x$ và $x - 6$ đều khác $0$.
+
+b) Tỉ số cần tìm là thương $\dfrac{360}{x - 6} : \dfrac{360}{x}$. Chia cho một phân thức là nhân với phân thức nghịch đảo của nó: $\dfrac{360}{x - 6} \cdot \dfrac{x}{360} = \dfrac{360x}{360(x - 6)}$.
+
+b) Chia cả tử và mẫu cho $360$: tỉ số bằng $\dfrac{x}{x - 6}$.
+
+c) Giá trị $x = 30$ thoả mãn $x > 6$. Thay vào phân thức đã rút gọn: $\dfrac{30}{30 - 6} = \dfrac{30}{24} = \dfrac{5}{4}$.
+
+c) Kiểm tra: tổ I làm trong $360 : 30 = 12$ giờ, tổ II làm trong $360 : 24 = 15$ giờ, và $\dfrac{15}{12} = \dfrac{5}{4}$ (đúng).
+
+Đáp số: a) $\boxed{\dfrac{360}{x} \text{ (giờ) và } \dfrac{360}{x - 6} \text{ (giờ)}}$; b) $\boxed{\dfrac{x}{x - 6}}$; c) $\boxed{\dfrac{5}{4}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh đẳng thức hai biến
+\begin{problem}[8DS-PS-017]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-03, 8DS-PS-04, 8DS-HDT-02
+% do_kho_du_kien: 3
+Chứng minh rằng với $x \neq 0$, $y \neq 0$, $x \neq y$ và $x \neq -y$ thì
+\[ \left(\dfrac{1}{x} - \dfrac{1}{y}\right) : \left(\dfrac{1}{x^2} - \dfrac{1}{y^2}\right) = \dfrac{xy}{x + y}. \]
+
+\begin{solution}
+Quy đồng ngoặc thứ nhất với mẫu thức chung $xy$ (khác $0$ do $x \neq 0$, $y \neq 0$): $\dfrac{1}{x} - \dfrac{1}{y} = \dfrac{y - x}{xy}$.
+
+Quy đồng ngoặc thứ hai với mẫu thức chung $x^2y^2$, rồi phân tích tử theo hằng đẳng thức hiệu hai bình phương: $\dfrac{1}{x^2} - \dfrac{1}{y^2} = \dfrac{y^2 - x^2}{x^2y^2} = \dfrac{(y - x)(y + x)}{x^2y^2}$.
+
+Phân thức chia khác $0$ vì tử $(y - x)(y + x) \neq 0$ (do $x \neq y$ và $x \neq -y$), nên phép chia thực hiện được.
+
+Chia cho một phân thức là nhân với phân thức nghịch đảo của nó:
+\[ \dfrac{y - x}{xy} : \dfrac{(y - x)(y + x)}{x^2y^2} = \dfrac{y - x}{xy} \cdot \dfrac{x^2y^2}{(y - x)(y + x)} = \dfrac{(y - x) \cdot x^2y^2}{xy(y - x)(y + x)}. \]
+
+Chia cả tử và mẫu cho $xy(y - x)$ (khác $0$ theo giả thiết): vế trái bằng $\dfrac{xy}{y + x} = \dfrac{xy}{x + y}$, đúng bằng vế phải. Đẳng thức được chứng minh.
+
+Đáp số: $\boxed{\left(\dfrac{1}{x} - \dfrac{1}{y}\right) : \left(\dfrac{1}{x^2} - \dfrac{1}{y^2}\right) = \dfrac{xy}{x + y}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính giá trị biểu thức khi biến thoả điều kiện, có cách giải khác
+\begin{problem}[8DS-PS-018]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-05, 8DS-PS-02
+% do_kho_du_kien: 4
+Cho các số $x$, $y$, $z$ thoả mãn $3x - y = 3z$, $2x + y = 7z$ và $z \neq 0$. Tính giá trị của biểu thức $M = \dfrac{x^2 - 2xy}{x^2 + y^2}$.
+
+\begin{solution}[cách 1: biểu diễn $x$, $y$ theo $z$]
+Cộng vế theo vế hai đẳng thức đã cho: $(3x - y) + (2x + y) = 3z + 7z$, tức là $5x = 10z$; chia hai vế cho $5$ được $x = 2z$.
+
+Thay $x = 2z$ vào đẳng thức $3x - y = 3z$: $6z - y = 3z$, suy ra $y = 3z$.
+
+Kiểm tra điều kiện xác định: mẫu $x^2 + y^2 = 4z^2 + 9z^2 = 13z^2 \neq 0$ vì $z \neq 0$, nên $M$ xác định.
+
+Tính tử: $x^2 - 2xy = 4z^2 - 2 \cdot 2z \cdot 3z = 4z^2 - 12z^2 = -8z^2$.
+
+Chia cả tử và mẫu cho $z^2 \neq 0$: $M = \dfrac{-8z^2}{13z^2} = -\dfrac{8}{13}$.
+
+Đáp số: $\boxed{M = -\dfrac{8}{13}}$
+\end{solution}
+
+\begin{solution}[cách 2: khử $z$, tính theo tỉ số $\dfrac{x}{y}$]
+Hai đẳng thức cho $21z = 7(3x - y)$ và $21z = 3(2x + y)$, nên $7(3x - y) = 3(2x + y)$. Bỏ ngoặc: $21x - 7y = 6x + 3y$; chuyển vế: $15x = 10y$, tức là $3x = 2y$.
+
+Chứng tỏ $y \neq 0$: nếu $y = 0$ thì từ $3x = 2y$ có $x = 0$, khi đó $3z = 3x - y = 0$ nên $z = 0$, trái giả thiết. Vậy $y \neq 0$ và $\dfrac{x}{y} = \dfrac{2}{3}$; mẫu $x^2 + y^2 \geq y^2 > 0$ nên $M$ xác định.
+
+Chia cả tử và mẫu của $M$ cho $y^2 \neq 0$ (tính chất cơ bản của phân thức), đặt $t = \dfrac{x}{y}$: $M = \dfrac{\frac{x^2}{y^2} - \frac{2x}{y}}{\frac{x^2}{y^2} + 1} = \dfrac{t^2 - 2t}{t^2 + 1}$.
+
+Thay $t = \dfrac{2}{3}$: tử $\dfrac{4}{9} - \dfrac{4}{3} = -\dfrac{8}{9}$, mẫu $\dfrac{4}{9} + 1 = \dfrac{13}{9}$, nên $M = -\dfrac{8}{9} : \dfrac{13}{9} = -\dfrac{8}{13}$.
+
+Đáp số: $\boxed{M = -\dfrac{8}{13}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giá trị lớn nhất của biểu thức hữu tỉ
+\begin{problem}[8DS-PS-019]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-05, 8DS-PS-01, 8DS-HDT-01
+% do_kho_du_kien: 4
+Tìm giá trị lớn nhất của biểu thức $B = \dfrac{x^2 - 4x + 10}{x^2 - 4x + 7}$.
+
+\begin{solution}
+Biến đổi mẫu theo hằng đẳng thức bình phương của một hiệu: $x^2 - 4x + 7 = (x^2 - 4x + 4) + 3 = (x - 2)^2 + 3$.
+
+Vì $(x - 2)^2 \geq 0$ với mọi $x$ nên mẫu $(x - 2)^2 + 3 \geq 3 > 0$; do đó $B$ xác định với mọi $x$.
+
+Tách tử: $x^2 - 4x + 10 = (x^2 - 4x + 7) + 3$, nên $B = \dfrac{(x^2 - 4x + 7) + 3}{x^2 - 4x + 7} = 1 + \dfrac{3}{(x - 2)^2 + 3}$.
+
+Hai phân thức có cùng tử dương, phân thức nào có mẫu dương lớn hơn thì nhỏ hơn. Từ $(x - 2)^2 + 3 \geq 3$ suy ra $\dfrac{3}{(x - 2)^2 + 3} \leq \dfrac{3}{3} = 1$, nên $B \leq 1 + 1 = 2$ với mọi $x$.
+
+Dấu bằng xảy ra khi $(x - 2)^2 = 0$, tức là $x = 2$. Thử lại: $B = \dfrac{4 - 8 + 10}{4 - 8 + 7} = \dfrac{6}{3} = 2$ (đúng).
+
+Đáp số: $\boxed{\max B = 2 \text{ khi } x = 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- biểu thức ba biến có điều kiện a + b + c = 0
+\begin{problem}[8DS-PS-020]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-05, 8DS-PS-03, 8DS-HDT-01
+% do_kho_du_kien: 5
+Cho ba số $a$, $b$, $c$ đều khác $0$ và thoả mãn $a + b + c = 0$. Tính giá trị của biểu thức
+\[ P = \dfrac{1}{b^2 + c^2 - a^2} + \dfrac{1}{c^2 + a^2 - b^2} + \dfrac{1}{a^2 + b^2 - c^2}. \]
+
+\begin{solution}
+Từ $a + b + c = 0$ suy ra $a = -(b + c)$, nên theo hằng đẳng thức bình phương của một tổng $a^2 = (b + c)^2 = b^2 + 2bc + c^2$. Do đó $b^2 + c^2 - a^2 = -2bc$.
+
+Tương tự, $b = -(c + a)$ nên $b^2 = c^2 + 2ca + a^2$, do đó $c^2 + a^2 - b^2 = -2ca$.
+
+Tương tự, $c = -(a + b)$ nên $c^2 = a^2 + 2ab + b^2$, do đó $a^2 + b^2 - c^2 = -2ab$.
+
+Vì $a$, $b$, $c$ đều khác $0$ nên các mẫu $-2bc$, $-2ca$, $-2ab$ đều khác $0$; biểu thức $P$ xác định.
+
+Thay vào: $P = -\dfrac{1}{2bc} - \dfrac{1}{2ca} - \dfrac{1}{2ab}$. Quy đồng với mẫu thức chung $2abc$ (nhân tử phụ lần lượt là $a$, $b$, $c$): $P = -\dfrac{a + b + c}{2abc}$.
+
+Vì $a + b + c = 0$ và $2abc \neq 0$ nên $P = -\dfrac{0}{2abc} = 0$.
+
+Đáp số: $\boxed{P = 0}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhân, chia phân thức có tử và mẫu là đơn thức
+\begin{problem}[8DS-PS-021]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-04, 8DS-PS-02
+% do_kho_du_kien: 1
+Thực hiện các phép tính sau:
+
+a) $\dfrac{4x^2}{5y^3} \cdot \dfrac{15y}{8x}$;
+
+b) $\dfrac{6x^3}{7y} : \dfrac{3x}{14y^2}$.
+
+\begin{solution}
+a) Điều kiện xác định: các mẫu $5y^3$ và $8x$ khác $0$, tức là $x \neq 0$ và $y \neq 0$.
+
+a) Nhân tử với tử, mẫu với mẫu (quy tắc nhân phân thức): $\dfrac{4x^2}{5y^3} \cdot \dfrac{15y}{8x} = \dfrac{4x^2 \cdot 15y}{5y^3 \cdot 8x} = \dfrac{60x^2y}{40xy^3}$.
+
+a) Chia cả tử và mẫu cho nhân tử chung $20xy$ (khác $0$ do $x \neq 0$, $y \neq 0$), theo tính chất cơ bản của phân thức: $\dfrac{60x^2y}{40xy^3} = \dfrac{3x}{2y^2}$.
+
+b) Điều kiện xác định: các mẫu $7y$, $14y^2$ khác $0$ và phân thức chia $\dfrac{3x}{14y^2}$ khác $0$ (có tử $3x \neq 0$), tức là $x \neq 0$ và $y \neq 0$.
+
+b) Chia cho một phân thức là nhân với phân thức nghịch đảo của nó: $\dfrac{6x^3}{7y} : \dfrac{3x}{14y^2} = \dfrac{6x^3}{7y} \cdot \dfrac{14y^2}{3x} = \dfrac{84x^3y^2}{21xy}$.
+
+b) Chia cả tử và mẫu cho nhân tử chung $21xy$ (khác $0$ theo điều kiện): $\dfrac{84x^3y^2}{21xy} = 4x^2y$.
+
+Đáp số: a) $\boxed{\dfrac{3x}{2y^2}}$; b) $\boxed{4x^2y}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hai phân thức bằng nhau, tìm mẫu thức chưa biết
+\begin{problem}[8DS-PS-022]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-06, 8DS-HDT-04
+% do_kho_du_kien: 2
+Tìm đa thức $B$ thoả mãn $\dfrac{x^3 + 8}{B} = \dfrac{x^2 - 2x + 4}{x - 3}$ (với các giá trị của $x$ làm các mẫu khác $0$).
+
+\begin{solution}
+Theo định nghĩa hai phân thức bằng nhau ($\dfrac{A}{B} = \dfrac{C}{D}$ khi $A \cdot D = B \cdot C$), ta có $(x^3 + 8)(x - 3) = B \cdot (x^2 - 2x + 4)$.
+
+Phân tích $x^3 + 8$ theo hằng đẳng thức tổng hai lập phương: $x^3 + 8 = x^3 + 2^3 = (x + 2)(x^2 - 2x + 4)$. Do đó $B \cdot (x^2 - 2x + 4) = (x + 2)(x - 3) \cdot (x^2 - 2x + 4)$.
+
+Đa thức $x^2 - 2x + 4 = (x - 1)^2 + 3$ luôn dương nên khác $0$; chia hai vế cho $x^2 - 2x + 4$ được $B = (x + 2)(x - 3)$.
+
+Nhân hai đa thức: $B = x^2 - 3x + 2x - 6 = x^2 - x - 6$.
+
+Thử lại: với $x \neq -2$, $x \neq 3$ thì $\dfrac{x^3 + 8}{x^2 - x - 6} = \dfrac{(x + 2)(x^2 - 2x + 4)}{(x + 2)(x - 3)} = \dfrac{x^2 - 2x + 4}{x - 3}$ (đúng).
+
+Đáp số: $\boxed{B = x^2 - x - 6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn phân thức nhiều chữ, nhóm hạng tử
+\begin{problem}[8DS-PS-023]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-02, 8DS-PTNT-03
+% do_kho_du_kien: 2
+Rút gọn phân thức $\dfrac{ax - ay + 2x - 2y}{ax + ay + 2x + 2y}$.
+
+\begin{solution}
+Phân tích tử thành nhân tử bằng cách nhóm hạng tử rồi đặt nhân tử chung: $ax - ay + 2x - 2y = a(x - y) + 2(x - y) = (x - y)(a + 2)$.
+
+Phân tích mẫu tương tự: $ax + ay + 2x + 2y = a(x + y) + 2(x + y) = (x + y)(a + 2)$.
+
+Điều kiện xác định: mẫu $(x + y)(a + 2) \neq 0$, tức là $x + y \neq 0$ và $a + 2 \neq 0$, hay $x \neq -y$ và $a \neq -2$.
+
+Chia cả tử và mẫu cho nhân tử chung $a + 2$ (khác $0$ theo điều kiện), theo tính chất cơ bản của phân thức: $\dfrac{(x - y)(a + 2)}{(x + y)(a + 2)} = \dfrac{x - y}{x + y}$.
+
+Đáp số: $\boxed{\dfrac{x - y}{x + y} \text{ với } x \neq -y,\ a \neq -2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hai phân thức bằng nhau, kiểm tra từng phân thức
+\begin{problem}[8DS-PS-024]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-06, 8DS-PTNT-01, 8DS-HDT-02
+% do_kho_du_kien: 2
+Dùng định nghĩa hai phân thức bằng nhau, cho biết mỗi phân thức sau có bằng phân thức $\dfrac{x - 2}{x + 2}$ hay không:
+
+a) $\dfrac{2 - x}{-x - 2}$;
+
+b) $\dfrac{x^2 - 2x}{x^2 + 2x}$;
+
+c) $\dfrac{x^2 - 4}{x^2 + 4}$.
+
+\begin{solution}
+a) Theo định nghĩa, $\dfrac{A}{B} = \dfrac{C}{D}$ khi $A \cdot D = B \cdot C$. Tích chéo thứ nhất: $(x - 2)(-x - 2) = -(x - 2)(x + 2)$; tích chéo thứ hai: $(x + 2)(2 - x) = -(x + 2)(x - 2)$.
+
+a) Hai tích chéo bằng nhau nên $\dfrac{2 - x}{-x - 2} = \dfrac{x - 2}{x + 2}$.
+
+b) Đặt nhân tử chung: $x^2 + 2x = x(x + 2)$ và $x^2 - 2x = x(x - 2)$. Tích chéo thứ nhất: $(x - 2) \cdot x(x + 2) = x(x - 2)(x + 2)$; tích chéo thứ hai: $(x + 2) \cdot x(x - 2) = x(x - 2)(x + 2)$.
+
+b) Hai tích chéo bằng nhau nên $\dfrac{x^2 - 2x}{x^2 + 2x} = \dfrac{x - 2}{x + 2}$.
+
+c) Tích chéo thứ nhất: $(x - 2)(x^2 + 4) = x^3 - 2x^2 + 4x - 8$. Tích chéo thứ hai, dùng hằng đẳng thức hiệu hai bình phương $x^2 - 4 = (x - 2)(x + 2)$: $(x + 2)(x^2 - 4) = (x + 2)^2(x - 2) = x^3 + 2x^2 - 4x - 8$.
+
+c) Hiệu hai tích chéo là $(x^3 + 2x^2 - 4x - 8) - (x^3 - 2x^2 + 4x - 8) = 4x^2 - 8x = 4x(x - 2)$, không phải đa thức $0$; chẳng hạn tại $x = 1$ tích thứ nhất bằng $-5$ còn tích thứ hai bằng $-9$. Vậy hai tích chéo không bằng nhau và hai phân thức không bằng nhau.
+
+Đáp số: a) $\boxed{\dfrac{2 - x}{-x - 2} = \dfrac{x - 2}{x + 2}}$; b) $\boxed{\dfrac{x^2 - 2x}{x^2 + 2x} = \dfrac{x - 2}{x + 2}}$; c) $\boxed{\dfrac{x^2 - 4}{x^2 + 4} \neq \dfrac{x - 2}{x + 2}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm x để phân thức bằng một số, đối chiếu ĐKXĐ
+\begin{problem}[8DS-PS-025]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-01, 8DS-PS-02, 8DS-PT1-01
+% do_kho_du_kien: 3
+Cho phân thức $P = \dfrac{x^2 - 9}{x^2 - 3x}$.
+
+a) Tìm giá trị của $x$ để $P = 2$.
+
+b) Tìm giá trị của $x$ để $P = 4$.
+
+\begin{solution}
+a) Điều kiện xác định: mẫu $x^2 - 3x \neq 0$. Đặt nhân tử chung, $x^2 - 3x = x(x - 3)$, nên điều kiện là $x \neq 0$ và $x \neq 3$.
+
+a) Rút gọn với điều kiện trên: theo hằng đẳng thức hiệu hai bình phương, $x^2 - 9 = (x - 3)(x + 3)$; chia cả tử và mẫu cho $x - 3 \neq 0$ được $P = \dfrac{(x - 3)(x + 3)}{x(x - 3)} = \dfrac{x + 3}{x}$.
+
+a) $P = 2$ khi $\dfrac{x + 3}{x} = 2$. Nhân hai vế với $x \neq 0$: $x + 3 = 2x$; chuyển vế được $x = 3$.
+
+a) Đối chiếu điều kiện xác định: $x = 3$ không thoả mãn $x \neq 3$ (tại đó mẫu $x^2 - 3x$ bằng $0$, phân thức $P$ không xác định) nên loại. Vậy không có giá trị nào của $x$ để $P = 2$.
+
+b) Dùng phân thức đã rút gọn ở câu a: $P = 4$ khi $\dfrac{x + 3}{x} = 4$. Nhân hai vế với $x \neq 0$: $x + 3 = 4x$; chuyển vế được $3x = 3$, tức là $x = 1$.
+
+b) Đối chiếu điều kiện xác định: $x = 1$ thoả mãn $x \neq 0$ và $x \neq 3$. Thử lại với phân thức ban đầu: $P = \dfrac{1 - 9}{1 - 3} = \dfrac{-8}{-2} = 4$ (đúng).
+
+Đáp số: a) $\boxed{\text{không có giá trị nào của } x}$; b) $\boxed{x = 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm phân thức chưa biết trong một tích
+\begin{problem}[8DS-PS-026]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-04, 8DS-PS-02, 8DS-PS-01
+% do_kho_du_kien: 3
+Tìm phân thức $Q$ (viết ở dạng rút gọn) thoả mãn
+\[ \dfrac{x^2 + 2x}{x - 1} \cdot Q = \dfrac{x^2 - 4}{x^2 - 1}. \]
+
+\begin{solution}
+Phân tích các tử và mẫu thành nhân tử: $x^2 + 2x = x(x + 2)$ (đặt nhân tử chung); $x^2 - 4 = (x - 2)(x + 2)$ và $x^2 - 1 = (x - 1)(x + 1)$ (hiệu hai bình phương).
+
+Điều kiện: các mẫu $x - 1$ và $x^2 - 1$ khác $0$ nên $x \neq 1$, $x \neq -1$; để tìm $Q$ phải chia cho phân thức $\dfrac{x^2 + 2x}{x - 1}$, nên phân thức này khác $0$, tức là $x(x + 2) \neq 0$, hay $x \neq 0$, $x \neq -2$.
+
+$Q$ là một thừa số chưa biết của tích, nên $Q$ bằng tích chia cho thừa số đã biết: $Q = \dfrac{x^2 - 4}{x^2 - 1} : \dfrac{x^2 + 2x}{x - 1}$.
+
+Chia cho một phân thức là nhân với phân thức nghịch đảo của nó, rồi nhân tử với tử, mẫu với mẫu:
+\[ Q = \dfrac{(x - 2)(x + 2)}{(x - 1)(x + 1)} \cdot \dfrac{x - 1}{x(x + 2)} = \dfrac{(x - 2)(x + 2)(x - 1)}{(x - 1)(x + 1) \cdot x(x + 2)}. \]
+
+Chia cả tử và mẫu cho nhân tử chung $(x - 1)(x + 2)$ (khác $0$ theo điều kiện): $Q = \dfrac{x - 2}{x(x + 1)}$.
+
+Thử lại: $\dfrac{x(x + 2)}{x - 1} \cdot \dfrac{x - 2}{x(x + 1)} = \dfrac{(x + 2)(x - 2)}{(x - 1)(x + 1)} = \dfrac{x^2 - 4}{x^2 - 1}$ (đúng).
+
+Đáp số: $\boxed{Q = \dfrac{x - 2}{x(x + 1)} \text{ với } x \neq 0,\ x \neq 1,\ x \neq -1,\ x \neq -2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: diện tích, số luống (nhân và chia phân thức)
+\begin{problem}[8DS-PS-027]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-04, 8DS-PS-05, 8DS-HDT-02
+% do_kho_du_kien: 3
+Một mảnh vườn hình chữ nhật có chiều dài $\dfrac{x^2 - 1}{x}$ (m) và chiều rộng $\dfrac{x^2}{x + 1}$ (m), với $x$ là số nguyên, $x > 2$.
+
+a) Viết phân thức (đã rút gọn) biểu thị diện tích mảnh vườn theo $x$.
+
+b) Người ta chia mảnh vườn thành các luống rau có cùng diện tích $\dfrac{x - 1}{2}$ (m$^2$). Viết biểu thức (đã rút gọn) biểu thị số luống rau theo $x$.
+
+c) Tính diện tích mảnh vườn và số luống rau khi $x = 5$.
+
+\begin{solution}
+a) Vì $x > 2$ nên các mẫu $x$ và $x + 1$ đều dương, khác $0$; tử $x^2 - 1 > 0$ và $x^2 > 0$ nên chiều dài và chiều rộng đều là số dương.
+
+a) Diện tích hình chữ nhật bằng chiều dài nhân chiều rộng. Phân tích $x^2 - 1 = (x - 1)(x + 1)$ (hiệu hai bình phương) rồi nhân tử với tử, mẫu với mẫu: $S = \dfrac{x^2 - 1}{x} \cdot \dfrac{x^2}{x + 1} = \dfrac{(x - 1)(x + 1) \cdot x^2}{x(x + 1)}$.
+
+a) Chia cả tử và mẫu cho nhân tử chung $x(x + 1) \neq 0$: $S = x(x - 1)$ (m$^2$).
+
+b) Số luống rau bằng diện tích mảnh vườn chia cho diện tích mỗi luống: $n = x(x - 1) : \dfrac{x - 1}{2}$; phép chia thực hiện được vì $x - 1 > 0$ nên phân thức chia khác $0$.
+
+b) Chia cho một phân thức là nhân với phân thức nghịch đảo của nó, rồi chia tử và mẫu cho $x - 1 \neq 0$: $n = x(x - 1) \cdot \dfrac{2}{x - 1} = \dfrac{2x(x - 1)}{x - 1} = 2x$ (luống). Vì $x$ là số nguyên dương nên $2x$ là số tự nhiên (thoả mãn).
+
+c) Giá trị $x = 5$ là số nguyên và $x > 2$ (thoả mãn). Thay vào các biểu thức đã rút gọn: $S = 5 \cdot (5 - 1) = 20$ (m$^2$) và $n = 2 \cdot 5 = 10$ (luống).
+
+c) Kiểm tra: chiều dài $\dfrac{24}{5}$ m, chiều rộng $\dfrac{25}{6}$ m, diện tích $\dfrac{24}{5} \cdot \dfrac{25}{6} = 20$ (m$^2$); mỗi luống có diện tích $\dfrac{5 - 1}{2} = 2$ (m$^2$) và $20 : 2 = 10$ luống (đúng).
+
+Đáp số: a) $\boxed{S = x(x - 1)\ (\text{m}^2)}$; b) $\boxed{2x \text{ luống}}$; c) $\boxed{S = 20\ \text{m}^2;\ 10 \text{ luống}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số để phân thức xác định với mọi x
+\begin{problem}[8DS-PS-028]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-01, 8DS-HDT-01
+% do_kho_du_kien: 4
+Tìm tất cả các giá trị của tham số $m$ để phân thức $\dfrac{x + 3}{x^2 + 2x + m}$ xác định với mọi giá trị của $x$.
+
+\begin{solution}
+Phân thức xác định khi mẫu thức khác $0$; vậy yêu cầu bài toán là $x^2 + 2x + m \neq 0$ với mọi giá trị của $x$.
+
+Biến đổi mẫu theo hằng đẳng thức bình phương của một tổng: $x^2 + 2x + m = (x^2 + 2x + 1) + (m - 1) = (x + 1)^2 + m - 1$.
+
+Trường hợp $m > 1$: vì $(x + 1)^2 \geq 0$ với mọi $x$ nên mẫu $(x + 1)^2 + m - 1 \geq m - 1 > 0$; mẫu luôn khác $0$, phân thức xác định với mọi $x$ (thoả mãn).
+
+Trường hợp $m \leq 1$: số $1 - m \geq 0$ nên có căn bậc hai số học $\sqrt{1 - m}$. Chọn $x = -1 + \sqrt{1 - m}$ thì $(x + 1)^2 = 1 - m$, khi đó mẫu bằng $(1 - m) + m - 1 = 0$; phân thức không xác định tại giá trị này của $x$ (không thoả mãn). Chẳng hạn $m = 1$ thì mẫu bằng $(x + 1)^2$, bằng $0$ tại $x = -1$.
+
+Kết hợp hai trường hợp: phân thức xác định với mọi $x$ khi và chỉ khi $m > 1$.
+
+Đáp số: $\boxed{m > 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn bằng nhóm hạng tử, thêm bớt hạng tử
+\begin{problem}[8DS-PS-029]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-02, 8DS-PTNT-04, 8DS-HDT-02
+% do_kho_du_kien: 4
+Rút gọn các phân thức sau:
+
+a) $\dfrac{x^2 + y^2 - z^2 + 2xy}{x^2 - y^2 + z^2 + 2xz}$;
+
+b) $\dfrac{x^4 + 4}{x^2 + 2x + 2}$.
+
+\begin{solution}
+a) Phân tích tử: nhóm $x^2 + 2xy + y^2$ thành bình phương của một tổng, rồi dùng hằng đẳng thức hiệu hai bình phương: $x^2 + 2xy + y^2 - z^2 = (x + y)^2 - z^2 = (x + y - z)(x + y + z)$.
+
+a) Phân tích mẫu tương tự: $x^2 + 2xz + z^2 - y^2 = (x + z)^2 - y^2 = (x - y + z)(x + y + z)$.
+
+a) Điều kiện xác định: mẫu $(x - y + z)(x + y + z) \neq 0$, tức là $x - y + z \neq 0$ và $x + y + z \neq 0$.
+
+a) Chia cả tử và mẫu cho nhân tử chung $x + y + z$ (khác $0$ theo điều kiện), theo tính chất cơ bản của phân thức: $\dfrac{(x + y - z)(x + y + z)}{(x - y + z)(x + y + z)} = \dfrac{x + y - z}{x - y + z}$.
+
+b) Mẫu: $x^2 + 2x + 2 = (x + 1)^2 + 1 \geq 1 > 0$ với mọi $x$ (bình phương của một tổng), nên phân thức xác định với mọi $x$.
+
+b) Phân tích tử: thêm và bớt $4x^2$ để xuất hiện bình phương của một tổng: $x^4 + 4 = x^4 + 4x^2 + 4 - 4x^2 = (x^2 + 2)^2 - (2x)^2$.
+
+b) Theo hằng đẳng thức hiệu hai bình phương: $(x^2 + 2)^2 - (2x)^2 = (x^2 + 2 - 2x)(x^2 + 2 + 2x) = (x^2 - 2x + 2)(x^2 + 2x + 2)$.
+
+b) Chia cả tử và mẫu cho nhân tử chung $x^2 + 2x + 2$ (luôn khác $0$): $\dfrac{(x^2 - 2x + 2)(x^2 + 2x + 2)}{x^2 + 2x + 2} = x^2 - 2x + 2$.
+
+Đáp số: a) $\boxed{\dfrac{x + y - z}{x - y + z} \text{ với } x + y + z \neq 0,\ x - y + z \neq 0}$; b) $\boxed{x^2 - 2x + 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hai phân thức bằng nhau, tìm hệ số; có cách giải khác
+\begin{problem}[8DS-PS-030]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-06, 8DS-PS-03
+% do_kho_du_kien: 4
+Tìm các số $a$ và $b$ sao cho với mọi $x \neq 1$ và $x \neq -1$ ta có
+\[ \dfrac{a}{x - 1} + \dfrac{b}{x + 1} = \dfrac{5x + 1}{x^2 - 1}. \]
+
+\begin{solution}[cách 1: đồng nhất hệ số]
+Quy đồng vế trái với mẫu thức chung $(x - 1)(x + 1) = x^2 - 1$ (nhân tử phụ lần lượt là $x + 1$ và $x - 1$): $\dfrac{a}{x - 1} + \dfrac{b}{x + 1} = \dfrac{a(x + 1) + b(x - 1)}{x^2 - 1} = \dfrac{(a + b)x + (a - b)}{x^2 - 1}$.
+
+Hai phân thức $\dfrac{(a + b)x + (a - b)}{x^2 - 1}$ và $\dfrac{5x + 1}{x^2 - 1}$ có cùng mẫu khác $0$; theo định nghĩa hai phân thức bằng nhau, chúng bằng nhau khi $[(a + b)x + (a - b)](x^2 - 1) = (x^2 - 1)(5x + 1)$, tức là khi hai tử bằng nhau: $(a + b)x + (a - b) = 5x + 1$.
+
+Hai đa thức bằng nhau khi các hệ số của các hạng tử cùng bậc bằng nhau: $a + b = 5$ và $a - b = 1$.
+
+Cộng vế theo vế hai đẳng thức: $2a = 6$, nên $a = 3$; suy ra $b = 5 - 3 = 2$.
+
+Thử lại: $\dfrac{3}{x - 1} + \dfrac{2}{x + 1} = \dfrac{3(x + 1) + 2(x - 1)}{x^2 - 1} = \dfrac{5x + 1}{x^2 - 1}$ (đúng).
+
+Đáp số: $\boxed{a = 3,\ b = 2}$
+\end{solution}
+
+\begin{solution}[cách 2: thay giá trị cụ thể của $x$]
+Quy đồng vế trái với mẫu thức chung $x^2 - 1$ như cách 1 rồi so sánh hai tử (định nghĩa hai phân thức bằng nhau): đẳng thức đã cho đúng với mọi $x \neq \pm 1$ khi $a(x + 1) + b(x - 1) = 5x + 1$ với mọi $x \neq \pm 1$.
+
+Thay $x = 0$ (thoả mãn điều kiện): $a \cdot 1 + b \cdot (-1) = 1$, tức là $a - b = 1$.
+
+Thay $x = 2$ (thoả mãn điều kiện): $a \cdot 3 + b \cdot 1 = 11$, tức là $3a + b = 11$.
+
+Cộng vế theo vế hai đẳng thức vừa tìm: $4a = 12$, nên $a = 3$; suy ra $b = a - 1 = 2$.
+
+Các bước trên mới cho điều kiện cần, nên phải kiểm tra lại: với $a = 3$, $b = 2$ thì $3(x + 1) + 2(x - 1) = 5x + 1$ đúng với mọi $x$, nên đẳng thức đã cho đúng với mọi $x \neq \pm 1$.
+
+Đáp số: $\boxed{a = 3,\ b = 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn phân thức ba biến, hằng đẳng thức bậc ba
+\begin{problem}[8DS-PS-031]
+% nguon: dummy (tự sinh để test)
+% lop: 8
+% kc_du_kien: 8DS-PS-02, 8DS-HDT-04, 8DS-HDT-03
+% do_kho_du_kien: 5
+Rút gọn phân thức
+\[ \dfrac{a^3 + b^3 + c^3 - 3abc}{(a - b)^2 + (b - c)^2 + (c - a)^2}. \]
+
+\begin{solution}
+Điều kiện xác định: mẫu là tổng của ba bình phương nên không âm, và bằng $0$ khi và chỉ khi $a - b = b - c = c - a = 0$, tức là $a = b = c$. Vậy phân thức xác định khi $a$, $b$, $c$ không đồng thời bằng nhau.
+
+Theo hằng đẳng thức lập phương của một tổng, $(a + b)^3 = a^3 + b^3 + 3ab(a + b)$, nên $a^3 + b^3 = (a + b)^3 - 3ab(a + b)$. Thay vào tử: $a^3 + b^3 + c^3 - 3abc = \left[(a + b)^3 + c^3\right] - 3ab(a + b + c)$.
+
+Theo hằng đẳng thức tổng hai lập phương: $(a + b)^3 + c^3 = (a + b + c)\left[(a + b)^2 - (a + b)c + c^2\right] = (a + b + c)(a^2 + 2ab + b^2 - ac - bc + c^2)$.
+
+Đặt nhân tử chung $a + b + c$: tử bằng $(a + b + c)(a^2 + 2ab + b^2 - ac - bc + c^2 - 3ab) = (a + b + c)(a^2 + b^2 + c^2 - ab - bc - ca)$.
+
+Khai triển mẫu theo hằng đẳng thức bình phương của một hiệu: $(a^2 - 2ab + b^2) + (b^2 - 2bc + c^2) + (c^2 - 2ca + a^2) = 2(a^2 + b^2 + c^2 - ab - bc - ca)$.
+
+Theo điều kiện xác định, mẫu khác $0$ nên $a^2 + b^2 + c^2 - ab - bc - ca \neq 0$. Chia cả tử và mẫu cho nhân tử chung này:
+\[ \dfrac{(a + b + c)(a^2 + b^2 + c^2 - ab - bc - ca)}{2(a^2 + b^2 + c^2 - ab - bc - ca)} = \dfrac{a + b + c}{2}. \]
+
+Đáp số: $\boxed{\dfrac{a + b + c}{2} \text{ với } a,\ b,\ c \text{ không đồng thời bằng nhau}}$
+\end{solution}
+\end{problem}
+
+\end{document}
