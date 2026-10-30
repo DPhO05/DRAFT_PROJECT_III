@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trợ lý gia sư Toán</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<div id="app" class="tex-ignore">
+  <header class="topbar">
+    <a class="brand" href="#tro-ly" data-act="tab" data-tab="tro-ly" aria-label="Trợ lý gia sư Toán — về Trợ lý">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="2" fill="var(--sheet)" stroke="var(--ink)" stroke-width="1.5"/><path d="M1 8h22M1 16h22M8 1v22M16 1v22" stroke="var(--line-strong)" stroke-width="1"/><path d="M5.5 12.5l4 4 9-10" fill="none" stroke="var(--redpen)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="brand-name">Gia sư Toán</span>
+    </a>
+    <nav class="tabs" role="tablist" aria-label="Các mục chính">
+      <button type="button" role="tab" id="tab-tro-ly" data-tab="tro-ly" aria-controls="panel-tro-ly" aria-selected="true">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4h14v9H8l-4 3v-3H3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <span>Trợ lý</span><span class="tab-badge" id="badge-tro-ly" hidden></span></button>
+      <button type="button" role="tab" id="tab-hoc-sinh" data-tab="hoc-sinh" aria-controls="panel-hoc-sinh" aria-selected="false" tabindex="-1">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 17c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>Học sinh</span></button>
+      <button type="button" role="tab" id="tab-bao-cao" data-tab="bao-cao" aria-controls="panel-bao-cao" aria-selected="false" tabindex="-1">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.5h7l3 3v12H5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 9h5M7.5 12h5M7.5 15h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>Báo cáo</span><span class="tab-badge" id="badge-bao-cao" hidden></span></button>
+      <button type="button" role="tab" id="tab-ngan-hang" data-tab="ngan-hang" aria-controls="panel-ngan-hang" aria-selected="false" tabindex="-1">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4.5h5.5l1.5 1.5H17v10H3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.5 10.5h7M6.5 13h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>Ngân hàng bài</span></button>
+    </nav>
+    <span class="tb-date" id="tb-date">Thứ Tư, 21/10/2026</span>
+    <div class="gear-wrap">
+      <button type="button" class="icon-btn gear-btn" id="gear-btn" data-act="gear" aria-haspopup="menu" aria-expanded="false" aria-controls="gear-menu" aria-label="Sao lưu, danh mục, cài đặt, chi phí">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 1.8v2.4M10 15.8v2.4M1.8 10h2.4M15.8 10h2.4M4.2 4.2l1.7 1.7M14.1 14.1l1.7 1.7M4.2 15.8l1.7-1.7M14.1 5.9l1.7-1.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div class="gear-menu" id="gear-menu" role="menu" aria-label="Hệ thống" hidden>
+        <button type="button" role="menuitem" data-act="sys" data-sys="backup">Sao lưu</button>
+        <button type="button" role="menuitem" data-act="sys" data-sys="catalog">Danh mục kỹ năng &amp; loại lỗi</button>
+        <button type="button" role="menuitem" data-act="sys" data-sys="settings">Cài đặt</button>
+        <button type="button" role="menuitem" data-act="sys" data-sys="cost">Chi phí tháng</button>
+        <div class="gear-theme">
+          <span class="small muted">Giao diện</span>
+          <div class="seg" role="group" aria-label="Giao diện sáng tối">
+            <button type="button" class="seg-btn" data-act="theme" data-theme-opt="system" aria-pressed="true">Theo máy</button>
+            <button type="button" class="seg-btn" data-act="theme" data-theme-opt="light" aria-pressed="false">Sáng</button>
+            <button type="button" class="seg-btn" data-act="theme" data-theme-opt="dark" aria-pressed="false">Tối</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main id="main">
+    <section class="panel" id="panel-tro-ly" role="tabpanel" aria-labelledby="tab-tro-ly"></section>
+    <section class="panel" id="panel-hoc-sinh" role="tabpanel" aria-labelledby="tab-hoc-sinh" hidden></section>
+    <section class="panel" id="panel-bao-cao" role="tabpanel" aria-labelledby="tab-bao-cao" hidden></section>
+    <section class="panel" id="panel-ngan-hang" role="tabpanel" aria-labelledby="tab-ngan-hang" hidden></section>
+  </main>
+</div>
+<div id="modal-root" class="tex-ignore"></div>
+<div id="toasts" class="tex-ignore" aria-live="polite"></div>
+<div id="print-root" class="tex-ignore" aria-hidden="true"></div>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global' },
+  options: { ignoreHtmlClass: 'tex-ignore', processHtmlClass: 'tex', enableMenu: false },
+  startup: { typeset: false, ready: function () { MathJax.startup.defaultReady(); MathJax.startup.promise.then(function () { if (window.__texReady) window.__texReady(); }); } }
+};
+</script>
+<script async id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+<script>
+/*__JS__*/
+</script>
+</body>
+</html>
