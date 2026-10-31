@@ -783,6 +783,7 @@ def commit_session(conn: sqlite3.Connection, session_id: int, *, transcript: str
     solution_latex, steps, flags, grade_items, score, max_score, mistakes: [MISTAKE_COLS row, llm_json as dict]}.
     profile: the `elo.profile` result for these attempts; its events, skills and misconceptions are written too.
     prior: the `profile_prior` that result was computed over; if the student's prior differs now → StaleProfile.
+    An earlier uncommitted session of the student → StaleProfile too (C-28 date order, also for reruns).
     Already committed → the first receipt, nothing written.
     """
     with write_tx(conn):
@@ -791,6 +792,9 @@ def commit_session(conn: sqlite3.Connection, session_id: int, *, transcript: str
             raise NotFound(f"buổi {session_id}")
         if st[0] == "committed":
             return _receipt(conn, session_id)
+        if conn.execute("SELECT 1 FROM session WHERE student_id = ? AND held_on < ? AND status <> 'committed'",
+                        (st[1], st[2])).fetchone():  # fmt: skip
+            raise StaleProfile(f"buổi {session_id}: buổi sớm hơn của HS chưa lưu")
         if prior is not None and profile_prior(conn, st[1]) != prior:
             raise StaleProfile(f"buổi {session_id}: hồ sơ kỹ năng đã đổi từ lúc xem trước")
         ts, attempt_ids = now(), {}

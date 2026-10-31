@@ -14,7 +14,7 @@ from tests.graphs.test_review import full
 from tutor import cli, llm
 from tutor.db import repo
 from tutor.graphs import runner as rmod
-from tutor.graphs import session
+from tutor.graphs import session, threads
 
 
 def skill_event_rows(conn) -> list[dict]:
@@ -236,6 +236,52 @@ def test_commit_failed_then_other_session_commits_rerun_recomputes(env, monkeypa
     before = skill_rows(conn)
     repo.replay_student(conn, 1)
     assert skill_rows(conn) == before
+
+
+def test_failed_commit_rerun_waits_for_earlier_session(env, monkeypatch):
+    go, conn, r = env
+    later, _, _ = go(THREE, name="l.tex", day="2026-10-20")
+    tl = later["thread_id"]
+    r.save_decisions(tl, full(conn))
+    threads.resume(r, tl)
+    assert r.wait(tl)["node"] == "gate_confirm_commit"
+    real, broken = repo.backup, [True]
+
+    def flaky(*args):
+        if broken and broken.pop():
+            raise OSError("gài lỗi sao lưu")
+        return real(*args)
+
+    monkeypatch.setattr(repo, "backup", flaky)
+    threads.resume(r, tl)
+    assert r.wait(tl)["status"] == "failed"
+    early, _, _ = go(THREE.replace("LANE", "E"), name="e.tex", day="2026-10-17")
+    te = early["thread_id"]
+    threads.resume(r, tl)  # rerun: commit refuses, bounces to the gate
+    row = r.wait(tl)
+    assert (row["status"], row["node"]) == ("awaiting_review", "gate_confirm_commit")
+    assert status(conn, later["session_id"]) == "awaiting_review"
+    with pytest.raises(threads.ThreadLocked):
+        threads.resume(r, tl)
+    r.save_decisions(te, full(conn))
+    assert approve(r, te)["status"] == "committed"
+    threads.resume(r, tl)
+    assert r.wait(tl)["node"] == "gate_confirm_commit"  # E is history now: preview recomputed
+    threads.resume(r, tl)
+    assert r.wait(tl)["status"] == "committed"
+    before = skill_rows(conn)
+    repo.replay_student(conn, 1)
+    assert skill_rows(conn) == before
+
+
+def test_commit_refuses_while_earlier_session_uncommitted(env):
+    go, conn, r = env
+    later, _, _ = go(THREE, name="l.tex", day="2026-10-20")
+    early, _, _ = go(THREE.replace("LANE", "E"), name="e.tex", day="2026-10-17")
+    before = repo.row_counts(conn)
+    with pytest.raises(repo.StaleProfile):  # a commit already in flight meets the rule inside its transaction
+        repo.commit_session(conn, later["session_id"], transcript="", review_seconds=None, attempts=[])
+    assert repo.row_counts(conn) == before and status(conn, later["session_id"]) == "awaiting_review"
 
 
 def test_cli_confirm_after_stale_bounce_shows_new_preview_and_never_claims_commit(env, monkeypatch, capsys):
