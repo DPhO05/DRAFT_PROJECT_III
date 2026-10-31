@@ -26,7 +26,8 @@
     get: function (path) { return request('GET', path); },
     send: function (method, path, body) { return request(method, path, body); }
   };
-  // Số mục chờ của 1 thread đang dừng: gate_review = số đề xuất lỗi (+ số 04 bất đồng), gate_confirm_match = số cờ chưa xử lý.
+  // Số mục chờ của 1 thread đang dừng: gate_review = số đề xuất lỗi (+ số 04 bất đồng), gate_confirm_match = số cờ chưa xử lý,
+  // gate_confirm_commit = không còn gì để duyệt (0 mục, chỉ chờ Lưu kết quả).
   var SUMMARY_MAX = 20, summaries = {}, queueSeq = 0, queueSig = null;
   function summarize(t) {
     var sig = t.node + '|' + t.updated_at + '|' + t.checkpoints, c = summaries[t.thread_id];
@@ -35,7 +36,9 @@
       var st = x.state || {}, ps = st.proposals || [], fl = (st.ingest || {}).flags || [];
       var v = t.node === 'gate_confirm_match'
         ? { items: fl.filter(function (f) { return !f.resolved; }).length, unit: 'cờ', disagree: null }
-        : { items: ps.length, unit: 'đề xuất', disagree: ps.filter(function (p) { return (p.verifier || {}).verdict !== 'agree'; }).length };
+        : t.node === 'gate_confirm_commit'
+          ? { items: 0, unit: '', label: 'chờ lưu kết quả', disagree: null }
+          : { items: ps.length, unit: 'đề xuất', disagree: ps.filter(function (p) { return (p.verifier || {}).verdict !== 'agree'; }).length };
       summaries[t.thread_id] = { sig: sig, v: v };
       return v;
     }, function () { return null; });

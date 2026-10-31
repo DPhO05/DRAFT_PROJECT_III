@@ -1149,7 +1149,7 @@ window.MathJax = {
   // locked / lock_reason / blocking_thread_id come from GET /api/threads (server rule C-28).
   function annotateLocks() { return threadsArr().filter(function (t) { return t.status === 'awaiting_review'; }); }
   function stampOf(t) { return t.updated_at || ''; }
-  var STAGE = { gate_confirm_match: 'chờ xác nhận khớp bài', gate_review: 'chờ duyệt lỗi' };
+  var STAGE = { gate_confirm_match: 'chờ xác nhận khớp bài', gate_review: 'chờ duyệt lỗi', gate_confirm_commit: 'chờ lưu kết quả' };
   var queueApi = {
     list: function (f) {
       f = f || {};
@@ -1170,7 +1170,7 @@ window.MathJax = {
       if (!t) { toast('Không tìm thấy thread ' + id + '.', { kind: 'warn' }); return false; }
       if (t.locked) { toast(t.lock_reason, { kind: 'warn' }); return false; }
       var routes = {
-        G1: ['session', { thread: id }],  // session tab opens step 3 (gate_confirm_match) / 4 (gate_review) / 5 (committed)
+        G1: ['session', { thread: id }],  // session tab opens step 3 (gate_confirm_match) / 4 (gate_review) / 5 (gate_confirm_commit preview, committed)
         G2: ['bank', { review: id }]
       };
       var r = routes[t.graph] || ['ops', { thread: id }];

@@ -41,6 +41,11 @@ EXPECT = {
         "after": ["Đã ghi 1 transaction", "lượt cập nhật kỹ năng"],
     }
 }
+# Hộp duyệt / Hôm nay list the seeded thread parked at gate_confirm_commit: teacher word and CLI hint, never the raw node id.
+# Checked before the route walks commit that thread.
+QUEUE_SCREENS = ("review", "today")
+QUEUE_TEXT = ["chờ lưu kết quả", f"tutor review {PREVIEW_TID}"]
+QUEUE_BANNED = ("gate_confirm_commit",)
 # Table names and maths symbols stay off the teacher's screen (R-F).
 BANNED = ("skill_event", "skill_state", "misconception_log", "θ", "δ")
 
@@ -138,6 +143,25 @@ def close_overlay(page) -> bool:
 
 def view_text(page) -> str:
     return page.evaluate("document.querySelector('#view').innerText")
+
+
+def queue_labels(page, page_url: str, tabs: list[str]) -> dict[str, list[str]]:
+    out = {}
+    for tab in (t for t in QUEUE_SCREENS if t in tabs):
+        page.goto(page_url)
+        page.wait_for_function("window.App && App.started", timeout=10000)
+        goto_tab(page, tab)
+        text = view_text(page)
+        miss = [f"queue text: {t}" for t in QUEUE_TEXT if t not in text]
+        miss += [f"raw node id on screen: {b}" for b in QUEUE_BANNED if b in text]
+        if tab == "review":  # the count column says "chờ lưu kết quả", not "N đề xuất": the review is final
+            row = page.locator("#view tr", has_text=PREVIEW_TID)
+            if not row.count():
+                miss.append(f"no review row for {PREVIEW_TID}")
+            elif "đề xuất" in row.first.inner_text():
+                miss.append("review row counts đề xuất at gate_confirm_commit")
+        out[tab] = miss
+    return out
 
 
 def exercise(page, tab: str, rep: dict, want: dict | None = None) -> None:
@@ -311,6 +335,7 @@ def check(page_url: str, args: argparse.Namespace) -> int:
         fatal |= bool(errs or perrs)
         if args.shots:
             SHOTS.mkdir(parents=True, exist_ok=True)
+        early = queue_labels(page, page_url, tabs) if args.data else {}
         # routes first: later walks (ops › Huỷ) may cancel the seeded threads
         walks = [(t, r) for t in tabs if args.data for r in DATA_ROUTES.get(t, [])] + [(t, None) for t in tabs]
         for tab, route in walks:
@@ -321,7 +346,7 @@ def check(page_url: str, args: argparse.Namespace) -> int:
                 "registered": tab in registered,
                 "clicks": 0,
                 "dead": [],
-                "missing": [],
+                "missing": [] if route else early.get(tab, []),
                 "navigated": [],
                 "click_failures": [],
                 "notes": [],

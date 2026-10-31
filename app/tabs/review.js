@@ -21,15 +21,16 @@
     function itemsCell(t) {
       var s = t.summary;
       if (!s) return h('span', { class: 'muted', title: 'Chưa tải được state của thread' }, '—');
-      return h('div', null, h('b', { class: 'num' }, s.items + ' ' + s.unit),
-        t.node === 'gate_confirm_match' ? h('div', { class: 'small muted' }, 'lỗi: chưa chạy 02·03·04') : null);
+      return h('div', null, h('b', { class: 'num' }, s.label || s.items + ' ' + s.unit),
+        t.node === 'gate_confirm_match' ? h('div', { class: 'small muted' }, 'lỗi: chưa chạy 02·03·04') : null,
+        t.node === 'gate_confirm_commit' ? h('div', { class: 'small muted' }, 'đã duyệt xong, xem trước tiến bộ rồi lưu') : null);
     }
     function disagreeCell(t) {
       var s = t.summary;
       if (!s || s.disagree == null || !s.items) return h('span', { class: 'muted' }, '—');
       return ui.chip(s.disagree + '/' + s.items, s.disagree ? 'warn' : 'ok');
     }
-    function cliFor(t) { return t.node === 'gate_review' ? 'tutor review ' + t.thread_id : null; }
+    function cliFor(t) { return t.node === 'gate_review' || t.node === 'gate_confirm_commit' ? 'tutor review ' + t.thread_id : null; }
     function openCell(t) {
       if (t.locked) {
         return h('div', { class: 'stack rv-tight rv-act' },

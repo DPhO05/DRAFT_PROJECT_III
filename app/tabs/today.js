@@ -32,7 +32,7 @@
             h('div', { class: 'row td-tight' }, ui.chip(t.graph, t.graph), who(t)),
             h('div', { class: 'small td-meta' }, h('span', null, Q.stageLabel(t)),
               h('span', { class: 'muted' }, ' · chờ từ ' + fmt.ago(t.updated_at) + ' (' + fmt.dt(t.updated_at) + ')'))),
-          ui.button('Mở', function () { Q.open(t.thread_id); }, { kind: 'primary', size: 'sm', cli: t.node === 'gate_review' ? 'tutor review ' + t.thread_id : null }));
+          ui.button('Mở', function () { Q.open(t.thread_id); }, { kind: 'primary', size: 'sm', cli: t.node === 'gate_review' || t.node === 'gate_confirm_commit' ? 'tutor review ' + t.thread_id : null }));
       })) : ui.empty(queue.length ? 'Mọi mục chờ đang khoá — xem Cảnh báo.' : 'Không có gì chờ duyệt. Mọi đề xuất đã vào tutor.db.');
       var lockedN = queue.length - open.length;
       return h('section', { class: 'section td-todo' },
