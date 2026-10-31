@@ -318,6 +318,49 @@ def _echo_result(runner: Runner, thread_id: str, row: dict) -> None:
                f" · +{rec['rubric']} rubric · +{rec['skill_event']} skill_event · sao lưu {rec['backup']}")  # fmt: skip
 
 
+@cli.command("replay")
+def replay_cmd(
+    student: Annotated[str, typer.Argument(help="Mã HS (HS-03) hoặc id (3)")],
+    data_dir: DataDir = None,
+) -> None:
+    """Dựng lại hồ sơ kỹ năng của 1 HS từ các buổi đã lưu (sau khi sửa độ khó bài / lỗi đã lưu). Sao lưu trước."""
+    paths = config.paths(data_dir)
+    lock = _hold_lock(paths)
+    try:
+        m = re.fullmatch(r"(?:HS-)?0*(\d+)", student.strip(), re.I)
+        if not m:
+            typer.echo(f"Mã HS không hợp lệ: {student}")
+            raise typer.Exit(1)
+        sid = int(m[1])
+        code = config.student_code(sid)
+        with closing(repo.connect(paths.tutor_db)) as conn:
+            try:
+                archived = repo.get_student(conn, sid)["archived_at"]
+            except repo.NotFound:
+                typer.echo(f"Không có {code}")
+                raise typer.Exit(1) from None
+            if archived:
+                typer.echo(f"{code} đã lưu trữ")
+                raise typer.Exit(1)
+            runner = _runner(paths, False)
+            try:
+                waiting = [t["thread_id"] for t in runner.list_threads(graph=session.GRAPH, student_id=sid)
+                           if t["status"] in ("running", "awaiting_review", "failed")]  # fmt: skip
+            finally:
+                runner.close()
+            if waiting:
+                typer.echo(f"{code} còn buổi chưa lưu: {', '.join(waiting)}")
+                raise typer.Exit(1)
+            repo.backup(paths.tutor_db, paths.backup)
+            out = repo.replay_student(conn, sid)
+            names = {k["id"]: k["name"] for k in repo.list_kc(conn)}
+        typer.echo(f"Đã dựng lại {code}: {out['events']} sự kiện, {len(out['level_changes'])} kỹ năng đổi mức")
+        for c in out["level_changes"]:
+            typer.echo(f"{names[c['kc_id']]}: {c['before']} → {c['after']}")
+    finally:
+        lock.release()
+
+
 @cli.command("seed-dummy")
 def seed_cmd(
     dev: Annotated[bool, typer.Option("--dev", help="Bắt buộc: chỉ cho dev / test (C-32)")] = False,

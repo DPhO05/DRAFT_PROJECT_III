@@ -13,6 +13,13 @@ from pathlib import Path
 
 import pytest
 from filelock import FileLock
+from typer.testing import CliRunner
+
+from tests.db.test_profile_repo import D1, D2, WRONG, bank, commit, mk, skill_rows, start  # noqa: F401
+from tutor import cli
+from tutor.db import repo
+from tutor.graphs.runner import Runner
+from tutor.services import elo
 
 TUTOR = [str(Path(sys.executable).with_name("tutor"))]
 # C-34: a child process must never find a real key, even if the developer's shell has one.
@@ -170,3 +177,69 @@ def test_review_queue_then_review_commits(tmp_path):
         assert c.execute("SELECT status FROM session").fetchone()[0] == "committed"
         got = sorted(x[0] for x in c.execute("SELECT status FROM mistake"))
     assert got == ["added", "confirmed", "confirmed", "confirmed", "edited", "rejected"]
+
+
+def replay(paths, *args):
+    return CliRunner().invoke(cli.cli, ["replay", *args, "--data-dir", str(paths.root)])
+
+
+def backups(paths):
+    return list(paths.backup.glob("tutor-*.db"))
+
+
+@pytest.fixture
+def committed(conn, bank):  # noqa: F811
+    """HS-01 with two committed sessions on KC 'Chuyển vế': right, then wrong."""
+    sid = repo.add_student(conn, name="An")
+    for day, work in ((D1, [(bank["p1"], [])]), (D2, [(bank["p1"], [mk(WRONG, bank["k1"])])])):
+        commit(conn, start(conn, sid, day), work)
+    return sid
+
+
+def test_replay_after_commit_changes_nothing(paths, conn, committed):
+    before, n = skill_rows(conn), len(backups(paths))
+    r = replay(paths, "1")
+    assert r.exit_code == 0, r.output
+    assert r.output.strip() == "Đã dựng lại HS-01: 2 sự kiện, 0 kỹ năng đổi mức"
+    assert skill_rows(conn) == before
+    assert len(backups(paths)) == n + 1
+
+
+def test_replay_after_delta_change_matches_hand_calc(paths, conn, bank, committed):  # noqa: F811
+    old = conn.execute("SELECT theta FROM skill_state").fetchone()[0]
+    conn.execute("UPDATE problem SET delta = 0.6 WHERE id = ?", (bank["p1"],))
+    r = replay(paths, "hs-01")
+    assert r.exit_code == 0, r.output
+    _, t1 = elo.update(0.0, 0.6, 1)
+    _, t2 = elo.update(t1, 0.6, 0)
+    new = conn.execute("SELECT theta FROM skill_state").fetchone()[0]
+    assert new == pytest.approx(t2) and new != pytest.approx(old)
+
+
+def test_replay_lists_level_changes_by_kc_name(paths, conn, committed):
+    conn.execute("UPDATE skill_state SET theta = 5")
+    r = replay(paths, "HS-01")
+    assert r.exit_code == 0, r.output
+    assert r.output.splitlines() == ["Đã dựng lại HS-01: 2 sự kiện, 1 kỹ năng đổi mức",
+                                     "Chuyển vế: vững → đang hình thành"]  # fmt: skip
+
+
+@pytest.mark.parametrize("status", ["running", "awaiting_review", "failed"])
+def test_replay_refused_while_g1_waiting(paths, conn, committed, status):
+    conn.execute("UPDATE skill_state SET theta = 5")
+    before, n = skill_rows(conn), len(backups(paths))
+    rn = Runner(paths, {})
+    rn._set("g1-hs01-20261110", create=True, graph="G1", status=status, student_id=committed)
+    rn.close()
+    r = replay(paths, "1")
+    assert r.exit_code == 1
+    assert "HS-01 còn buổi chưa lưu: g1-hs01-20261110" in r.output
+    assert skill_rows(conn) == before and len(backups(paths)) == n
+
+
+def test_replay_rejects_unknown_invalid_or_archived_student(paths, conn, committed):
+    for arg in ("99", "abc"):
+        assert replay(paths, arg).exit_code == 1, arg
+    repo.archive_student(conn, committed)
+    assert replay(paths, "1").exit_code == 1
+    assert not backups(paths)
