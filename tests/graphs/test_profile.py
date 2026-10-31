@@ -74,7 +74,7 @@ def test_preview_words_have_no_numbers_or_codes(env):
     assert not re.search(r"θ|δ|\b[a-z]+\.[a-z_]+\b", json.dumps(pv, ensure_ascii=False))
 
 
-def test_preview_without_any_kc_says_nothing_to_update(env):
+def test_preview_without_any_kc_says_nothing_to_update(env, capsys):
     go, conn, r = env
     repo.add_bank_problem(conn, ref="X-001", statement="s", solution="s", source="t", delta=None, tags=[],
                           rubric_items=[{"item_id": "r1", "text": "t", "points": 1}])  # fmt: skip
@@ -88,6 +88,8 @@ def test_preview_without_any_kc_says_nothing_to_update(env):
     assert pv["codes"]["new"] == ["Không xác định được loại lỗi"]
     assert pv["writes"] == {"attempt": 1, "mistake": 1, "rubric": 0, "skill_event": 0, "skill_state": 0,
                             "misconception_log": 0}  # fmt: skip
+    cli._echo_preview(pv)
+    assert "  Không có kỹ năng nào được cập nhật\n" in capsys.readouterr().out
 
 
 def test_preview_counts_rubrics_approved_at_step_3(env):
