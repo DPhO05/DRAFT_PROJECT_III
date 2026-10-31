@@ -261,6 +261,9 @@ def _review_g1(runner: Runner, thread_id: str) -> None:
         typer.echo(f"Đã lưu quyết định nhưng chưa ghi được: {e}")
         raise typer.Exit(1) from None
     row = runner.wait(thread_id, timeout=300)
+    if (row["status"], row["node"]) == ("awaiting_review", "gate_confirm_commit"):
+        typer.echo(f"Đang chờ Lưu kết quả. Lưu sau: tutor review {thread_id}")
+        return
     if row["status"] != "committed":
         typer.echo(f"{row['status']} ở {row['node']}: {row['error']}")
         raise typer.Exit(1)

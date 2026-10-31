@@ -146,8 +146,12 @@ class Runner:
         self._submit(graph, thread_id, inp)
 
     def save_decisions(self, thread_id: str, decisions: object) -> int | None:
-        """Store without resuming (Tạm dừng, duyệt sau). Returns items still undecided, None if no gate check."""
+        """Store without resuming (Tạm dừng, duyệt sau). Returns items still undecided, None if no gate check.
+
+        Refused at G1's gate_confirm_commit: the decisions are final there."""
         row = self.get(thread_id)
+        if row["status"] == "awaiting_review" and row["node"] == "gate_confirm_commit":
+            raise NotResumable("Đã chốt lỗi: bấm Lưu kết quả hoặc Huỷ")
         self._set(thread_id, decisions_json=json.dumps(decisions, ensure_ascii=False))
         try:
             return self._undecided(row, decisions)

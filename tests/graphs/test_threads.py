@@ -4,7 +4,7 @@ import pytest
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from tests.graphs.g1 import THREE
+from tests.graphs.g1 import THREE, approve
 from tests.graphs.test_review import full
 from tutor.db import repo
 from tutor.graphs import runner as rmod
@@ -70,10 +70,8 @@ def test_resume_of_locked_thread_raises_until_earlier_commits(env):
         threads.resume(r, later["thread_id"])
     assert e.value.blocking_thread_id == first["thread_id"]
     r.save_decisions(first["thread_id"], full(conn))
-    threads.resume(r, first["thread_id"])
-    assert r.wait(first["thread_id"])["status"] == "committed"
-    threads.resume(r, later["thread_id"])
-    assert r.wait(later["thread_id"])["status"] == "committed"
+    assert approve(r, first["thread_id"])["status"] == "committed"
+    assert approve(r, later["thread_id"])["status"] == "committed"
 
 
 def test_cancel_g1_awaiting_deletes_session_and_checkpoints(env):
@@ -97,8 +95,7 @@ def test_cancel_committed_or_running_is_refused(env):
     go, conn, r = env
     out, _, _ = go(THREE)
     r.save_decisions(out["thread_id"], full(conn))
-    r.resume(out["thread_id"])
-    r.wait(out["thread_id"])
+    approve(r, out["thread_id"])
     with pytest.raises(rmod.AlreadyCommitted):
         threads.cancel(r, r._paths_for_test, out["thread_id"])
 

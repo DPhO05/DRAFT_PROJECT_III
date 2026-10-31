@@ -1,8 +1,9 @@
 """G1 session graph (P1-T10, P2-T05, P3-T01, P3-T02).
 
 ① session row → 01 Ingest → prepare (02 drafts missing rubrics) → [DỪNG confirm_match while flags remain]
-→ one 02 → 03 → 04 lane per problem (Send) → review queue → DỪNG review → commit ② (backup, one transaction).
-05 Profiler + DỪNG confirm_commit go between review and commit in P4.
+→ one 02 → 03 → 04 lane per problem (Send) → review queue → DỪNG review → 05 profile → DỪNG confirm_commit
+→ commit ② (backup, one transaction). If another session of the student committed since 05 ran, confirm_commit
+goes back to 05 instead of committing a stale profile.
 """
 
 import copy
@@ -20,6 +21,7 @@ from tutor.config import DataPaths
 from tutor.db import repo
 from tutor.graphs.runner import Runner
 from tutor.graphs.state import LaneState, SessionState
+from tutor.services import elo
 
 GRAPH = "G1"
 
@@ -170,6 +172,8 @@ def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
     """Runner resume check: flags still unanswered at confirm_match, cards still undecided at review (SDD §5.4)."""
 
     def count(state: dict, decisions: object, node: str) -> int:
+        if node == "gate_confirm_commit":
+            return 0  # the decisions are final; resume only needs the tutor's go
         if node == "gate_review":
             with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
                 codes = {c["code"] for c in repo.error_codes(conn, active_only=True)}
@@ -269,6 +273,28 @@ def build(paths: DataPaths) -> StateGraph:
     def gate_review(state: SessionState) -> dict:
         return {"review": interrupt({"gate": "review", "n": len(state["proposals"])})["decisions"]}
 
+    def profile(state: SessionState) -> dict:
+        """05: replay this session over the stored prior. Reads only, no LLM; commit ② writes the result."""
+        rows = _mistake_rows(state, state["review"])
+        lanes = sorted(state["lanes"], key=lambda x: x["seq"])
+        with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+            prior = repo.profile_prior(conn, state["student_id"])
+            probs = repo.profile_problems(conn, [lane["problem_id"] for lane in lanes])
+        attempts = [{"seq": lane["seq"], **probs[lane["problem_id"]],
+                     "mistakes": [{"code": m["code"], "kc_id": m["kc_id"]}
+                                  for m in rows.get(lane["seq"], []) if m["status"] != "rejected"]}
+                    for lane in lanes]  # fmt: skip
+        return {"profile": elo.profile(prior, attempts, state["held_on"]), "profile_prior": prior, "preview": {}}
+
+    def gate_confirm_commit(state: SessionState) -> dict:
+        interrupt({"gate": "confirm_commit"})
+        return {}
+
+    def fresh(state: SessionState) -> str:
+        """Another session of this student committed since 05 ran → recompute rather than commit a stale profile."""
+        with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+            return "commit" if repo.profile_prior(conn, state["student_id"]) == state["profile_prior"] else "profile"
+
     def commit(state: SessionState) -> dict:
         """② : backup first (C-29), then one transaction. A rerun after a failure runs only this node."""
         review, attempts = state["review"], _attempts(state)
@@ -289,7 +315,7 @@ def build(paths: DataPaths) -> StateGraph:
         backup = repo.backup(paths.tutor_db, paths.backup)
         with closing(repo.connect(paths.tutor_db)) as conn:
             receipt = repo.commit_session(conn, state["session_id"], transcript=state["transcript"],
-                                          review_seconds=secs, attempts=out)  # fmt: skip
+                                          review_seconds=secs, attempts=out, profile=state["profile"])  # fmt: skip
         return {"receipt": receipt | {"backup": backup.name}, "committed": True}
 
     g = StateGraph(SessionState)
@@ -302,6 +328,9 @@ def build(paths: DataPaths) -> StateGraph:
     g.add_node("queue", queue)
     g.add_node("mark_waiting_review", mark_waiting)
     g.add_node("gate_review", gate_review)
+    g.add_node("profile", profile)
+    g.add_node("mark_waiting_confirm", mark_waiting)
+    g.add_node("gate_confirm_commit", gate_confirm_commit)
     g.add_node("commit", commit)
     g.add_edge(START, "ingest")
     g.add_edge("ingest", "prepare")
@@ -312,7 +341,10 @@ def build(paths: DataPaths) -> StateGraph:
     g.add_edge("lane", "queue")
     g.add_edge("queue", "mark_waiting_review")
     g.add_edge("mark_waiting_review", "gate_review")
-    g.add_edge("gate_review", "commit")
+    g.add_edge("gate_review", "profile")
+    g.add_edge("profile", "mark_waiting_confirm")
+    g.add_edge("mark_waiting_confirm", "gate_confirm_commit")
+    g.add_conditional_edges("gate_confirm_commit", fresh, ["profile", "commit"])
     g.add_edge("commit", END)
     return g
 

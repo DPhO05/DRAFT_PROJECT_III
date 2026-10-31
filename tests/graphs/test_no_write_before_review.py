@@ -5,8 +5,9 @@ import sqlite3
 import pytest
 
 from tests.bankfix import P1, P2
+from tests.db.test_profile_repo import skill_rows
 from tests.fakes import lane_handlers
-from tests.graphs.g1 import THREE, prob
+from tests.graphs.g1 import THREE, approve, prob
 from tests.graphs.test_review import full
 from tutor.agents import ingest
 from tutor.db import repo
@@ -77,11 +78,13 @@ def test_only_session_row_changes_until_commit(env, monkeypatch, path):
     # a failure inside commit ② rolls back to the same state
     r.save_decisions(tid, {"cards": {p["pid"]: {"action": "accept"} for p in r.state(tid)["proposals"]}})
     monkeypatch.setattr(repo, "_insert_mistake", lambda *a: (_ for _ in ()).throw(sqlite3.OperationalError("gài")))
-    threads.resume(r, tid)
-    assert r.wait(tid)["status"] == "failed" and snapshot(conn) == before
+    assert approve(r, tid)["status"] == "failed" and snapshot(conn) == before
     monkeypatch.undo()
     threads.resume(r, tid)
     assert r.wait(tid)["status"] == "committed" and snapshot(conn) != before
+    skills, sid = skill_rows(conn), r.get(tid)["student_id"]
+    repo.replay_student(conn, sid)
+    assert skills["event"] and skill_rows(conn) == skills  # skill_* after commit == replay from the attempts
 
 
 def test_cancel_leaves_no_trace(env):

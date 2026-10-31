@@ -15,6 +15,14 @@ def submit(client, sid, day="2026-10-20", name="a.tex", tex=TEX):
     return r["thread_id"], r["session_id"], poll(client, r["thread_id"])
 
 
+def approve(client, tid):
+    """gate_review → resume → stop at the preview (gate_confirm_commit) → resume → commit ②; returns the thread."""
+    for until in ("awaiting_review", "committed"):
+        assert client.post(f"/api/threads/{tid}/resume", headers=W).status_code == 202
+        t = poll(client, tid, until=(until, "failed"))
+    return t
+
+
 def test_review_then_commit_receipt_and_session_view(client):
     sid = add_student(client)
     tid, session_id, t = submit(client, sid)
@@ -26,13 +34,19 @@ def test_review_then_commit_receipt_and_session_view(client):
     assert client.put(f"/api/threads/{tid}/decisions", json=ACCEPT, headers=W).json()["pending"] == 0
     before = client.get("/api/backup").json()
     assert client.post(f"/api/threads/{tid}/resume", headers=W).status_code == 202
+    t = poll(client, tid, until=("awaiting_review", "failed"))
+    assert (t["status"], t["node"]) == ("awaiting_review", "gate_confirm_commit")
+    r = client.put(f"/api/threads/{tid}/decisions", json=ACCEPT, headers=W)  # decisions are final at the preview
+    assert r.status_code == 409 and r.json()["error"]["code"] == "not_ready"
+    assert client.post(f"/api/threads/{tid}/resume", headers=W).status_code == 202
     t = poll(client, tid, until=("committed", "failed"))
     assert t["status"] == "committed" and t["error"] is None
     after = client.get("/api/backup").json()
     rec = t["receipt"]
     assert (rec["attempt"], rec["mistake"], rec["rubric"]) == (1, 1, 0) and rec["backup"] in [
         b["name"] for b in after["backups"]]  # fmt: skip
-    assert after["total"] - before["total"] == rec["attempt"] + rec["mistake"] + rec["rubric"]
+    assert after["total"] - before["total"] == rec["attempt"] + rec["mistake"] + rec["rubric"] + rec[
+        "skill_event"] + 1  # + the one KC's skill_state row  # fmt: skip
     s = client.get(f"/api/sessions/{session_id}").json()
     assert (s["status"], s["review_seconds"], s["student_code"]) == ("committed", 12, "HS-01")
     [a] = s["attempts"]
@@ -68,8 +82,7 @@ def test_cancel_and_cleanup(client):
     assert client.get("/api/sessions").json() == []
     tid, _, _ = submit(client, sid)  # same file again: C-15
     client.put(f"/api/threads/{tid}/decisions", json=ACCEPT, headers=W)
-    client.post(f"/api/threads/{tid}/resume", headers=W)
-    poll(client, tid, until=("committed", "failed"))
+    approve(client, tid)
     r = client.post(f"/api/threads/{tid}/cancel", headers=W)
     assert r.status_code == 409 and r.json()["error"]["code"] == "already_committed"
     assert client.post("/api/threads/cleanup", headers=W).json() == {"removed": [tid]}

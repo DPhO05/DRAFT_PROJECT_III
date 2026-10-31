@@ -142,8 +142,7 @@ def test_review_queue_then_review_commits(tmp_path):
         assert c.execute("SELECT status FROM session").fetchone()[0] == "awaiting_review"
     r = subprocess.run(TUTOR + ["review", tid, "--data-dir", str(data)], input="A\nA\n", capture_output=True,
                        text=True, timeout=60, env=ENV)  # fmt: skip
-    assert r.returncode == 0 and "committed" in r.stdout and "+5 attempt" in r.stdout, r.stdout + r.stderr
-    with closing(repo.connect(data / "tutor.db")) as c:
-        assert c.execute("SELECT status FROM session").fetchone()[0] == "committed"
-        got = sorted(x[0] for x in c.execute("SELECT status FROM mistake"))
-    assert got == ["added", "confirmed", "confirmed", "confirmed", "edited", "rejected"]
+    assert r.returncode == 0 and f"Đang chờ Lưu kết quả. Lưu sau: tutor review {tid}" in r.stdout, r.stdout + r.stderr
+    with closing(repo.connect(data / "tutor.db")) as c:  # stopped before commit ②
+        assert c.execute("SELECT status FROM session").fetchone()[0] == "awaiting_review"
+        assert c.execute("SELECT count(*) FROM mistake").fetchone()[0] == 0

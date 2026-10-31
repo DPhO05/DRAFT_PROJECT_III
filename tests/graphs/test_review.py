@@ -6,7 +6,7 @@ from contextlib import closing
 
 import pytest
 
-from tests.graphs.g1 import THREE, status
+from tests.graphs.g1 import THREE, approve, status
 from tutor.db import repo
 from tutor.graphs import runner as rmod
 
@@ -38,8 +38,7 @@ def test_decisions_map_to_mistake_rows_and_commit(env):
     props = {p["pid"]: p for p in r.state(tid)["proposals"]}
     assert r.save_decisions(tid, full(conn)) == 0
     before = repo.row_counts(conn)
-    r.resume(tid)
-    row = r.wait(tid)
+    row = approve(r, tid)
     assert (row["status"], row["error"]) == ("committed", None)
     assert status(conn, out["session_id"]) == "committed"
     ms = {(m["seq"], m["status"]): m for m in mistakes(conn)}
@@ -62,8 +61,9 @@ def test_decisions_map_to_mistake_rows_and_commit(env):
     # receipt = the rows really added (P3-T06)
     after = repo.row_counts(conn)
     receipt = r.state(tid)["receipt"]
-    assert {k: after[k] - before[k] for k in after if after[k] != before[k]} == {"attempt": 3, "mistake": 4}
-    assert (receipt["attempt"], receipt["mistake"], receipt["rubric"]) == (3, 4, 0)
+    assert {k: after[k] - before[k] for k in after if after[k] != before[k]} == {
+        "attempt": 3, "mistake": 4, "skill_event": 3, "skill_state": 1, "misconception_log": 1}  # fmt: skip
+    assert (receipt["attempt"], receipt["mistake"], receipt["rubric"], receipt["skill_event"]) == (3, 4, 0, 3)
     assert receipt["by_status"] == {"confirmed": 1, "edited": 1, "rejected": 1, "added": 1}
     att = conn.execute("SELECT seq, score, max_score, grade_json, steps_json FROM attempt ORDER BY seq").fetchall()
     assert [a[0] for a in att] == [1, 2, 3] and att[0][1] == att[0][2] == 1
@@ -75,8 +75,7 @@ def test_backup_is_taken_before_commit(env):
     out, _, _ = go(THREE)
     before = repo.row_counts(conn)
     r.save_decisions(out["thread_id"], full(conn))
-    r.resume(out["thread_id"])
-    assert r.wait(out["thread_id"])["status"] == "committed"
+    assert approve(r, out["thread_id"])["status"] == "committed"
     name = r.state(out["thread_id"])["receipt"]["backup"]
     with closing(sqlite3.connect(r._paths_for_test.backup / name)) as b:
         assert repo.row_counts(b) == before
@@ -152,8 +151,7 @@ def test_failure_inside_commit_writes_nothing_and_rerun_commits(env, monkeypatch
         return real(c, attempt_id, m)
 
     monkeypatch.setattr(repo, "_insert_mistake", boom)
-    r.resume(tid)
-    row = r.wait(tid)
+    row = approve(r, tid)
     assert row["status"] == "failed" and "gài lỗi" in row["error"]
     assert repo.row_counts(conn) == before and status(conn, out["session_id"]) == "failed"
     monkeypatch.setattr(repo, "_insert_mistake", real)
@@ -166,8 +164,7 @@ def test_commit_twice_returns_the_first_receipt(env):
     go, conn, r = env
     out, _, _ = go(THREE)
     r.save_decisions(out["thread_id"], full(conn))
-    r.resume(out["thread_id"])
-    r.wait(out["thread_id"])
+    approve(r, out["thread_id"])
     first = r.state(out["thread_id"])["receipt"]
     again = repo.commit_session(conn, out["session_id"], transcript="x", review_seconds=1, attempts=[])
     assert {k: again[k] for k in ("attempt", "mistake", "rubric", "by_status")} == {
@@ -188,8 +185,7 @@ def test_rubric_approved_at_step_3_is_written_in_commit(env):
     assert r.wait(tid)["node"] == "gate_review"
     assert repo.row_counts(conn)["rubric"] == 2  # C-16: nothing before commit ②
     r.save_decisions(tid, {"cards": {"p1": {"action": "accept"}}})
-    r.resume(tid)
-    assert r.wait(tid)["status"] == "committed"
+    assert approve(r, tid)["status"] == "committed"
     rub = conn.execute(
         "SELECT r.id, r.version, r.items_json, r.max_score FROM rubric r JOIN problem p ON p.id = r.problem_id"
         " WHERE p.ref = ?", (P2[0],)).fetchall()  # fmt: skip
@@ -202,8 +198,7 @@ def test_next_session_03_context_has_committed_mistakes(env):
     go, conn, r = env
     out, _, _ = go(THREE)
     r.save_decisions(out["thread_id"], full(conn))
-    r.resume(out["thread_id"])
-    r.wait(out["thread_id"])
+    approve(r, out["thread_id"])
     out2, _, _ = go(THREE.replace("LANE", "LAN"), name="b.tex", day="2026-10-21")
     ctx = r.state(out2["thread_id"])["lanes"][0]["diagnosis"]["context"]
     assert sorted(m["code"] for m in ctx) == ["computational.final_answer", "notational.symbol", "other.unclear"]
