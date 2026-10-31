@@ -141,15 +141,32 @@ def test_review_queue_then_review_commits(tmp_path):
     assert r.returncode == 0 and "đã lưu" in r.stdout, r.stdout + r.stderr
     with closing(repo.connect(data / "tutor.db")) as c:
         assert c.execute("SELECT status FROM session").fetchone()[0] == "awaiting_review"
-    r = subprocess.run(TUTOR + ["review", tid, "--data-dir", str(data)], input="A\nA\n", capture_output=True,
+    r = subprocess.run(TUTOR + ["review", tid, "--data-dir", str(data)], input="A\nA\nn\n", capture_output=True,
                        text=True, timeout=60, env=ENV)  # fmt: skip
-    assert r.returncode == 0 and f"Đang chờ Lưu kết quả. Lưu sau: tutor review {tid}" in r.stdout, r.stdout + r.stderr
+    assert r.returncode == 0 and "Lưu kết quả?" in r.stdout, r.stdout + r.stderr  # N: preview shown, then asked
+    assert "Xem trước" in r.stdout
+    assert f"Đang chờ Lưu kết quả. Lưu sau: tutor review {tid}" in r.stdout, r.stdout + r.stderr
     with closing(repo.connect(data / "tutor.db")) as c:  # stopped before commit ②
         assert c.execute("SELECT status FROM session").fetchone()[0] == "awaiting_review"
         assert c.execute("SELECT count(*) FROM mistake").fetchone()[0] == 0
     with closing(sqlite3.connect(data / "checkpoints.db")) as c:  # the keys typed above became these decisions
-        cards = json.loads(c.execute("SELECT decisions_json FROM tutor_thread").fetchone()[0])["cards"]
+        row = c.execute("SELECT node, decisions_json FROM tutor_thread").fetchone()
+    assert row[0] == "gate_confirm_commit"
+    cards = json.loads(row[1])["cards"]
     assert {k: v["action"] for k, v in cards.items()} == {
         "n1": "add", "p1": "accept", "p2": "edit", "p3": "reject", "p4": "accept", "p5": "accept"}  # fmt: skip
     assert (cards["n1"]["code"], cards["n1"]["description"]) == ("other.unclear", "sót bước")
     assert cards["p2"]["code"] == "presentation.format"
+    # at the preview: no cards asked again, straight to the question; N keeps the gate
+    r = subprocess.run(TUTOR + ["review", tid, "--data-dir", str(data)], input="n\n", capture_output=True,
+                       text=True, timeout=60, env=ENV)  # fmt: skip
+    assert r.returncode == 0 and "Xem trước" in r.stdout and "Lưu kết quả?" in r.stdout, r.stdout + r.stderr
+    assert "A đồng ý" not in r.stdout and f"Đang chờ Lưu kết quả. Lưu sau: tutor review {tid}" in r.stdout
+    r = subprocess.run(TUTOR + ["review", tid, "--data-dir", str(data)], input="y\n", capture_output=True,
+                       text=True, timeout=60, env=ENV)  # fmt: skip
+    assert r.returncode == 0 and "committed" in r.stdout and "+5 attempt" in r.stdout, r.stdout + r.stderr
+    assert "skill_event" in r.stdout and "Đang chờ" not in r.stdout
+    with closing(repo.connect(data / "tutor.db")) as c:
+        assert c.execute("SELECT status FROM session").fetchone()[0] == "committed"
+        got = sorted(x[0] for x in c.execute("SELECT status FROM mistake"))
+    assert got == ["added", "confirmed", "confirmed", "confirmed", "edited", "rejected"]

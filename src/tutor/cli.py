@@ -230,9 +230,12 @@ def _review_g1(runner: Runner, thread_id: str) -> None:
     except ThreadNotFound:
         typer.echo(f"Không có thread {thread_id}")
         raise typer.Exit(1) from None
-    if row["graph"] != session.GRAPH or row["node"] != "gate_review" or row["status"] != "awaiting_review":
+    if row["graph"] != session.GRAPH or row["status"] != "awaiting_review" or row["node"] not in (
+        "gate_review", "gate_confirm_commit"):  # fmt: skip
         typer.echo(f"{thread_id}: {row['status']} ở {row['node']} — CLI chỉ duyệt lỗi G1; việc khác làm trong app")
         raise typer.Exit(1)
+    if row["node"] == "gate_confirm_commit":
+        return _confirm_commit(runner, thread_id)
     saved = json.loads(row["decisions_json"] or "{}")
     cards = dict(saved.get("cards") or {}) if isinstance(saved, dict) else {}
     secs, t0 = (saved.get("review_seconds") or 0) if isinstance(saved, dict) else 0, time.monotonic()
@@ -262,14 +265,57 @@ def _review_g1(runner: Runner, thread_id: str) -> None:
         raise typer.Exit(1) from None
     row = runner.wait(thread_id, timeout=300)
     if (row["status"], row["node"]) == ("awaiting_review", "gate_confirm_commit"):
-        typer.echo(f"Đang chờ Lưu kết quả. Lưu sau: tutor review {thread_id}")
-        return
+        return _confirm_commit(runner, thread_id)
+    _echo_result(runner, thread_id, row)
+
+
+MISCON_LABELS = (("new", "Lỗi lặp mới ghi nhận"), ("again", "Lỗi cũ gặp lại"), ("resolved", "Lỗi đã hết"))
+CODE_LABELS = (("repeat", "So với buổi trước, lỗi lặp lại"), ("new", "So với buổi trước, lỗi mới"),
+               ("gone", "So với buổi trước, lỗi không còn"))  # fmt: skip
+
+
+def _echo_preview(pv: dict) -> None:
+    typer.echo("\nXem trước (chưa lưu):")
+    for k in pv["kcs"]:
+        typer.echo(f"  {k['kc']}: {k['before']} → {k['after']} ({k['trend']})")
+    if not pv["kcs"]:
+        typer.echo("  Không có kỹ năng nào được cập nhật")
+    for part, labels in (("miscon", MISCON_LABELS), ("codes", CODE_LABELS)):
+        for key, label in labels:
+            if pv[part][key]:
+                typer.echo(f"  {label}:" + "".join(f"\n    - {x}" for x in pv[part][key]))
+    w = pv["writes"]
+    typer.echo(f"  Sẽ ghi: +{w['attempt']} attempt · +{w['mistake']} mistake · +{w['rubric']} rubric"
+               f" · +{w['skill_event']} skill_event · cập nhật {w['skill_state']} skill_state"
+               f" · cập nhật {w['misconception_log']} misconception_log")  # fmt: skip
+
+
+def _confirm_commit(runner: Runner, thread_id: str) -> None:
+    """At gate_confirm_commit: show the preview, ask. y runs commit ②, N leaves the thread at the gate.
+    A stale bounce (another session of the student saved first) lands back here with a fresh preview."""
+    while True:
+        _echo_preview(runner.state(thread_id)["preview"])
+        if not typer.confirm("Lưu kết quả?", default=False):
+            typer.echo(f"Đang chờ Lưu kết quả. Lưu sau: tutor review {thread_id}")
+            return
+        try:
+            threads.resume(runner, thread_id)
+        except threads.ThreadLocked as e:
+            typer.echo(f"Chưa lưu được: {e}")
+            raise typer.Exit(1) from None
+        row = runner.wait(thread_id, timeout=300)
+        if (row["status"], row["node"]) != ("awaiting_review", "gate_confirm_commit"):
+            return _echo_result(runner, thread_id, row)
+        typer.echo("Hồ sơ của HS đã đổi (buổi khác vừa lưu), đã tính lại:")
+
+
+def _echo_result(runner: Runner, thread_id: str, row: dict) -> None:
     if row["status"] != "committed":
         typer.echo(f"{row['status']} ở {row['node']}: {row['error']}")
         raise typer.Exit(1)
     rec = runner.state(thread_id)["receipt"]
     typer.echo(f"committed: 1 transaction · +{rec['attempt']} attempt · +{rec['mistake']} mistake"
-               f" · +{rec['rubric']} rubric · sao lưu {rec['backup']}")  # fmt: skip
+               f" · +{rec['rubric']} rubric · +{rec['skill_event']} skill_event · sao lưu {rec['backup']}")  # fmt: skip
 
 
 @cli.command("seed-dummy")

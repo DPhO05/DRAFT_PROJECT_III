@@ -274,17 +274,33 @@ def build(paths: DataPaths) -> StateGraph:
         return {"review": interrupt({"gate": "review", "n": len(state["proposals"])})["decisions"]}
 
     def profile(state: SessionState) -> dict:
-        """05: replay this session over the stored prior. Reads only, no LLM; commit ② writes the result."""
+        """05: replay this session over the stored prior. Reads only, no LLM; commit ② writes the result.
+        `preview` = the same result in words for the teacher (no θ, δ or codes)."""
         rows = _mistake_rows(state, state["review"])
         lanes = sorted(state["lanes"], key=lambda x: x["seq"])
         with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
             prior = repo.profile_prior(conn, state["student_id"])
             probs = repo.profile_problems(conn, [lane["problem_id"] for lane in lanes])
+            kc_names = {k["id"]: k["name"] for k in repo.list_kc(conn)}
+            code_words = {c["code"]: c["description"] for c in repo.error_codes(conn)}
         attempts = [{"seq": lane["seq"], **probs[lane["problem_id"]],
                      "mistakes": [{"code": m["code"], "kc_id": m["kc_id"]}
                                   for m in rows.get(lane["seq"], []) if m["status"] != "rejected"]}
                     for lane in lanes]  # fmt: skip
-        return {"profile": elo.profile(prior, attempts, state["held_on"]), "profile_prior": prior, "preview": {}}
+        result = elo.profile(prior, attempts, state["held_on"])
+        no_rubric = {f["seq"] for f in state["ingest"]["flags"] if f["type"] == "no_rubric"}  # as repo._receipt
+        miscon, codes = result["miscon_change"], result["codes"]
+        preview = {
+            "kcs": [{"kc": kc_names[k["kc_id"]], "before": k["level_before"], "after": k["level_after"],
+                     "trend": k["trend"]} for k in result["kcs"]],
+            "miscon": {n: [f"{code_words[c]} ({kc_names[kc]})" for c, kc in miscon[n]] for n in miscon},
+            "codes": {n: [code_words[c] for c in codes[n]] for n in codes},
+            "writes": {"attempt": len(lanes), "mistake": sum(map(len, rows.values())),
+                       "rubric": len(no_rubric & {lane["seq"] for lane in lanes}),
+                       "skill_event": len(result["events"]), "skill_state": len(result["skills"]),
+                       "misconception_log": len(result["miscon"])},
+        }  # fmt: skip
+        return {"profile": result, "profile_prior": prior, "preview": preview}
 
     def gate_confirm_commit(state: SessionState) -> dict:
         interrupt({"gate": "confirm_commit"})
