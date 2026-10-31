@@ -90,3 +90,20 @@ def test_profile_does_not_mutate_prior():
     snap = json.dumps(s1)
     elo.profile(s1, bad, "2026-10-08")
     assert json.dumps(s1) == snap and prior == elo.empty_prior()
+
+
+def test_repeat_code_across_sessions():  # R3
+    bad = [{"seq": 1, "delta": 0, "kcs": [7], "mistakes": [{"code": "a.b", "kc_id": 7}]}]
+    s1 = elo.profile(elo.empty_prior(), bad, "2026-10-01")
+    s2 = elo.profile(s1["after"], bad, "2026-10-08")
+    assert s2["codes"] == {"repeat": ["a.b"], "new": [], "gone": []}
+
+
+def test_miscon_counts_once_per_attempt():  # R2
+    hit = {"code": "a.b", "kc_id": 7}
+    two_attempts = [{"seq": i, "delta": 0, "kcs": [7], "mistakes": [hit]} for i in (1, 2)]
+    out = elo.profile(elo.empty_prior(), two_attempts, "2026-10-01")
+    assert out["miscon"][0]["count"] == 2
+    assert out["miscon_change"] == {"new": [["a.b", 7]], "again": [], "resolved": []}
+    dup = [{"seq": 1, "delta": 0, "kcs": [7], "mistakes": [hit, dict(hit)]}]
+    assert elo.profile(elo.empty_prior(), dup, "2026-10-01")["miscon"][0]["count"] == 1
