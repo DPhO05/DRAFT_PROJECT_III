@@ -10,7 +10,8 @@ from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tutor.config import student_code
+from tutor.config import THETA0, student_code
+from tutor.services import elo
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 MIGRATIONS = Path(__file__).with_name("migrations")
@@ -701,25 +702,91 @@ def _receipt(conn: sqlite3.Connection, session_id: int) -> dict:
         "session_id": session_id, "committed_at": at,
         "attempt": conn.execute("SELECT count(*) FROM attempt WHERE session_id = ?", (session_id,)).fetchone()[0],
         "mistake": sum(by_status.values()), "rubric": rubric,
+        "skill_event": conn.execute(
+            "SELECT count(*) FROM skill_event e JOIN attempt a ON a.id = e.attempt_id WHERE a.session_id = ?",
+            (session_id,)
+        ).fetchone()[0],
         "by_status": {s: by_status.get(s, 0) for s in ("confirmed", "edited", "rejected", "added")},
     }  # fmt: skip
 
 
+def profile_prior(conn: sqlite3.Connection, student_id: int) -> dict:
+    """Prior for `elo.profile`: stored skill_state / misconception_log + codes of the latest committed session."""
+    skills = _dicts(conn.execute(
+        "SELECT kc_id, theta, n_attempts, correct_streak FROM skill_state WHERE student_id = ? ORDER BY kc_id",
+        (student_id,)
+    ))  # fmt: skip
+    miscon = _dicts(conn.execute(
+        "SELECT code, kc_id, first_seen, last_seen, count, resolved_at FROM misconception_log"
+        " WHERE student_id = ? ORDER BY code, kc_id", (student_id,)
+    ))  # fmt: skip
+    codes = conn.execute(
+        "SELECT DISTINCT m.code FROM mistake_current m JOIN attempt a ON a.id = m.attempt_id WHERE a.session_id ="
+        " (SELECT id FROM session WHERE student_id = ? AND status = 'committed'"
+        "  ORDER BY held_on DESC, committed_at DESC, id DESC LIMIT 1) ORDER BY m.code", (student_id,)
+    ).fetchall()  # fmt: skip
+    return {"skills": skills, "miscon": miscon, "prev_codes": [c for (c,) in codes]}
+
+
+def profile_problems(conn: sqlite3.Connection, problem_ids: list[int]) -> dict[int, dict]:
+    """{problem_id: {delta (NULL -> 0, C-19), kcs: [kc_id]}} for the Elo update."""
+    if not problem_ids:
+        return {}
+    marks = ", ".join("?" * len(problem_ids))
+    out = {
+        pid: {"delta": d, "kcs": []}
+        for pid, d in conn.execute(f"SELECT id, coalesce(delta, 0) FROM problem WHERE id IN ({marks})", problem_ids)
+    }
+    for pid, kc in conn.execute(
+        f"SELECT DISTINCT problem_id, kc_id FROM problem_kc WHERE problem_id IN ({marks}) ORDER BY kc_id", problem_ids
+    ):  # fmt: skip
+        out[pid]["kcs"].append(kc)
+    return out
+
+
+def _write_profile(conn: sqlite3.Connection, student_id: int, held_on: str, ts: str, profile: dict,
+                   attempt_ids: dict[int, int]) -> None:  # fmt: skip
+    """skill_event rows (seq → attempt id), skill_state and misconception_log upserts of one `elo.profile` result."""
+    conn.executemany(
+        "INSERT INTO skill_event (student_id, kc_id, attempt_id, outcome, p_expected, theta_before, theta_after,"
+        " delta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [(student_id, e["kc_id"], attempt_ids[e["seq"]], e["outcome"], e["p_expected"], e["theta_before"],
+          e["theta_after"], e["delta"], ts) for e in profile["events"]],
+    )  # fmt: skip
+    conn.executemany(
+        "INSERT INTO skill_state (student_id, kc_id, theta, n_attempts, correct_streak, last_seen, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (student_id, kc_id) DO UPDATE SET theta = excluded.theta,"
+        " n_attempts = excluded.n_attempts, correct_streak = excluded.correct_streak,"
+        " last_seen = excluded.last_seen, updated_at = excluded.updated_at",
+        [(student_id, s["kc_id"], s["theta"], s["n_attempts"], s["correct_streak"], held_on, ts)
+         for s in profile["skills"]],
+    )  # fmt: skip
+    conn.executemany(
+        "INSERT INTO misconception_log (student_id, code, kc_id, first_seen, last_seen, count, resolved_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (student_id, code, kc_id) DO UPDATE SET"
+        " first_seen = excluded.first_seen, last_seen = excluded.last_seen, count = excluded.count,"
+        " resolved_at = excluded.resolved_at",
+        [(student_id, m["code"], m["kc_id"], m["first_seen"], m["last_seen"], m["count"], m["resolved_at"])
+         for m in profile["miscon"]],
+    )  # fmt: skip
+
+
 def commit_session(conn: sqlite3.Connection, session_id: int, *, transcript: str, review_seconds: int | None,
-                   attempts: list[dict]) -> dict:  # fmt: skip
-    """② in one transaction: rubrics approved at step 3 (C-16), attempts, mistakes, session → committed.
+                   attempts: list[dict], profile: dict | None = None) -> dict:  # fmt: skip
+    """② in one transaction: rubrics approved at step 3 (C-16), attempts, mistakes, skill_*, session → committed.
 
     attempts: {seq, problem_id, rubric_id | None, rubric {items, max_score} (new version when rubric_id is None),
     solution_latex, steps, flags, grade_items, score, max_score, mistakes: [MISTAKE_COLS row, llm_json as dict]}.
+    profile: the `elo.profile` result for these attempts; its events, skills and misconceptions are written too.
     Already committed → the first receipt, nothing written.
     """
     with write_tx(conn):
-        st = conn.execute("SELECT status FROM session WHERE id = ?", (session_id,)).fetchone()
+        st = conn.execute("SELECT status, student_id, held_on FROM session WHERE id = ?", (session_id,)).fetchone()
         if st is None:
             raise NotFound(f"buổi {session_id}")
         if st[0] == "committed":
             return _receipt(conn, session_id)
-        ts = now()
+        ts, attempt_ids = now(), {}
         for a in attempts:
             rubric_id = a["rubric_id"]
             if rubric_id is None:
@@ -738,8 +805,11 @@ def commit_session(conn: sqlite3.Connection, session_id: int, *, transcript: str
                  json.dumps(a["steps"], ensure_ascii=False), json.dumps(a["flags"], ensure_ascii=False),
                  json.dumps(a["grade_items"], ensure_ascii=False), a["score"], a["max_score"], ts),
             ).lastrowid  # fmt: skip
+            attempt_ids[a["seq"]] = attempt_id
             for m in a["mistakes"]:
                 _insert_mistake(conn, attempt_id, m | {"reviewed_at": ts})
+        if profile is not None:
+            _write_profile(conn, st[1], st[2], ts, profile, attempt_ids)
         conn.execute(
             "UPDATE session SET status = 'committed', committed_at = ?, transcript_latex = ?, review_seconds = ?"
             " WHERE id = ?", (ts, transcript, review_seconds, session_id)
@@ -771,3 +841,40 @@ def session_detail(conn: sqlite3.Connection, session_id: int) -> dict:
         for m in a["mistakes"]:
             m["llm_json"] = m["llm_json"] and json.loads(m["llm_json"])
     return s
+
+
+def replay_student(conn: sqlite3.Connection, student_id: int) -> dict:
+    """Rebuild skill_event / skill_state / misconception_log of one student from committed sessions, in one transaction.
+
+    Sessions run in the order they were committed (held_on, committed_at, id), each through `elo.profile` and the
+    same writer as commit ②. Returns the event count and the KCs whose level word changed.
+    """
+    with write_tx(conn):
+        before = dict(conn.execute("SELECT kc_id, theta FROM skill_state WHERE student_id = ?", (student_id,)))
+        for table in ("skill_event", "skill_state", "misconception_log"):
+            conn.execute(f"DELETE FROM {table} WHERE student_id = ?", (student_id,))
+        prior, events = elo.empty_prior(), 0
+        sessions = conn.execute(
+            "SELECT id, held_on, committed_at FROM session WHERE student_id = ? AND status = 'committed'"
+            " ORDER BY held_on, committed_at, id", (student_id,)
+        ).fetchall()  # fmt: skip
+        for sid, held_on, committed_at in sessions:
+            rows = conn.execute("SELECT id, seq, problem_id FROM attempt_current WHERE session_id = ? ORDER BY seq",
+                                (sid,)).fetchall()  # fmt: skip
+            probs = profile_problems(conn, [pid for _, _, pid in rows])
+            mistakes: dict[int, list[dict]] = {}
+            for aid, code, kc in conn.execute(
+                "SELECT m.attempt_id, m.code, m.kc_id FROM mistake_current m JOIN attempt_current a"
+                " ON a.id = m.attempt_id WHERE a.session_id = ? ORDER BY m.id", (sid,)
+            ):  # fmt: skip
+                mistakes.setdefault(aid, []).append({"code": code, "kc_id": kc})
+            attempts = [{"seq": seq, **probs[pid], "mistakes": mistakes.get(aid, [])} for aid, seq, pid in rows]
+            out = elo.profile(prior, attempts, held_on)
+            _write_profile(conn, student_id, held_on, committed_at, out, {seq: aid for aid, seq, _ in rows})
+            prior, events = out["after"], events + len(out["events"])
+        after = dict(conn.execute("SELECT kc_id, theta FROM skill_state WHERE student_id = ?", (student_id,)))
+        changes = [
+            {"kc_id": kc, "before": elo.level(before.get(kc, THETA0)), "after": elo.level(after.get(kc, THETA0))}
+            for kc in sorted(before.keys() | after.keys())
+        ]  # fmt: skip
+        return {"events": events, "level_changes": [c for c in changes if c["before"] != c["after"]]}
