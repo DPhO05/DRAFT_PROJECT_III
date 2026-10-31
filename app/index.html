@@ -21,7 +21,7 @@
   --warn: #8f5600; --warn-line: #cf8c14; --warn-soft: #fdf1d6;
   --crit: #b3261e; --crit-soft: #fbe4e1;
   --dim: #7c8790; --dim-soft: #e9edee;
-  --g1: #2b63c6; --g2: #0b7f78; --g3: #6e45bd; --g4: #b4541a; --g5: #b3307c;
+  --g1: #2b63c6; --g2: #0b7f78; --g4: #b4541a; --g5: #b3307c;
   --a01: #4d6a86; --a02: #2b63c6; --a03: #7e3fb3; --a04: #0b7f8c; --a05: #2c7d39;
   --a06: #a86400; --a07: #a3412b; --a08: #5f7412; --a09: #b3307c;
   --shadow: 0 1px 2px rgb(16 24 32 / .06), 0 8px 24px rgb(16 24 32 / .12);
@@ -41,7 +41,7 @@
     --redpen: #ff7896;
     --ok: #5fcf8f; --ok-soft: #14301f; --warn: #f2b54e; --warn-line: #c99331; --warn-soft: #30250e;
     --crit: #ff8b80; --crit-soft: #3b1b18; --dim: #8a96a0; --dim-soft: #222b33;
-    --g1: #7ea4ff; --g2: #4fc7bd; --g3: #b39cff; --g4: #f0965a; --g5: #f07ab9;
+    --g1: #7ea4ff; --g2: #4fc7bd; --g4: #f0965a; --g5: #f07ab9;
     --a01: #9db4ca; --a02: #7ea4ff; --a03: #c79cf0; --a04: #55c6d2; --a05: #78cf84;
     --a06: #e8b04f; --a07: #f08f78; --a08: #b9cf5a; --a09: #f07ab9;
     --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .45); --backdrop: rgb(0 0 0 / .6);
@@ -56,7 +56,7 @@
   --redpen: #ff7896;
   --ok: #5fcf8f; --ok-soft: #14301f; --warn: #f2b54e; --warn-line: #c99331; --warn-soft: #30250e;
   --crit: #ff8b80; --crit-soft: #3b1b18; --dim: #8a96a0; --dim-soft: #222b33;
-  --g1: #7ea4ff; --g2: #4fc7bd; --g3: #b39cff; --g4: #f0965a; --g5: #f07ab9;
+  --g1: #7ea4ff; --g2: #4fc7bd; --g4: #f0965a; --g5: #f07ab9;
   --a01: #9db4ca; --a02: #7ea4ff; --a03: #c79cf0; --a04: #55c6d2; --a05: #78cf84;
   --a06: #e8b04f; --a07: #f08f78; --a08: #b9cf5a; --a09: #f07ab9;
   --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .45); --backdrop: rgb(0 0 0 / .6);
@@ -240,7 +240,7 @@ pre.code { margin: 0; padding: 10px 12px; background: var(--sheet-2); border: 1p
 .chip-warn { color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft); }
 .chip-danger { color: var(--crit); border-color: color-mix(in srgb, var(--crit) 50%, transparent); background: var(--crit-soft); }
 .chip-tint { color: var(--c); border-color: color-mix(in srgb, var(--c) 45%, transparent); background: color-mix(in srgb, var(--c) 10%, var(--sheet)); font-weight: 600; }
-.chip-G1 { --c: var(--g1); } .chip-G2 { --c: var(--g2); } .chip-G3 { --c: var(--g3); } .chip-G4 { --c: var(--g4); } .chip-G5 { --c: var(--g5); }
+.chip-G1 { --c: var(--g1); } .chip-G2 { --c: var(--g2); } .chip-G4 { --c: var(--g4); } .chip-G5 { --c: var(--g5); }
 .chip-agent01 { --c: var(--a01); } .chip-agent02 { --c: var(--a02); } .chip-agent03 { --c: var(--a03); }
 .chip-agent04 { --c: var(--a04); } .chip-agent05 { --c: var(--a05); } .chip-agent06 { --c: var(--a06); }
 .chip-agent07 { --c: var(--a07); } .chip-agent08 { --c: var(--a08); } .chip-agent09 { --c: var(--a09); }
@@ -456,7 +456,7 @@ mjx-container[jax="SVG"][display="true"] { overflow-x: auto; overflow-y: hidden;
         <a class="gauge st-pending" id="g-pending" href="#review" data-tab-link="review" title="Đề xuất LLM đang chờ trong checkpoints.db — chưa phải dữ liệu chính thức"><span>Đề xuất chờ duyệt: <b id="g-pending-n">0</b><span class="tb-hide-phone"> · checkpoints.db</span></span></a>
         <a class="gauge st-db" id="g-db" href="#ops" data-tab-link="ops" data-params="section=storage" title="Tổng số dòng trong tutor.db: dữ liệu đã duyệt, cộng dòng session của buổi vừa nộp (chưa duyệt). Lỗi, θ, gợi ý, báo cáo chỉ vào đây qua commit node."><span>tutor.db: <b id="g-db-n">0</b> dòng</span></a>
         <a class="meter" id="g-cost" href="#logs" data-tab-link="logs" title="Chi phí LLM tháng này / ngân sách (đơn giá giả định)"><span id="g-cost-t">Tháng 10: —</span><span class="meter-bar"><span id="g-cost-bar" style="width:0%"></span></span></a>
-        <a class="chip-privacy-link" href="#ops" data-tab-link="ops" data-params="section=privacy" title="Tên học sinh chỉ lưu trên máy này; prompt chỉ chứa mã HS">
+        <a class="chip-privacy-link" href="#ops" data-tab-link="ops" title="Tên học sinh chỉ lưu trên máy này; prompt chỉ chứa mã HS">
           <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5.5" width="8" height="5.5" rx="1" fill="currentColor"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
           API chỉ nhận mã HS</a>
         <button type="button" class="switch" id="explain-toggle" aria-pressed="false" title="Hiện chú thích: graph, agent, bảng, lệnh CLI đứng sau mỗi phần">Chú thích hệ thống</button>
@@ -520,14 +520,11 @@ window.MathJax = {
     { id: 'today', title: 'Hôm nay', group: 'Mỗi ngày', line: 'Việc cần làm ngay, cảnh báo, nhịp dùng hằng ngày.' },
     { id: 'review', title: 'Hộp duyệt', group: 'Mỗi ngày', line: 'Một hàng chờ cho mọi graph đang dừng (tutor review).' },
     { id: 'session', title: 'Buổi học', group: 'Sau buổi học', line: 'G1: nộp bài → chạy → xác nhận → duyệt lỗi → ghi DB.' },
-    { id: 'recommend', title: 'Gợi ý bài', group: 'Trước buổi sau', phase: 'P6', line: 'G4: code chọn bài, 08 viết lý do, thầy/cô duyệt.' },
-    { id: 'report', title: 'Báo cáo tháng', group: 'Cuối tháng', phase: 'P7', line: 'G5: số liệu → 3 insight → 09 viết → audit → thầy/cô duyệt.' },
     { id: 'students', title: 'Học sinh', group: 'Theo dõi', line: 'Hồ sơ, Elo theo KC, lỗi lặp lại, lịch sử (đọc từ tutor.db).' },
-    { id: 'bank', title: 'Ngân hàng bài', group: 'Chuẩn bị', phase: 'P5', line: 'Ngân hàng bài, G2 gắn KC + rubric, G3 xếp độ khó.' },
+    { id: 'bank', title: 'Ngân hàng bài', group: 'Chuẩn bị', phase: 'P5', line: 'Ngân hàng bài, G2 gắn KC + rubric.' },
     { id: 'catalog', title: 'Danh mục', group: 'Chuẩn bị', line: 'Danh sách KC, KC tiên quyết, 18 mã lỗi + ví dụ.' },
-    { id: 'ops', title: 'Vận hành', group: 'Hệ thống', line: 'Thread, checkpoint, chạy lại, sao lưu, cài đặt, riêng tư.' },
-    { id: 'logs', title: 'Nhật ký & chi phí', group: 'Hệ thống', line: 'Lời gọi LLM, chi phí, chất lượng agent, độ ổn định prompt.' },
-    { id: 'map', title: 'Bản đồ hệ thống', group: 'Hệ thống', line: 'Tầng, 9 agent, 5 graph, 16 bảng, CLI ↔ app, thuật ngữ.' }
+    { id: 'ops', title: 'Vận hành', group: 'Hệ thống', line: 'Thread, checkpoint, chạy lại, sao lưu.' },
+    { id: 'logs', title: 'Nhật ký & chi phí', group: 'Hệ thống', line: 'Lời gọi LLM, chi phí.' }
   ];
   var PHASE_TEXT = 'làm sau bản đầu (P5–P7)';
   var tabs = {};
@@ -1148,7 +1145,7 @@ window.MathJax = {
   }
 
   /* ---------------- review queue ---------------- */
-  var GORDER = { G1: 1, G2: 2, G3: 3, G4: 4, G5: 5 };
+  var GORDER = { G1: 1, G2: 2, G4: 4, G5: 5 };
   // locked / lock_reason / blocking_thread_id come from GET /api/threads (server rule C-28).
   function annotateLocks() { return threadsArr().filter(function (t) { return t.status === 'awaiting_review'; }); }
   function stampOf(t) { return t.updated_at || ''; }
@@ -1174,7 +1171,7 @@ window.MathJax = {
       if (t.locked) { toast(t.lock_reason, { kind: 'warn' }); return false; }
       var routes = {
         G1: ['session', { thread: id }],  // session tab opens step 3 (gate_confirm_match) / 4 (gate_review) / 5 (committed)
-        G2: ['bank', { review: id }], G3: ['bank', { difficulty: id }], G4: ['recommend', { thread: id }], G5: ['report', { thread: id }]
+        G2: ['bank', { review: id }]
       };
       var r = routes[t.graph] || ['ops', { thread: id }];
       nav(r[0], r[1]);
@@ -1395,10 +1392,8 @@ window.MathJax = {
     { tab: 'session', params: { thread: 'g1-hs03-20261020', step: 4 }, title: 'Buổi học HS-03 · 20/10', text: '03 Diagnoser đề xuất lỗi, 04 Verifier kiểm tra độc lập; mục bất đồng và mục độ tin cậy thấp lên đầu. Thầy/cô chấp nhận, sửa, bỏ hoặc thêm lỗi bị sót.' },
     { tab: 'session', params: { thread: 'g1-hs03-20261013', step: 5 }, title: 'Ghi vào tutor.db · buổi 13/10', text: 'Đây là buổi 13/10 đã ghi. Quyết xong mọi lỗi: 05 Profiler tính Elo bằng code, sao lưu tutor.db, rồi 1 transaction ghi attempt, mistake, skill_event, skill_state, misconception_log. Buổi 20/10 sẽ được ghi y như vậy khi thầy/cô duyệt xong.' },
     { tab: 'students', params: { student: 3, tab: 'progress' }, title: 'Học sinh HS-03 · θ đổi', text: 'θ theo từng KC đổi sau buổi vừa ghi (13/10); Δθ so với buổi trước, lỗi lặp lại / mới / đã hết. Buổi 20/10 chưa duyệt nên chưa được tính. Mọi con số do code tính, LLM chỉ viết tóm tắt.' },
-    { tab: 'recommend', params: { thread: 'g4-hs02-20261023' }, title: 'Gợi ý bài · HS-02', text: 'select.py chọn 6 bài: 40% ôn, 50% vừa sức, 10% thử thách, trộn ≥ 3 KC. 08 chỉ viết lý do 1 dòng; thầy/cô duyệt, bỏ hoặc thay.' },
-    { tab: 'report', params: { thread: 'g5-hs02-2026-09' }, title: 'Báo cáo tháng 09/2026 · HS-02', text: 'Mỗi câu phải trích fact_id và số phải khớp. Sai thì viết lại 1 lần, vẫn sai thì bỏ câu. Kết quả thấp thì không khen quá tay.' },
-    { tab: 'ops', params: {}, title: 'Vận hành', text: 'Mọi thread của G1–G5: dừng ở đâu, checkpoint, chạy lại từ chỗ hỏng, sao lưu, cài đặt, riêng tư (chỉ gửi mã HS).' },
-    { tab: 'logs', params: {}, title: 'Nhật ký & chi phí', text: 'Từng lời gọi LLM: agent, prompt_version, token, thời gian, chi phí. Chất lượng agent đo từ quyết định của thầy/cô.' }
+    { tab: 'ops', params: {}, title: 'Vận hành', text: 'Mọi thread của G1–G5: dừng ở đâu, checkpoint, chạy lại từ chỗ hỏng, sao lưu.' },
+    { tab: 'logs', params: {}, title: 'Nhật ký & chi phí', text: 'Từng lời gọi LLM: agent, prompt_version, token, thời gian, chi phí.' }
   ];
   var tourI = -1;
   function showTour() {

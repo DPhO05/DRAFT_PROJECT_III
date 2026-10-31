@@ -18,7 +18,5 @@ def test_seed_loads_bank_with_tags_rubrics_delta(conn):
     items = conn.execute("SELECT items_json, max_score FROM rubric r JOIN problem p ON p.id = r.problem_id "
                          "WHERE p.ref = '8DS-PT1-001'").fetchone()  # fmt: skip
     assert items[1] == 5 and "Đáp số" in items[0]  # 6 paragraphs, Đáp số merged into the last item
-    kc = q("SELECT kc_id FROM problem_kc LIMIT 1")
-    assert repo.candidate_problems(conn, kc)
     seed_dummy.seed(conn, BANK)
     assert repo.row_counts(conn)["problem"] == 310  # idempotent

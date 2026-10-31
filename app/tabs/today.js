@@ -2,7 +2,7 @@
    Hàng chờ = của shell (TutorApi.refreshQueue); hệ thống đọc /api/sessions, /api/backup, meta.cost. */
 (function () {
   'use strict';
-  var GLABEL = { G1: 'Lỗi buổi học', G2: 'Tag KC + rubric', G3: 'Độ khó', G4: 'Gợi ý', G5: 'Báo cáo' };
+  var GLABEL = { G1: 'Lỗi buổi học', G2: 'Tag KC + rubric', G4: 'Gợi ý', G5: 'Báo cáo' };
   var WEEKDAY = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   var arr = function (x) { return Array.isArray(x) ? x : []; };
 
@@ -19,7 +19,7 @@
     function todo(queue) {
       var counts = {};
       queue.forEach(function (t) { counts[t.graph] = (counts[t.graph] || 0) + 1; });
-      var chips = h('div', { class: 'row td-gchips' }, ['G1', 'G2', 'G3', 'G4', 'G5'].map(function (g) {
+      var chips = h('div', { class: 'row td-gchips' }, ['G1', 'G2', 'G4', 'G5'].map(function (g) {
         return ui.button(h('span', { class: 'td-gchip', style: '--c: var(--' + g.toLowerCase() + ')' }, h('b', null, g), ' ' + GLABEL[g] + ' ', h('span', { class: 'td-n num' }, String(counts[g] || 0))),
           function () { ctx.nav('review', { graph: g }); }, { kind: 'secondary', size: 'sm', title: 'Mở Hộp duyệt, lọc ' + g });
       }));

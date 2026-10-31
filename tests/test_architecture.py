@@ -3,7 +3,7 @@
 import ast
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1] / "tutor"
+ROOT = Path(__file__).resolve().parents[1] / "src" / "tutor"
 
 # layer -> tutor.* layers it may import (its own layer is always allowed)
 ALLOWED = {

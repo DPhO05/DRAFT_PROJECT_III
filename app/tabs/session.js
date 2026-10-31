@@ -1036,7 +1036,7 @@
             sid != null ? ui.button('Xem buổi đã ghi', function () { C.nav('session', { session: sid }); }, { kind: 'primary' }) : null,
             ui.button('Nộp bài mới', function () { C.nav('session', { step: 1 }); }, { kind: 'secondary' }),
             ui.button('Về danh sách', function () { C.nav('session'); }, { kind: 'ghost' }),
-            h('span', { class: 'chip chip-phase', title: 'Chưa làm' }, 'Δθ · knowledge_state · gợi ý bài: P4')))),
+            h('span', { class: 'chip chip-phase', title: 'Chưa làm' }, 'Δθ: P4')))),
         detail);
       if (sid == null) { put(detail); return; }
       Promise.all([api.get('/sessions/' + sid), loadRef()]).then(function (r) {
@@ -1085,7 +1085,7 @@
         ['Lỗi đã ghi', ms.length ? h('span', { class: 'row sx-cell' }, ['confirmed', 'edited', 'added', 'rejected'].map(function (k) {
           return n[k] ? [ui.status(k), h('span', { class: 'num small' }, '×' + n[k])] : null;
         })) : 'không có'],
-        ['Tiến bộ', h('span', { class: 'chip chip-phase', title: 'Chưa làm' }, 'Δθ · knowledge_state · sửa lỗi đã lưu: P4')]
+        ['Tiến bộ', h('span', { class: 'chip chip-phase', title: 'Chưa làm' }, 'Δθ: P4')]
       ])),
       section('Bài đã ghi · ' + atts.length + ' bài', h('div', { class: 'stack' }, atts.length ? atts.map(function (a) {
         var g = arr(a.grade), ok = g.filter(function (x) { return x.passed; }).length, mm = arr(a.mistakes);

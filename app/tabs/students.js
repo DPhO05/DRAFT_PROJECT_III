@@ -27,13 +27,9 @@
   function view(ctx, all, paint) {
     const { ui } = ctx, h = ui.h;
     const lead = 'Học sinh của thầy/cô. Tên chỉ lưu trên máy này; API chỉ nhận mã HS-xx, không bao giờ nhận tên.';
-    const later = h('section', { class: 'section' },
-      h('div', { class: 'section-head' }, h('h2', null, 'Hồ sơ học sinh'), h('span', { class: 'chip chip-phase' }, 'làm ở P4')),
-      h('p', { class: 'muted small' }, 'Hồ sơ từng học sinh, bản đồ nhiệt Elo cả lớp, θ theo thời gian, lỗi lặp lại, lịch sử buổi, “Dựng lại trạng thái” và xem dữ liệu gửi API sẽ có ở P4, khi đã có buổi học được duyệt.'));
     if (!all.length) {
       return h('div', { class: 'stack' }, ui.pageHead({ lead }),
-        ui.empty('Chưa có học sinh nào. Thêm học sinh đầu tiên để bắt đầu nộp bài.', ui.button('Thêm học sinh', () => edit(ctx, null), { kind: 'primary' })),
-        later);
+        ui.empty('Chưa có học sinh nào. Thêm học sinh đầu tiên để bắt đầu nộp bài.', ui.button('Thêm học sinh', () => edit(ctx, null), { kind: 'primary' })));
     }
     const sel = ctx.params.student != null && ctx.params.student !== '' ? String(ctx.params.student) : null;
     const isSel = (s) => String(s.id) === sel;
@@ -69,8 +65,7 @@
             'Hiện HS đã lưu trữ (' + nArch + ')'),
           h('span', { class: 'muted small' }, rows.length + '/' + all.length + ' học sinh')),
         sel && !all.some(isSel) ? h('p', { class: 'muted small' }, 'Không tìm thấy học sinh có id ' + sel + '.') : null,
-        table),
-      later);
+        table));
   }
 
   /* Thêm (st = null) hoặc sửa một học sinh trong modal. */

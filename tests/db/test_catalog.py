@@ -24,17 +24,6 @@ def test_import_dummy_bank_then_reimport_is_noop(conn):
     assert again["new_kc"] == again["changed_kc"] == again["new_prereq"] == []
 
 
-def test_changed_description_clears_embedding(conn):
-    kcs, pre = bank_csv()
-    repo.import_catalog(conn, kcs, pre, apply=True)
-    with repo.write_tx(conn):
-        conn.execute("UPDATE kc SET embedding = x'00' WHERE code = ?", (kcs[1]["code"],))
-    kcs[1]["description"] += " (sửa)"
-    r = repo.import_catalog(conn, kcs, pre, apply=True)
-    assert r["changed_kc"] == [kcs[1]["code"]]
-    assert conn.execute("SELECT embedding FROM kc WHERE code = ?", (kcs[1]["code"],)).fetchone()[0] is None
-
-
 def test_cycle_in_csv_is_rejected_with_path(conn):
     kcs = [{"code": c, "name": c, "description": "d", "parent_code": "", "lop": "8"} for c in "ABC"]
     pre = [("A", "B"), ("B", "C"), ("C", "A")]

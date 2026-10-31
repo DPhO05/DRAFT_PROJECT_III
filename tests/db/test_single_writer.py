@@ -8,7 +8,7 @@ from pathlib import Path
 
 from tutor.db import repo
 
-ROOT = Path(__file__).resolve().parents[2] / "tutor"
+ROOT = Path(__file__).resolve().parents[2] / "src" / "tutor"
 WRITE_SQL = re.compile(r"\b(INSERT\s+(OR\s+\w+\s+)?INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|REPLACE\s+INTO)\b", re.I)
 
 

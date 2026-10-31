@@ -289,9 +289,8 @@ def import_catalog(conn: sqlite3.Connection, kcs: list[dict], prereqs: list[tupl
             for c in changed:
                 k = by[c]
                 conn.execute(
-                    "UPDATE kc SET name = ?, description = ?, lop = ?,"
-                    " embedding = CASE WHEN description = ? THEN embedding END WHERE code = ?",
-                    (k["name"], k["description"], int(k["lop"]) if k["lop"] else None, k["description"], c),
+                    "UPDATE kc SET name = ?, description = ?, lop = ? WHERE code = ?",
+                    (k["name"], k["description"], int(k["lop"]) if k["lop"] else None, c),
                 )
             for k in kcs:
                 conn.execute(
@@ -326,7 +325,7 @@ def export_catalog(conn: sqlite3.Connection) -> tuple[str, str]:
 
 def list_kc(conn: sqlite3.Connection) -> list[dict]:
     rows = _dicts(conn.execute(
-        "SELECT k.id, k.code, k.name, k.description, k.parent_id, k.lop, k.embedding IS NOT NULL AS embedded"
+        "SELECT k.id, k.code, k.name, k.description, k.parent_id, k.lop"
         " FROM kc k ORDER BY k.id"
     ))  # fmt: skip
     pre: dict[int, list[int]] = {}
@@ -365,18 +364,15 @@ def _check_parent(conn: sqlite3.Connection, kc_id: int | None, parent_id: int | 
 
 
 def update_kc(conn: sqlite3.Connection, kc_id: int, **fields) -> None:
-    """name / description / parent_id / lop. A new description clears the embedding (06 must re-embed)."""
+    """name / description / parent_id / lop."""
     allowed = {k: v for k, v in fields.items() if k in ("name", "description", "parent_id", "lop")}
     with write_tx(conn):
-        old = conn.execute("SELECT description FROM kc WHERE id = ?", (kc_id,)).fetchone()
-        if old is None:
+        if conn.execute("SELECT 1 FROM kc WHERE id = ?", (kc_id,)).fetchone() is None:
             raise NotFound(f"KC {kc_id}")
         if "parent_id" in allowed:
             _check_parent(conn, kc_id, allowed["parent_id"])
         for k, v in allowed.items():
             conn.execute(f"UPDATE kc SET {k} = ? WHERE id = ?", (v, kc_id))
-        if "description" in allowed and allowed["description"] != old[0]:
-            conn.execute("UPDATE kc SET embedding = NULL, embed_model = NULL WHERE id = ?", (kc_id,))
 
 
 def add_prereq(conn: sqlite3.Connection, kc_id: int, prereq_id: int) -> None:
@@ -488,16 +484,6 @@ def bank_problems(conn: sqlite3.Connection) -> list[dict]:
     return _dicts(conn.execute(
         "SELECT p.id, p.ref, p.statement_latex, EXISTS (SELECT 1 FROM rubric r WHERE r.problem_id = p.id) AS has_rubric"
         " FROM problem p ORDER BY p.ref"
-    ))  # fmt: skip
-
-
-def candidate_problems(conn: sqlite3.Connection, kc_id: int) -> list[dict]:
-    """Problems tagged with a KC that have an approved rubric and δ (SDD v0.2 §8.6)."""
-    return _dicts(conn.execute(
-        "SELECT p.id, p.ref, p.delta FROM problem p JOIN problem_kc pk ON pk.problem_id = p.id"
-        " WHERE pk.kc_id = ? AND p.delta IS NOT NULL AND EXISTS (SELECT 1 FROM rubric r WHERE r.problem_id = p.id)"
-        " GROUP BY p.id ORDER BY p.delta",
-        (kc_id,),
     ))  # fmt: skip
 
 

@@ -7,7 +7,7 @@ from tutor.config import DataPaths, student_code
 from tutor.db import repo
 from tutor.graphs.runner import AlreadyCommitted, Runner, ThreadBusy
 
-GRAPH_ORDER = {"G1": 1, "G2": 2, "G3": 3, "G4": 4, "G5": 5}
+GRAPH_ORDER = {"G1": 1, "G2": 2, "G4": 4, "G5": 5}
 _BLOCKING = {"awaiting_review": "", "failed": " đang lỗi — chạy lại và duyệt buổi đó trước",
              "running": " đang chạy — chờ xong và duyệt buổi đó trước"}  # fmt: skip
 

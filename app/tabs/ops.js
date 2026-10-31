@@ -30,7 +30,6 @@
     const stChip = (s) => (s === 'done'
       ? h('span', { class: 'status s-ok', 'data-status': 'done', title: 'status = done: graph đã kết thúc, không có node ghi tutor.db' }, 'xong')
       : ui.status(s));
-    const later = (ph) => h('span', { class: 'chip chip-phase' }, 'làm ở ' + ph);
     const sec = (id, title, right, ...kids) => h('section', { class: 'section', 'data-ops-section': id },
       h('div', { class: 'section-head' }, h('div', null, h('h2', null, title)), right || null), kids);
     const failBox = (msg, e, retry) => h('div', { class: 'callout callout-crit', role: 'alert' },
@@ -41,16 +40,12 @@
     const storeBox = h('div', { class: 'stack' }, h('p', { class: 'muted' }, 'Đang tải lưu trữ…'));
     root.append(
       ui.pageHead({
-        lead: 'Phần máy đang chạy: mọi thread dừng ở đâu, bao nhiêu checkpoint, state trong checkpoints.db; chạy lại, huỷ, dọn thread; lưu trữ và sao lưu. Cài đặt, riêng tư làm ở P4.',
+        lead: 'Phần máy đang chạy: mọi thread dừng ở đâu, bao nhiêu checkpoint, state trong checkpoints.db; chạy lại, huỷ, dọn thread; lưu trữ và sao lưu.',
         annot: ['file:checkpoints.db', 'file:tutor.db', 'checkpoint']
       }),
       h('div', { class: 'stack' },
         sec('threads', 'Thread', cleanBox, thrBox),
-        sec('storage', 'Lưu trữ', h('span', { class: 'chip' }, '1 máy · 1 người dùng · không đăng nhập'), storeBox),
-        sec('settings', 'Cài đặt', later('P4'),
-          h('p', { class: 'small muted' }, 'Tỉ lệ gợi ý bài, ngưỡng độ tin cậy, ngân sách tháng, model cho từng agent: làm ở P4 (P4-T09). Hiện app đọc settings.json lúc khởi động.')),
-        sec('privacy', 'Riêng tư & an toàn', later('P4'),
-          h('p', { class: 'small muted' }, 'Bảng tên ↔ mã học sinh, khung UNTRUSTED INPUT, xem nội dung gửi API: làm ở P4 (P4-T09). Tên học sinh chỉ lưu trên máy này; prompt gửi API chỉ chứa mã HS-xx.'))));
+        sec('storage', 'Lưu trữ', h('span', { class: 'chip' }, '1 máy · 1 người dùng · không đăng nhập'), storeBox)));
 
     /* ---------- threads ---------- */
     function load() {

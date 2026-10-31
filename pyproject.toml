@@ -1,7 +1,7 @@
 [project]
 name = "tutor"
 version = "0.1.0"
-description = "Trợ lý gia sư Toán: chấm, chẩn đoán lỗi, gợi ý bài, báo cáo tháng (multi-agent, chạy local)"
+description = "Trợ lý gia sư Toán: chấm, chẩn đoán lỗi, gợi ý bài, báo cáo theo kỳ (multi-agent, chạy local)"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=2.3.0",
@@ -22,7 +22,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["tutor"]
+packages = ["src/tutor"]
 
 [tool.ruff]
 line-length = 120
@@ -34,7 +34,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".", "src"]
 
 [dependency-groups]
 dev = [

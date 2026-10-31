@@ -21,7 +21,7 @@ _DEFAULTS = {
     },
     "review": {"low_confidence": 0.6},
     "report": {"low_pass_rate": 0.5},
-    "models": {f"{i:02d}": "claude-opus-5-5" for i in range(1, 10)},
+    "models": {f"{i:02d}": "claude-opus-5-5" for i in range(1, 5)},
     "budget_usd_month": 30,
     # Assumed prices, not a price list (C-27); 5-min cache writes bill at 1.25x input.
     "price_assumption": {

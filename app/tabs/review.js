@@ -2,7 +2,7 @@
    Dữ liệu: hàng chờ của shell (TutorApi.refreshQueue → GET /api/threads, khoá do server tính, t.summary = số mục). */
 (function () {
   'use strict';
-  var GLABEL = { G1: 'Lỗi buổi học', G2: 'Tag KC + rubric', G3: 'Độ khó', G4: 'Gợi ý', G5: 'Báo cáo' };
+  var GLABEL = { G1: 'Lỗi buổi học', G2: 'Tag KC + rubric', G4: 'Gợi ý', G5: 'Báo cáo' };
   var arr = function (x) { return Array.isArray(x) ? x : []; };
   // Kept across renders in this page session.
   var S = { students: null };
@@ -96,7 +96,7 @@
       var failed = threads().filter(function (t) { return t.status === 'failed'; });
       var running = threads().filter(function (t) { return t.status === 'running'; });
 
-      var seg = ui.segmented([{ id: '', label: 'Tất cả (' + all.length + ')' }].concat(['G1', 'G2', 'G3', 'G4', 'G5'].map(function (g) {
+      var seg = ui.segmented([{ id: '', label: 'Tất cả (' + all.length + ')' }].concat(['G1', 'G2', 'G4', 'G5'].map(function (g) {
         return { id: g, label: h('span', { class: 'rv-seg' }, h('span', { class: 'rv-dot', style: '--c: var(--' + g.toLowerCase() + ')' }), g + ' ' + GLABEL[g] + ' (' + (counts[g] || 0) + ')') };
       })), f.graph, function (id) { f.graph = id; drawList(); });
       var sel = h('select', { 'aria-label': 'Lọc theo học sinh', onchange: function () { f.student = sel.value ? +sel.value : null; drawList(); } },

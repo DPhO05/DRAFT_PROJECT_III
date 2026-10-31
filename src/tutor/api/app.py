@@ -14,7 +14,7 @@ from tutor.db import repo
 from tutor.graphs import session
 from tutor.graphs.runner import Runner
 
-APP_DIR = Path(__file__).resolve().parents[2] / "app"
+APP_DIR = Path(__file__).resolve().parents[3] / "app"
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 log = logging.getLogger("tutor")
 

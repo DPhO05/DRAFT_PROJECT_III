@@ -1,5 +1,5 @@
 /* Nhật ký & chi phí (P2-T08): chi phí tháng so với ngân sách, theo agent, theo buổi, nhật ký lời gọi LLM + chi tiết.
-   Đọc /api/logs (llm.jsonl). Params: agent, graph, student, thread. Chất lượng agent, độ ổn định prompt làm ở P4 (P4-T10). */
+   Đọc /api/logs (llm.jsonl). Params: agent, graph, student, thread. */
 (function () {
   'use strict';
   if (!window.App) return;
@@ -8,11 +8,9 @@
   var AGENTS = [
     ['01', 'Ingest', 'Chép LaTeX, cắt bài, tách bước'], ['02', 'Grader', 'Chấm theo rubric; sinh rubric từ lời giải mẫu'],
     ['03', 'Diagnoser', 'Tìm bước sai, gắn mã lỗi + KC (2 lượt)'], ['04', 'Verifier', 'Phản biện từng lỗi, không thấy lý luận của 03'],
-    ['05', 'Profiler', 'Code tính Elo, streak, lỗi lặp; LLM viết knowledge_state'], ['06', 'Tagger', 'Top-5 KC mỗi bước, GV chọn'],
-    ['07', 'Difficulty', 'So cặp bài 2 chiều → Bradley-Terry'], ['08', 'Recommender', 'Kiểm tra bài code đã chọn, viết lý do 1 dòng'],
     ['09', 'Reporter', 'Viết report tháng, mỗi câu kèm fact_id']
   ];
-  var GRAPHS = ['G1', 'G2', 'G3', 'G4', 'G5'];
+  var GRAPHS = ['G1', 'G2', 'G4', 'G5'];
   var RESULT_KIND = { ok: 'ok', retry: 'warn', schema_error: 'danger', error: 'danger' };
   var PAGE = 50, PAGE_SES = 6;
   var S = { token: 0 };
@@ -157,7 +155,7 @@
 
     /* ---------- 3. Nhật ký lời gọi ---------- */
     var logSec = section('log', 'Nhật ký lời gọi LLM', ['file:llm.jsonl', 'UNTRUSTED INPUT'],
-      'Mỗi dòng = 1 dòng JSON trong data/logs/llm.jsonl do tutor/llm.py ghi, kể cả lần gọi lại. Mới nhất ở trên.');
+      'Mỗi dòng = 1 dòng JSON trong data/logs/llm.jsonl do src/tutor/llm.py ghi, kể cả lần gọi lại. Mới nhất ở trên.');
     var logBox = h('div', { class: 'stack' }), q = { token: 0, items: [], total: 0 };
     logSec.append(logBox);
     page.append(logSec);
@@ -277,11 +275,6 @@
         }
       });
     }
-
-    /* ---------- 5. P4 ---------- */
-    page.append(h('section', { class: 'section' },
-      h('div', { class: 'section-head' }, h('h2', null, 'Chất lượng agent & độ ổn định prompt'), h('span', { class: 'chip chip-phase' }, 'làm ở P4')),
-      h('p', { class: 'muted small' }, 'Tỉ lệ đề xuất bị bỏ / sửa, kappa mã lỗi GV–LLM, mức đồng ý 04–GV, thời gian duyệt và kiểm tra độ ổn định prompt (chạy lại 3 lần, pass^3) làm ở P4 (P4-T10), khi đã có quyết định duyệt thật.')));
 
     load();
     if (F.agent || F.graph || F.student || F.thread) requestAnimationFrame(function () { scrollTo('log'); });

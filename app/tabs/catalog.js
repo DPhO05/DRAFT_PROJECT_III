@@ -42,8 +42,8 @@
       h('a', { class: 'btn btn-secondary btn-sm', href: '/api/catalog/export?file=prereq', download: 'kc_prereq.csv' }, 'kc_prereq.csv'),
       h('a', { class: 'btn btn-secondary btn-sm', href: '/api/catalog/export?file=error_code', download: 'error_code.csv' }, 'error_code.csv'));
     root.append(ui.pageHead({
-      lead: 'Danh mục thầy/cô tự giữ: kỹ năng (KC), quan hệ tiên quyết, mã lỗi kèm ví dụ. Agent đọc thẳng từ đây: 06 Tagger (mô tả KC → embedding, gợi ý top-5), 03 Diagnoser (mã lỗi + ví dụ trong prompt), select.py (tiên quyết khi chọn bài thử thách).',
-      annot: ['table:kc', 'table:kc_prereq', 'table:error_code', 'agent:06', 'agent:03'],
+      lead: 'Danh mục thầy/cô tự giữ: kỹ năng (KC), quan hệ tiên quyết, mã lỗi kèm ví dụ. Agent đọc thẳng từ đây: 03 Diagnoser (mã lỗi + ví dụ trong prompt).',
+      annot: ['table:kc', 'table:kc_prereq', 'table:error_code', 'agent:03'],
       actions: [ui.button('Nhập từ CSV', openImport, { kind: 'primary' }), exportRow]
     }));
     var body = h('div', { class: 'stack' }, h('p', { class: 'muted' }, 'Đang tải danh mục…'));
@@ -71,13 +71,11 @@
 
     function drawAll() {
       var lv = leaves(), edges = KCS.reduce(function (n, k) { return n + k.prereq_ids.length; }, 0);
-      var noEmb = KCS.filter(function (k) { return !k.embedded; }).length;
       var kpi = function (label, value, sub) { return h('div', { class: 'kpi' }, h('span', { class: 'kpi-label' }, label), h('span', { class: 'kpi-value' }, value), h('span', { class: 'kpi-sub' }, sub)); };
       body.replaceChildren(
         h('div', { class: 'grid cat-kpis' },
           kpi('Kỹ năng (KC)', String(lv.length), 'trong ' + groups().length + ' nhóm'),
           kpi('Quan hệ tiên quyết', String(edges), 'server chặn quan hệ tạo vòng'),
-          kpi('Chưa có embedding', noEmb + '/' + KCS.length, '06 tính khi chạy G2'),
           kpi('Mã lỗi', String(CODES.length), CODES.filter(function (e) { return e.active; }).length + ' đang bật · 5 nhóm')),
         ui.segmented(SUBS, S.sub, function (id) { S.sub = id; drawAll(); }),
         S.sub === 'codes' ? codesView()
@@ -131,9 +129,7 @@
         if (S.edit) {
           var nameIn = h('input', { value: k.name, 'aria-label': 'Tên KC' }), lopIn = lopSelect(k.lop, 'Lớp');
           var descIn = h('textarea', { rows: 4, value: k.description, 'aria-label': 'Mô tả KC' }), err = errEl();
-          var warn = h('div', { class: 'callout callout-warn', hidden: true }, h('p', null, 'Mô tả đổi → embedding của ' + k.code + ' bị xoá khi lưu. 06 phải embedding lại (chạy G2); tới lúc đó KC này không có trong top-5 gợi ý.'));
-          descIn.addEventListener('input', function () { warn.hidden = descIn.value.trim() === k.description; });
-          main = h('div', { class: 'stack' }, field('Tên', nameIn), field('Mô tả', descIn, h('span', { class: 'small muted' }, 'dùng để embedding cho 06 — đổi mô tả thì phải embedding lại')), warn,
+          main = h('div', { class: 'stack' }, field('Tên', nameIn), field('Mô tả', descIn),
             field('Lớp', lopIn), err,
             h('div', { class: 'row' }, ui.button('Lưu', function () {
               var patch = {}, nn = nameIn.value.trim(), nd = descIn.value.trim(), nl = lopIn.value ? +lopIn.value : null;
@@ -145,7 +141,6 @@
               err.textContent = 'Đang lưu…';
               return api.send('PATCH', '/catalog/kc/' + k.id, patch).then(function () {
                 S.edit = false;
-                if (patch.description != null) ctx.toast('Embedding của ' + k.code + ' đã bị xoá — chạy lại 06 (G2) để embedding lại.', { kind: 'warn' });
                 return wrote('Danh mục: sửa KC ' + k.code, [['kc', Object.keys(patch).join(', ') + ' đổi']]);
               }, function (e) { err.textContent = errText(e); });
             }, { kind: 'primary' }), ui.button('Huỷ', function () { S.edit = false; drawDetail(); })));
@@ -153,10 +148,9 @@
           main = h('div', { class: 'stack' }, ui.kv([
             ['Mã', h('span', { class: 'mono' }, k.code)],
             ['Tên', k.name],
-            ['Mô tả', h('div', null, h('p', null, k.description), h('p', { class: 'small muted' }, 'dùng để embedding cho 06'))],
+            ['Mô tả', k.description],
             ['Nhóm', g ? g.code + ' · ' + g.name : kids.length + ' KC con (đây là nhóm)'],
             ['Lớp', k.lop == null ? '—' : String(k.lop)],
-            ['Embedding', k.embedded ? ui.chip('có', 'ok') : ui.chip('chưa có', 'warn')],
             ['Tiên quyết', h('div', { class: 'stack', style: 'gap:6px' },
               k.prereq_ids.length ? h('div', { class: 'row', style: 'gap:4px' }, k.prereq_ids.map(function (id) { return h('span', { class: 'chip mono' }, code(id)); }))
                 : h('span', { class: 'muted' }, 'Không cần KC nào trước.'),
@@ -164,12 +158,10 @@
                 ui.button('Sửa tiên quyết', function () { S.sub = 'prereq'; S.pick = null; drawAll(); }, { kind: 'ghost', size: 'sm' })))]
           ]), h('div', { class: 'row' }, ui.button('Sửa KC', function () { S.edit = true; drawDetail(); })));
         }
-        var noEmb = k.embedded ? null : h('div', { class: 'callout callout-warn' },
-          h('p', null, 'KC chưa có embedding — 06 tính khi chạy G2 lần tới; trước đó KC này không xuất hiện trong top-5 gợi ý.'));
         detail.replaceChildren(h('section', { class: 'section' },
-          h('div', { class: 'section-head' }, h('div', null, h('h2', null, h('span', { class: 'mono' }, k.code), ' · ', k.name), ui.annot(['table:kc', 'agent:06'])),
+          h('div', { class: 'section-head' }, h('div', null, h('h2', null, h('span', { class: 'mono' }, k.code), ' · ', k.name), ui.annot(['table:kc'])),
             k.lop != null ? ui.chip('lớp ' + k.lop, 'info') : null),
-          noEmb, main));
+          main));
       }
 
       drawTree(); drawDetail();
@@ -200,17 +192,16 @@
           };
           F.g.addEventListener('change', sync); sync();
           el.append(field('Nhóm', F.g), field('Mã (không trùng)', F.code), field('Tên', F.name),
-            field('Mô tả', F.desc, h('span', { class: 'small muted' }, 'dùng để embedding cho 06 — viết rõ kỹ năng làm gì')), field('Lớp', F.lop), F.err);
+            field('Mô tả', F.desc), field('Lớp', F.lop), F.err);
         },
         actions: [{ label: 'Thêm KC', kind: 'primary', onClick: function (close) {
           var b = { code: F.code.value.trim(), name: F.name.value.trim(), description: F.desc.value.trim(), parent_id: F.g.value ? +F.g.value : null, lop: F.lop.value ? +F.lop.value : null };
-          var bad = !b.code ? 'Cần mã KC.' : !b.name ? 'Cần tên KC.' : !b.description ? 'Cần mô tả — 06 dùng mô tả để tính embedding.' : null;
+          var bad = !b.code ? 'Cần mã KC.' : !b.name ? 'Cần tên KC.' : !b.description ? 'Cần mô tả.' : null;
           if (bad) { F.err.textContent = bad; return; }
           F.err.textContent = 'Đang lưu…';
           return api.send('POST', '/catalog/kc', b).then(function (k) {
             close();
             S.kc = k.id; S.sub = 'kc'; S.edit = false; S.q = ''; S.lop = '';
-            ctx.toast(k.code + ' chưa có embedding — 06 tính khi chạy G2 lần tới.', { kind: 'info' });
             return wrote('Danh mục: thêm KC ' + k.code, [['kc', 1]]);
           }, function (e) { F.err.textContent = errText(e); });
         } }, { label: 'Huỷ' }]
@@ -274,7 +265,7 @@
       var g = byId.get(k.parent_id);
       return h('div', { class: 'stack' },
         h('div', { class: 'spread' }, h('label', { class: 'field' }, h('span', null, 'KC đang xem'), kcSelect(k.id, function (v) { S.kc = v; S.pick = null; drawAll(); }, 'KC đang xem')),
-          h('div', { class: 'row' }, h('span', { class: 'small muted' }, edges.length + ' quan hệ · bảng kc_prereq'), ui.annot(['table:kc_prereq', 'agent:06']))),
+          h('div', { class: 'row' }, h('span', { class: 'small muted' }, edges.length + ' quan hệ · bảng kc_prereq'), ui.annot(['table:kc_prereq']))),
         h('div', { class: 'cat-rel' },
           col('KC tiên quyết', 'cần biết trước ' + k.code, pre.length ? h('div', { class: 'cat-list' }, pre.map(function (x) {
             return h('div', { class: 'cat-list-row' }, kcPick(x), ui.button('Xoá', function () { return del(x); }, { kind: 'danger', size: 'sm', title: 'Xoá quan hệ ' + k.code + ' ← ' + x.code }));
@@ -285,8 +276,6 @@
             ui.button('Thêm tiên quyết', add, { kind: 'primary' }), err,
             h('p', { class: 'small muted' }, 'Server chặn KC tự trỏ chính nó và quan hệ tạo vòng; lỗi hiện đường vòng.')),
           col('KC phụ thuộc', 'cần ' + k.code + ' trước', dep.length ? h('div', { class: 'cat-list' }, dep.map(kcPick)) : h('p', { class: 'muted' }, 'Chưa KC nào cần KC này.'))),
-        h('div', { class: 'callout callout-info' }, h('p', null, 'Ai dùng quan hệ này: ', h('b', null, '06 Tagger'), ' cảnh báo khi gắn một KC mà bài chưa có KC tiên quyết; ',
-          h('b', null, 'select.py'), ' chỉ chọn bài thử thách cho KC mà mọi KC tiên quyết có θ ≥ 0.')),
         h('details', { class: 'cat-details' }, h('summary', null, 'Bảng kc_prereq đầy đủ (' + edges.length + ' dòng) — bấm một dòng để chọn KC'), full));
     }
 
@@ -468,7 +457,6 @@
             n ? null : h('p', { class: 'muted' }, 'CSV khớp tutor.db — không có gì để áp dụng.'),
             block('KC mới', r.new_kc), block('KC đổi', r.changed_kc),
             block('Quan hệ mới (KC cần biết trước)', r.new_prereq.map(function (x) { return x[0] + ' ← ' + x[1]; })),
-            r.changed_kc.length ? h('div', { class: 'callout callout-warn' }, h('p', null, 'KC đổi mô tả sẽ mất embedding — 06 phải embedding lại (chạy G2).')) : null,
             n ? h('div', null, ui.button('Áp dụng ' + n + ' thay đổi', function () { return apply(b); }, { kind: 'primary' })) : null));
         }, function (e) { out.replaceChildren(); err.textContent = errText(e); });
       }
