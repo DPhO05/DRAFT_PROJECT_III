@@ -2,8 +2,8 @@
 
 ① session row → 01 Ingest → prepare (02 drafts missing rubrics) → [DỪNG confirm_match while flags remain]
 → one 02 → 03 → 04 lane per problem (Send) → review queue → DỪNG review → 05 profile → DỪNG confirm_commit
-→ commit ② (backup, one transaction). If another session of the student committed since 05 ran, confirm_commit
-goes back to 05 instead of committing a stale profile.
+→ commit ② (backup, one transaction). If another session of the student committed since 05 ran, commit ②
+refuses (repo.StaleProfile) and the graph goes back to 05 instead of writing a stale profile.
 """
 
 import copy
@@ -13,7 +13,7 @@ from contextlib import closing
 from datetime import date
 
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import Send, interrupt
+from langgraph.types import Command, Send, interrupt
 
 from tutor import config
 from tutor.agents import CallContext, diagnoser, grader, ingest, verifier
@@ -290,13 +290,9 @@ def build(paths: DataPaths) -> StateGraph:
         interrupt({"gate": "confirm_commit"})
         return {}
 
-    def fresh(state: SessionState) -> str:
-        """Another session of this student committed since 05 ran → recompute rather than commit a stale profile."""
-        with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
-            return "commit" if repo.profile_prior(conn, state["student_id"]) == state["profile_prior"] else "profile"
-
-    def commit(state: SessionState) -> dict:
-        """② : backup first (C-29), then one transaction. A rerun after a failure runs only this node."""
+    def commit(state: SessionState) -> dict | Command:
+        """② : backup first (C-29), then one transaction. A rerun after a failure runs only this node.
+        A prior that changed since 05 ran (another session committed) → back to 05, nothing written."""
         review, attempts = state["review"], _attempts(state)
         rows = _mistake_rows(state, review)
         flags = state["ingest"]["flags"]
@@ -313,9 +309,13 @@ def build(paths: DataPaths) -> StateGraph:
         secs = review.get("review_seconds")
         secs = secs if isinstance(secs, int) and not isinstance(secs, bool) and secs >= 0 else None
         backup = repo.backup(paths.tutor_db, paths.backup)
-        with closing(repo.connect(paths.tutor_db)) as conn:
-            receipt = repo.commit_session(conn, state["session_id"], transcript=state["transcript"],
-                                          review_seconds=secs, attempts=out, profile=state["profile"])  # fmt: skip
+        try:
+            with closing(repo.connect(paths.tutor_db)) as conn:
+                receipt = repo.commit_session(conn, state["session_id"], transcript=state["transcript"],
+                                              review_seconds=secs, attempts=out, profile=state["profile"],
+                                              prior=state["profile_prior"])  # fmt: skip
+        except repo.StaleProfile:
+            return Command(goto="profile")
         return {"receipt": receipt | {"backup": backup.name}, "committed": True}
 
     g = StateGraph(SessionState)
@@ -344,7 +344,7 @@ def build(paths: DataPaths) -> StateGraph:
     g.add_edge("gate_review", "profile")
     g.add_edge("profile", "mark_waiting_confirm")
     g.add_edge("mark_waiting_confirm", "gate_confirm_commit")
-    g.add_conditional_edges("gate_confirm_commit", fresh, ["profile", "commit"])
+    g.add_edge("gate_confirm_commit", "commit")
     g.add_edge("commit", END)
     return g
 

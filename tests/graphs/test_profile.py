@@ -103,9 +103,11 @@ def test_prior_changed_meanwhile_recomputes_instead_of_committing_stale(env):
     r.resume(a["thread_id"])
     assert r.wait(a["thread_id"])["status"] == "committed"
     after_a = max(e["theta_after"] for e in r.state(a["thread_id"])["profile"]["events"] if e["seq"] == 3)
+    counts = repo.row_counts(conn)
     r.resume(b["thread_id"])
     row = r.wait(b["thread_id"])
     assert (row["status"], row["node"]) == ("awaiting_review", "gate_confirm_commit")  # back at the preview
+    assert repo.row_counts(conn) == counts  # the stale profile wrote nothing
     assert status(conn, b["session_id"]) == "awaiting_review"
     fresh = r.state(b["thread_id"])["profile"]
     assert fresh["events"][0]["theta_before"] == after_a != stale["events"][0]["theta_before"]
@@ -131,3 +133,38 @@ def test_profile_failure_then_rerun_marks_session_awaiting_again(env, monkeypatc
     row = r.wait(tid)
     assert (row["status"], row["node"]) == ("awaiting_review", "gate_confirm_commit")
     assert status(conn, out["session_id"]) == "awaiting_review"
+
+
+def test_commit_failed_then_other_session_commits_rerun_recomputes(env, monkeypatch):
+    go, conn, r = env
+    a, _, _ = go(THREE, name="a.tex")
+    b, _, _ = go(THREE.replace("LANE", "LAN"), name="b.tex")
+    for t in (a, b):
+        r.save_decisions(t["thread_id"], full(conn))
+        r.resume(t["thread_id"])
+        assert r.wait(t["thread_id"])["node"] == "gate_confirm_commit"
+    real, broken = repo.backup, [True]
+
+    def flaky(*args):
+        if broken and broken.pop():
+            raise OSError("gài lỗi sao lưu")
+        return real(*args)
+
+    monkeypatch.setattr(repo, "backup", flaky)
+    r.resume(b["thread_id"])
+    row = r.wait(b["thread_id"])
+    assert row["status"] == "failed" and "gài lỗi" in row["error"]
+    r.resume(a["thread_id"])
+    assert r.wait(a["thread_id"])["status"] == "committed"
+    after_a = max(e["theta_after"] for e in r.state(a["thread_id"])["profile"]["events"] if e["seq"] == 3)
+    counts = repo.row_counts(conn)
+    r.resume(b["thread_id"])  # a rerun runs only commit: it must not write B's stale profile
+    row = r.wait(b["thread_id"])
+    assert (row["status"], row["node"]) == ("awaiting_review", "gate_confirm_commit")
+    assert repo.row_counts(conn) == counts and status(conn, b["session_id"]) == "awaiting_review"
+    assert r.state(b["thread_id"])["profile"]["events"][0]["theta_before"] == after_a
+    r.resume(b["thread_id"])
+    assert r.wait(b["thread_id"])["status"] == "committed"
+    before = skill_rows(conn)
+    repo.replay_student(conn, 1)
+    assert skill_rows(conn) == before

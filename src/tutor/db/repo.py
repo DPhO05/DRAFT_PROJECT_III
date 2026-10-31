@@ -48,6 +48,10 @@ class DateOrderLocked(Exception):
         self.held_on, self.last_committed = held_on, last_committed
 
 
+class StaleProfile(Exception):
+    """The student's skill_* prior changed since the preview was computed (another session committed first)."""
+
+
 class CatalogError(ValueError):
     """Bad KC catalog data; `cycle` holds the prerequisite loop (codes) when there is one."""
 
@@ -772,12 +776,13 @@ def _write_profile(conn: sqlite3.Connection, student_id: int, held_on: str, ts: 
 
 
 def commit_session(conn: sqlite3.Connection, session_id: int, *, transcript: str, review_seconds: int | None,
-                   attempts: list[dict], profile: dict | None = None) -> dict:  # fmt: skip
+                   attempts: list[dict], profile: dict | None = None, prior: dict | None = None) -> dict:  # fmt: skip
     """② in one transaction: rubrics approved at step 3 (C-16), attempts, mistakes, skill_*, session → committed.
 
     attempts: {seq, problem_id, rubric_id | None, rubric {items, max_score} (new version when rubric_id is None),
     solution_latex, steps, flags, grade_items, score, max_score, mistakes: [MISTAKE_COLS row, llm_json as dict]}.
     profile: the `elo.profile` result for these attempts; its events, skills and misconceptions are written too.
+    prior: the `profile_prior` that result was computed over; if the student's prior differs now → StaleProfile.
     Already committed → the first receipt, nothing written.
     """
     with write_tx(conn):
@@ -786,6 +791,8 @@ def commit_session(conn: sqlite3.Connection, session_id: int, *, transcript: str
             raise NotFound(f"buổi {session_id}")
         if st[0] == "committed":
             return _receipt(conn, session_id)
+        if prior is not None and profile_prior(conn, st[1]) != prior:
+            raise StaleProfile(f"buổi {session_id}: hồ sơ kỹ năng đã đổi từ lúc xem trước")
         ts, attempt_ids = now(), {}
         for a in attempts:
             rubric_id = a["rubric_id"]

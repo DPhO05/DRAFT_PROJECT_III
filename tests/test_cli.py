@@ -3,6 +3,7 @@
 import json
 import os
 import socket
+import sqlite3
 import subprocess
 import sys
 import time
@@ -146,3 +147,9 @@ def test_review_queue_then_review_commits(tmp_path):
     with closing(repo.connect(data / "tutor.db")) as c:  # stopped before commit ②
         assert c.execute("SELECT status FROM session").fetchone()[0] == "awaiting_review"
         assert c.execute("SELECT count(*) FROM mistake").fetchone()[0] == 0
+    with closing(sqlite3.connect(data / "checkpoints.db")) as c:  # the keys typed above became these decisions
+        cards = json.loads(c.execute("SELECT decisions_json FROM tutor_thread").fetchone()[0])["cards"]
+    assert {k: v["action"] for k, v in cards.items()} == {
+        "n1": "add", "p1": "accept", "p2": "edit", "p3": "reject", "p4": "accept", "p5": "accept"}  # fmt: skip
+    assert (cards["n1"]["code"], cards["n1"]["description"]) == ("other.unclear", "sót bước")
+    assert cards["p2"]["code"] == "presentation.format"

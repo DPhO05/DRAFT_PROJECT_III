@@ -178,6 +178,26 @@ def test_commit_failure_writes_no_skill_rows(conn, bank):
     assert len(after["event"]) == 1
 
 
+def test_stale_prior_raises_and_writes_nothing(conn, bank):
+    s = repo.add_student(conn, name="A")
+    a, b = start(conn, s, D1), start(conn, s, D1)
+    work = [(bank["p1"], [mk(WRONG, bank["k1"])])]
+    rows_b, prof_b = build(conn, b, work)
+    prior_b = repo.profile_prior(conn, s)
+    commit(conn, a, work)  # the other session commits between B's preview and B's commit
+    counts = repo.row_counts(conn)
+    with pytest.raises(repo.StaleProfile):
+        repo.commit_session(conn, b, transcript="t", review_seconds=1, attempts=rows_b, profile=prof_b, prior=prior_b)
+    assert repo.row_counts(conn) == counts
+    assert conn.execute("SELECT status FROM session WHERE id = ?", (b,)).fetchone()[0] == "running"
+    rows_b, prof_b = build(conn, b, work)  # recomputed over the new prior
+    repo.commit_session(conn, b, transcript="t", review_seconds=1, attempts=rows_b, profile=prof_b,
+                        prior=repo.profile_prior(conn, s))  # fmt: skip
+    after = skill_rows(conn)
+    repo.replay_student(conn, s)
+    assert skill_rows(conn) == after and len(after["event"]) == 2
+
+
 def test_receipt_counts_skill_events(conn, bank):
     s = repo.add_student(conn, name="A")
     receipt, prof = commit(conn, start(conn, s, D1), [(bank["p9"], [mk(WRONG, bank["k1"])])])
