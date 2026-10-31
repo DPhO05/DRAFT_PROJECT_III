@@ -1,6 +1,7 @@
 """P4-T08: the grading loop end to end over HTTP, FakeLLM only (C-34)."""
 
 import unicodedata
+from collections import Counter
 from contextlib import closing
 
 import pytest
@@ -124,7 +125,8 @@ def test_two_students_three_sessions_full_loop(client, paths, world):
     a3 = drop(client, an, "2026-10-27", "a3.tex", prob(P1[0], "S3 $4x = 20$") + prob(P9[0], "S3 $x^2 = 1$"))
     stop_at(client, a3, "gate_review")
     assert commit(client, a3)["receipt"]["attempt"] == 2
-    assert (fake.count["02"], fake.count["03"]) == (6, 7)  # 6 problems; 03 ran once more after its failure
+    used = Counter(c["agent"] for c in fake.calls)  # fake.count += from pool workers is not atomic
+    assert (used["02"], used["03"]) == (6, 7)  # 6 problems; 03 ran once more after its failure
     assert {s["status"] for s in client.get("/api/sessions").json()} == {"committed"}
 
     # replay from the committed attempts reproduces skill_* of both students
@@ -175,7 +177,7 @@ def test_cost_per_session_readable(client, world):
     stop_at(client, one, "gate_review")
     stop_at(client, two, "gate_review")
     cost = client.get("/api/logs/cost").json()
-    assert cost["calls"] == sum(fake.count.values())  # every call made is a row
+    assert cost["calls"] == len(fake.calls)  # every call made is a row
     by = {s["thread_id"]: s for s in cost["by_session"]}
     assert set(by) == {one, two} and (by[one]["student_code"], by[two]["student_code"]) == ("HS-01", "HS-02")
     for tid in (one, two):

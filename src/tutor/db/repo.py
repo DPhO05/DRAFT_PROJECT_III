@@ -865,6 +865,8 @@ def replay_student(conn: sqlite3.Connection, student_id: int) -> dict:
         for table in ("skill_event", "skill_state", "misconception_log"):
             conn.execute(f"DELETE FROM {table} WHERE student_id = ?", (student_id,))
         prior, events = elo.empty_prior(), 0
+        # shortcut: committed_at has 1 s resolution, a same-second tie replays in id order;
+        # store sub-second commit time if two commits per second become possible
         sessions = conn.execute(
             "SELECT id, held_on, committed_at FROM session WHERE student_id = ? AND status = 'committed'"
             " ORDER BY held_on, committed_at, id", (student_id,)

@@ -203,7 +203,7 @@ def review_cmd(
     data_dir: DataDir = None,
     fake_llm: FakeLLM = False,
 ) -> None:
-    """Hộp duyệt trên terminal: in hàng đợi, hoặc duyệt lỗi G1 (A / E / R / N) rồi commit ② (= Ghi vào tutor.db)."""
+    """Hộp duyệt trên terminal: in hàng đợi, hoặc duyệt lỗi G1 (A / E / R / N) → xem trước tiến bộ → Lưu kết quả."""
     paths = config.paths(data_dir)
     lock = _hold_lock(paths)
     try:
@@ -294,6 +294,10 @@ def _confirm_commit(runner: Runner, thread_id: str) -> None:
     """At gate_confirm_commit: show the preview, ask. y runs commit ②, N leaves the thread at the gate.
     A stale bounce (another session of the student saved first) lands back here with a fresh preview."""
     while True:
+        t = next(t for t in threads.annotate(runner.list_threads()) if t["thread_id"] == thread_id)
+        if t["locked"]:
+            typer.echo(f"Chưa lưu được: {t['lock_reason']}")
+            raise typer.Exit(1)
         _echo_preview(runner.state(thread_id)["preview"])
         if not typer.confirm("Lưu kết quả?", default=False):
             typer.echo(f"Đang chờ Lưu kết quả. Lưu sau: tutor review {thread_id}")
@@ -327,7 +331,7 @@ def replay_cmd(
     paths = config.paths(data_dir)
     lock = _hold_lock(paths)
     try:
-        m = re.fullmatch(r"(?:HS-)?0*(\d+)", student.strip(), re.I)
+        m = re.fullmatch(r"(?:HS-)?0*([0-9]{1,9})", student.strip(), re.I)
         if not m:
             typer.echo(f"Mã HS không hợp lệ: {student}")
             raise typer.Exit(1)

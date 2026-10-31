@@ -305,6 +305,22 @@ def test_cli_confirm_after_stale_bounce_shows_new_preview_and_never_claims_commi
     assert "+3 skill_event" in out and r.get(tid)["status"] == "committed"
 
 
+def test_cli_confirm_locked_thread_prints_reason_without_asking(env, monkeypatch, capsys):
+    go, conn, r = env
+    later, _, _ = go(THREE, name="l.tex", day="2026-10-20")
+    tl = later["thread_id"]
+    r.save_decisions(tl, full(conn))
+    threads.resume(r, tl)
+    assert r.wait(tl)["node"] == "gate_confirm_commit"
+    go(THREE.replace("LANE", "E"), name="e.tex", day="2026-10-17")
+    monkeypatch.setattr(cli.typer, "confirm", lambda *a, **k: pytest.fail("asked on a locked thread"))
+    with pytest.raises(cli.typer.Exit) as e:
+        cli._confirm_commit(r, tl)
+    out = capsys.readouterr().out
+    assert e.value.exit_code == 1 and "Chưa lưu được: Elo cập nhật tuần tự: duyệt buổi 17/10 của HS-01 trước" in out
+    assert "Xem trước" not in out and status(conn, later["session_id"]) == "awaiting_review"
+
+
 def test_cli_confirm_no_leaves_gate(env, monkeypatch, capsys):
     go, conn, r = env
     out, _, _ = go(THREE)

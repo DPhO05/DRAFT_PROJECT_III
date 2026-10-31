@@ -1029,8 +1029,7 @@
     /* ---------- bước 5: xem trước tiến bộ (DỪNG confirm_commit) ---------- */
     function paintPreview() {
       var pv = state.preview || {}, kcs = arr(pv.kcs), mc = pv.miscon || {}, w = pv.writes || {}, bar = h('div', { class: 'row sx-actbar' });
-      var cards = {}, n = { accept: 0, edit: 0, reject: 0, add: 0 };
-      try { cards = (JSON.parse(t.decisions_json || '{}') || {}).cards || {}; } catch (e) { /* unreadable → no summary */ }
+      var cards = (state.review || {}).cards || {}, n = { accept: 0, edit: 0, reject: 0, add: 0 };
       Object.keys(cards).forEach(function (k) { var a = (cards[k] || {}).action; if (a in n) n[a]++; });
       var LISTS = [['new', 'Lỗi lặp mới ghi nhận'], ['again', 'Lỗi cũ gặp lại'], ['resolved', 'Lỗi đã hết']];
       var TREND = { 'tiến bộ': 'ok', 'cần ôn': 'warn' };
@@ -1071,7 +1070,7 @@
             return h('div', { class: 'card stack' }, h('h3', null, l[1], ' ', h('span', { class: 'num small muted' }, '· ' + xs.length)),
               xs.length ? h('ul', { class: 'sx-flags' }, xs.map(function (x) { return h('li', null, tx(x)); })) : h('p', { class: 'small muted' }, 'không có'));
           })),
-          h('p', null, 'Sẽ ghi (1 transaction): ' + (w.attempt || 0) + ' bài làm, ' + (w.mistake || 0) + ' lỗi, ' + (w.rubric || 0) + ' rubric mới, ' +
+          h('p', null, 'Sẽ ghi (1 transaction): ' + (w.attempt || 0) + ' bài làm, ' + (w.mistake || 0) + ' lỗi' + (n.reject ? ' (gồm ' + n.reject + ' đã bỏ)' : '') + ', ' + (w.rubric || 0) + ' rubric mới, ' +
             (w.skill_event || 0) + ' lượt cập nhật kỹ năng; cập nhật hồ sơ ' + (w.skill_state || 0) + ' kỹ năng, ' + (w.misconception_log || 0) + ' lỗi lặp.'),
           h('p', { class: 'small muted' }, 'Quyết định duyệt lỗi đã chốt: ' + n.accept + ' chấp nhận, ' + n.edit + ' sửa, ' + n.reject + ' bỏ, ' + n.add + ' thêm. ' +
             'Không sửa lại được ở đây; muốn đổi thì huỷ thread ở ', h('a', { href: '#ops', 'data-tab-link': 'ops' }, 'tab Vận hành'), ' rồi nộp bài lại.'),

@@ -328,8 +328,8 @@ def build(paths: DataPaths) -> StateGraph:
         try:
             with closing(repo.connect(paths.tutor_db)) as conn:
                 receipt = repo.commit_session(conn, state["session_id"], transcript=state["transcript"],
-                                              review_seconds=secs, attempts=out, profile=state["profile"],
-                                              prior=state["profile_prior"])  # fmt: skip
+                                              review_seconds=secs, attempts=out, profile=state.get("profile"),
+                                              prior=state.get("profile_prior"))  # fmt: skip
         except repo.StaleProfile:
             return Command(goto="profile")
         return {"receipt": receipt | {"backup": backup.name}, "committed": True}

@@ -240,6 +240,9 @@ def test_replay_refused_while_g1_waiting(paths, conn, committed, status):
 def test_replay_rejects_unknown_invalid_or_archived_student(paths, conn, committed):
     for arg in ("99", "abc"):
         assert replay(paths, arg).exit_code == 1, arg
+    for arg in ("99999999999999999999", "١"):  # beyond 9 digits / non-ASCII digit: refused before any DB lookup
+        r = replay(paths, arg)
+        assert r.exit_code == 1 and r.output.strip() == f"Mã HS không hợp lệ: {arg}", arg
     repo.archive_student(conn, committed)
     assert replay(paths, "1").exit_code == 1
     assert not backups(paths)
