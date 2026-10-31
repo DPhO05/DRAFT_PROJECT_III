@@ -29,8 +29,20 @@ CAP = 60
 NET_NOISE = ("Failed to load resource", "net::ERR_")
 # A 1 s ticking clock (review timer) changes the DOM every second and would hide dead buttons.
 NO_CLOCKS = "const _si = window.setInterval; window.setInterval = (f, ms, ...a) => ms === 1000 ? 0 : _si(f, ms, ...a);"
-# Extra routes walked with --data: step 4 of the seeded HS-01 session (not reachable from the tab's first view).
-DATA_ROUTES = {"session": ["session?thread=g1-hs01-20261020"]}
+# Extra routes walked with --data: step 4 of the seeded HS-01 session, step 5 preview of the seeded HS-02 session
+# (neither reachable from the tab's first view).
+PREVIEW_TID = "g1-hs02-20261023-2"
+DATA_ROUTES = {"session": ["session?thread=g1-hs01-20261020", f"session?thread={PREVIEW_TID}"]}
+# route -> the preview must offer `button`, show every `text`, and after the click show every `after` (the receipt).
+EXPECT = {
+    f"session?thread={PREVIEW_TID}": {
+        "button": "Lưu kết quả",
+        "text": ["Sẽ ghi (1 transaction)"],
+        "after": ["Đã ghi 1 transaction", "lượt cập nhật kỹ năng"],
+    }
+}
+# Table names and maths symbols stay off the teacher's screen (R-F).
+BANNED = ("skill_event", "skill_state", "misconception_log", "θ", "δ")
 
 JS_CANDIDATES = r"""
 () => {
@@ -124,7 +136,11 @@ def close_overlay(page) -> bool:
     return page.evaluate("!document.querySelector('#modal-root .modal, #drawer-root .drawer')")
 
 
-def exercise(page, tab: str, rep: dict) -> None:
+def view_text(page) -> str:
+    return page.evaluate("document.querySelector('#view').innerText")
+
+
+def exercise(page, tab: str, rep: dict, want: dict | None = None) -> None:
     clicked, n, closes = set(), 0, 0
     while n < CAP:
         page.evaluate("document.querySelectorAll(':popover-open').forEach(p => p.hidePopover())")
@@ -147,6 +163,18 @@ def exercise(page, tab: str, rep: dict) -> None:
             rep["click_failures"].append(f"{c['scope']}: {c['label']} ({str(e).splitlines()[0][:120]})")
             continue
         n += 1
+        if want and c["label"] == want["button"]:
+            try:
+                page.wait_for_function(
+                    "ts => ts.every(t => document.querySelector('#view').innerText.includes(t))",
+                    arg=want["after"],
+                    timeout=10000,
+                )
+            except Exception:  # noqa: BLE001
+                rep["missing"].append(f"after {want['button']}: no {want['after']}")
+            text = view_text(page)
+            rep["missing"] += [f"banned on screen: {b}" for b in BANNED if b in text]
+            want = {**want, "button": None}  # checked once
         page.wait_for_timeout(300)
         mut, toasts = page.evaluate("[window.__robotMut, window.__robotToasts]")
         now = page.evaluate("document.querySelector('#view').dataset.tab")
@@ -159,6 +187,8 @@ def exercise(page, tab: str, rep: dict) -> None:
         elif mut == 0 and toasts == 0:
             rep["dead"].append(f"{c['scope']}: {c['label']}")
     rep["clicks"] = n
+    if want and want["button"]:
+        rep["missing"].append(f"never clicked: {want['button']}")
     if n >= CAP:
         rep["notes"].append(f"click cap {CAP} reached")
 
@@ -184,19 +214,35 @@ def api(url: str, method: str, path: str, body: object = None) -> object:
         return json.loads(r.read())
 
 
+def wait_idle(url: str, tid: str) -> None:
+    for _ in range(300):
+        if api(url, "GET", f"/threads/{tid}")["status"] != "running":
+            return
+        time.sleep(0.1)
+
+
 def add_students(url: str) -> None:
-    """2 students, 3 G1 sessions: HS-01 s01 (review gate) + s06 two days later (date-locked behind s01, C-28);
-    HS-02 s04 (step 3: low_match). s04 is listed first, so the robot's walk opens step 3, resumes, then sees step 4."""
+    """2 students, 4 G1 sessions: HS-01 s01 (review gate) + s06 two days later (date-locked behind s01, C-28);
+    HS-02 s04 (step 3: low_match) + s01 the same day (every card accepted, parked at gate_confirm_commit = step 5 preview).
+    s04 is listed first, so the robot's walk opens step 3, resumes, then sees step 4."""
     students = ({"name": "Nguyễn Văn An", "grade": 8}, {"name": "Trần Thị Bình", "grade": 9})
     s1, s2 = [api(url, "POST", "/students", b)["id"] for b in students]
     tids = [api(url, "POST", "/sessions", {"student_id": sid, "held_on": day, "path": f})["thread_id"]
             for sid, day, f in ((s1, "2026-10-20", "s01.tex"), (s1, "2026-10-22", "s06.tex"),
-                                (s2, "2026-10-23", "s04.tex"))]  # fmt: skip
+                                (s2, "2026-10-23", "s04.tex"), (s2, "2026-10-23", "s01.tex"))]  # fmt: skip
+    if tids[3] != PREVIEW_TID:
+        raise RuntimeError(f"preview thread is {tids[3]}, robot expects {PREVIEW_TID}")
     for tid in tids:
-        for _ in range(300):
-            if api(url, "GET", f"/threads/{tid}")["status"] != "running":
-                break
-            time.sleep(0.1)
+        wait_idle(url, tid)
+    cards = {
+        p["pid"]: {"action": "accept"}
+        for p in api(url, "GET", f"/threads/{PREVIEW_TID}?include=state")["state"]["proposals"]
+    }
+    api(url, "PUT", f"/threads/{PREVIEW_TID}/decisions", {"cards": cards, "review_seconds": 60})
+    api(url, "POST", f"/threads/{PREVIEW_TID}/resume")
+    wait_idle(url, PREVIEW_TID)
+    if api(url, "GET", f"/threads/{PREVIEW_TID}")["node"] != "gate_confirm_commit":
+        raise RuntimeError("preview thread did not stop at gate_confirm_commit")
 
 
 @contextmanager
@@ -234,7 +280,7 @@ def main() -> int:
     ap.add_argument("--url", help="app already running; default: start one")
     ap.add_argument("--tabs", nargs="*")
     ap.add_argument("--shots", action="store_true")
-    ap.add_argument("--data", action="store_true", help="seed dummy bank, 2 students, 3 inbox files, 3 G1 sessions")
+    ap.add_argument("--data", action="store_true", help="seed dummy bank, 2 students, 3 inbox files, 4 G1 sessions")
     args = ap.parse_args()
     if args.url:
         return check(args.url, args)
@@ -275,6 +321,7 @@ def check(page_url: str, args: argparse.Namespace) -> int:
                 "registered": tab in registered,
                 "clicks": 0,
                 "dead": [],
+                "missing": [],
                 "navigated": [],
                 "click_failures": [],
                 "notes": [],
@@ -303,11 +350,18 @@ def check(page_url: str, args: argparse.Namespace) -> int:
             page.set_viewport_size(DESK)
             page.emulate_media(color_scheme="light")
             rep["tex_errors"] = page.evaluate(JS_TEX_ERRORS)
-            exercise(page, tab, rep)
+            want = EXPECT.get(route)
+            if want:
+                text = view_text(page)
+                rep["missing"] += [f"text: {t}" for t in want["text"] if t not in text]
+                rep["missing"] += [f"banned on screen: {b}" for b in BANNED if b in text]
+                if not page.locator("#view button:not([disabled])", has_text=want["button"]).count():
+                    rep["missing"].append(f"button: {want['button']}")
+            exercise(page, tab, rep, want)
             page.wait_for_timeout(1500)  # let timers (resume, animations) finish so late errors land on this tab
             rep["console_errors"] = errs[:]
             rep["page_errors"] = perrs[:]
-            fatal |= bool(errs or perrs or rep["dead"] or rep.get("overflow_390", {}).get("overflow"))
+            fatal |= bool(errs or perrs or rep["dead"] or rep["missing"] or rep.get("overflow_390", {}).get("overflow"))
             report["tabs"].append(rep)
         browser.close()
     report["summary"] = {
@@ -315,6 +369,7 @@ def check(page_url: str, args: argparse.Namespace) -> int:
         "page_errors": sum(len(t["page_errors"]) for t in report["tabs"]),
         "console_errors": sum(len(t["console_errors"]) for t in report["tabs"]),
         "dead_buttons": sum(len(t["dead"]) for t in report["tabs"]),
+        "missing": sum(len(t["missing"]) for t in report["tabs"]),
         "overflow_tabs": [t["tab"] for t in report["tabs"] if t.get("overflow_390", {}).get("overflow")],
         "tex_errors": sum(len(t["tex_errors"]) for t in report["tabs"]),
         "ok": not fatal,

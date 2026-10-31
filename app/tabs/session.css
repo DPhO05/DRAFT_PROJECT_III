@@ -27,10 +27,8 @@
 .sx-actions { align-items: flex-start; }
 .sx-howto { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--ink-2); }
 
-/* G1 strip: wrap instead of a sideways scroll; later phases greyed */
+/* G1 strip: wrap instead of a sideways scroll */
 .sx-strip .strip-flow { width: auto; flex-wrap: wrap; row-gap: 8px; }
-.sx-later { opacity: .55; }
-.sx-later-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .gn.is-skip { border-style: dashed; opacity: .6; }
 
 /* step 2 */

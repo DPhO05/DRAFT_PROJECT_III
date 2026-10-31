@@ -1,5 +1,5 @@
 /* Buổi học (G1): danh sách buổi, bước 1 nộp bài, bước 2 tiến độ G1 (P1-T11), bước 3 xác nhận cờ (P2-T06),
-   bước 4 duyệt lỗi (P3-T05), bước 5 ghi DB + xem buổi đã ghi (P3-T06). 05 Profiler / Elo làm ở P4.
+   bước 4 duyệt lỗi (P3-T05), bước 5 xem trước tiến bộ (P4-T07) + ghi DB + xem buổi đã ghi (P3-T06).
    Routing (params): none → danh sách; step=1 (+ student) → nộp bài; thread=<id> → thread đó ở bước nó đang dừng
    (đã commit → bước 5); session=<id> → buổi đã ghi (chỉ đọc), chưa ghi → về thread của nó. */
 (function () {
@@ -12,15 +12,16 @@
   var STEPS = [['Nộp bài'], ['Chạy G1'], ['Xác nhận'], ['Duyệt lỗi'], ['Ghi DB']];
   var NODE = { ingest: '01 Ingest', prepare: '02 soạn rubric nháp', mark_waiting: 'đánh dấu chờ xác nhận', gate_confirm_match: 'DỪNG xác nhận khớp bài',
     apply_match: 'áp dụng xác nhận', lane: '02 · 03 · 04 theo bài', queue: 'xếp hàng đề xuất', mark_waiting_review: 'đánh dấu chờ duyệt', gate_review: 'duyệt lỗi',
-    commit: '② ghi tutor.db' };
+    profile: '05 tính tiến bộ', mark_waiting_confirm: 'đánh dấu chờ lưu', gate_confirm_commit: 'DỪNG lưu kết quả', commit: '② ghi tutor.db' };
   var FLAG = { low_match: 'khớp bài chưa chắc', no_rubric: 'chưa có rubric', mismatch: 'bản chép ≠ text layer' };
   var GFLAG = { alt_method: 'cách giải khác', schema: 'lỗi schema', missing_item: 'thiếu mục chấm', score_mismatch: 'điểm lệch',
     no_evidence: 'thiếu bằng chứng', bad_code: 'bỏ lỗi: mã tắt', bad_kc: 'bỏ lỗi: KC ngoài bài', bad_step: 'bỏ lỗi: sai bước' };
   var VERDICT = { agree: ['04 đồng ý', 'ok'], disagree: ['04 không đồng ý', 'danger'], wrong_code: ['04: sai mã', 'warn'] };
   // Strip slot per node. runner.py: failed/awaiting → `node` = the node next to run; running → the last finished one (RUN_NEXT).
-  var POS = { ingest: 1, prepare: 2, mark_waiting: 3, gate_confirm_match: 3, apply_match: 3, lane: 4, queue: 5, mark_waiting_review: 6, gate_review: 6, commit: 7 };
-  var RUN_NEXT = { ingest: 2, prepare: 4, mark_waiting: 3, gate_confirm_match: 2, apply_match: 2, lane: 4, queue: 6, mark_waiting_review: 6, gate_review: 7, commit: 7 };
-  var LATER = [['05 Profiler', 'llm', '05']];
+  var POS = { ingest: 1, prepare: 2, mark_waiting: 3, gate_confirm_match: 3, apply_match: 3, lane: 4, queue: 5, mark_waiting_review: 6, gate_review: 6,
+    profile: 7, mark_waiting_confirm: 8, gate_confirm_commit: 8, commit: 9 };
+  var RUN_NEXT = { ingest: 2, prepare: 4, mark_waiting: 3, gate_confirm_match: 2, apply_match: 2, lane: 4, queue: 6, mark_waiting_review: 6, gate_review: 7,
+    profile: 8, mark_waiting_confirm: 8, gate_confirm_commit: 9, commit: 9 };
   var CAT = { computational: 'Tính toán', conceptual: 'Khái niệm', notational: 'Ký hiệu', presentation: 'Trình bày', other: 'Khác' };  // = catalog.js
   // shortcut: = config review.low_confidence default; the API does not expose settings yet — read it when it does.
   var LOW = 0.6;
@@ -159,9 +160,9 @@
     }));
   }
   function g1States(t, state) {
-    var s = t.status, cur = s === 'running' ? RUN_NEXT[t.node] || 1 : s === 'committed' ? 8 : POS[t.node] || 1;
+    var s = t.status, cur = s === 'running' ? RUN_NEXT[t.node] || 1 : s === 'committed' ? 10 : POS[t.node] || 1;
     var ing = state && state.ingest, st = ['done'];  // slot 0 = ① session row, written before the graph starts
-    for (var k = 1; k <= 7; k++) st[k] = k < cur ? 'done' : k === cur ? (s === 'failed' ? 'failed' : 'current') : '';
+    for (var k = 1; k <= 9; k++) st[k] = k < cur ? 'done' : k === cur ? (s === 'failed' ? 'failed' : 'current') : '';
     if (cur === 2 && POS[t.node] === 3) st[3] = 'done';  // resumed past the gate: prepare re-checks the answers
     if (st[3] === 'done' && ing && !arr(ing.flags).length) st[3] = 'skip';
     return st;
@@ -177,13 +178,12 @@
     var slots = [['① ghi session', 'code', null, 'tutor.db'], ['01 Ingest', 'llm', '01', 'cắt bài · khớp mã'], ['02 rubric nháp', 'llm', '02', 'bài chưa có rubric'],
       ['DỪNG xác nhận khớp', 'stop', null, st[3] === 'skip' ? 'bỏ qua: không có cờ' : 'chỉ khi có cờ'],
       ['02 · 03 · 04 theo bài', 'llm', null, n ? n + ' bài, chạy song song' : 'mỗi bài một làn'], ['xếp hàng đề xuất', 'code', null, '04 phản đối lên đầu'],
-      ['DỪNG duyệt lỗi', 'stop', null, 'bước 4'], ['② ghi tutor.db', 'commit', null, 'sao lưu → 1 transaction']];
+      ['DỪNG duyệt lỗi', 'stop', null, 'bước 4'], ['05 Profiler', 'code', '05', 'tính tiến bộ · chưa ghi'], ['DỪNG lưu kết quả', 'stop', null, 'bước 5'],
+      ['② ghi tutor.db', 'commit', null, 'sao lưu → 1 transaction']];
     return h('div', { class: 'strip sx-strip' + (compact ? ' strip-compact' : '') },
       h('div', { class: 'strip-head' }, ui.chip('G1', 'G1'), h('span', { class: 'mono' }, 'session_graph'), h('span', null, 'Buổi học')),
       h('div', { class: 'strip-flow' },
-        slots.map(function (x, i) { return [i ? arrow() : null, node(x[0], x[1], x[2], st[i], x[3])]; }), arrow(),
-        h('div', { class: 'strip-lanes sx-later', title: 'Làm ở P4' }, h('span', { class: 'lane-label' }, 'làm ở P4'),
-          h('div', { class: 'sx-later-flow' }, LATER.map(function (n, i) { return [i ? arrow() : null, node(n[0], n[1], n[2], '')]; })))));
+        slots.map(function (x, i) { return [i ? arrow() : null, node(x[0], x[1], x[2], st[i], x[3])]; })));
   }
 
   /* ---------- danh sách buổi ---------- */
@@ -331,8 +331,8 @@
     });
   }
   function statusText(t) {
-    if (t.status === 'awaiting_review') return t.node === 'gate_review' ? 'DỪNG ở duyệt lỗi (bước 4)' : 'DỪNG ở xác nhận khớp bài (bước 3)';
-    if (t.status === 'running' && RUN_NEXT[t.node] === 7) return '② đang sao lưu và ghi tutor.db';
+    if (t.status === 'awaiting_review') return t.node === 'gate_review' ? 'DỪNG ở duyệt lỗi (bước 4)' : t.node === 'gate_confirm_commit' ? 'DỪNG ở lưu kết quả (bước 5)' : 'DỪNG ở xác nhận khớp bài (bước 3)';
+    if (t.status === 'running' && RUN_NEXT[t.node] === 9) return '② đang sao lưu và ghi tutor.db';
     return {
       running: t.node ? 'xong ' + (NODE[t.node] || t.node) + ', đang chạy bước kế' : 'đang chạy 01 Ingest',
       failed: 'G1 dừng vì lỗi ở ' + (NODE[t.node] || t.node || '01 Ingest'),
@@ -410,10 +410,14 @@
     function resume() {
       return api.send('POST', path + '/resume').then(function (r) { refreshQueue(); if (life.alive) full(); return r; });
     }
-    // Commit ② finished (or failed) after "Ghi vào tutor.db" in this view.
+    // Commit ② finished (or failed) after "Lưu kết quả" in this view.
     function landed() {
       committing = false;
       refreshQueue();
+      if (t.status === 'awaiting_review' && t.node === 'gate_confirm_commit') {  // another session of this student was saved first: nothing written
+        C.toast('Hồ sơ của học sinh vừa đổi (buổi khác đã lưu). Đã tính lại bản xem trước, chưa lưu gì.', { kind: 'warn', title: 'Chưa lưu', ms: 6500 });
+        return;
+      }
       if (t.status !== 'committed') return;
       refreshCounts();
       var rc = t.receipt || {};
@@ -426,6 +430,7 @@
       if (life.off) { life.off(); life.off = null; }
       if (t.status === 'awaiting_review' && t.node === 'gate_confirm_match') paintConfirm();
       else if (t.status === 'awaiting_review' && t.node === 'gate_review') paintReview();
+      else if (t.status === 'awaiting_review' && t.node === 'gate_confirm_commit') paintPreview();
       else if (t.status === 'committed') paintDone();
       else paintProgress();
       C.tex(body);
@@ -473,7 +478,7 @@
           tools())),
         section('Bước sau', h('ul', { class: 'sx-later-notes' },
           h('li', null, h('b', null, '4 · Duyệt lỗi'), ': thầy/cô chấp nhận / sửa / bỏ từng lỗi 03 đề xuất, thêm lỗi bị sót.'),
-          h('li', null, h('b', null, '5 · Ghi DB'), ': ② sao lưu tutor.db rồi ghi 1 transaction. 05 Profiler (Elo) làm ở P4.'))));
+          h('li', null, h('b', null, '5 · Lưu kết quả'), ': 05 Profiler tính tiến bộ để thầy/cô xem trước; bấm “Lưu kết quả” thì ② sao lưu tutor.db rồi ghi 1 transaction.'))));
     }
     function retry(ev, b) {
       b.disabled = true; b.textContent = 'Đang gửi…';
@@ -725,7 +730,11 @@
         chain = p.catch(function () { /* next save still runs */ });
         return p.then(function (r) {
           srvPending = r.pending; saveMsg = 'Đã lưu ' + new Date().toTimeString().slice(0, 8); paintBar(); return r;
-        }, function (e) { saveMsg = 'Chưa lưu được: ' + errText(e); paintBar(); throw e; });
+        }, function (e) {
+          saveMsg = 'Chưa lưu được: ' + errText(e); paintBar();
+          if (e.code === 'not_ready' && life.alive) full();  // thread already left the review gate: decisions are frozen, show where it is
+          throw e;
+        });
       }
       function autosave() { save().catch(function () { /* saveMsg already shows it */ }); }
       life.flush = autosave;  // leaving the page keeps the review time
@@ -960,23 +969,22 @@
         if (!bar || !life.alive) return;
         var n = left(), why = t.locked ? t.lock_reason || 'buổi đang bị khoá' : n ? 'còn ' + n + ' đề xuất chưa quyết' : srvPending ? 'máy chủ báo còn ' + srvPending + ' mục chưa hợp lệ' : null;
         put(bar,
-          ui.button('Ghi vào tutor.db', commitGo, { kind: 'primary', disabledReason: why }),
+          ui.button('Xem trước tiến bộ', previewGo, { kind: 'primary', disabledReason: why }),
           ui.button('Tạm dừng, duyệt sau', pause, { kind: 'secondary' }),
           h('span', { class: 'small muted sx-kbd' }, 'Phím: ', h('kbd', null, 'A'), ' chấp nhận · ', h('kbd', null, 'E'), ' sửa · ', h('kbd', null, 'R'), ' bỏ · ',
             h('kbd', null, 'N'), ' thêm lỗi · ', h('kbd', null, 'J'), '/', h('kbd', null, 'K'), ' thẻ sau/trước'),
           saveMsg ? h('span', { class: 'small muted', role: 'status' }, saveMsg + (srvPending != null ? ' · máy chủ: còn ' + srvPending + ' chưa quyết' : '')) : null);
       }
-      function commitGo(ev, b) {
-        b.disabled = true; b.textContent = 'Đang ghi…';
+      // 05 runs on resume and the thread stops at gate_confirm_commit; nothing is written yet.
+      function previewGo(ev, b) {
+        b.disabled = true; b.textContent = 'Đang tính…';
         return save().then(function (r) {
           if (r.pending) { C.toast('Còn ' + r.pending + ' mục chưa quyết hoặc chưa hợp lệ.', { kind: 'warn' }); return; }
-          committing = true;
-          return resume().then(function () { C.toast('② Sao lưu tutor.db rồi ghi 1 transaction…', { kind: 'info' }); });
+          return resume().then(function () { C.toast('Đang tính tiến bộ…', { kind: 'info' }); });
         }).catch(function (e) {
-          committing = false;
           if (e.code === 'date_order_locked') lockFrom(e);
           C.toast(e.code === 'undecided_items' ? 'Còn ' + (e.detail || {}).n + ' mục chưa quyết.' : errText(e),
-            { kind: 'warn', title: 'Chưa ghi được' + (e.status ? ' (' + e.status + ')' : '') });
+            { kind: 'warn', title: 'Chưa xem trước được' + (e.status ? ' (' + e.status + ')' : '') });
           paintBar();
         });
       }
@@ -1018,6 +1026,60 @@
       draw();
     }
 
+    /* ---------- bước 5: xem trước tiến bộ (DỪNG confirm_commit) ---------- */
+    function paintPreview() {
+      var pv = state.preview || {}, kcs = arr(pv.kcs), mc = pv.miscon || {}, w = pv.writes || {}, bar = h('div', { class: 'row sx-actbar' });
+      var cards = {}, n = { accept: 0, edit: 0, reject: 0, add: 0 };
+      try { cards = (JSON.parse(t.decisions_json || '{}') || {}).cards || {}; } catch (e) { /* unreadable → no summary */ }
+      Object.keys(cards).forEach(function (k) { var a = (cards[k] || {}).action; if (a in n) n[a]++; });
+      var LISTS = [['new', 'Lỗi lặp mới ghi nhận'], ['again', 'Lỗi cũ gặp lại'], ['resolved', 'Lỗi đã hết']];
+      var TREND = { 'tiến bộ': 'ok', 'cần ôn': 'warn' };
+      function paintBar() {
+        put(bar,
+          ui.button('Lưu kết quả', saveGo, { kind: 'primary', disabledReason: t.locked ? t.lock_reason || 'buổi đang bị khoá' : null }),
+          h('span', { class: 'small muted' }, 'Chưa ghi gì vào tutor.db cho tới khi bấm “Lưu kết quả”.'));
+      }
+      function saveGo(ev, b) {
+        b.disabled = true; b.textContent = 'Đang lưu…';
+        committing = true;
+        return resume().then(function () { C.toast('② Sao lưu tutor.db rồi ghi 1 transaction…', { kind: 'info' }); }, function (e) {
+          committing = false;
+          if (e.code === 'date_order_locked') lockFrom(e);
+          C.toast(errText(e), { kind: 'warn', title: 'Chưa lưu được' + (e.status ? ' (' + e.status + ')' : '') });
+          if (e.code === 'not_ready' || e.code === 'already_committed') { if (life.alive) full(); } else paintBar();
+        });
+      }
+      put(top, ui.pageHead({
+        eyebrow: 'Buổi học · bước 5 · DỪNG lưu kết quả', title: t.subject || t.thread_id,
+        lead: '05 đã tính tiến bộ của học sinh sau buổi này từ các quyết định duyệt lỗi. Đây mới là bản xem trước: chưa ghi gì vào tutor.db.'
+      }), stepper(5, { skip3: !arr((state.ingest || {}).flags).length }));
+      put(body,
+        section('5 · Xem trước tiến bộ', h('div', { class: 'stack' },
+          lockEl = h('div', { class: 'sx-lock' }, lockBox()), srcLine(), g1Strip(t, true, state),
+          h('h3', null, 'Kỹ năng thay đổi'),
+          ui.table({
+            rows: kcs, empty: 'Không có kỹ năng nào được cập nhật',
+            columns: [
+              { label: 'Kỹ năng', render: function (k) { return tx(k.kc); } },
+              { label: 'Trước', render: function (k) { return k.before == null ? '—' : String(k.before); } },
+              { label: 'Sau', render: function (k) { return k.after == null ? '—' : String(k.after); } },
+              { label: 'Thay đổi', render: function (k) { return ui.chip(String(k.trend), TREND[k.trend] || 'neutral'); } }
+            ]
+          }),
+          h('div', { class: 'grid cols-3' }, LISTS.map(function (l) {
+            var xs = arr(mc[l[0]]);
+            return h('div', { class: 'card stack' }, h('h3', null, l[1], ' ', h('span', { class: 'num small muted' }, '· ' + xs.length)),
+              xs.length ? h('ul', { class: 'sx-flags' }, xs.map(function (x) { return h('li', null, tx(x)); })) : h('p', { class: 'small muted' }, 'không có'));
+          })),
+          h('p', null, 'Sẽ ghi (1 transaction): ' + (w.attempt || 0) + ' bài làm, ' + (w.mistake || 0) + ' lỗi, ' + (w.rubric || 0) + ' rubric mới, ' +
+            (w.skill_event || 0) + ' lượt cập nhật kỹ năng; cập nhật hồ sơ ' + (w.skill_state || 0) + ' kỹ năng, ' + (w.misconception_log || 0) + ' lỗi lặp.'),
+          h('p', { class: 'small muted' }, 'Quyết định duyệt lỗi đã chốt: ' + n.accept + ' chấp nhận, ' + n.edit + ' sửa, ' + n.reject + ' bỏ, ' + n.add + ' thêm. ' +
+            'Không sửa lại được ở đây; muốn đổi thì huỷ thread ở ', h('a', { href: '#ops', 'data-tab-link': 'ops' }, 'tab Vận hành'), ' rồi nộp bài lại.'),
+          bar)),
+        tools());
+      paintBar();
+    }
+
     /* ---------- bước 5: đã ghi tutor.db ---------- */
     function paintDone() {
       var rc = t.receipt || state.receipt || {}, sid = t.session_id, detail = h('div', { class: 'stack' }, loading());
@@ -1035,8 +1097,7 @@
           h('div', { class: 'row' },
             sid != null ? ui.button('Xem buổi đã ghi', function () { C.nav('session', { session: sid }); }, { kind: 'primary' }) : null,
             ui.button('Nộp bài mới', function () { C.nav('session', { step: 1 }); }, { kind: 'secondary' }),
-            ui.button('Về danh sách', function () { C.nav('session'); }, { kind: 'ghost' }),
-            h('span', { class: 'chip chip-phase', title: 'Chưa làm' }, 'Δθ: P4')))),
+            ui.button('Về danh sách', function () { C.nav('session'); }, { kind: 'ghost' })))),
         detail);
       if (sid == null) { put(detail); return; }
       Promise.all([api.get('/sessions/' + sid), loadRef()]).then(function (r) {
@@ -1051,7 +1112,8 @@
   function receiptLine(rc) {
     var b = rc.by_status || {};
     return '1 transaction · +' + rc.attempt + ' attempt · +' + rc.mistake + ' mistake (' + (b.confirmed || 0) + ' confirmed, ' + (b.edited || 0) + ' edited, ' +
-      (b.rejected || 0) + ' rejected, ' + (b.added || 0) + ' added) · +' + rc.rubric + ' rubric · session → committed';
+      (b.rejected || 0) + ' rejected, ' + (b.added || 0) + ' added) · +' + rc.rubric + ' rubric' +
+      (rc.skill_event == null ? '' : ' · +' + rc.skill_event + ' lượt cập nhật kỹ năng') + ' · session → committed';
   }
   function mistakeRow(m) {
     var lj = m.llm_json, rej = m.status === 'rejected', vd = VERDICT[m.verifier_verdict];
@@ -1084,8 +1146,7 @@
         ['Thời gian duyệt', s.review_seconds != null ? h('span', { class: 'num' }, mmss(s.review_seconds) + ' (mm:ss)') : '—'],
         ['Lỗi đã ghi', ms.length ? h('span', { class: 'row sx-cell' }, ['confirmed', 'edited', 'added', 'rejected'].map(function (k) {
           return n[k] ? [ui.status(k), h('span', { class: 'num small' }, '×' + n[k])] : null;
-        })) : 'không có'],
-        ['Tiến bộ', h('span', { class: 'chip chip-phase', title: 'Chưa làm' }, 'Δθ: P4')]
+        })) : 'không có']
       ])),
       section('Bài đã ghi · ' + atts.length + ' bài', h('div', { class: 'stack' }, atts.length ? atts.map(function (a) {
         var g = arr(a.grade), ok = g.filter(function (x) { return x.passed; }).length, mm = arr(a.mistakes);
