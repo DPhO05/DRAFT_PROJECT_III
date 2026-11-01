@@ -32,3 +32,11 @@ class LaneState(TypedDict, total=False):
     lane_grade: dict
     lane_diag: dict
     lanes: Annotated[list, operator.add]
+
+
+class BankState(TypedDict, total=False):
+    file: str  # relative to the data dir: inbox/bank/<name>.tex
+    items: list[dict]  # one per problem: ref, statement_latex, solution_latex, tags, delta, rubric_items, needs, ...
+    decisions: dict  # answers at gate_confirm_import: {items: {ref: {kc_ids?, level?, rubric_items?}}}
+    receipt: dict  # commit: {added, skipped_existing}
+    committed: bool  # runner marks the thread committed

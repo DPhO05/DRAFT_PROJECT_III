@@ -11,8 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from tutor import __version__, config, devfake, llm
 from tutor.api import backup, bank, catalog, errors, logs, sessions, students, threads
 from tutor.db import repo
-from tutor.graphs import session
-from tutor.graphs.runner import Runner
+from tutor.graphs.registry import make_runner
 
 APP_DIR = Path(__file__).resolve().parents[3] / "app"
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -46,9 +45,7 @@ def create_app(paths: config.DataPaths, *, port: int, fake_llm: bool = False) ->
         if fake_llm:
             llm.set_backend(devfake.DevFakeLLM())
             log.warning("--fake-llm: không gọi Anthropic, mọi output là giả (model dev-fake)")
-        runner = Runner(paths, {session.GRAPH: session.build(paths)}, settings["runner"]["max_workers"])
-        runner.on_fail(session.GRAPH, session.on_fail(paths))
-        runner.pending_fn(session.GRAPH, session.pending(paths))
+        runner = make_runner(paths, settings["runner"]["max_workers"])
         if stuck := runner.recover_on_startup():
             log.warning("thread dừng giữa chừng -> failed: %s", stuck)
         app.state.runner = runner

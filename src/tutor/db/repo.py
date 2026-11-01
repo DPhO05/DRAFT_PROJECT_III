@@ -454,6 +454,35 @@ def get_student(conn: sqlite3.Connection, student_id: int) -> dict:
 
 
 # ---------------------------------------------------------------- bank
+def _insert_problem(
+    conn: sqlite3.Connection,
+    *,
+    ref: str,
+    statement: str,
+    solution: str,
+    source: str,
+    delta: float | None,
+    tags: list[tuple[int, int, str]],
+    rubric_items: list[dict],
+) -> int:
+    """Rows of one approved problem; the caller owns the transaction and checked that ref is free."""
+    at = now()
+    pid = conn.execute(
+        "INSERT INTO problem (ref, statement_latex, solution_latex, source, delta, difficulty_approved_at)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (ref, statement, solution, source, delta, at if delta is not None else None),
+    ).lastrowid
+    conn.executemany(
+        "INSERT INTO problem_kc (problem_id, kc_id, step_idx, evidence_latex, approved_at) VALUES (?, ?, ?, ?, ?)",
+        [(pid, k, i, ev, at) for k, i, ev in tags],
+    )
+    conn.execute(
+        "INSERT INTO rubric (problem_id, version, items_json, max_score, approved_at) VALUES (?, 1, ?, ?, ?)",
+        (pid, json.dumps(rubric_items, ensure_ascii=False), sum(i["points"] for i in rubric_items), at),
+    )
+    return pid
+
+
 def add_bank_problem(
     conn: sqlite3.Connection,
     *,
@@ -469,21 +498,21 @@ def add_bank_problem(
     with write_tx(conn):
         if conn.execute("SELECT 1 FROM problem WHERE ref = ?", (ref,)).fetchone():
             return None
-        at = now()
-        pid = conn.execute(
-            "INSERT INTO problem (ref, statement_latex, solution_latex, source, delta, difficulty_approved_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (ref, statement, solution, source, delta, at if delta is not None else None),
-        ).lastrowid
-        conn.executemany(
-            "INSERT INTO problem_kc (problem_id, kc_id, step_idx, evidence_latex, approved_at) VALUES (?, ?, ?, ?, ?)",
-            [(pid, k, i, ev, at) for k, i, ev in tags],
-        )
-        conn.execute(
-            "INSERT INTO rubric (problem_id, version, items_json, max_score, approved_at) VALUES (?, 1, ?, ?, ?)",
-            (pid, json.dumps(rubric_items, ensure_ascii=False), sum(i["points"] for i in rubric_items), at),
-        )
-        return pid
+        return _insert_problem(
+            conn, ref=ref, statement=statement, solution=solution, source=source, delta=delta, tags=tags,
+            rubric_items=rubric_items,
+        )  # fmt: skip
+
+
+def import_bank(conn: sqlite3.Connection, items: list[dict]) -> dict:
+    """G2 commit: every item (keys of _insert_problem) in one transaction; a ref that is already there is skipped."""
+    added = 0
+    with write_tx(conn):
+        for it in items:
+            if conn.execute("SELECT 1 FROM problem WHERE ref = ?", (it["ref"],)).fetchone() is None:
+                _insert_problem(conn, **it)
+                added += 1
+    return {"added": added, "skipped_existing": len(items) - added}
 
 
 def bank_problems(conn: sqlite3.Connection) -> list[dict]:

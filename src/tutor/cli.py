@@ -18,10 +18,15 @@ from filelock import FileLock, Timeout
 from tutor import config, devfake, llm
 from tutor.api.app import create_app
 from tutor.db import repo, seed_dummy
+from tutor.graphs import bank as bank_graph
 from tutor.graphs import session, threads
-from tutor.graphs.runner import Runner, ThreadNotFound
+from tutor.graphs.registry import make_runner
+from tutor.graphs.runner import Runner, ThreadNotFound, UndecidedItems
+from tutor.services.bank import LEVEL_DELTA
 
 cli = typer.Typer(no_args_is_help=True, add_completion=False)
+bank_cli = typer.Typer(no_args_is_help=True, add_completion=False, help="Ngân hàng bài")
+cli.add_typer(bank_cli, name="bank")
 
 
 @cli.callback()
@@ -119,9 +124,7 @@ def _runner(paths: config.DataPaths, fake_llm: bool) -> Runner:
     llm.configure(paths.logs / "llm.jsonl", devfake.models() if fake_llm else settings["models"])
     if fake_llm:
         llm.set_backend(devfake.DevFakeLLM())
-    runner = Runner(paths, {session.GRAPH: session.build(paths)})
-    runner.on_fail(session.GRAPH, session.on_fail(paths))
-    runner.pending_fn(session.GRAPH, session.pending(paths))
+    runner = make_runner(paths)
     runner.recover_on_startup()
     return runner
 
@@ -203,7 +206,8 @@ def review_cmd(
     data_dir: DataDir = None,
     fake_llm: FakeLLM = False,
 ) -> None:
-    """Hộp duyệt trên terminal: in hàng đợi, hoặc duyệt lỗi G1 (A / E / R / N) → xem trước tiến bộ → Lưu kết quả."""
+    """Hộp duyệt trên terminal: in hàng đợi, duyệt lỗi G1 (A / E / R / N) → xem trước tiến bộ → Lưu kết quả,
+    hoặc chọn kỹ năng cho bài vừa nạp (G2) → Lưu vào ngân hàng."""
     paths = config.paths(data_dir)
     lock = _hold_lock(paths)
     try:
@@ -217,7 +221,11 @@ def review_cmd(
                     lock_note = f"  KHOÁ: {t['lock_reason']}" if t["locked"] else ""
                     typer.echo(f"  {t['thread_id']}  {t['graph']}  {t['subject']}  {t['node']}  {n} thẻ{lock_note}")
                 return
-            _review_g1(runner, thread_id)
+            graph = next((t["graph"] for t in runner.list_threads() if t["thread_id"] == thread_id), None)
+            if graph == bank_graph.GRAPH:
+                _review_g2(paths, runner, thread_id)
+            else:
+                _review_g1(runner, thread_id)
         finally:
             runner.close()
     finally:
@@ -320,6 +328,106 @@ def _echo_result(runner: Runner, thread_id: str, row: dict) -> None:
     rec = runner.state(thread_id)["receipt"]
     typer.echo(f"committed: 1 transaction · +{rec['attempt']} attempt · +{rec['mistake']} mistake"
                f" · +{rec['rubric']} rubric · +{rec['skill_event']} skill_event · sao lưu {rec['backup']}")  # fmt: skip
+
+
+@bank_cli.command("import")
+def bank_import_cmd(
+    file: Annotated[str, typer.Argument(help="File .tex trong data/inbox/bank/")],
+    data_dir: DataDir = None,
+) -> None:
+    """Đọc file bài có nhãn và chạy G2 tới DỪNG (= Ngân hàng › Nạp bài). Chưa ghi gì vào ngân hàng."""
+    paths = config.paths(data_dir)
+    lock = _hold_lock(paths)
+    try:
+        folder, f = (paths.inbox / "bank").resolve(), Path(file)
+        rel = f.resolve().relative_to(folder).as_posix() if f.is_file() and f.resolve().is_relative_to(folder) else file
+        runner = _runner(paths, False)
+        try:
+            try:
+                out = bank_graph.start_import(paths, runner, file=rel)
+            except ValueError as e:
+                typer.echo(f"Không nạp được: {e}")
+                raise typer.Exit(1) from None
+            tid = out["thread_id"]
+            row = runner.wait(tid, timeout=300)
+            if row["status"] != "awaiting_review":
+                typer.echo(f"{tid}: {row['status']} ở {row['node']}: {row['error']}")
+                raise typer.Exit(1)
+            items = runner.state(tid)["items"]
+            valid = [i for i in items if not i["invalid"] and not i["existing"]]
+            n_need = sum(bool(i["needs"]) for i in valid)
+            typer.echo(f"{len(items)} bài · {len(valid) - n_need} đã có kỹ năng và mức · {n_need} cần chọn"
+                       f" · {sum(i['existing'] for i in items)} đã có")  # fmt: skip
+            for i in items:
+                if i["invalid"]:
+                    typer.echo(f"  bỏ qua {i['ref'] or '(không có mã)'}: {i['invalid']}")
+            typer.echo(f"Duyệt: tutor review {tid}")
+        finally:
+            runner.close()
+    finally:
+        lock.release()
+
+
+def _ask_kc(ref: str, by_code: dict[str, int]) -> list[int]:
+    """KC ids typed as codes; blank = leave this problem for later."""
+    while True:
+        typed = typer.prompt(f"{ref}: Mã kỹ năng (cách nhau dấu phẩy)", default="", show_default=False)
+        codes = [c.strip() for c in typed.split(",") if c.strip()]
+        if bad := [c for c in codes if c not in by_code]:
+            typer.echo(f"  Không có mã: {', '.join(bad)}")
+            continue
+        return [by_code[c] for c in codes]
+
+
+def _ask_level() -> str | None:
+    """A level word, or None to keep what the file says."""
+    while True:
+        level = typer.prompt("Mức (dễ / vừa / khó, trống = chưa có mức)", default="", show_default=False).strip()
+        if level in ("", *LEVEL_DELTA):
+            return level or None
+        typer.echo("  Chỉ nhận: dễ, vừa, khó")
+
+
+def _review_g2(paths: config.DataPaths, runner: Runner, thread_id: str) -> None:
+    row = runner.get(thread_id)
+    if row["status"] != "awaiting_review":
+        typer.echo(f"{thread_id}: {row['status']} ở {row['node']} — chưa duyệt được")
+        raise typer.Exit(1)
+    with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+        by_code = {k["code"]: k["id"] for k in repo.list_kc(conn)}
+    saved = json.loads(row["decisions_json"] or "{}")
+    answers = dict(saved.get("items") or {}) if isinstance(saved, dict) else {}
+    items = runner.state(thread_id)["items"]
+    ready = {r["ref"] for r in bank_graph.final_items(items, {"items": answers}, set(by_code.values()))[0]}
+    for it in items:
+        if it["invalid"] or it["existing"] or it["ref"] in ready:
+            continue
+        typer.echo(f"\n{it['ref']}: {it['statement_latex'][:120]}")
+        if not (ids := _ask_kc(it["ref"], by_code)):
+            continue
+        answers[it["ref"]] = {"kc_ids": ids}
+        if level := _ask_level():
+            answers[it["ref"]]["level"] = level
+    left = runner.save_decisions(thread_id, {"items": answers})
+    if left:
+        typer.echo(
+            f"Tạm dừng: đã lưu quyết định, còn {left} bài chưa chọn kỹ năng. Duyệt tiếp: tutor review {thread_id}"
+        )
+        return
+    if not typer.confirm("Lưu vào ngân hàng?", default=False):
+        typer.echo(f"Chưa lưu. Lưu sau: tutor review {thread_id}")
+        return
+    try:
+        runner.resume(thread_id)
+    except UndecidedItems as e:
+        typer.echo(f"Chưa lưu được: {e}")
+        raise typer.Exit(1) from None
+    row = runner.wait(thread_id, timeout=300)
+    if row["status"] != "committed":
+        typer.echo(f"{row['status']} ở {row['node']}: {row['error']}")
+        raise typer.Exit(1)
+    rec = runner.state(thread_id)["receipt"]
+    typer.echo(f"Đã thêm {rec['added']} bài (bỏ qua {rec['skipped_existing']} bài đã có)")
 
 
 @cli.command("replay")

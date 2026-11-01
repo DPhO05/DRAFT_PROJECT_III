@@ -246,3 +246,32 @@ def test_replay_rejects_unknown_invalid_or_archived_student(paths, conn, committ
     repo.archive_student(conn, committed)
     assert replay(paths, "1").exit_code == 1
     assert not backups(paths)
+
+
+def test_bank_import_and_review(paths, conn):
+    from tutor.db import seed_dummy
+
+    root = Path(__file__).resolve().parent.parent
+    seed_dummy.seed(conn, root / "data" / "dummy" / "bank")
+    src = paths.inbox / "bank" / "mix.tex"
+    src.write_bytes((root / "tests" / "fixtures" / "bank" / "import-mix.tex").read_bytes())
+    before = repo.row_counts(conn)
+    cli_run = CliRunner()
+    r = cli_run.invoke(cli.cli, ["bank", "import", str(src), "--data-dir", str(paths.root)])
+    assert r.exit_code == 0, r.output
+    assert "8 bài · 1 đã có kỹ năng và mức · 3 cần chọn · 1 đã có" in r.output
+    tid = r.output.split("Duyệt: tutor review ")[1].strip()
+    assert tid.startswith("g2-mix-")
+    assert repo.row_counts(conn) == before
+    r = cli_run.invoke(cli.cli, ["bank", "import", "../tutor.db", "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and "Chỉ nhận file .tex trong data/inbox/bank/" in r.output
+    r = cli_run.invoke(
+        cli.cli, ["review", tid, "--data-dir", str(paths.root)], input="8DS-HSBN-02\nvừa\n8DS-HSBN-01\n\nn\n"
+    )
+    assert r.exit_code == 0 and "Lưu vào ngân hàng?" in r.output and f"tutor review {tid}" in r.output, r.output
+    assert repo.row_counts(conn) == before
+    r = cli_run.invoke(cli.cli, ["review", tid, "--data-dir", str(paths.root)], input="y\n")
+    assert r.exit_code == 0 and "Đã thêm 4 bài (bỏ qua 0 bài đã có)" in r.output, r.output
+    assert conn.execute("SELECT delta FROM problem WHERE ref = '8DS-NEW-002'").fetchone() == (0.0,)
+    assert conn.execute("SELECT delta FROM problem WHERE ref = '8DS-NEW-003'").fetchone() == (0.6,)
+    assert repo.row_counts(conn)["problem"] == before["problem"] + 4
