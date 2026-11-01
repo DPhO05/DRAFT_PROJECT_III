@@ -40,6 +40,8 @@ def install(app: FastAPI) -> None:
         runner.NotResumable: lambda e: (409, "not_ready", {"reason": str(e)}),
         runner.UndecidedItems: lambda e: (409, "undecided_items", {"n": e.n}),
         threads.ThreadLocked: lambda e: (409, "date_order_locked", {"blocking_thread_id": e.blocking_thread_id}),
+        repo.WorksheetExists: lambda e: (409, "worksheet_exists", {"for_date": e.for_date,
+                                                                   "n_problems": e.n_problems}),
         repo.CatalogError: lambda e: (422, "validation_error", {"cycle": e.cycle} if e.cycle else None),
         ValueError: lambda e: (422, "validation_error", None),
     }  # fmt: skip

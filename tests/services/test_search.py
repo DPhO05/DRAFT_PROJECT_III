@@ -36,7 +36,7 @@ def test_migration_002_keeps_data(tmp_path):
         c.execute(
             "INSERT INTO problem (ref, statement_latex, solution_latex) VALUES ('8DS-X-001', 'Tính hình thoi', 's')"
         )
-    assert repo.migrate(db, bk) == 2
+    assert repo.migrate(db, bk) == repo.latest_version()
     with closing(repo.connect(db)) as c:
         assert count(c, "SELECT count(*) FROM problem") == 1
         assert refs(search.search_problems(c, "hinh thoi")) == ["8DS-X-001"]

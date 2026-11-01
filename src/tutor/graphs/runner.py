@@ -77,6 +77,7 @@ class Runner:
         self._futures: dict[str, Future] = {}
         self._fail_hooks: dict[str, Callable[[dict], None]] = {}
         self._pending: dict[str, Callable[[dict, object, str], int]] = {}
+        self._checks: dict[str, Callable[[dict, object], None]] = {}
 
     def on_fail(self, graph: str, fn: Callable[[dict], None]) -> None:
         """fn(row) after a thread of `graph` fails (G1: session.status = failed)."""
@@ -85,6 +86,10 @@ class Runner:
     def pending_fn(self, graph: str, fn: Callable[[dict, object, str], int]) -> None:
         """fn(state, decisions, gate node) -> items still undecided there (0 = may resume); may raise NotResumable."""
         self._pending[graph] = fn
+
+    def resume_check(self, graph: str, fn: Callable[[dict, object], None]) -> None:
+        """fn(state, saved decisions) before a gate resumes; it raises to refuse (G4: worksheet_exists)."""
+        self._checks[graph] = fn
 
     def _undecided(self, row: dict, decisions: object) -> int | None:
         fn = self._pending.get(row["graph"])
@@ -171,6 +176,8 @@ class Runner:
             saved = json.loads(row["decisions_json"]) if row["decisions_json"] else None
             if n := self._undecided(row, saved):
                 raise UndecidedItems(n)
+            if fn := self._checks.get(row["graph"]):
+                fn(self.state(thread_id), saved)
             inp = Command(resume={"decisions": saved})
         elif row["status"] == "failed":
             inp = None

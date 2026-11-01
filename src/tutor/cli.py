@@ -19,9 +19,10 @@ from tutor import config, devfake, llm
 from tutor.api.app import create_app
 from tutor.db import repo, seed_dummy
 from tutor.graphs import bank as bank_graph
-from tutor.graphs import session, threads
+from tutor.graphs import session, threads, worksheet
 from tutor.graphs.registry import make_runner
 from tutor.graphs.runner import Runner, ThreadNotFound, UndecidedItems
+from tutor.services import select
 from tutor.services.bank import LEVEL_DELTA
 
 cli = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -207,7 +208,7 @@ def review_cmd(
     fake_llm: FakeLLM = False,
 ) -> None:
     """Hộp duyệt trên terminal: in hàng đợi, duyệt lỗi G1 (A / E / R / N) → xem trước tiến bộ → Lưu kết quả,
-    hoặc chọn kỹ năng cho bài vừa nạp (G2) → Lưu vào ngân hàng."""
+    chọn kỹ năng cho bài vừa nạp (G2) → Lưu vào ngân hàng, hoặc duyệt phiếu bài tập (G4) → Tạo phiếu."""
     paths = config.paths(data_dir)
     lock = _hold_lock(paths)
     try:
@@ -224,6 +225,8 @@ def review_cmd(
             graph = next((t["graph"] for t in runner.list_threads() if t["thread_id"] == thread_id), None)
             if graph == bank_graph.GRAPH:
                 _review_g2(paths, runner, thread_id)
+            elif graph == worksheet.GRAPH:
+                _review_g4(paths, runner, thread_id)
             else:
                 _review_g1(runner, thread_id)
         finally:
@@ -429,6 +432,111 @@ def _review_g2(paths: config.DataPaths, runner: Runner, thread_id: str) -> None:
         raise typer.Exit(1)
     rec = runner.state(thread_id)["receipt"]
     typer.echo(f"Đã thêm {rec['added']} bài (bỏ qua {rec['skipped_existing']} bài đã có)")
+
+
+BUCKET_WORDS = {"review": "ôn lại", "zpd": "vừa sức", "challenge": "thử thách", None: "thêm"}
+
+
+@cli.command("worksheet")
+def worksheet_cmd(
+    student: Annotated[str, typer.Argument(help="Mã HS (HS-03) hoặc id (3)")],
+    for_date: Annotated[str, typer.Argument(help="Ngày buổi học sau YYYY-MM-DD")],
+    refs: Annotated[list[str] | None, typer.Argument(help="Mã bài; bỏ trống = chọn theo tiến bộ của HS")] = None,
+    data_dir: DataDir = None,
+) -> None:
+    """Dựng phiếu bài tập nháp và DỪNG (= Trợ lý › phiếu nháp). Chưa ghi gì vào tutor.db."""
+    paths = config.paths(data_dir)
+    lock = _hold_lock(paths)
+    try:
+        m = re.fullmatch(r"(?:HS-)?0*([0-9]{1,9})", student.strip(), re.I)
+        if not m:
+            typer.echo(f"Mã HS không hợp lệ: {student}")
+            raise typer.Exit(1)
+        sid, code = int(m[1]), config.student_code(int(m[1]))
+        try:
+            reco = config.load(paths.settings)["reco"]
+        except config.SettingsError:
+            reco = config.defaults()["reco"]
+        runner = _runner(paths, False)
+        try:
+            try:
+                if refs:
+                    items, warnings = [{"ref": r} for r in refs], []
+                else:
+                    with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+                        repo.get_student(conn, sid)
+                        ranked = select.rank_problems(conn, sid, reco["n_problems"], reco=reco, today=date.today())
+                    items, warnings = ranked["items"], ranked["warnings"]
+                out = worksheet.propose(paths, runner, student_id=sid, for_date=for_date, items=items,
+                                        warnings=warnings)  # fmt: skip
+            except repo.NotFound:
+                typer.echo(f"Không có {code}")
+                raise typer.Exit(1) from None
+            except ValueError as e:
+                typer.echo(f"Không dựng được phiếu: {e}")
+                raise typer.Exit(1) from None
+            tid = out["thread_id"]
+            _echo_sheet(runner, paths, tid)
+            typer.echo(f"Duyệt: tutor review {tid}")
+        finally:
+            runner.close()
+    finally:
+        lock.release()
+
+
+def _echo_sheet(runner: Runner, paths: config.DataPaths, thread_id: str, decisions: object = None) -> list:
+    """Print the draft with the saved decisions applied; returns its refs (empty when it cannot be made)."""
+    state = runner.state(thread_id)
+    _, refs, _ = worksheet.plan(state, decisions)
+    with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+        ok, bad = worksheet.resolve(conn, refs, state["reasons"])
+    typer.echo(f"Phiếu {config.student_code(state['student_id'])} · {date.fromisoformat(state['for_date']):%d/%m/%Y}")
+    for n, o in enumerate(ok, 1):
+        typer.echo(f"{n}. {o['ref']} · {BUCKET_WORDS[o['bucket']]} · {o['reason']}")
+    for b in bad:
+        typer.echo(f"  {b['ref']}: {b['why']}")
+    for w in state["warnings"]:
+        typer.echo(f"  Lưu ý: {w}")
+    return [] if bad else refs
+
+
+def _review_g4(paths: config.DataPaths, runner: Runner, thread_id: str) -> None:
+    row = runner.get(thread_id)
+    if row["status"] != "awaiting_review":
+        typer.echo(f"{thread_id}: {row['status']} ở {row['node']} — chưa duyệt được")
+        raise typer.Exit(1)
+    saved = json.loads(row["decisions_json"]) if row["decisions_json"] else None
+    try:
+        for_date, _, _ = worksheet.plan(runner.state(thread_id), saved)
+        refs = _echo_sheet(runner, paths, thread_id, saved)
+    except ValueError as e:
+        typer.echo(f"Phiếu chưa hợp lệ, sửa trong app: {e}")
+        raise typer.Exit(1) from None
+    if not refs:
+        typer.echo("Phiếu cần ít nhất 1 bài và không có bài lỗi: sửa trong app")
+        raise typer.Exit(1)
+    if not typer.confirm("Tạo phiếu?", default=False):
+        typer.echo(f"Chưa tạo. Tạo sau: tutor review {thread_id}")
+        return
+    try:
+        try:
+            runner.resume(thread_id)
+        except repo.WorksheetExists as e:
+            if not typer.confirm(f"Ngày này đã có phiếu {e.n_problems} bài. Tạo phiếu mới thay thế? Phiếu cũ vẫn giữ",
+                                 default=False):  # fmt: skip
+                typer.echo(f"Chưa tạo. Tạo sau: tutor review {thread_id}")
+                return
+            runner.save_decisions(thread_id, {"for_date": for_date, "refs": refs, "replace": True})
+            runner.resume(thread_id)
+    except UndecidedItems as e:
+        typer.echo(f"Chưa tạo được: {e}")
+        raise typer.Exit(1) from None
+    row = runner.wait(thread_id, timeout=300)
+    if row["status"] != "committed":
+        typer.echo(f"{row['status']} ở {row['node']}: {row['error']}")
+        raise typer.Exit(1)
+    n, code = runner.state(thread_id)["receipt"]["n_problems"], config.student_code(row["student_id"])
+    typer.echo(f"Đã tạo phiếu {n} bài: {paths.out / f'phieu-{code}-{for_date}.tex'}")
 
 
 @cli.command("replay")

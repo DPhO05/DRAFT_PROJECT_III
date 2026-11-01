@@ -40,3 +40,15 @@ class BankState(TypedDict, total=False):
     decisions: dict  # answers at gate_confirm_import: {items: {ref: {kc_ids?, level?, rubric_items?}}}
     receipt: dict  # commit: {added, skipped_existing}
     committed: bool  # runner marks the thread committed
+
+
+class WorksheetState(TypedDict, total=False):
+    student_id: int
+    for_date: str
+    refs: list[str]  # the proposal, upper case; a saved decision's refs replace it
+    reasons: dict  # ref -> {bucket, reason}; a ref missing here was added by the teacher
+    warnings: list[str]  # from rank_problems
+    note: str | None
+    decisions: dict | None  # answers at gate_worksheet: {for_date, refs, replace}; None = the proposal as it is
+    receipt: dict  # commit: {for_date, n_problems, replaced}
+    committed: bool  # runner marks the thread committed

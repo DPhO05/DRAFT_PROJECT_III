@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import socket
 import sqlite3
 import subprocess
@@ -15,6 +16,7 @@ import pytest
 from filelock import FileLock
 from typer.testing import CliRunner
 
+from tests.assistant_fix import world
 from tests.db.test_profile_repo import D1, D2, WRONG, bank, commit, mk, skill_rows, start  # noqa: F401
 from tutor import cli
 from tutor.db import repo
@@ -275,3 +277,58 @@ def test_bank_import_and_review(paths, conn):
     assert conn.execute("SELECT delta FROM problem WHERE ref = '8DS-NEW-002'").fetchone() == (0.0,)
     assert conn.execute("SELECT delta FROM problem WHERE ref = '8DS-NEW-003'").fetchone() == (0.6,)
     assert repo.row_counts(conn)["problem"] == before["problem"] + 4
+
+
+SHEET_LINE = re.compile(r"^(\d)\. (\S+) · (ôn lại|vừa sức|thử thách|thêm) · \S", re.M)
+
+
+def test_worksheet_and_review(paths, conn):
+    world(conn)
+    before = repo.row_counts(conn)
+    cli_run = CliRunner()
+    r = cli_run.invoke(cli.cli, ["worksheet", "HS-01", "2026-10-24", "--data-dir", str(paths.root)])
+    assert r.exit_code == 0, r.output
+    assert [m[1] for m in SHEET_LINE.finditer(r.output)] == ["1", "2", "3", "4", "5", "6"], r.output
+    tid = r.output.split("Duyệt: tutor review ")[1].strip()
+    assert tid == "g4-hs01-20261024"
+    assert repo.row_counts(conn) == before
+    r = cli_run.invoke(cli.cli, ["review", tid, "--data-dir", str(paths.root)], input="n\n")
+    assert r.exit_code == 0 and "Tạo phiếu?" in r.output and f"tutor review {tid}" in r.output, r.output
+    assert repo.row_counts(conn) == before
+    r = cli_run.invoke(cli.cli, ["review", tid, "--data-dir", str(paths.root)], input="y\n")
+    out = paths.out / "phieu-HS-01-2026-10-24.tex"
+    assert r.exit_code == 0 and f"Đã tạo phiếu 6 bài: {out}" in r.output, r.output
+    assert out.is_file()
+    assert conn.execute("SELECT count(*), count(bucket) FROM recommendation").fetchone() == (6, 6)
+    r = cli_run.invoke(cli.cli, ["worksheet", "9", "2026-10-24", "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and "Không có HS-09" in r.output
+    r = cli_run.invoke(cli.cli, ["worksheet", "1", "24/10", "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and "YYYY-MM-DD" in r.output
+
+
+def test_worksheet_review_replace(paths, conn):
+    world(conn)
+    cli_run = CliRunner()
+
+    def run(*args, input=None):
+        return cli_run.invoke(cli.cli, [*args, "--data-dir", str(paths.root)], input=input)
+
+    run("worksheet", "1", "2026-10-24")
+    assert "Đã tạo phiếu 6 bài" in run("review", "g4-hs01-20261024", input="y\n").output
+    r = run("worksheet", "HS-01", "2026-10-24", "8ds-hdt-001", "8DS-HDT-002")  # typed refs: any case, added by hand
+    assert [m[2] for m in SHEET_LINE.finditer(r.output)] == ["8DS-HDT-001", "8DS-HDT-002"], r.output
+    assert "Thầy/cô tự thêm" in r.output
+    tid = r.output.split("Duyệt: tutor review ")[1].strip()
+    assert tid == "g4-hs01-20261024-2"
+    r = run("review", tid, input="y\nn\n")
+    assert "Ngày này đã có phiếu 6 bài. Tạo phiếu mới thay thế? Phiếu cũ vẫn giữ" in r.output, r.output
+    assert r.exit_code == 0 and "Đã tạo phiếu" not in r.output
+    assert conn.execute("SELECT count(*) FROM recommendation WHERE status <> 'rejected'").fetchone()[0] == 6
+    r = run("review", tid, input="y\ny\n")
+    assert r.exit_code == 0 and "Đã tạo phiếu 2 bài" in r.output, r.output
+    assert conn.execute("SELECT status, count(*) FROM recommendation GROUP BY status ORDER BY status").fetchall() == [
+        ("added", 2), ("rejected", 6)]  # fmt: skip
+    r = run("worksheet", "1", "2026-10-24", "nope-nope-1")
+    assert "nope-nope-1".upper() in r.output and "không có trong ngân hàng" in r.output
+    r = run("review", r.output.split("Duyệt: tutor review ")[1].strip(), input="y\n")
+    assert r.exit_code == 1 and "Tạo phiếu?" not in r.output

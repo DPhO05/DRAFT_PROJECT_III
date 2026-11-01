@@ -50,6 +50,14 @@ class DateOrderLocked(Exception):
         self.held_on, self.last_committed = held_on, last_committed
 
 
+class WorksheetExists(Exception):
+    """The student already has a live sheet for this date and the new one is different (409 worksheet_exists)."""
+
+    def __init__(self, for_date: str, n_problems: int):
+        super().__init__(f"Ngày {for_date} đã có phiếu {n_problems} bài")
+        self.for_date, self.n_problems = for_date, n_problems
+
+
 class StaleProfile(Exception):
     """The student's skill_* prior changed since the preview was computed (another session committed first)."""
 
@@ -933,6 +941,47 @@ def commit_session(conn: sqlite3.Connection, session_id: int, *, transcript: str
             " WHERE id = ?", (ts, transcript, review_seconds, session_id)
         )  # fmt: skip
         return _receipt(conn, session_id)
+
+
+def worksheet_problem_ids(conn: sqlite3.Connection, student_id: int, for_date: str) -> list[int]:
+    """Problems of the student's live sheet for the date, in sheet order; [] when there is none."""
+    return [r[0] for r in conn.execute(
+        "SELECT problem_id FROM recommendation WHERE student_id = ? AND for_date = ? AND status <> 'rejected'"
+        " ORDER BY position, id", (student_id, for_date))]  # fmt: skip
+
+
+def commit_worksheet(conn: sqlite3.Connection, *, student_id: int, for_date: str, items: list[dict],
+                     replace: bool) -> dict:  # fmt: skip
+    """G4 commit in one transaction: items = [{problem_id, kc_id, bucket, reason}] in sheet order.
+
+    A live sheet for the date that has exactly these problems is a rerun: receipt, nothing written. A different
+    one raises WorksheetExists, or with `replace` is marked rejected before the new rows go in (C-45).
+    Returns {for_date, n_problems, replaced}."""
+    if not items:
+        raise ValueError("Phiếu cần ít nhất 1 bài")
+    with write_tx(conn):
+        live = worksheet_problem_ids(conn, student_id, for_date)
+        if live == [i["problem_id"] for i in items]:
+            # the rows a replace rejected carry the time the live rows were made
+            again = conn.execute(
+                "SELECT EXISTS (SELECT 1 FROM recommendation o WHERE o.student_id = ?1 AND o.for_date = ?2"
+                " AND o.status = 'rejected' AND o.reviewed_at = (SELECT max(reviewed_at) FROM recommendation"
+                " WHERE student_id = ?1 AND for_date = ?2 AND status <> 'rejected'))",
+                (student_id, for_date),
+            ).fetchone()[0]
+            return {"for_date": for_date, "n_problems": len(live), "replaced": bool(again)}
+        if live and not replace:
+            raise WorksheetExists(for_date, len(live))
+        ts = now()
+        conn.execute("UPDATE recommendation SET status = 'rejected', reviewed_at = ? WHERE student_id = ?"
+                     " AND for_date = ? AND status <> 'rejected'", (ts, student_id, for_date))  # fmt: skip
+        conn.executemany(
+            "INSERT INTO recommendation (student_id, for_date, problem_id, kc_id, bucket, reason, status, reviewed_at,"
+            " position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(student_id, for_date, i["problem_id"], i["kc_id"], i["bucket"], i["reason"],
+              "approved" if i["bucket"] else "added", ts, n) for n, i in enumerate(items, 1)],
+        )  # fmt: skip
+        return {"for_date": for_date, "n_problems": len(items), "replaced": bool(live)}
 
 
 def session_detail(conn: sqlite3.Connection, session_id: int) -> dict:
