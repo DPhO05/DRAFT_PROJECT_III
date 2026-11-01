@@ -56,7 +56,7 @@ def read_bank(tex: str, kc_ids: dict[str, int]) -> list[BankItem]:
     for p in latex.split_problems(tex):
         sol = p.solutions[0] if p.solutions else None
         steps = latex.split_steps(tex, sol.pos, sol.pos_end, by="paragraph") if sol else []
-        if p.ref is None:
+        if not p.ref:
             invalid = "thiếu mã bài"
         elif not steps:
             invalid = "thiếu lời giải"

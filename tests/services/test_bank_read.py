@@ -46,6 +46,12 @@ def test_read_bank_invalid():
     assert items[6].solution == "" and items[6].rubric_items == [] and items[6].tags == []
 
 
+def test_read_bank_empty_ref():
+    one = "\\begin{problem}%s\nĐề.\n\\begin{solution}\nGiải.\n\\end{solution}\n\\end{problem}\n"
+    items = bank.read_bank((one % "[]") + (one % "[ ]"), KC)
+    assert [i.invalid for i in items] == ["thiếu mã bài"] * 2
+
+
 @pytest.mark.parametrize("bad", ["7", "abc", "0", ""])
 def test_read_bank_bad_level_label(bad):
     tex = TEX.replace("% do_kho_du_kien: 2", f"% do_kho_du_kien: {bad}")
