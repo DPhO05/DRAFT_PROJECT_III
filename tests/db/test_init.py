@@ -19,6 +19,12 @@ TABLES = {
     "misconception_log",
     "recommendation",
     "report",
+    "problem_fts",
+    "problem_fts_config",
+    "problem_fts_content",
+    "problem_fts_data",
+    "problem_fts_docsize",
+    "problem_fts_idx",
 }
 
 
@@ -28,7 +34,7 @@ def names(conn, kind):
 
 def test_new_db_has_schema_seed_and_latest_version(conn):
     assert names(conn, "table") == TABLES
-    assert names(conn, "view") == {"attempt_current", "mistake_current"}
+    assert names(conn, "view") == {"attempt_current", "mistake_current", "problem_fts_src"}
     assert conn.execute("SELECT count(*) FROM error_code").fetchone()[0] == 18
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
