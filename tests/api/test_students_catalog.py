@@ -19,8 +19,19 @@ def test_students_crud(client):
 
 def test_student_errors(client):
     assert client.post("/api/students", json={"name": " "}, headers=W).json()["error"]["code"] == "validation_error"
-    r = client.patch("/api/students/99", json={"name": "x"}, headers=W)
+    r = client.patch("/api/students/99", json={"name": "Lê Minh"}, headers=W)
     assert (r.status_code, r.json()["error"]["code"]) == (404, "not_found")
+
+
+def test_name_needs_two_words(client):
+    msg = "Nhập đủ họ và tên (ít nhất 2 chữ)"
+    r = client.post("/api/students", json={"name": "Minh"}, headers=W)
+    assert (r.status_code, r.json()["error"]["code"], r.json()["error"]["message"]) == (422, "validation_error", msg)
+    sid = client.post("/api/students", json={"name": "Lê Minh"}, headers=W)
+    assert sid.status_code == 201
+    r = client.patch(f"/api/students/{sid.json()['id']}", json={"name": " Minh "}, headers=W)
+    assert (r.status_code, r.json()["error"]["message"]) == (422, msg)
+    assert client.patch(f"/api/students/{sid.json()['id']}", json={"note": "chăm"}, headers=W).status_code == 200
 
 
 def csv_body():

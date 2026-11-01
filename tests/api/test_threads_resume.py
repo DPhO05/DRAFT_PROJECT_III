@@ -18,7 +18,7 @@ def start(paths, client, handlers):
     llm.set_backend(fake)
     with closing(repo.connect(paths.tutor_db)) as conn:
         add_bank(conn)
-    sid = client.post("/api/students", json={"name": "An", "grade": 8}, headers=W).json()["id"]
+    sid = client.post("/api/students", json={"name": "Lê An", "grade": 8}, headers=W).json()["id"]
     (paths.inbox / "a.tex").write_text(NO_ID, encoding="utf-8")
     tid = client.post("/api/sessions", json={"student_id": sid, "held_on": "2026-10-20", "path": "a.tex"},
                       headers=W).json()["thread_id"]  # fmt: skip

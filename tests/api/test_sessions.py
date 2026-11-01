@@ -17,7 +17,7 @@ def add_student(client):
     llm.set_backend(FakeLLM(lane_handlers()))
     with closing(repo.connect(client.app.state.paths.tutor_db)) as conn:
         add_bank(conn)
-    return client.post("/api/students", json={"name": "An", "grade": 8}, headers=W).json()["id"]
+    return client.post("/api/students", json={"name": "Lê An", "grade": 8}, headers=W).json()["id"]
 
 
 def poll(client, tid, until=("done", "awaiting_review", "failed", "committed")):

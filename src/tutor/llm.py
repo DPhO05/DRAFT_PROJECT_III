@@ -198,9 +198,17 @@ def _mask(text: str, redact: dict[str, str]) -> tuple[str, bool]:
         key = "".join(_fold(c) for c in unicodedata.normalize("NFC", name.strip()))
         if key:
             spans += [(m.start(), m.end(), code) for m in re.finditer(rf"(?<!\w){re.escape(key)}(?!\w)", folded)]
-    for start, end, code in sorted(spans, reverse=True):
+    kept = []
+    for start, end, code in sorted(spans, key=lambda x: (x[0] - x[1], x[0])):  # longest first: nested names lose
+        if all(end <= s or start >= e for s, e, _ in kept):
+            kept.append((start, end, code))
+    for start, end, code in sorted(kept, reverse=True):
         text = text[:start] + code + text[end:]
-    return text, bool(spans)
+    return text, bool(kept)
+
+
+def mask(text: str, redact: dict[str, str]) -> str:
+    return _mask(text, redact)[0]
 
 
 def _mask_all(x, redact: dict[str, str]) -> tuple[object, bool]:
