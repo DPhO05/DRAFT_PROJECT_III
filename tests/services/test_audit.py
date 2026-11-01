@@ -81,3 +81,15 @@ def test_codes_in_tool_text_do_not_launder_counts():
     assert known == {3.0, 1.0}
     assert unverified("HS-05 sai 5 lần.", known) == [{"sentence": "HS-05 sai 5 lần.", "numbers": ["5"]}]
     assert unverified("Làm 12 bài.", known)[0]["numbers"] == ["12"]
+
+
+def test_iso_timestamp_and_class_name_keep_their_numbers():
+    known = known_numbers(['{"created_at":"2026-10-07T14:30:00Z","class":"10-A"}'])
+    assert {2026.0, 10.0, 7.0, 14.0, 30.0} <= known
+    assert unverified("Ngày 7/10/2026 lúc 14:30.", known) == []
+
+
+def test_scale_in_key_name_is_known():
+    known = known_numbers(['{"score_10":6.5}'])
+    assert known == {6.5, 10.0}
+    assert unverified("Được 6,5/10 điểm.", known) == []

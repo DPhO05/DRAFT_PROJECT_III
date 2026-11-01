@@ -6,13 +6,14 @@ from collections.abc import Iterable
 # "." is a thousands mark only in 1.000 / 12.345.678 (never after a leading 0); "," is the decimal mark
 _NUM = r"[1-9]\d{0,2}(?:\.\d{3})+(?!\d)(?:,\d+)?|\d+(?:[.,]\d+)?"
 _TOKEN = re.compile(rf"(?<![\w.,])(?:{_NUM})(?:/(?:{_NUM}))*%?")
-# problem refs / student codes: letters + digits joined by "-"
-_CODE_PAT = r"(?<![\w-])(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+(?![\w-])"
+# problem refs / student codes: first segment holds a letter, a digit somewhere (so not 2026-10-07T14 or 10-A)
+_CODE_PAT = r"(?<![\w-])(?=[\w-]*\d)[0-9]*[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+(?![\w-])"
 # never audited in the answer: LaTeX, codes, list markers
 _IGNORED = re.compile(rf"(?s:\$\$.+?\$\$)|\$[^$\n]+\$|{_CODE_PAT}|(?m:^[ \t]*\d+[.)](?=[ \t]))")
 _CODE = re.compile(_CODE_PAT)
 _SENTENCE = re.compile(r"\S[^\n]*?(?:[.!?…]+(?=\s)|$)", re.M)
-_PLAIN = re.compile(r"(?<![\w.])\d+(?:\.\d+)?")
+# a digit run after a letter or digit belongs to a name (kc2), except "_10" (score_10) and the hour of 2026-10-07T14
+_PLAIN = re.compile(r"(?:(?<![^\W_.])|(?<=\dT))\d+(?:\.\d+)?")
 
 
 def values(token: str) -> set[float]:
