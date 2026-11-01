@@ -74,3 +74,10 @@ def test_joined_api_calls_split_on_blank_line():
 
 def test_repeated_number_listed_once():
     assert unverified("Sai 5 rồi lại 5.", set())[0]["numbers"] == ["5"]
+
+
+def test_codes_in_tool_text_do_not_launder_counts():
+    known = known_numbers(['{"code":"HS-05","count":3,"ref":"9DS-PT2-012","kc2":1}'])
+    assert known == {3.0, 1.0}
+    assert unverified("HS-05 sai 5 lần.", known) == [{"sentence": "HS-05 sai 5 lần.", "numbers": ["5"]}]
+    assert unverified("Làm 12 bài.", known)[0]["numbers"] == ["12"]

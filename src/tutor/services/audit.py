@@ -6,14 +6,13 @@ from collections.abc import Iterable
 # "." is a thousands mark only in 1.000 / 12.345.678 (never after a leading 0); "," is the decimal mark
 _NUM = r"[1-9]\d{0,2}(?:\.\d{3})+(?!\d)(?:,\d+)?|\d+(?:[.,]\d+)?"
 _TOKEN = re.compile(rf"(?<![\w.,])(?:{_NUM})(?:/(?:{_NUM}))*%?")
-# LaTeX, problem refs / student codes (letters + digits joined by "-"), list markers: never audited
-_IGNORED = re.compile(
-    r"(?s:\$\$.+?\$\$)|\$[^$\n]+\$"
-    r"|(?<![\w-])(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+(?![\w-])"
-    r"|(?m:^[ \t]*\d+[.)](?=[ \t]))"
-)
+# problem refs / student codes: letters + digits joined by "-"
+_CODE_PAT = r"(?<![\w-])(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+(?![\w-])"
+# never audited in the answer: LaTeX, codes, list markers
+_IGNORED = re.compile(rf"(?s:\$\$.+?\$\$)|\$[^$\n]+\$|{_CODE_PAT}|(?m:^[ \t]*\d+[.)](?=[ \t]))")
+_CODE = re.compile(_CODE_PAT)
 _SENTENCE = re.compile(r"\S[^\n]*?(?:[.!?…]+(?=\s)|$)", re.M)
-_PLAIN = re.compile(r"\d+(?:\.\d+)?")
+_PLAIN = re.compile(r"(?<![\w.])\d+(?:\.\d+)?")
 
 
 def values(token: str) -> set[float]:
@@ -37,7 +36,8 @@ def _parts(token: str) -> list[str]:
 def known_numbers(texts: Iterable[str]) -> set[float]:
     """Every number in the strings (tool-result JSON), dates and fraction parts included."""
     out: set[float] = set()
-    for text in texts:
+    for raw in texts:
+        text = _CODE.sub(lambda m: "_" * len(m.group()), raw)  # digits of HS-05 / 9DS-PT2-012 are not data
         for tok in _TOKEN.finditer(text):
             for part in _parts(tok.group()):
                 out |= values(part)
