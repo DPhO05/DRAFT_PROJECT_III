@@ -77,6 +77,32 @@ def _usage(u) -> dict:
     }
 
 
+_RETRY_KINDS = {"overloaded_error", "api_error", "rate_limit_error"}
+
+
+def _retryable(e: Exception) -> bool:
+    """Network / timeout / 429 / 5xx / 529, also when it arrives as an SSE error event or a broken read mid-stream."""
+    import anthropic as a
+    import httpx2
+
+    if isinstance(e, a.APIConnectionError | a.RateLimitError | a.InternalServerError | httpx2.TransportError):
+        return True
+    if not isinstance(e, a.APIStatusError):
+        return False
+    err = e.body.get("error") if isinstance(e.body, dict) else None
+    return e.status_code == 529 or (isinstance(err, dict) and err.get("type") in _RETRY_KINDS)
+
+
+@contextmanager
+def _net_errors():
+    try:
+        yield
+    except Exception as e:
+        if _retryable(e):
+            raise Retryable(str(e)) from e
+        raise
+
+
 def chat_request(model: str, system: list[str], tools: list[dict], messages: list[dict]) -> dict:
     """kwargs for client.beta.messages.stream; tools render before system, so the system breakpoint caches both."""
     return {
@@ -96,23 +122,10 @@ class AnthropicBackend:
     def __init__(self) -> None:
         import anthropic
 
-        self._a = anthropic
         self.client = anthropic.Anthropic(max_retries=0)  # retries are counted here (§8.4), not twice
 
-    @contextmanager
-    def _net_errors(self):
-        a = self._a
-        try:
-            yield
-        except (a.APIConnectionError, a.RateLimitError, a.InternalServerError) as e:
-            raise Retryable(str(e)) from e
-        except a.APIStatusError as e:
-            if e.status_code == 529:
-                raise Retryable(str(e)) from e
-            raise
-
     def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply:
-        with self._net_errors():
+        with _net_errors():
             r = self.client.beta.messages.parse(
                 model=model,
                 max_tokens=16000,
@@ -130,7 +143,7 @@ class AnthropicBackend:
     def chat(
         self, *, agent: str, model: str, system: list[str], tools: list[dict], messages: list[dict]
     ) -> Iterator[dict]:
-        with self._net_errors(), self.client.beta.messages.stream(**chat_request(model, system, tools, messages)) as s:
+        with _net_errors(), self.client.beta.messages.stream(**chat_request(model, system, tools, messages)) as s:
             for ev in s:
                 if ev.type == "text":
                     yield {"type": "text", "delta": ev.text}

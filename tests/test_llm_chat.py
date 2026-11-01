@@ -2,6 +2,8 @@
 
 import json
 
+import anthropic
+import httpx2
 import pytest
 
 from tests.fakes import FakeLLM
@@ -131,3 +133,21 @@ def test_chat_request_shape():
     assert req["max_tokens"] == 64000 and req["model"] == "claude-opus-5-5"
     assert req["fallbacks"] == "default" and req["betas"] == ["server-side-fallback-2026-07-01"]
     assert req["tools"] == tools and req["messages"] == msgs
+
+
+def test_retryable_covers_errors_inside_a_stream():
+    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+
+    def status(code, kind):
+        body = {"type": "error", "error": {"type": kind, "message": "x"}}
+        return anthropic.APIStatusError("x", response=httpx2.Response(code, request=req), body=body)
+
+    # an SSE error event arrives inside an HTTP 200 stream; a dropped connection mid-read is a raw transport error
+    for e in (status(200, "overloaded_error"), status(200, "api_error"), status(200, "rate_limit_error"),
+              status(529, "overloaded_error"), httpx2.ReadError("peer closed", request=req),
+              anthropic.APIConnectionError(request=req)):  # fmt: skip
+        assert llm._retryable(e), e
+    for e in (status(200, "invalid_request_error"), status(400, "invalid_request_error"), ValueError("x")):
+        assert not llm._retryable(e), e
+    with pytest.raises(llm.Retryable), llm._net_errors():
+        raise status(200, "overloaded_error")
