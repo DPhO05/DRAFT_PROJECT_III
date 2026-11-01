@@ -9,7 +9,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
-from tutor.services import search, students
+from tutor.config import student_code
+from tutor.services import search, select, students
 
 log = logging.getLogger("tutor")
 MAX_CONTENT = 6000  # chars of tool result sent to the model
@@ -104,6 +105,23 @@ TOOLS: list[dict] = [
         },
         ("metric",),
     ),
+    _tool(
+        "rank_problems",
+        "Chọn bài cho phiếu của một học sinh theo tiến bộ: ôn lỗi lặp, vừa sức, thử thách."
+        " Chỉ xếp hạng, không lưu gì. Bỏ trống n và ratios thì theo cài đặt.",
+        {
+            "code": _CODE,
+            "n": {"type": "integer", "description": "Số bài, từ 1 đến 12"},
+            "ratios": {
+                "type": "object",
+                "description": "Tỉ lệ ôn / vừa sức / thử thách, mỗi số từ 0 đến 1",
+                "properties": {k: {"type": "number"} for k in select.BUCKETS},
+                "required": list(select.BUCKETS),
+                "additionalProperties": False,
+            },
+        },
+        ("code",),
+    ),
 ]
 
 LABELS = {
@@ -113,6 +131,7 @@ LABELS = {
     "student_profile": "hồ sơ học sinh",
     "student_mistakes": "lỗi đã duyệt",
     "compare_students": "so sánh học sinh",
+    "rank_problems": "chọn bài theo tiến bộ",
 }
 
 
@@ -161,6 +180,7 @@ class Toolbox:
     def __init__(self, conn, *, settings: dict, today: date, text: str, starters: Starters | None = None):
         self.conn, self.settings, self.today, self.text, self.starters = conn, settings, today, text, starters
         self.outcomes: list[tuple[str, Outcome]] = []
+        self.ranked: list[dict] = []  # items of the latest rank_problems, for propose_worksheet (R18)
 
     def run(self, name: str, args: dict) -> Outcome:
         """Strict schema makes bad input rare, not impossible: any bad call becomes a tool error the model can retry."""
@@ -282,4 +302,23 @@ class Toolbox:
             source=f"so sánh lỗi đã duyệt của {c['n_students']} học sinh",
             summary=f"compare_students {c['metric']}: {c['n_students']} học sinh, {len(c['rows'])} có số liệu",
             trim=("rows",),
+        )
+
+    def tool_rank_problems(self, a: dict) -> Outcome:
+        reco = self.settings["reco"]
+        n = reco["n_problems"] if a.get("n") is None else a["n"]
+        if not 1 <= n <= 12:
+            raise ValueError("Số bài từ 1 đến 12")
+        sid = students.student_id(self.conn, a["code"])
+        r = select.rank_problems(self.conn, sid, n, reco=reco, today=self.today, ratios=a.get("ratios"))
+        self.ranked = r["items"]
+        items = [{k: v for k, v in i.items() if k != "statement_latex"} for i in r["items"]]
+        c = r["counts"]
+        return self._out(
+            "rank_problems",
+            {"n": len(items), "items": items, "counts": c, "warnings": r["warnings"]},
+            source=f"gợi ý bài theo tiến bộ của {student_code(sid)}",
+            summary=f"rank_problems {student_code(sid)}: {len(items)} bài ({c['review']} ôn, {c['zpd']} vừa sức,"
+            f" {c['challenge']} thử thách)",
+            trim=("items",),
         )

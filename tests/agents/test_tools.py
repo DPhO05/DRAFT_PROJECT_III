@@ -7,6 +7,7 @@ from contextlib import closing
 import pytest
 
 from tests.assistant_fix import world
+from tutor import config
 from tutor.agents import tools
 from tutor.agents.tools import LABELS, TOOLS, Toolbox
 from tutor.db import repo
@@ -14,6 +15,7 @@ from tutor.db import repo
 REF = "9DS-BPT-001"
 ORDER = [
     "find_problems", "search_problems", "list_students", "student_profile", "student_mistakes", "compare_students",
+    "rank_problems",
 ]  # fmt: skip
 CALLS = [
     ("find_problems", {"refs": [REF, "9ZZ-NOPE-999"]}),
@@ -22,6 +24,7 @@ CALLS = [
     ("student_profile", {"code": "HS-01"}),
     ("student_mistakes", {"code": "HS-01", "since": "2026-10-01", "kind": "notational.operator_swap"}),
     ("compare_students", {"metric": "open_repeats"}),
+    ("rank_problems", {"code": "HS-01"}),
 ]
 
 
@@ -34,7 +37,7 @@ def ro(conn, paths):
 
 def box(ro, text="so sánh các học sinh"):
     c, w = ro
-    return Toolbox(c, settings={}, today=w["today"], text=text)
+    return Toolbox(c, settings=config.defaults(), today=w["today"], text=text)
 
 
 def test_readonly_connection(conn, paths):
@@ -82,6 +85,9 @@ BAD_ARGS = [
     ("student_mistakes", {"code": "HS-01", "since": 5}, "không đúng"),
     ("student_profile", {"code": 1}, "không đúng"),
     ("find_problems", {"refs": 5}, "không đúng"),
+    ("rank_problems", {}, "Thiếu tham số code"),
+    ("rank_problems", {"code": "HS-01", "n": "3"}, "không đúng"),
+    ("rank_problems", {"code": "HS-01", "ratios": {"review": "a", "zpd": 1, "challenge": 0}}, "không đúng"),
 ]
 
 
@@ -218,3 +224,54 @@ def test_tool_defs_strict(conn):
     assert "enum" not in TOOLS[4]["input_schema"]["properties"]["kind"]
     levels = TOOLS[1]["input_schema"]["properties"]
     assert levels["level_min"]["enum"] == levels["level_max"]["enum"] == ["dễ", "vừa", "khó"]
+
+
+def test_rank_problems_outcome(ro):
+    tb = box(ro)
+    out = tb.run("rank_problems", {"code": "HS-01"})
+    assert not out.is_error and out.card is None
+    assert (out.label, out.source) == ("chọn bài theo tiến bộ", "gợi ý bài theo tiến bộ của HS-01")
+    body = json.loads(out.content)
+    assert body["n"] == 6 and body["counts"] == {"review": 2, "zpd": 3, "challenge": 1} and body["warnings"] == []
+    assert len(body["items"]) == 6 and all("statement_latex" not in i for i in body["items"])
+    assert {"ref", "bucket", "reason", "kcs"} <= set(body["items"][0])
+    assert out.data == body and [i["ref"] for i in tb.ranked] == [i["ref"] for i in body["items"]]
+    assert all(i["statement_latex"] for i in tb.ranked)
+    again = tb.run("rank_problems", {"code": "HS-01", "n": 2, "ratios": {"review": 1, "zpd": 0, "challenge": 0}})
+    assert json.loads(again.content)["counts"] == {"review": 2, "zpd": 0, "challenge": 0}
+    assert len(tb.ranked) == 2 and [n for n, _ in tb.outcomes] == ["rank_problems"] * 2
+
+
+@pytest.mark.parametrize(
+    ("args", "words"),
+    [
+        ({"code": "HS-99"}, "Không có học sinh HS-99"),
+        ({"code": "HS-01", "n": 0}, "1 đến 12"),
+        ({"code": "HS-01", "n": 13}, "1 đến 12"),
+        ({"code": "HS-01", "ratios": {"review": 0, "zpd": 0, "challenge": 0}}, "Tỉ lệ"),
+        ({"code": "HS-01", "ratios": {"review": 1.5, "zpd": 0, "challenge": 0}}, "Tỉ lệ"),
+    ],
+)
+def test_rank_problems_bad_input_is_error(ro, args, words):
+    tb = box(ro)
+    out = tb.run("rank_problems", args)
+    assert out.is_error and words in json.loads(out.content)["error"] and tb.ranked == []
+
+
+def _walk(schema):
+    yield schema
+    for sub in (*schema.get("properties", {}).values(), *([schema["items"]] if "items" in schema else [])):
+        yield from _walk(sub)
+
+
+def test_strict_schema_limits():
+    optional = 0
+    for d in TOOLS:
+        for node in _walk(d["input_schema"]):
+            assert not {"minimum", "maximum", "maxItems", "exclusiveMinimum", "exclusiveMaximum"} & set(node), d["name"]
+            assert node.get("minItems", 0) <= 1, d["name"]
+            optional += len(node.get("properties", {})) - len(node.get("required", []))
+    assert optional == 12
+    rank = {d["name"]: d for d in TOOLS}["rank_problems"]["input_schema"]
+    assert rank["required"] == ["code"] and set(rank["properties"]) == {"code", "n", "ratios"}
+    assert rank["properties"]["ratios"]["required"] == ["review", "zpd", "challenge"]
