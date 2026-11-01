@@ -14,6 +14,7 @@ from tutor.db import repo
 from tutor.graphs.registry import make_runner
 
 APP_DIR = Path(__file__).resolve().parents[3] / "app"
+APP_V3_DIR = Path(__file__).resolve().parents[3] / "app-v3"
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 log = logging.getLogger("tutor")
 
@@ -83,5 +84,6 @@ def create_app(paths: config.DataPaths, *, port: int, fake_llm: bool = False) ->
 
     for r in (backup, students, catalog, sessions, threads, logs, bank):
         app.include_router(r.router)
+    app.mount("/v3", StaticFiles(directory=APP_V3_DIR, html=True), name="app-v3")  # before "/", which matches all
     app.mount("/", StaticFiles(directory=APP_DIR, html=True), name="app")
     return app

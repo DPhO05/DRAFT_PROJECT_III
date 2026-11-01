@@ -3,7 +3,7 @@
 from fastapi.testclient import TestClient
 
 from tutor import __version__
-from tutor.api.app import create_app
+from tutor.api.app import APP_DIR, create_app
 from tutor.db import repo
 
 
@@ -24,6 +24,14 @@ def test_serves_app_shell(client):
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
     assert client.get("/api.js").status_code == 200
+
+
+def test_v3_served(client):
+    r = client.get("/v3/")
+    assert r.status_code == 200
+    assert "<title>" in r.text
+    assert client.get("/v3/core.js").status_code == 200
+    assert client.get("/").content == (APP_DIR / "index.html").read_bytes()
 
 
 def test_unknown_host_rejected(client):
