@@ -2,6 +2,7 @@
 
 import json
 import re
+from concurrent.futures import Future
 from contextlib import closing
 
 import pytest
@@ -106,3 +107,16 @@ def test_propose_keeps_rank_reasons(env):
 def test_unknown_student_is_words(env, paths):
     with pytest.raises(ValueError, match="Không có học sinh HS-99"):
         make_starters(paths, env[1]).propose_worksheet(99, "2026-10-24", [], None, [])
+
+
+def test_busy_old_draft_is_words(env):
+    tb, runner, _ = env
+    args = {"code": "HS-01", "for_date": "2026-10-24", "refs": [REF]}
+    old = tb.run("propose_worksheet", args).card["thread_id"]
+    running = runner._futures[old] = Future()  # the old draft is being saved right now
+    try:
+        out = tb.run("propose_worksheet", args)
+    finally:
+        running.set_result(None)
+    assert out.is_error and json.loads(out.content) == {"error": "Phiếu nháp đang được lưu, thử lại sau ít phút"}
+    assert out.card is None and [t["thread_id"] for t in runner.list_threads(graph="G4")] == [old]
