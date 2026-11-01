@@ -11,7 +11,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from tutor.config import THETA0, student_code
-from tutor.services import elo
+from tutor.services import elo, latex
+from tutor.services.bank import level_delta, rubric_items
+from tutor.services.search import items_by_id
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 MIGRATIONS = Path(__file__).with_name("migrations")
@@ -511,6 +513,77 @@ def problem_detail(conn: sqlite3.Connection, problem_id: int) -> dict:
     ).fetchone()
     p["rubric"] = {"id": r[0], "version": r[1], "items": json.loads(r[2]), "max_score": r[3]} if r else None
     return p
+
+
+def problem_view(conn: sqlite3.Connection, problem_id: int) -> dict:
+    """problem_detail + the grid card fields + source, has_attempts and the solution split into paragraphs."""
+    detail = problem_detail(conn, problem_id)
+    source = conn.execute("SELECT source FROM problem WHERE id = ?", (problem_id,)).fetchone()[0]
+    attempted = conn.execute("SELECT EXISTS (SELECT 1 FROM attempt WHERE problem_id = ?)", (problem_id,)).fetchone()[0]
+    sol = detail["solution_latex"]
+    return {
+        **items_by_id(conn, [problem_id])[0],
+        **detail,
+        "source": source,
+        "has_attempts": bool(attempted),
+        "solution_steps": [s.latex for s in latex.split_steps(sol, 0, len(sol), by="paragraph")],
+    }
+
+
+def problem_tech(conn: sqlite3.Connection, problem_id: int) -> dict:
+    """The numbers behind a problem's level, and the replay command for every student who attempted it."""
+    row = conn.execute(
+        "SELECT delta, difficulty_approved_at FROM problem WHERE id = ?", (problem_id,)
+    ).fetchone()  # fmt: skip
+    if row is None:
+        raise NotFound(f"bài {problem_id}")
+    students = conn.execute(
+        "SELECT DISTINCT s.student_id FROM attempt a JOIN session s ON s.id = a.session_id"
+        " WHERE a.problem_id = ? ORDER BY 1",
+        (problem_id,),
+    )  # fmt: skip
+    return {
+        "delta": row[0],
+        "difficulty_approved_at": row[1],
+        "replay_hint": [f"tutor replay {student_code(sid)}" for (sid,) in students],
+    }
+
+
+def update_problem_labels(conn: sqlite3.Connection, problem_id: int, **fields) -> None:
+    """kc_ids / level / rubric_items. Applies from now on: old skill_event and attempt.rubric_id stay as they are."""
+    if unknown := fields.keys() - {"kc_ids", "level", "rubric_items"}:
+        raise ValueError(f"Không sửa được: {', '.join(sorted(unknown))}")
+    kc_ids = fields.get("kc_ids")
+    if "kc_ids" in fields and (not isinstance(kc_ids, list) or not kc_ids):
+        raise ValueError("Chọn ít nhất 1 kỹ năng")
+    delta = level_delta(fields["level"]) if "level" in fields else None
+    items = rubric_items(fields["rubric_items"]) if "rubric_items" in fields else None
+    with write_tx(conn):
+        if conn.execute("SELECT 1 FROM problem WHERE id = ?", (problem_id,)).fetchone() is None:
+            raise NotFound(f"bài {problem_id}")
+        at = now()
+        if kc_ids:
+            kc_ids = list(dict.fromkeys(kc_ids))
+            marks = ", ".join("?" * len(kc_ids))
+            if conn.execute(f"SELECT count(*) FROM kc WHERE id IN ({marks})", kc_ids).fetchone()[0] != len(kc_ids):
+                raise ValueError("Có kỹ năng không tồn tại")
+            conn.execute("DELETE FROM problem_kc WHERE problem_id = ?", (problem_id,))
+            conn.executemany(
+                "INSERT INTO problem_kc (problem_id, kc_id, step_idx, evidence_latex, approved_at)"
+                " VALUES (?, ?, 0, NULL, ?)",
+                [(problem_id, k, at) for k in kc_ids],
+            )
+        if "level" in fields:
+            conn.execute(
+                "UPDATE problem SET delta = ?, difficulty_approved_at = ? WHERE id = ?",
+                (delta, at if delta is not None else None, problem_id),
+            )
+        if items:
+            conn.execute(
+                "INSERT INTO rubric (problem_id, version, items_json, max_score, approved_at)"
+                " VALUES (?, (SELECT COALESCE(MAX(version), 0) + 1 FROM rubric WHERE problem_id = ?), ?, ?, ?)",
+                (problem_id, problem_id, json.dumps(items, ensure_ascii=False), sum(i["points"] for i in items), at),
+            )
 
 
 def error_codes(conn: sqlite3.Connection, *, active_only: bool = False) -> list[dict]:
