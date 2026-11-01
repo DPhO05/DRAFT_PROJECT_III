@@ -5,7 +5,7 @@ from contextlib import closing
 from fastapi import APIRouter, Body, Request
 
 from tutor.db import repo
-from tutor.graphs import bank, threads
+from tutor.graphs import bank, session, threads
 
 router = APIRouter(prefix="/api/threads")
 
@@ -27,14 +27,16 @@ def cleanup(request: Request) -> dict:
 def get_thread(thread_id: str, request: Request, include: str | None = None, view: str = "") -> dict:
     """view=teacher: the short row plus `card`, built by the server per graph (null for graphs with no card yet)."""
     r = request.app.state.runner
-    t = r.get(thread_id)  # 404 first
+    r.get(thread_id)  # 404 first
+    row = next(t for t in threads.annotate(r.list_threads()) if t["thread_id"] == thread_id)
     if view == "teacher":
         card = None
-        if t["graph"] == bank.GRAPH:
+        if row["graph"] == session.GRAPH:
+            card = session.card(request.app.state.paths, row, r.state(thread_id), r.done_count(thread_id, "lane"))
+        elif row["graph"] == bank.GRAPH:
             with closing(repo.connect(request.app.state.paths.tutor_db, readonly=True)) as conn:
-                card = bank.card(t, r.state(thread_id), repo.list_kc(conn))
-        return {k: t[k] for k in ("thread_id", "graph", "status", "updated_at")} | {"card": card}
-    row = next(t for t in threads.annotate(r.list_threads()) if t["thread_id"] == thread_id)
+                card = bank.card(row, r.state(thread_id), repo.list_kc(conn))
+        return {k: row[k] for k in ("thread_id", "graph", "status", "updated_at")} | {"card": card}
     if include == "state" or row["status"] == "committed":
         state = r.state(thread_id)
         row["receipt"] = state.get("receipt")

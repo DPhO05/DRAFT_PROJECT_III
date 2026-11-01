@@ -114,16 +114,26 @@ def test_teacher_view_card_applies_saved_decisions(paths, client):
     assert (c["n_ready"], c["n_need"]) == (3, 1)
 
 
-def test_teacher_view_other_graph_card_null(paths, client):
+def test_teacher_view_g1_card(paths, client):
     h = lane_handlers() | {"01": ingest.MatchResult(candidates=[ingest.Candidate(ref=P1[0], score=0.5)])}
     tid, _, _ = start(paths, client, h)
     got = client.get(f"/api/threads/{tid}?view=teacher").json()
-    assert (got["graph"], got["card"]) == ("G1", None) and set(got) == {
-        "thread_id",
-        "graph",
-        "status",
-        "updated_at",
-        "card",
-    }
+    assert set(got) == {"thread_id", "graph", "status", "updated_at", "card"}
+    assert (got["graph"], got["status"]) == ("G1", "awaiting_review")
+    c = got["card"]
+    assert (c["kind"], c["stage"], c["file"], c["held_on"], c["progress"]) == (
+        "grading", "confirm", "a.tex", "2026-10-20", {"done": 0, "total": 1})  # fmt: skip
+    assert [(f["seq"], f["type"], [x["ref"] for x in f["candidates"]]) for f in c["confirm"]] == [
+        (1, "low_match", [P1[0]])
+    ]
+    assert c["lock"] is None and c["preview"] is None and c["error_words"] is None and c["receipt"] is None
+    assert not keys(got) & {"node", "theta", "delta", "confidence", "tech"}
     assert "node" in client.get(f"/api/threads/{tid}").json()
     assert client.get("/api/threads/nope?view=teacher").status_code == 404
+    client.put(f"/api/threads/{tid}/decisions", json={"1": {"problem_ref": P1[0]}}, headers=W)
+    client.post(f"/api/threads/{tid}/resume", headers=W)
+    poll(client, tid, until=("awaiting_review", "failed"))
+    c = client.get(f"/api/threads/{tid}?view=teacher").json()["card"]
+    assert (c["stage"], c["progress"], c["decided"], c["score"], c["max_score"]) == (
+        "review", {"done": 1, "total": 1}, {"done": 0, "total": 1}, 1, 1)  # fmt: skip
+    assert c["attempts"][0]["mistakes"][0]["pid"] == "p1" and c["preview"] is None

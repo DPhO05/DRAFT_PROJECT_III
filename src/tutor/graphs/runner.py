@@ -8,6 +8,7 @@ import json
 import logging
 import sqlite3
 import threading
+from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 
@@ -75,6 +76,7 @@ class Runner:
         self.graphs = {name: g.compile(checkpointer=self.saver) for name, g in graphs.items()}
         self._pool = ThreadPoolExecutor(max_workers, thread_name_prefix="graph")
         self._futures: dict[str, Future] = {}
+        self._chunks: dict[str, Counter] = {}  # per thread: finished nodes since its last submit (done_count)
         self._fail_hooks: dict[str, Callable[[dict], None]] = {}
         self._pending: dict[str, Callable[[dict, object, str], int]] = {}
         self._checks: dict[str, Callable[[dict, object], None]] = {}
@@ -186,18 +188,26 @@ class Runner:
         self._set(thread_id, status="running", error=None)
         self._submit(row["graph"], thread_id, inp)
 
+    def done_count(self, thread_id: str, node: str) -> int | None:
+        """How many times `node` finished since the thread's last submit in this process (G1: lanes done); None if
+        this process never ran it. Each Send lane reports its own chunk (measured, tests/graphs/test_g1_card.py)."""
+        counts = self._chunks.get(thread_id)
+        return None if counts is None else counts[node]
+
     def _submit(self, graph: str, thread_id: str, inp: object) -> None:
         with self._lock:
             f = self._futures.get(thread_id)
             if f is not None and not f.done():
                 raise ThreadBusy(thread_id)
-            self._futures[thread_id] = self._pool.submit(self._run, graph, thread_id, inp)
+            counts = self._chunks[thread_id] = Counter()
+            self._futures[thread_id] = self._pool.submit(self._run, graph, thread_id, inp, counts)
 
-    def _run(self, graph: str, thread_id: str, inp: object) -> None:
+    def _run(self, graph: str, thread_id: str, inp: object, counts: Counter) -> None:
         g, cfg = self.graphs[graph], {"configurable": {"thread_id": thread_id}}
         try:
             for chunk in g.stream(inp, cfg, stream_mode="updates"):
                 done = [n for n in chunk if not n.startswith("__")]
+                counts.update(done)
                 if done:
                     self._set(thread_id, node=done[-1])
             snap = g.get_state(cfg)
@@ -227,6 +237,7 @@ class Runner:
         with self._lock:
             self._conn.execute("DELETE FROM tutor_thread WHERE thread_id = ?", (thread_id,))
             self._futures.pop(thread_id, None)
+            self._chunks.pop(thread_id, None)
 
     def wait(self, thread_id: str, timeout: float = 60) -> dict:
         with self._lock:

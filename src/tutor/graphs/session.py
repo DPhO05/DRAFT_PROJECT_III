@@ -9,9 +9,11 @@ refuses (repo.StaleProfile) and the graph goes back to 05 instead of writing a s
 import copy
 import hashlib
 import json
+import re
 from collections.abc import Callable
 from contextlib import closing
 from datetime import date
+from pathlib import Path
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, Send, interrupt
@@ -154,6 +156,21 @@ def _review_pending(state: SessionState, review: object, codes: set[str], kcs: d
     return sum(not ok(p, cards.get(p)) for p in pids) + sum(not ok(k, d) for k, d in cards.items() if k not in pids)
 
 
+def _review_inputs(conn, state: dict) -> tuple[set[str], dict[int, set[int]]]:
+    """(active error codes, KC ids of each lane's problem by seq): what a review decision is checked against."""
+    codes = {c["code"] for c in repo.error_codes(conn, active_only=True)}
+    kcs = {lane["seq"]: {k["id"] for k in repo.problem_detail(conn, lane["problem_id"])["kcs"]}
+           for lane in state.get("lanes", [])}  # fmt: skip
+    return codes, kcs
+
+
+def _low_confidence(paths: DataPaths) -> float:
+    try:
+        return config.load(paths.settings)["review"]["low_confidence"]
+    except config.SettingsError:
+        return config.defaults()["review"]["low_confidence"]
+
+
 def _mistake_rows(state: SessionState, review: dict) -> dict[int, list[dict]]:
     """Decisions → mistake rows per attempt seq (contract §7): accept → confirmed, edit → edited, reject → rejected,
     add → added (llm_json, confidence, verifier NULL). llm_json = the proposal minus `verifier`."""
@@ -181,9 +198,7 @@ def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
             return 0  # the decisions are final; resume only needs the tutor's go
         if node == "gate_review":
             with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
-                codes = {c["code"] for c in repo.error_codes(conn, active_only=True)}
-                kcs = {lane["seq"]: {k["id"] for k in repo.problem_detail(conn, lane["problem_id"])["kcs"]}
-                       for lane in state.get("lanes", [])}  # fmt: skip
+                codes, kcs = _review_inputs(conn, state)
             return _review_pending(state, decisions, codes, kcs)
         decisions = decisions if isinstance(decisions, dict) else {}
         with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
@@ -235,6 +250,177 @@ def sig(preview: dict) -> str:
     """preview_sig (api-v3 §3.4): the second resume of Lưu kết quả goes on only if the preview shown still holds."""
     body = json.dumps({k: v for k, v in preview.items() if k != "writes"}, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(body.encode()).hexdigest()[:16]
+
+
+_RUNNING = {"prepare": "grading", "gate_confirm_match": "grading", "apply_match": "grading", "lane": "grading",
+            "queue": "grading", "mark_waiting_review": "grading", "gate_review": "saving", "profile": "saving",
+            "mark_waiting_confirm": "saving", "gate_confirm_commit": "saving", "commit": "saving"}  # fmt: skip
+_AWAITING = {"gate_confirm_match": "confirm", "gate_review": "review", "gate_confirm_commit": "preview"}
+_WHY = {"awaiting_review": "earlier_pending", "failed": "earlier_failed", "running": "earlier_running"}
+_STEP = {"ingest": "đọc bài", "prepare": "đọc bài", "lane": "chấm bài", "profile": "tính tiến bộ",
+         "commit": "lưu kết quả"}  # fmt: skip
+_CODE = re.compile(rf"\b(?:{'|'.join(repo.ERROR_CATEGORIES)})\.\w+")
+
+
+def _stage(row: dict, state: dict) -> str:
+    """The runner's status + node as api-v3 §3.4 names it (a running node is the last one done), date lock aside."""
+    status, node = row["status"], row["node"]
+    if status == "running":
+        if node == "prepare" and _unresolved(state):  # next is the confirm gate, not the lanes
+            return "reading"
+        return _RUNNING.get(node, "reading")
+    if status == "awaiting_review":
+        return _AWAITING[node]
+    return "saved" if status == "committed" else "failed"
+
+
+def _reason(error: str) -> str:
+    if "Tiến trình dừng giữa chừng" in error:
+        return "App bị tắt"
+    if re.search(r"\b(?:429|529)\b|overloaded|rate.?limit", error, re.I):
+        return "Dịch vụ trợ lý đang quá tải"
+    if re.search(r"connection|timed out|timeout", error, re.I):
+        return "Mất kết nối"
+    return "Gặp lỗi không lường trước"
+
+
+def _plain(text: str, code_words: dict[str, str]) -> str:
+    """Model text for the teacher: an error code `x.y` in it becomes the code's description."""
+    return _CODE.sub(lambda m: code_words.get(m.group(), "một loại lỗi khác"), text)
+
+
+def _check(p: dict, code_words: dict[str, str]) -> str | None:
+    v = p.get("verifier") or {}
+    if v.get("verdict") == "agree":
+        return None
+    if v.get("verdict") == "disagree":
+        return f"Kiểm tra lại thấy có thể không phải lỗi: {_plain(v['reason'], code_words)}"
+    if v.get("verdict") == "wrong_code" and v.get("suggested_code") in code_words:
+        return f"Kiểm tra lại thấy có thể là loại “{code_words[v['suggested_code']]}”."
+    return "Chưa kiểm tra lại được."
+
+
+def _confirm(state: dict, statements: dict[str, str]) -> list[dict]:
+    """The flags the teacher still answers at confirm_match; `statements` = bank ref → statement."""
+    attempts, out = {a["seq"]: a for a in state["ingest"]["attempts"]}, []
+    for f in _unresolved(state):
+        a = attempts[f["seq"]]
+        if f["type"] == "low_match":
+            first = a["steps"][0]["latex"] if a["steps"] else ""
+            out.append({"seq": a["seq"], "type": "low_match", "first_step_latex": first,
+                        "candidates": [{"ref": c["ref"], "statement_latex": statements[c["ref"]], "best": i == 0}
+                                       for i, c in enumerate(a["candidates"])]})  # fmt: skip
+        else:
+            draft = state["rubric_drafts"].get(str(f["seq"]))
+            out.append({"seq": a["seq"], "type": "no_rubric", "ref": a["ref"],
+                        "rubric_draft": [{k: i[k] for k in ("item_id", "text", "points")} for i in draft["items"]]
+                        if draft else []})  # fmt: skip
+    return out
+
+
+def _mistake(p: dict, kc_names: dict[int, str], code_words: dict[str, str], low: float) -> dict:
+    """One 03 proposal as the card shows it; `code` and `suggested_code` are only there to be sent back."""
+    kc = None if p["kc_id"] is None else {"id": p["kc_id"], "name": kc_names[p["kc_id"]]}
+    return {"pid": p["pid"], "step_idx": p["step_idx"], "code": p["code"], "kind": code_words[p["code"]], "kc": kc,
+            "description": _plain(p["description"], code_words), "evidence_latex": p["evidence_latex"],
+            "unsure": p["confidence"] < low, "suggested_code": (p.get("verifier") or {}).get("suggested_code"),
+            "check": _check(p, code_words)}  # fmt: skip
+
+
+def _error_words(row: dict, state: dict) -> str:
+    """api-v3 §3.4: "<reason> khi đang <step>. ..." from the runner's error text and the node that failed."""
+    step = _STEP.get(row["node"], "xử lý bài làm")
+    if row["node"] == "lane":
+        done = {lane["seq"] for lane in state.get("lanes", [])}
+        left = [str(seq) for seq in _attempts(state) if seq not in done]
+        step += f" {', '.join(left)}" if left else ""
+    return f"{_reason(row['error'] or '')} khi đang {step}. Bài làm vẫn còn nguyên, chưa có gì được lưu."
+
+
+def card(paths: DataPaths, row: dict, state: dict, progress: int | None) -> dict:
+    """The teacher's view of a G1 thread (api-v3 §3.4): words only, no θ, δ, node names or error codes.
+    `row` went through threads.annotate; `progress` = runner.done_count(thread, "lane")."""
+    at = _stage(row, state)
+    res = state.get("ingest") or {"attempts": [], "flags": []}
+    lanes = {lane["seq"]: lane for lane in state.get("lanes", [])}
+    proposals = state.get("proposals", [])
+    saved = json.loads(row["decisions_json"]) if row.get("decisions_json") else state.get("review")
+    with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+        kc_names = {k["id"]: k["name"] for k in repo.list_kc(conn)}
+        code_words = {c["code"]: c["description"] for c in repo.error_codes(conn)}
+        problems = {a["problem_id"]: repo.problem_detail(conn, a["problem_id"]) for a in res["attempts"]
+                    if a["problem_id"] is not None}  # fmt: skip
+        statements = {b["ref"]: b["statement_latex"] for b in repo.bank_problems(conn)} if at == "confirm" else {}
+        codes, kcs = _review_inputs(conn, state) if at == "review" else (set(), {})
+    low, drafted = _low_confidence(paths), {f["seq"] for f in res["flags"] if f["type"] == "no_rubric"}
+    attempts = []
+    for a in res["attempts"]:
+        pr, grade = problems.get(a["problem_id"]), (lanes.get(a["seq"]) or {}).get("grade")
+        attempts.append({
+            "seq": a["seq"], "ref": a["ref"], "statement_latex": pr and pr["statement_latex"],
+            "score": grade and grade["score"], "max_score": grade and grade["max_score"],
+            "skipped": bool(a.get("skipped")), "rubric_draft": a["seq"] in drafted,
+            "kcs": [{"id": k["id"], "name": k["name"]} for k in pr["kcs"]] if pr else [],
+            "steps": [{"idx": s["idx"], "latex": s["latex"]} for s in a["steps"]],
+            "mistakes": [_mistake(p, kc_names, code_words, low) for p in proposals if p["attempt_seq"] == a["seq"]],
+        })  # fmt: skip
+    decided, shown = None, state.get("preview") if at == "preview" else None
+    if at == "review":
+        pids = {p["pid"] for p in proposals}
+        mine = {"cards": {k: d for k, d in _cards(saved).items() if k in pids}}  # added mistakes are not counted
+        decided = {"done": len(proposals) - _review_pending(state, mine, codes, kcs), "total": len(proposals)}
+        if not _review_pending(state, saved, codes, kcs):
+            shown = preview_of(paths, state, saved)[2]
+    preview = shown and {k: v for k, v in shown.items() if k != "writes"}
+    grades = [lane["grade"] for lane in lanes.values()]
+    score, max_score = (
+        (sum(g["score"] for g in grades), sum(g["max_score"] for g in grades)) if grades else (None, None)
+    )
+    total, rc = sum(not a.get("skipped") for a in res["attempts"]), state.get("receipt")
+    return {
+        "kind": "grading",
+        "stage": "locked" if row["locked"] else at,
+        "student_id": row["student_id"],
+        "held_on": row["held_on"],
+        "file": Path(state["source_path"]).name if state.get("source_path") else None,
+        "progress": {"done": progress, "total": total}
+        if progress is not None and at in ("reading", "confirm", "grading", "review") else None,
+        "score": score,
+        "max_score": max_score,
+        "decided": decided,
+        "confirm": _confirm(state, statements) if at == "confirm" else [],
+        "attempts": attempts,
+        "preview": preview,
+        "preview_sig": preview and sig(preview),
+        "lock": {"blocked_by": {"thread_id": row["blocking_thread_id"], "held_on": row["blocking_held_on"]},
+                 "why": _WHY[row["blocking_status"]]} if row["locked"] else None,
+        "error_words": _error_words(row, state) if at == "failed" else None,
+        "receipt": rc and {"score": score, "max_score": max_score, "backed_up": True,
+                           "n_mistakes": rc["mistake"] - rc["by_status"]["rejected"]},
+    }  # fmt: skip
+
+
+def reminder(paths: DataPaths, row: dict, state: dict) -> dict:
+    """One line of GET /api/assistant/pending (api-v3 §3.3) for a G1 thread."""
+    at = "locked" if row["locked"] else _stage(row, state)
+    if at == "confirm":
+        words = f"cần xác nhận {len(_unresolved(state))} bài"
+    elif at == "review":
+        saved = json.loads(row["decisions_json"]) if row.get("decisions_json") else state.get("review")
+        n = pending(paths)(state, saved, "gate_review")
+        words = f"{n} lỗi cần xem" if n else "chờ lưu kết quả"
+    elif at == "locked":
+        words = f"chờ duyệt buổi {date.fromisoformat(row['blocking_held_on']):%d/%m} trước"
+    else:
+        words = "chấm chưa xong" if at == "failed" else "chờ lưu kết quả"
+    return {
+        "kind": "grading",
+        "thread_id": row["thread_id"],
+        "student_id": row["student_id"],
+        "date": row["held_on"],
+        "state": at,
+        "words": words,
+    }
 
 
 def build(paths: DataPaths) -> StateGraph:
@@ -310,14 +496,11 @@ def build(paths: DataPaths) -> StateGraph:
         for lane in sorted(state.get("lanes", []), key=lambda x: x["seq"]):
             for m in lane["mistakes"]:
                 cards.append({"pid": f"p{len(cards) + 1}", "kind": "mistake", "attempt_seq": lane["seq"]} | m)
-        try:
-            low = config.load(paths.settings)["review"]["low_confidence"]
-        except config.SettingsError:
-            low = config.defaults()["review"]["low_confidence"]
-        return {"proposals": verifier.order_queue(cards, low)}
+        return {"proposals": verifier.order_queue(cards, _low_confidence(paths))}
 
     def gate_review(state: SessionState) -> dict:
-        return {"review": interrupt({"gate": "review", "n": len(state["proposals"])})["decisions"]}
+        # resume sends None when the teacher never saved a decision (0 mistakes): commit and the preview read a dict
+        return {"review": interrupt({"gate": "review", "n": len(state["proposals"])})["decisions"] or {}}
 
     def profile(state: SessionState) -> dict:
         """05: replay this session over the stored prior. Reads only, no LLM; commit ② writes the result."""

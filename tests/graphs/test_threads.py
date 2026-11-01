@@ -21,12 +21,14 @@ def test_earlier_session_not_committed_locks_later_one(blocker):
     rows = threads.annotate([row("b", "2026-10-17", blocker), row("a", "2026-10-20", "awaiting_review")])
     a = rows[1]
     assert a["locked"] and a["blocking_thread_id"] == "b"
+    assert (a["blocking_held_on"], a["blocking_status"]) == ("2026-10-17", blocker)
     assert "17/10" in a["lock_reason"] and "HS-01" in a["lock_reason"]
 
 
 def test_committed_earlier_session_unlocks():
     rows = threads.annotate([row("b", "2026-10-17", "committed"), row("a", "2026-10-20", "awaiting_review")])
     assert rows[1]["locked"] is False and rows[1]["blocking_thread_id"] is None
+    assert (rows[1]["blocking_held_on"], rows[1]["blocking_status"]) == (None, None)
 
 
 def test_lock_only_same_student_earlier_g1():

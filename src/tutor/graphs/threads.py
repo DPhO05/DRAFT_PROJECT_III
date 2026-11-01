@@ -21,10 +21,12 @@ class ThreadLocked(Exception):
 
 
 def annotate(rows: list[dict]) -> list[dict]:
-    """Add locked / lock_reason / blocking_thread_id. Computed, never stored (C-28): an awaiting G1 thread is
-    locked while the same student has an earlier G1 session waiting, failed or running."""
+    """Add locked / lock_reason / blocking_thread_id / blocking_held_on / blocking_status. Computed, never stored
+    (C-28): an awaiting G1 thread is locked while the same student has an earlier G1 session waiting, failed or
+    running."""
     for t in rows:
-        t |= {"locked": False, "lock_reason": None, "blocking_thread_id": None}
+        t |= {"locked": False, "lock_reason": None, "blocking_thread_id": None, "blocking_held_on": None,
+              "blocking_status": None}  # fmt: skip
         if t["graph"] != "G1" or t["status"] != "awaiting_review" or not t["held_on"]:
             continue
         earlier = sorted(
@@ -37,7 +39,8 @@ def annotate(rows: list[dict]) -> list[dict]:
             day = f"{date.fromisoformat(b['held_on']):%d/%m}"
             tail = _BLOCKING[b["status"]]
             what = f"buổi {day} của {student_code(t['student_id'])}" + (tail or " trước")
-            t |= {"locked": True, "blocking_thread_id": b["thread_id"],
+            t |= {"locked": True, "blocking_thread_id": b["thread_id"], "blocking_held_on": b["held_on"],
+                  "blocking_status": b["status"],
                   "lock_reason": f"Elo cập nhật tuần tự: {'' if tail else 'duyệt '}{what}"}  # fmt: skip
     return rows
 
