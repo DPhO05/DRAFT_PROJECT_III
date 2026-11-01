@@ -13,6 +13,7 @@
   function $(id) { return document.getElementById(id); }
   function pts(n) { return String(n).replace('.', ',') + ' điểm'; }
   function levelChip(lv) { return lv ? '<span class="chip">' + U.esc(lv) + '</span>' : '<span class="chip chip-warn">' + NO_LEVEL + '</span>'; }
+  function isSkill(k) { return k.parent_id != null || !kcs.some(function (c) { return c.parent_id === k.id; }); }  // a topic with no skills under it is a skill itself
   function kcChips(list) {
     return list.length ? list.map(function (k) { return '<span class="chip chip-wrap">' + U.esc(k.name) + '</span>'; }).join('') : '<span class="chip chip-warn">chưa gắn kỹ năng</span>';
   }
@@ -75,7 +76,7 @@
   }
   function drawSkills() {
     var t = +f.topic, g = +f.grade;
-    var list = kcs.filter(function (k) { return k.parent_id != null && (!t || k.parent_id === t) && (!g || k.lop === g); });
+    var list = kcs.filter(function (k) { return isSkill(k) && (!t || k.parent_id === t || k.id === t) && (!g || k.lop === g); });
     if (f.kc && !list.some(function (k) { return String(k.id) === f.kc; })) f.kc = '';
     $('b-skill').innerHTML = '<option value="">Tất cả kỹ năng</option>' + list.map(function (k) { return '<option value="' + k.id + '">' + U.esc(k.name) + '</option>'; }).join('');
     $('b-skill').value = f.kc;
@@ -120,7 +121,7 @@
   function editBody() {
     var p = edit.p, tid = p.topic && p.topic.id;
     var sk = kcs.filter(function (k) {
-      return k.parent_id != null && (edit.kc.indexOf(k.id) >= 0 || (edit.all ? !p.grade || k.lop <= p.grade : k.parent_id === tid));
+      return edit.kc.indexOf(k.id) >= 0 || (isSkill(k) && (edit.all ? !p.grade || k.lop <= p.grade : k.parent_id === tid));
     });
     return '<p><span class="ref">' + U.esc(p.ref) + '</span></p>' +
       '<div class="field"><span>Kỹ năng của bài</span><div class="skill-checks">' + sk.map(function (k) {
@@ -207,10 +208,10 @@
   }
   function drawFoot(s) { $('modal-foot').innerHTML = impFoot(s); }
   function skillOptions(sel) {
+    var opt = function (k) { return '<option value="' + k.id + '"' + (k.id === sel ? ' selected' : '') + '>' + U.esc(k.name) + '</option>'; };
     return kcs.filter(function (t) { return t.parent_id == null; }).map(function (t) {
       var ks = kcs.filter(function (k) { return k.parent_id === t.id; });
-      return ks.length ? '<optgroup label="' + U.esc(t.name) + '">' + ks.map(function (k) {
-        return '<option value="' + k.id + '"' + (k.id === sel ? ' selected' : '') + '>' + U.esc(k.name) + '</option>'; }).join('') + '</optgroup>' : '';
+      return ks.length ? '<optgroup label="' + U.esc(t.name) + '">' + ks.map(opt).join('') + '</optgroup>' : opt(t);
     }).join('');
   }
   function filesHTML(s) {
@@ -225,26 +226,27 @@
         (b.status === 'imported' ? 'Đã nạp' : b.status === 'empty' ? 'Không có bài' : 'Đọc file') + '</button></div>';
     }).join('') + '</div>';
   }
+  function warned(it) { return it.unknown_label && !it.invalid && !it.existing; }
   function rowHTML(s, it) {
     var ref = it.ref ? U.esc(it.ref) : '(chưa có mã)';
     if (it.invalid) return '<div class="imp-row"><div class="row"><span class="ref">' + ref + '</span><span class="chip chip-crit">bỏ qua</span><span class="small muted">' + U.esc(it.invalid) +
       '</span></div><div class="clamp">' + U.texHtml(it.statement_latex) + '</div></div>';
     var d = s.dec[it.ref] || {}, edKc = it.needs.indexOf('kc') >= 0, edLv = it.needs.indexOf('level') >= 0, need = edKc || edLv;
+    var pickKc = edKc || warned(it);
     var noKc = edKc && !(d.kc_ids && d.kc_ids.length), noLv = edLv && !('level' in d);
     var tag = it.existing ? '<span class="chip">đã có trong ngân hàng</span>' : !need ? levelChip(it.level)
       : noKc || noLv ? '<span class="chip chip-warn">thiếu ' + [noKc ? 'kỹ năng' : '', noLv ? 'mức' : ''].filter(Boolean).join(' và ') + '</span>' : '<span class="chip chip-ok">đã chọn</span>';
     return '<div class="imp-row' + (noKc || noLv ? ' needs' : '') + '" data-row="' + U.esc(it.ref) + '"><div class="row"><span class="ref">' + ref + '</span>' + tag + '</div>' +
-      (it.unknown_label && edKc ? '<p class="small"><span class="chip chip-warn chip-wrap">Nhãn kỹ năng ghi trong file không có trong danh mục — chọn lại kỹ năng</span></p>' : '') +
+      (warned(it) ? '<p class="small"><span class="chip chip-warn chip-wrap">Nhãn kỹ năng ghi trong file không có trong danh mục — chọn lại kỹ năng</span></p>' : '') +
       (need ? U.texHtml(it.statement_latex) : '<div class="clamp">' + U.texHtml(it.statement_latex) + '</div>') +
-      (!need ? '<div class="row">' + kcChips(it.kcs) + '</div>' : '<div class="row">' +
-        (edKc ? '<label class="field grow"><span>Kỹ năng</span><select data-imp-kc="' + U.esc(it.ref) + '"><option value="">— chọn kỹ năng —</option>' + skillOptions(d.kc_ids && d.kc_ids[0]) + '</select></label>'
-          : kcChips(it.kcs)) +
+      '<div class="row">' + (edKc || d.kc_ids ? '' : kcChips(it.kcs)) +
+        (pickKc ? '<label class="field grow"><span>Kỹ năng</span><select data-imp-kc="' + U.esc(it.ref) + '"><option value="">' + (edKc ? '— chọn kỹ năng —' : '— giữ như đã đọc được —') + '</option>' + skillOptions(d.kc_ids && d.kc_ids[0]) + '</select></label>' : '') +
         (edLv ? '<div class="field"><span>Mức</span><div class="seg" role="group" aria-label="Mức bài ' + U.esc(it.ref) + '">' + LEVELS.concat('').map(function (l) {
           return '<button type="button" class="seg-btn" data-act="imp-level" data-ref="' + U.esc(it.ref) + '" data-v="' + l + '" aria-pressed="' + ('level' in d && (d.level || '') === l) + '">' + (l || 'để trống') + '</button>'; }).join('') + '</div></div>'
-          : levelChip(it.level)) + '</div>') + '</div>';
+          : need ? levelChip(it.level) : '') + '</div></div>';
   }
   function previewHTML(s) {
-    var c = s.card, need = c.items.filter(function (i) { return i.needs.length; }), rows = s.only ? need : c.items;
+    var c = s.card, need = c.items.filter(function (i) { return i.needs.length || warned(i); }), rows = s.only ? need : c.items;
     var extra = [c.n_existing ? c.n_existing + ' bài đã có trong ngân hàng, bỏ qua' : '', c.n_invalid ? c.n_invalid + ' khối không đọc được, bỏ qua' : ''].filter(Boolean).join(' · ');
     return '<p><b>' + U.esc(c.file) + '</b>: ' + c.n_total + ' bài · ' + c.n_ready + ' đã có kỹ năng và mức · <b>' + c.n_need + ' cần chọn</b></p>' + (extra ? '<p class="small muted">' + extra + '</p>' : '') +
       '<div class="seg" role="group" aria-label="Lọc bài" style="align-self:flex-start">' + [['1', 'Cần chọn (' + need.length + ')'], ['0', 'Tất cả (' + c.items.length + ')']].map(function (o) {
@@ -262,7 +264,7 @@
     if (s.stage === 'files') return filesHTML(s);
     if (s.stage === 'reading') return '<p class="muted" role="status">Đang đọc ' + U.esc(s.file) + '…</p>';
     if (s.stage === 'saving') return '<p class="muted" role="status">Đang lưu…</p>';
-    if (s.stage === 'error') return '<div class="callout callout-crit" role="alert"><p><b>Không nạp được ' + U.esc(s.file) + '.</b> ' + s.err + '</p></div><div class="row">' + (s.retry ? '<button type="button" class="btn btn-primary" data-act="imp-retry">Thử lại</button>' : '') + '<button type="button" class="btn" data-act="imp-back">Chọn file khác</button></div>';
+    if (s.stage === 'error') return '<div class="callout callout-crit" role="alert"><p><b>Không nạp được ' + U.esc(s.file) + '.</b> ' + s.err + '</p></div><div class="row">' + (s.retry ? '<button type="button" class="btn btn-primary" data-act="imp-retry">Thử lại</button><button type="button" class="btn" data-act="imp-drop">Bỏ</button>' : '') + '<button type="button" class="btn" data-act="imp-back">Chọn file khác</button></div>';
     return s.stage === 'saved' ? savedHTML(s) : previewHTML(s);
   }
   function impFoot(s) {
@@ -358,6 +360,15 @@
       if (live(s)) { s.stage = s.retry; impDraw(s); impPoll(s); }
     }, function () {
       if (live(s)) { btn.disabled = false; U.toast('Chưa thử lại được. Thử lại sau.', 'warn'); }
+    });
+  };
+  ACT['imp-drop'] = function (btn) {
+    var s = imp;
+    btn.disabled = true;
+    U.api.send('POST', '/threads/' + s.tid + '/cancel').then(function () { if (live(s)) impFiles(s); }, function (e) {
+      if (!live(s)) return;
+      if (e.status === 404) { impFiles(s); return; }  // already gone: the file list is where the teacher wants to be
+      btn.disabled = false; U.toast('Chưa bỏ được. Thử lại sau.', 'warn');
     });
   };
   ACT['imp-only'] = function (el) { imp.only = el.dataset.v === '1'; impDraw(imp, '[data-act="imp-only"][aria-pressed="true"]'); };

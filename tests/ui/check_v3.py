@@ -18,7 +18,7 @@ from contextlib import closing
 from pathlib import Path
 
 # shortcut: generic helpers are imported from check.py; P8-T03 deletes check.py and they move into this file.
-from check import DESK, JS_OBSERVE, JS_OVERFLOW, NET_NOISE, PHONE, SHOTS, close_overlay, tutor_app
+from check import DESK, JS_OBSERVE, JS_OVERFLOW, NET_NOISE, PHONE, SHOTS, api, close_overlay, tutor_app
 from playwright.sync_api import sync_playwright
 
 TABS = ("tro-ly", "hoc-sinh", "bao-cao", "ngan-hang")
@@ -212,13 +212,17 @@ JS_RACE_RESUME = """() => { window.__send = U.api.send;
   U.api.send = (m, p, b) => p.endsWith('/resume') ? Promise.reject(e) : window.__send(m, p, b); }"""
 # the import's poll answers "failed" (a killed app, a commit that broke); `__late` = it got past reading
 JS_FAIL_POLL = """() => { window.__get = U.api.get; window.__send = U.api.send;
-  window.__resumes = 0; window.__late = false;
+  window.__resumes = 0; window.__cancels = 0; window.__late = false;
   U.api.get = p => p.includes('view=teacher') ? Promise.resolve({thread_id: 't', graph: 'G2', status: 'failed',
     card: {kind: 'bank_import', stage: 'failed', items: window.__late ? [{}] : []}}) : window.__get(p);
-  U.api.send = (m, p, b) => p.endsWith('/resume')
-    ? (window.__resumes++, Promise.resolve({})) : window.__send(m, p, b); }"""
+  U.api.send = (m, p, b) => p.endsWith('/resume') ? (window.__resumes++, Promise.resolve({}))
+    : p.endsWith('/cancel') ? (window.__cancels++, Promise.resolve({})) : window.__send(m, p, b); }"""
 JS_UNFAIL = "() => { U.api.get = window.__get; U.api.send = window.__send; }"
 JS_RESUMES_IS = "n => window.__resumes === n"
+JS_CANCELS_IS = "n => window.__cancels === n"
+JS_FILE_LIST = (
+    "() => !document.querySelector('[data-act=\"imp-retry\"]') && !!document.querySelector('#modal-body .file-row')"
+)
 # the saved picks of a kept import thread cannot be read: the request fails, or the JSON is broken
 JS_SAVED_BROKEN = """() => { window.__get = U.api.get; window.__mode = 'reject';
   const bad = Object.assign(new Error('x'), {status: 500});
@@ -238,6 +242,13 @@ ONE_PROBLEM = (
     "% Bài <u>thử</u>\n\\begin{problem}[8DS-BAD-001]\nCho $x = 1$.\n\n"
     "\\begin{solution}\nĐáp số: $x = 1$.\n\\end{solution}\n\\end{problem}\n"
 )
+TYPO = "typo-label.tex"
+TYPO_TEX = (
+    "% Nhãn lạ\n\\begin{problem}[8DS-TYP-001]\n% kc_du_kien: 8DS-HSBN-01, 8DS-KHONG-CO\n% do_kho_du_kien: 2\n"
+    "Cho $x = 1$.\n\n\\begin{solution}\nĐáp số: $x = 1$.\n\\end{solution}\n\\end{problem}\n"
+)
+UNKNOWN_LABEL = "Nhãn kỹ năng ghi trong file không có trong danh mục"
+LEAF = "Kỹ năng lẻ"  # a skill with no topic over it, as the old catalog tab could make
 SUMMARY = "5 bài · 1 đã có kỹ năng và mức · 3 cần chọn"
 SAVE = '#modal-foot [data-act="imp-save"]'
 
@@ -250,6 +261,29 @@ def scalar(data_dir: str, sql: str, *args) -> int:
 
 def problems(data_dir: str, where: str = "1", *args) -> int:
     return scalar(data_dir, f"SELECT count(*) FROM problem WHERE {where}", *args)
+
+
+def tag_rows(data_dir: str, pid: str) -> list:
+    with closing(sqlite3.connect(f"{Path(data_dir, 'tutor.db').as_uri()}?mode=ro", uri=True)) as con:
+        return con.execute(
+            "SELECT kc_id, step_idx FROM problem_kc WHERE problem_id = ? ORDER BY 1, 2", (pid,)
+        ).fetchall()
+
+
+def tag_own_topic(data_dir: str, pid: str) -> int:
+    """Tag the problem with the KC of its own topic, a tag the Sửa form used to hide; returns that KC id."""
+    with closing(sqlite3.connect(Path(data_dir, "tutor.db"))) as con, con:
+        topic = con.execute(
+            "SELECT COALESCE(k.parent_id, k.id) FROM problem_kc pk JOIN kc k ON k.id = pk.kc_id"
+            " WHERE pk.problem_id = ? ORDER BY k.id LIMIT 1",
+            (pid,),
+        ).fetchone()[0]
+        con.execute(
+            "INSERT OR IGNORE INTO problem_kc (problem_id, kc_id, step_idx, approved_at)"
+            " VALUES (?, ?, 1, '2026-01-01T00:00:00Z')",
+            (pid, topic),
+        )
+    return topic
 
 
 def bank_level(page, rep: dict, data_dir: str, level: str, where: str) -> None:
@@ -359,6 +393,8 @@ def bank_edit(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
     card = page.locator("#b-grid .bcard").first
     pid, ref = card.get_attribute("data-pid"), card.locator(".ref").first.inner_text()
     one = f'#b-grid .bcard[data-pid="{pid}"]'
+    topic_kc = tag_own_topic(data_dir, pid)
+    tags = tag_rows(data_dir, pid)
     press(page, rep, f"{one} .ref", f"bank open {ref}", JS_MODAL)
     try:
         page.wait_for_selector("#modal-root mjx-container", timeout=20000)
@@ -375,8 +411,12 @@ def bank_edit(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
         rep["missing"].append("bank view: MathJax error on screen")
     see(page, rep, f"bank view {ref}", phone)
     press(page, rep, '[data-act="b-edit"]', "bank Sửa", JS_EDIT_OPEN)
+    if not page.locator(f'#modal-body [data-sk="{topic_kc}"]:checked').count():
+        rep["missing"].append(f"bank edit: the topic-level skill {topic_kc} tagged on {ref} is not shown checked")
     boxes, rows = page.locator("#modal-body [data-sk]").count(), page.locator("#modal-body [data-rt]").count()
     press(page, rep, '[data-act="e-all"]', "bank hiện kỹ năng chủ đề khác", JS_CHECKS_GT, boxes)
+    if not page.locator("#modal-body .skill-checks label", has_text=LEAF).count():
+        rep["missing"].append("bank edit: a skill with no topic is not in Hiện kỹ năng chủ đề khác")
     press(page, rep, '[data-act="e-radd"]', "bank Thêm ý", JS_ROWS_IS, rows + 1)
     press(page, rep, f'[data-act="e-rdel"][data-i="{rows}"]', "bank × ý", JS_ROWS_IS, rows)
     press(page, rep, '[data-act="e-level"][data-v="khó"]', "bank mức khó", JS_HARD_ON)
@@ -397,6 +437,8 @@ def bank_edit(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
     )
     if problems(data_dir, f"id = ? AND ({HARD})", pid) != 1:
         rep["missing"].append(f"bank edit: tutor.db does not have {ref} as khó")
+    if (now := tag_rows(data_dir, pid)) != tags:
+        rep["missing"].append(f"bank edit: a level-only save changed the skill tags of {ref} from {tags} to {now}")
     see(page, rep, f"bank after save {ref}", phone)
     press(page, rep, "#b-grid .bcard:nth-child(2) .ref", "bank open 2nd", JS_MODAL)
     page.keyboard.press("Escape")
@@ -415,11 +457,14 @@ def bank_inbox(data_dir: str, phone: bool) -> tuple[str, str]:
     text = MIX.read_text(encoding="utf-8")
     (folder / mix).write_text(text.replace("8DS-NEW-", "8DS-NEX-") if phone else text, encoding="utf-8")
     (folder / bad).write_text(ONE_PROBLEM, encoding="utf-8")
+    (folder / TYPO).write_text(TYPO_TEX, encoding="utf-8")
     return mix, bad
 
 
 def import_failed(page, rep: dict, phone: bool, mix: str, file_row) -> None:
-    """A failed import thread (killed app, failed commit) offers Thử lại, and one click sends one resume."""
+    """A failed import thread (killed app, failed commit) offers Thử lại, and one click sends one resume.
+
+    Bỏ drops the thread with one cancel and returns to the file list."""
     page.evaluate(JS_FAIL_POLL)
     for n, (late, said) in enumerate(
         ((False, "Không đọc được nội dung file"), (True, "Chưa lưu được vào ngân hàng")), 1
@@ -427,12 +472,33 @@ def import_failed(page, rep: dict, phone: bool, mix: str, file_row) -> None:
         page.evaluate("l => { window.__late = l; }", late)
         press(page, rep, f'{file_row(mix)} [data-act="imp-read"]', f"bank đọc {mix} khi lỗi", JS_ROOT_HAS, said)
         shown = page.inner_text("#modal-root")
-        rep["missing"] += [f"bank import failed: no '{w}'" for w in ("Thử lại", "Chọn file khác") if w not in shown]
+        rep["missing"] += [
+            f"bank import failed: no '{w}'" for w in ("Thử lại", "Bỏ", "Chọn file khác") if w not in shown
+        ]
         see(page, rep, "bank import failed", phone)
         press(page, rep, '[data-act="imp-retry"]', "bank Thử lại", JS_RESUMES_IS, n)
         expect(page, rep, JS_ROOT_HAS, f"bank import failed: no '{said}' after Thử lại", said)
         press(page, rep, '[data-act="imp-back"]', "bank Chọn file khác", JS_ROOT_HAS, mix)
+    press(page, rep, f'{file_row(mix)} [data-act="imp-read"]', f"bank đọc {mix} khi lỗi", JS_ROOT_HAS, "Thử lại")
+    press(page, rep, '[data-act="imp-drop"]', "bank Bỏ", JS_FILE_LIST)
+    expect(page, rep, JS_CANCELS_IS, "bank import failed: Bỏ should send exactly 1 cancel", 1)
     page.evaluate(JS_UNFAIL)
+
+
+def import_typo(page, rep: dict, phone: bool, file_row) -> None:
+    """A known skill next to a misspelt one: the row still warns and offers the picker, and Lưu stays on."""
+    press(page, rep, f'{file_row(TYPO)} [data-act="imp-read"]', f"bank đọc {TYPO}", JS_ROOT_HAS, UNKNOWN_LABEL)
+    expect(page, rep, JS_ENABLED, "bank import: a row with a known skill and a misspelt one cannot be saved")
+    if page.locator("#modal-body .imp-row").count() != 1 or "thiếu" in page.inner_text("#modal-body .imp-row"):
+        rep["missing"].append("bank import: the misspelt-label row should be one row that lacks nothing")
+    if not page.locator("#modal-body [data-imp-kc] option", has_text=LEAF).count():
+        rep["missing"].append("bank import: a skill with no topic is not in the skill picker")
+    if not page.locator("#b-skill option", has_text=LEAF).count():
+        rep["missing"].append("bank: a skill with no topic is not in the Kỹ năng filter")
+    see(page, rep, "bank import misspelt label", phone)
+    page.keyboard.press("Escape")
+    expect(page, rep, JS_NO_MODAL, "bank import: Esc did not close")
+    press(page, rep, '[data-act="b-import"]', "bank Nạp bài mới", JS_ROOT_HAS, "Đọc file")
 
 
 def import_reopen(page, rep: dict, phone: bool, mix: str, file_row, reqs: list) -> None:
@@ -475,6 +541,7 @@ def bank_import(page, rep: dict, phone: bool, data_dir: str, reqs: list, files: 
     see(page, rep, "bank import refused", phone)
     press(page, rep, '[data-act="imp-back"]', "bank Chọn file khác", JS_ROOT_HAS, mix)
     import_failed(page, rep, phone, mix, file_row)
+    import_typo(page, rep, phone, file_row)
     start = len(rep["missing"])  # the steps below stand on their own
     press(page, rep, f'{file_row(mix)} [data-act="imp-read"]', f"bank đọc {mix}", JS_ROOT_HAS, SUMMARY)
     if len(rep["missing"]) > start:
@@ -604,9 +671,11 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
 
 def check(url: str, args: argparse.Namespace) -> int:
     base = f"{url}v3/"
+    data_dir = getattr(url, "data_dir", None) if args.data else None
+    if data_dir:
+        api(url, "POST", "/catalog/kc", {"code": "ROBOT-LE-01", "name": LEAF, "description": "robot", "lop": 8})
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome")
-        data_dir = getattr(url, "data_dir", None) if args.data else None
         views = [walk(browser, base, n, vp, args.shots, data_dir) for n, vp in (("desktop", DESK), ("phone", PHONE))]
         browser.close()
     keys = ("console_errors", "page_errors", "dead", "missing", "forbidden", "overflow")
