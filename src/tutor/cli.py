@@ -356,7 +356,8 @@ def bank_import_cmd(
             items = runner.state(tid)["items"]
             valid = [i for i in items if not i["invalid"] and not i["existing"]]
             n_need = sum(bool(i["needs"]) for i in valid)
-            typer.echo(f"{len(items)} bài · {len(valid) - n_need} đã có kỹ năng và mức · {n_need} cần chọn"
+            n_read = sum(not i["invalid"] for i in items)
+            typer.echo(f"{n_read} bài · {len(valid) - n_need} đã có kỹ năng và mức · {n_need} cần chọn"
                        f" · {sum(i['existing'] for i in items)} đã có")  # fmt: skip
             for i in items:
                 if i["invalid"]:

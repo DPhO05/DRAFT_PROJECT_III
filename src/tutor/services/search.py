@@ -15,21 +15,25 @@ _HAS_TOPIC = (
     f" WHERE pk.problem_id = p.id AND {_TOPIC} = :topic)"
 )
 _REF_STARTS = "substr(p.ref, 1, length(:q)) = :q COLLATE NOCASE"
-_FTS = "SELECT rowid AS id, bm25(problem_fts, 1.0, 0.5, 2.0) AS score FROM problem_fts WHERE problem_fts MATCH :match"
+# MATERIALIZED: one FTS lookup, not one per problem row
+_FTS = (
+    "WITH h AS MATERIALIZED (SELECT rowid AS id, bm25(problem_fts, 1.0, 0.5, 2.0) AS score"
+    " FROM problem_fts WHERE problem_fts MATCH :match)"
+)
 
 
 def _tokens(text: str) -> list[str]:
     return re.findall(r"\w+", text.replace("đ", "d").replace("Đ", "D").lower())
 
 
-def _query(q: str, topic, grade, kc, levels) -> tuple[str, str, dict]:
-    """(FROM … WHERE …, ORDER BY, args) for the filters; with a text query, ref prefix first then bm25."""
+def _query(q: str, topic, grade, kc, levels) -> tuple[str, str, str, dict]:
+    """(WITH …, FROM … WHERE …, ORDER BY, args) for the filters; with a text query, ref prefix first then bm25."""
     args: dict = {"topic": topic, "grade": grade, "kc": kc}
     where = ["1"]
-    join, order = "", "p.ref"
+    with_, join, order = "", "", "p.ref"
     if tokens := _tokens(q):
         args |= {"q": q.strip(), "match": " OR ".join(f'"{t}"' for t in tokens)}
-        join = f"LEFT JOIN ({_FTS}) h ON h.id = p.id"
+        with_, join = _FTS, "LEFT JOIN h ON h.id = p.id"
         where.append(f"({_REF_STARTS} OR h.id IS NOT NULL)")
         order = f"({_REF_STARTS}) DESC, h.score, p.ref"
     if topic is not None:
@@ -41,7 +45,7 @@ def _query(q: str, topic, grade, kc, levels) -> tuple[str, str, dict]:
     if levels is not None:
         args |= {f"l{i}": lv for i, lv in enumerate(levels)}
         where.append(f"{_LEVEL} IN ({', '.join(f':l{i}' for i in range(len(levels)))})")
-    return f"FROM problem p {join} WHERE {' AND '.join(where)}", order, args
+    return with_, f"FROM problem p {join} WHERE {' AND '.join(where)}", order, args
 
 
 def items_by_id(conn: sqlite3.Connection, ids: list[int]) -> list[dict]:
@@ -96,10 +100,11 @@ def browse(
 ) -> dict:
     if level is not None and level not in (*LEVELS, "none"):
         raise ValueError(f"unknown level {level!r}")
-    frm, order, args = _query(q, topic, grade, kc, None if level is None else [level])
-    total = conn.execute(f"SELECT count(*) {frm}", args).fetchone()[0]
+    with_, frm, order, args = _query(q, topic, grade, kc, None if level is None else [level])
+    total = conn.execute(f"{with_} SELECT count(*) {frm}", args).fetchone()[0]
     ids = conn.execute(
-        f"SELECT p.id {frm} ORDER BY {order} LIMIT :limit OFFSET :offset", args | {"limit": limit, "offset": offset}
+        f"{with_} SELECT p.id {frm} ORDER BY {order} LIMIT :limit OFFSET :offset",
+        args | {"limit": limit, "offset": offset},
     )
     counts = conn.execute(
         f"SELECT {_TOPIC}, count(DISTINCT pk.problem_id) FROM problem_kc pk JOIN kc k ON k.id = pk.kc_id GROUP BY 1"
@@ -127,8 +132,10 @@ def search_problems(
         lo = LEVELS.index(level_min) if level_min is not None else 0
         hi = LEVELS.index(level_max) if level_max is not None else len(LEVELS) - 1
         levels = LEVELS[lo : hi + 1]
-    frm, order, args = _query(text, None, grade, kc, levels)
-    ids = conn.execute(f"SELECT p.id {frm} ORDER BY {order} LIMIT :limit", args | {"limit": max(0, min(limit, 10))})
+    with_, frm, order, args = _query(text, None, grade, kc, levels)
+    ids = conn.execute(
+        f"{with_} SELECT p.id {frm} ORDER BY {order} LIMIT :limit", args | {"limit": max(0, min(limit, 10))}
+    )
     return items_by_id(conn, [r[0] for r in ids])
 
 

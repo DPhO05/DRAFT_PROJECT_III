@@ -72,6 +72,7 @@ def read_bank(tex: str, kc_ids: dict[str, int]) -> list[BankItem]:
                 # contract §5: k-th expected KC (0-based) tagged at step min(k+1, n_steps)
                 j = min(k + 1, len(steps))
                 tags.append((kc_ids[c], j, steps[j - 1].latex))
+        tags = list(dict.fromkeys(tags))  # a repeated code on the last step is the same tag; problem_kc keys (kc, step)
         d = p.meta.get("do_kho_du_kien", "")
         delta = round((int(d) - 3) * 0.6, 2) if d in ("1", "2", "3", "4", "5") else None
         needs = [n for n, missing in (("kc", not any(c in kc_ids for c in codes)), ("level", delta is None)) if missing]

@@ -40,6 +40,21 @@ def test_read_bank_unknown_label():
     assert (c.unknown_label, c.needs, c.delta, c.tags) == (True, ["kc"], 0.6, [])
 
 
+def one(labels: str) -> str:
+    return f"\\begin{{problem}}[R-1]\n{labels}\nĐề.\n\\begin{{solution}}\nGiải.\n\\end{{solution}}\n\\end{{problem}}\n"
+
+
+def test_read_bank_known_and_unknown_code():
+    tex = one("% kc_du_kien: 8DS-HSBN-01, TYPO\n% do_kho_du_kien: 2")
+    a = bank.read_bank(tex, KC)[0]
+    assert (a.tags, a.needs, a.unknown_label) == ([(1, 1, "Giải.")], [], True)
+
+
+def test_read_bank_repeated_code_one_tag():
+    tex = one("% kc_du_kien: 8DS-HSBN-01, 8DS-HSBN-01")
+    assert bank.read_bank(tex, KC)[0].tags == [(1, 1, "Giải.")]
+
+
 def test_read_bank_invalid():
     items = bank.read_bank(TEX, KC)
     assert [i.invalid for i in items] == [None] * 5 + ["thiếu mã bài", "thiếu lời giải", "trùng mã trong file"]

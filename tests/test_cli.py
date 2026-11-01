@@ -259,7 +259,7 @@ def test_bank_import_and_review(paths, conn):
     cli_run = CliRunner()
     r = cli_run.invoke(cli.cli, ["bank", "import", str(src), "--data-dir", str(paths.root)])
     assert r.exit_code == 0, r.output
-    assert "8 bài · 1 đã có kỹ năng và mức · 3 cần chọn · 1 đã có" in r.output
+    assert "5 bài · 1 đã có kỹ năng và mức · 3 cần chọn · 1 đã có" in r.output
     tid = r.output.split("Duyệt: tutor review ")[1].strip()
     assert tid.startswith("g2-mix-")
     assert repo.row_counts(conn) == before

@@ -48,6 +48,18 @@ def test_search_unaccented_top5(bank):
     assert any(code in {k["code"] for k in repo.problem_detail(bank, i["id"])["kcs"]} for i in top)
 
 
+def test_text_query_runs_fts_once(bank):
+    sqls = []
+    bank.set_trace_callback(sqls.append)
+    search.browse(bank, q="phuong trinh")
+    bank.set_trace_callback(None)
+    for sql in (s for s in sqls if s.startswith(("WITH", "SELECT")) and "problem_fts" in s):
+        plan = [r[3] for r in bank.execute("EXPLAIN QUERY PLAN " + sql)]
+        assert next(i for i, d in enumerate(plan) if "problem_fts" in d) < next(
+            i for i, d in enumerate(plan) if d.startswith("SCAN p ")
+        )
+
+
 def test_search_d_stroke(bank):
     plain, accented = search.search_problems(bank, "do thi"), search.search_problems(bank, "đồ thị")
     assert refs(plain) == refs(accented)

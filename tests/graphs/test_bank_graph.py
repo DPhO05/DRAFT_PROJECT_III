@@ -127,6 +127,17 @@ def test_decisions_override_file_labels(g2):
     assert p1[1] == -0.6 and tags(conn, p1[0])[0][1] == 1
 
 
+def test_repeated_code_commits(g2, paths):
+    start, conn, r, _, kc = g2
+    tex = "\\begin{problem}[8DS-DUP-001]\n% kc_du_kien: 8DS-HSBN-01, 8DS-HSBN-01\nĐề.\n"
+    tex += "\\begin{solution}\nGiải.\n\\end{solution}\n\\end{problem}\n"
+    (paths.inbox / "bank" / "dup.tex").write_text(tex, encoding="utf-8")
+    out, _ = start("dup.tex")
+    r.resume(out["thread_id"])
+    assert r.wait(out["thread_id"])["status"] == "committed"
+    assert tags(conn, problem(conn, "8DS-DUP-001")[0]) == [(kc["8DS-HSBN-01"], 1, "Giải.")]
+
+
 def test_reimport_zero_new(g2):
     start, conn, r, _, kc = g2
     commit_mix(start, r, kc)
