@@ -269,14 +269,21 @@ def add_students(url: str) -> None:
         raise RuntimeError("preview thread did not stop at gate_confirm_commit")
 
 
+class AppUrl(str):
+    """The app's root URL; `data_dir` is its throwaway data dir."""
+
+    data_dir: str
+
+
 @contextmanager
 def tutor_app(with_data: bool = False):
-    """`tutor app` on a free port with a throwaway data dir; yields its URL."""
+    """`tutor app` on a free port with a throwaway data dir; yields its URL (an AppUrl)."""
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
-    url = f"http://127.0.0.1:{port}/"
+    url = AppUrl(f"http://127.0.0.1:{port}/")
     with tempfile.TemporaryDirectory() as tmp:
+        url.data_dir = f"{tmp}/data"
         exe = str(Path(sys.executable).with_name("tutor"))
         if with_data:
             seed(exe, f"{tmp}/data")
