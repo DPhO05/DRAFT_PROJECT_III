@@ -8,7 +8,6 @@ var U = {};
 
   // ---- text + dates ----
   U.esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
-  U.norm = function (s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); };
   U.d = function (iso) { var p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
   U.parse = function (iso) { var p = iso.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2])); };
   U.WD = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
@@ -21,7 +20,6 @@ var U = {};
     // Bank LaTeX uses blank lines between paragraphs; keep them as <p>.
     return '<div class="tex tex-block">' + String(latex).split(/\n\s*\n/).map(function (p) { return '<p>' + U.esc(p) + '</p>'; }).join('') + '</div>';
   };
-  U.texInline = function (latex) { return '<span class="tex">' + U.esc(latex) + '</span>'; };
 
   // ---- MathJax: typeset on demand, queue until the CDN script is ready ----
   var texQueue = [], texReady = false;
