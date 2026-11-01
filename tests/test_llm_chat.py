@@ -151,3 +151,10 @@ def test_retryable_covers_errors_inside_a_stream():
         assert not llm._retryable(e), e
     with pytest.raises(llm.Retryable), llm._net_errors():
         raise status(200, "overloaded_error")
+
+
+def test_blank_line_between_calls(log):
+    fake = FakeLLM({"00": [[text("Để mình tra."), tool("student_profile", code="HS-01")], [text("HS-01 có 2 buổi.")]]})
+    events = run(fake)
+    assert events[-1]["text"] == "Để mình tra.\n\nHS-01 có 2 buổi."
+    assert "".join(e["delta"] for e in events if e["type"] == "text") == events[-1]["text"]

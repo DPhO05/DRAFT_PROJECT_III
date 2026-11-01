@@ -369,6 +369,9 @@ def chat(
             try:
                 for ev in _backend.chat(agent=agent, model=model, system=system, tools=tools_sent, messages=msgs):
                     if ev["type"] == "text":
+                        if said and not streamed:  # text of an earlier call in this turn: keep it a paragraph apart
+                            said.append("\n\n")
+                            yield {"type": "text", "delta": "\n\n"}
                         streamed = True
                         said.append(ev["delta"])
                         yield ev
