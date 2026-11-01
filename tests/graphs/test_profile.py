@@ -62,8 +62,9 @@ def test_preview_words_have_no_numbers_or_codes(env):
     assert r.wait(tid)["node"] == "gate_confirm_commit"
     pv = r.state(tid)["preview"]
     assert pv["kcs"] == [
-        {"kc": "Chuyển vế", "before": "đang hình thành", "after": "đang hình thành", "trend": "tiến bộ"}
-    ]
+        {"kc": "Chuyển vế", "before": "đang hình thành", "after": "đang hình thành", "trend": "tiến bộ",
+         "n_mistakes": 1}  # only p2's edit names the KC
+    ]  # fmt: skip
     assert pv["miscon"] == {"new": ["Đáp số cuối sai dù các bước trước đúng (Chuyển vế)"], "again": [], "resolved": []}
     assert pv["codes"] == {
         "repeat": [], "gone": [],

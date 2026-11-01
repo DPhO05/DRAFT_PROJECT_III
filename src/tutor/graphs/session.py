@@ -8,6 +8,7 @@ refuses (repo.StaleProfile) and the graph goes back to 05 instead of writing a s
 
 import copy
 import hashlib
+import json
 from collections.abc import Callable
 from contextlib import closing
 from datetime import date
@@ -108,7 +109,12 @@ EDIT_FIELDS = ("step_idx", "code", "kc_id", "description", "evidence_latex")
 
 
 def _attempts(state: SessionState) -> dict[int, dict]:
-    return {a["seq"]: a for a in state["ingest"]["attempts"]}
+    return {a["seq"]: a for a in state["ingest"]["attempts"] if not a.get("skipped")}
+
+
+def _cards(review: object) -> dict:
+    cards = review.get("cards") if isinstance(review, dict) else None
+    return cards if isinstance(cards, dict) else {}
 
 
 def _card(state: SessionState, key: str, d: dict) -> tuple[int, dict]:
@@ -127,8 +133,7 @@ def _card(state: SessionState, key: str, d: dict) -> tuple[int, dict]:
 
 def _review_pending(state: SessionState, review: object, codes: set[str], kcs: dict[int, set[int]]) -> int:
     """Cards without a valid A / E / R + added mistakes that are not valid yet (SDD §5.4: no "approve all")."""
-    cards = review.get("cards") if isinstance(review, dict) else None
-    cards = cards if isinstance(cards, dict) else {}
+    cards = _cards(review)
     pids, attempts = {p["pid"] for p in state["proposals"]}, _attempts(state)
 
     def ok(key: str, d: object) -> bool:
@@ -154,7 +159,7 @@ def _mistake_rows(state: SessionState, review: dict) -> dict[int, list[dict]]:
     add → added (llm_json, confidence, verifier NULL). llm_json = the proposal minus `verifier`."""
     props, out = {p["pid"]: p for p in state["proposals"]}, {}
     status = {"accept": "confirmed", "edit": "edited", "reject": "rejected", "add": "added"}
-    for key, d in review["cards"].items():
+    for key, d in _cards(review).items():
         seq, f = _card(state, key, d)
         p = props.get(key)
         v = (p or {}).get("verifier") or {}
@@ -178,7 +183,7 @@ def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
             with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
                 codes = {c["code"] for c in repo.error_codes(conn, active_only=True)}
                 kcs = {lane["seq"]: {k["id"] for k in repo.problem_detail(conn, lane["problem_id"])["kcs"]}
-                       for lane in state["lanes"]}  # fmt: skip
+                       for lane in state.get("lanes", [])}  # fmt: skip
             return _review_pending(state, decisions, codes, kcs)
         decisions = decisions if isinstance(decisions, dict) else {}
         with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
@@ -188,10 +193,48 @@ def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
             d = decisions.get(str(f["seq"]))
             d = d if isinstance(d, dict) else {}
             ok = d.get("problem_ref") in refs if f["type"] == "low_match" else _rubric_ok(d.get("rubric_items"))
-            n += not ok
+            n += not (ok or d.get("skip") is True)
         return n
 
     return count
+
+
+def preview_of(paths: DataPaths, state: dict, review: dict) -> tuple[dict, dict, dict]:
+    """(profile, prior, preview) of node 05 for these review decisions; reads only, so gate_review can show it too.
+    `preview` = the same result in words for the teacher (no θ, δ or codes)."""
+    rows = _mistake_rows(state, review)
+    lanes = sorted(state.get("lanes", []), key=lambda x: x["seq"])
+    with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+        prior = repo.profile_prior(conn, state["student_id"])
+        probs = repo.profile_problems(conn, [lane["problem_id"] for lane in lanes])
+        kc_names = {k["id"]: k["name"] for k in repo.list_kc(conn)}
+        code_words = {c["code"]: c["description"] for c in repo.error_codes(conn)}
+    attempts = [{"seq": lane["seq"], **probs[lane["problem_id"]],
+                 "mistakes": [{"code": m["code"], "kc_id": m["kc_id"]}
+                              for m in rows.get(lane["seq"], []) if m["status"] != "rejected"]}
+                for lane in lanes]  # fmt: skip
+    result = elo.profile(prior, attempts, state["held_on"])
+    no_rubric = {f["seq"] for f in state["ingest"]["flags"] if f["type"] == "no_rubric"}  # as repo._receipt
+    miscon, codes = result["miscon_change"], result["codes"]
+    preview = {
+        "kcs": [{"kc": kc_names[k["kc_id"]], "before": k["level_before"], "after": k["level_after"],
+                 "trend": k["trend"],
+                 "n_mistakes": sum(m["kc_id"] == k["kc_id"] for a in attempts for m in a["mistakes"])}
+                for k in result["kcs"]],
+        "miscon": {n: [f"{code_words[c]} ({kc_names[kc]})" for c, kc in miscon[n]] for n in miscon},
+        "codes": {n: [code_words[c] for c in codes[n]] for n in codes},
+        "writes": {"attempt": len(lanes), "mistake": sum(map(len, rows.values())),
+                   "rubric": len(no_rubric & {lane["seq"] for lane in lanes}),
+                   "skill_event": len(result["events"]), "skill_state": len(result["skills"]),
+                   "misconception_log": len(result["miscon"])},
+    }  # fmt: skip
+    return result, prior, preview
+
+
+def sig(preview: dict) -> str:
+    """preview_sig (api-v3 §3.4): the second resume of Lưu kết quả goes on only if the preview shown still holds."""
+    body = json.dumps({k: v for k, v in preview.items() if k != "writes"}, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(body.encode()).hexdigest()[:16]
 
 
 def build(paths: DataPaths) -> StateGraph:
@@ -211,7 +254,7 @@ def build(paths: DataPaths) -> StateGraph:
         with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
             for a in res["attempts"]:
                 key = str(a["seq"])
-                if a["problem_id"] is None or key in approved:
+                if a.get("skipped") or a["problem_id"] is None or key in approved:
                     continue
                 problem = repo.problem_detail(conn, a["problem_id"])
                 if problem["rubric"]:
@@ -228,7 +271,8 @@ def build(paths: DataPaths) -> StateGraph:
     def route(state: SessionState):
         if _unresolved(state):
             return "mark_waiting"
-        return [Send("lane", {"lane": _lane_input(state, a)}) for a in state["ingest"]["attempts"]]
+        sends = [Send("lane", {"lane": _lane_input(state, a)}) for a in _attempts(state).values()]
+        return sends or "queue"  # everything skipped: an empty Send list would end the graph
 
     def mark_waiting(state: SessionState) -> dict:
         # Own node before each gate: it is done once, so resuming the gate never writes again.
@@ -248,7 +292,9 @@ def build(paths: DataPaths) -> StateGraph:
         attempts = {a["seq"]: a for a in res["attempts"]}
         for f in [f for f in res["flags"] if not f["resolved"]]:
             d = decisions[str(f["seq"])]
-            if f["type"] == "low_match":
+            if d.get("skip") is True:
+                attempts[f["seq"]]["skipped"] = True
+            elif f["type"] == "low_match":
                 b = by_ref[d["problem_ref"]]
                 attempts[f["seq"]] |= {"ref": b["ref"], "problem_id": b["id"]}
             else:
@@ -261,7 +307,7 @@ def build(paths: DataPaths) -> StateGraph:
 
     def queue(state: SessionState) -> dict:
         cards = []
-        for lane in sorted(state["lanes"], key=lambda x: x["seq"]):
+        for lane in sorted(state.get("lanes", []), key=lambda x: x["seq"]):
             for m in lane["mistakes"]:
                 cards.append({"pid": f"p{len(cards) + 1}", "kind": "mistake", "attempt_seq": lane["seq"]} | m)
         try:
@@ -274,32 +320,8 @@ def build(paths: DataPaths) -> StateGraph:
         return {"review": interrupt({"gate": "review", "n": len(state["proposals"])})["decisions"]}
 
     def profile(state: SessionState) -> dict:
-        """05: replay this session over the stored prior. Reads only, no LLM; commit ② writes the result.
-        `preview` = the same result in words for the teacher (no θ, δ or codes)."""
-        rows = _mistake_rows(state, state["review"])
-        lanes = sorted(state["lanes"], key=lambda x: x["seq"])
-        with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
-            prior = repo.profile_prior(conn, state["student_id"])
-            probs = repo.profile_problems(conn, [lane["problem_id"] for lane in lanes])
-            kc_names = {k["id"]: k["name"] for k in repo.list_kc(conn)}
-            code_words = {c["code"]: c["description"] for c in repo.error_codes(conn)}
-        attempts = [{"seq": lane["seq"], **probs[lane["problem_id"]],
-                     "mistakes": [{"code": m["code"], "kc_id": m["kc_id"]}
-                                  for m in rows.get(lane["seq"], []) if m["status"] != "rejected"]}
-                    for lane in lanes]  # fmt: skip
-        result = elo.profile(prior, attempts, state["held_on"])
-        no_rubric = {f["seq"] for f in state["ingest"]["flags"] if f["type"] == "no_rubric"}  # as repo._receipt
-        miscon, codes = result["miscon_change"], result["codes"]
-        preview = {
-            "kcs": [{"kc": kc_names[k["kc_id"]], "before": k["level_before"], "after": k["level_after"],
-                     "trend": k["trend"]} for k in result["kcs"]],
-            "miscon": {n: [f"{code_words[c]} ({kc_names[kc]})" for c, kc in miscon[n]] for n in miscon},
-            "codes": {n: [code_words[c] for c in codes[n]] for n in codes},
-            "writes": {"attempt": len(lanes), "mistake": sum(map(len, rows.values())),
-                       "rubric": len(no_rubric & {lane["seq"] for lane in lanes}),
-                       "skill_event": len(result["events"]), "skill_state": len(result["skills"]),
-                       "misconception_log": len(result["miscon"])},
-        }  # fmt: skip
+        """05: replay this session over the stored prior. Reads only, no LLM; commit ② writes the result."""
+        result, prior, preview = preview_of(paths, state, state["review"])
         return {"profile": result, "profile_prior": prior, "preview": preview}
 
     def gate_confirm_commit(state: SessionState) -> dict:
@@ -313,7 +335,7 @@ def build(paths: DataPaths) -> StateGraph:
         rows = _mistake_rows(state, review)
         flags = state["ingest"]["flags"]
         out = []
-        for lane in sorted(state["lanes"], key=lambda x: x["seq"]):
+        for lane in sorted(state.get("lanes", []), key=lambda x: x["seq"]):
             a, g = attempts[lane["seq"]], lane["grade"]
             out.append({
                 "seq": a["seq"], "problem_id": lane["problem_id"], "rubric_id": lane["rubric"].get("id"),
@@ -350,7 +372,7 @@ def build(paths: DataPaths) -> StateGraph:
     g.add_node("commit", commit)
     g.add_edge(START, "ingest")
     g.add_edge("ingest", "prepare")
-    g.add_conditional_edges("prepare", route, ["mark_waiting", "lane"])
+    g.add_conditional_edges("prepare", route, ["mark_waiting", "lane", "queue"])
     g.add_edge("mark_waiting", "gate_confirm_match")
     g.add_edge("gate_confirm_match", "apply_match")
     g.add_edge("apply_match", "prepare")
