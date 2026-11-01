@@ -3,7 +3,9 @@
 import copy
 import json
 import os
+import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 # Elo constants: fixed in code, read-only in the app (C-06).
@@ -125,3 +127,12 @@ def paths(root: Path | str | None = None) -> DataPaths:
 def student_code(student_id: int) -> str:
     """The only student identifier sent to the LLM API (C-11)."""
     return f"HS-{student_id:02d}"
+
+
+def guess_submission(name: str) -> dict | None:
+    """R26: "hs01-2026-10-21.tex" -> {student_id: 1, held_on: "2026-10-21"}; the caller checks the student exists."""
+    m = re.match(r"hs(\d+)-(\d{4}-\d{2}-\d{2})(?!\d)", Path(name).name, re.IGNORECASE)
+    try:
+        return {"student_id": int(m[1]), "held_on": date.fromisoformat(m[2]).isoformat()} if m else None
+    except ValueError:
+        return None
