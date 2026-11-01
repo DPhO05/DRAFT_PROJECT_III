@@ -210,6 +210,21 @@ JS_ROWS_N = "n => document.querySelectorAll('#modal-body .imp-row').length === n
 JS_RACE_RESUME = """() => { window.__send = U.api.send;
   const e = Object.assign(new Error('x'), {status: 409, code: 'undecided_items', detail: {n: 2}});
   U.api.send = (m, p, b) => p.endsWith('/resume') ? Promise.reject(e) : window.__send(m, p, b); }"""
+# the import's poll answers "failed" (a killed app, a commit that broke); `__late` = it got past reading
+JS_FAIL_POLL = """() => { window.__get = U.api.get; window.__send = U.api.send;
+  window.__resumes = 0; window.__late = false;
+  U.api.get = p => p.includes('view=teacher') ? Promise.resolve({thread_id: 't', graph: 'G2', status: 'failed',
+    card: {kind: 'bank_import', stage: 'failed', items: window.__late ? [{}] : []}}) : window.__get(p);
+  U.api.send = (m, p, b) => p.endsWith('/resume')
+    ? (window.__resumes++, Promise.resolve({})) : window.__send(m, p, b); }"""
+JS_UNFAIL = "() => { U.api.get = window.__get; U.api.send = window.__send; }"
+JS_RESUMES_IS = "n => window.__resumes === n"
+# the saved picks of a kept import thread cannot be read: the request fails, or the JSON is broken
+JS_SAVED_BROKEN = """() => { window.__get = U.api.get; window.__mode = 'reject';
+  const bad = Object.assign(new Error('x'), {status: 500});
+  U.api.get = p => /^\\/threads\\/[^?]+$/.test(p)
+    ? (window.__mode === 'reject' ? Promise.reject(bad) : Promise.resolve({decisions_json: '{nope'}))
+    : window.__get(p); }"""
 GRADE9 = "CAST(ref AS INTEGER) = 9"
 EASY = "difficulty_approved_at IS NOT NULL AND delta < -0.3"
 HARD = "difficulty_approved_at IS NOT NULL AND delta > 0.3"
@@ -403,6 +418,44 @@ def bank_inbox(data_dir: str, phone: bool) -> tuple[str, str]:
     return mix, bad
 
 
+def import_failed(page, rep: dict, phone: bool, mix: str, file_row) -> None:
+    """A failed import thread (killed app, failed commit) offers Thử lại, and one click sends one resume."""
+    page.evaluate(JS_FAIL_POLL)
+    for n, (late, said) in enumerate(
+        ((False, "Không đọc được nội dung file"), (True, "Chưa lưu được vào ngân hàng")), 1
+    ):
+        page.evaluate("l => { window.__late = l; }", late)
+        press(page, rep, f'{file_row(mix)} [data-act="imp-read"]', f"bank đọc {mix} khi lỗi", JS_ROOT_HAS, said)
+        shown = page.inner_text("#modal-root")
+        rep["missing"] += [f"bank import failed: no '{w}'" for w in ("Thử lại", "Chọn file khác") if w not in shown]
+        see(page, rep, "bank import failed", phone)
+        press(page, rep, '[data-act="imp-retry"]', "bank Thử lại", JS_RESUMES_IS, n)
+        expect(page, rep, JS_ROOT_HAS, f"bank import failed: no '{said}' after Thử lại", said)
+        press(page, rep, '[data-act="imp-back"]', "bank Chọn file khác", JS_ROOT_HAS, mix)
+    page.evaluate(JS_UNFAIL)
+
+
+def import_reopen(page, rep: dict, phone: bool, mix: str, file_row, reqs: list) -> None:
+    """Close with one pick saved. If that pick cannot be read back, the reopen must stop: a PUT would erase it."""
+    read = f'{file_row(mix)} [data-act="imp-read"]'
+    page.keyboard.press("Escape")
+    expect(page, rep, JS_NO_MODAL, "bank import: Esc did not close")
+    page.evaluate(JS_SAVED_BROKEN)
+    for mode in ("reject", "json"):
+        page.evaluate("m => { window.__mode = m; }", mode)
+        press(page, rep, '[data-act="b-import"]', "bank Nạp bài mới lại", JS_ROOT_HAS, mix)
+        seen = len(reqs)
+        press(page, rep, read, f"bank đọc lại {mix}", JS_ROOT_HAS, "Không đọc được lựa chọn đã lưu")
+        if page.locator(SAVE).count() or any(m == "PUT" for m, _, _ in reqs[seen:]):
+            rep["missing"].append(f"bank import: an unreadable saved pick ({mode}) went on to the preview")
+        see(page, rep, f"bank import reopen {mode}", phone)
+        page.keyboard.press("Escape")
+        expect(page, rep, JS_NO_MODAL, "bank import: Esc did not close")
+    page.evaluate("() => { U.api.get = window.__get; }")
+    press(page, rep, '[data-act="b-import"]', "bank Nạp bài mới lại", JS_ROOT_HAS, mix)
+    press(page, rep, read, f"bank đọc lại {mix}", JS_ROOT_HAS, "Còn 1 bài chưa chọn kỹ năng")
+
+
 def bank_import(page, rep: dict, phone: bool, data_dir: str, reqs: list, files: tuple[str, str]) -> None:
     mix, bad = files
     ref = lambda n: f"8DS-{'NEX' if phone else 'NEW'}-{n:03d}"  # noqa: E731
@@ -421,6 +474,8 @@ def bank_import(page, rep: dict, phone: bool, data_dir: str, reqs: list, files: 
         rep["missing"].append("bank import: a refused file has no red box")
     see(page, rep, "bank import refused", phone)
     press(page, rep, '[data-act="imp-back"]', "bank Chọn file khác", JS_ROOT_HAS, mix)
+    import_failed(page, rep, phone, mix, file_row)
+    start = len(rep["missing"])  # the steps below stand on their own
     press(page, rep, f'{file_row(mix)} [data-act="imp-read"]', f"bank đọc {mix}", JS_ROOT_HAS, SUMMARY)
     if len(rep["missing"]) > start:
         return
@@ -446,10 +501,14 @@ def bank_import(page, rep: dict, phone: bool, data_dir: str, reqs: list, files: 
     pick = lambda n, i: page.select_option(f"{row(ref(n))} select", index=i)  # noqa: E731
     pick(2, 1)
     expect(page, rep, JS_ROOT_HAS, "bank import: no 'Còn 1 bài chưa chọn kỹ năng'", "Còn 1 bài chưa chọn kỹ năng")
+    first = int(page.input_value(f"{row(ref(2))} select"))
+    import_reopen(page, rep, phone, mix, file_row, reqs)
+    if len(rep["missing"]) > start:
+        return
     pick(3, 1)
     press(page, rep, f'{row(ref(4))} [data-act="imp-level"][data-v="vừa"]', "bank import mức vừa", JS_ENABLED)
     want = {
-        ref(2): {"kc_ids": [int(page.input_value(f"{row(ref(2))} select"))]},
+        ref(2): {"kc_ids": [first]},
         ref(3): {"kc_ids": [int(page.input_value(f"{row(ref(3))} select"))]},
         ref(4): {"level": "vừa"},
     }  # fmt: skip
@@ -461,7 +520,7 @@ def bank_import(page, rep: dict, phone: bool, data_dir: str, reqs: list, files: 
     if not page.locator(SAVE).is_disabled(timeout=2000):
         rep["missing"].append("bank import: a 409 left Lưu vào ngân hàng on")
     page.evaluate("() => { U.api.send = window.__send; }")
-    pick(2, 2)
+    pick(3, 2)
     expect(page, rep, JS_ENABLED, "bank import: a new choice did not bring the count back")
     press(page, rep, SAVE, "bank Lưu vào ngân hàng", JS_ROOT_HAS, "Đã thêm 4 bài vào ngân hàng")
     resumes = [u for m, u, _ in reqs if m == "POST" and u.endswith("/resume")]

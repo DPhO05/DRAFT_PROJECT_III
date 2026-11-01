@@ -262,7 +262,7 @@
     if (s.stage === 'files') return filesHTML(s);
     if (s.stage === 'reading') return '<p class="muted" role="status">Đang đọc ' + U.esc(s.file) + '…</p>';
     if (s.stage === 'saving') return '<p class="muted" role="status">Đang lưu…</p>';
-    if (s.stage === 'error') return '<div class="callout callout-crit" role="alert"><p><b>Không nạp được ' + U.esc(s.file) + '.</b> ' + s.err + '</p></div><div class="row"><button type="button" class="btn" data-act="imp-back">Chọn file khác</button></div>';
+    if (s.stage === 'error') return '<div class="callout callout-crit" role="alert"><p><b>Không nạp được ' + U.esc(s.file) + '.</b> ' + s.err + '</p></div><div class="row">' + (s.retry ? '<button type="button" class="btn btn-primary" data-act="imp-retry">Thử lại</button>' : '') + '<button type="button" class="btn" data-act="imp-back">Chọn file khác</button></div>';
     return s.stage === 'saved' ? savedHTML(s) : previewHTML(s);
   }
   function impFoot(s) {
@@ -279,7 +279,7 @@
       s.files = l; impDraw(s, '[data-act="imp-read"]:not(:disabled)');
     });
   }
-  function impFail(s, why) { s.stage = 'error'; s.err = why; impDraw(s, '[data-act="imp-back"]'); }
+  function impFail(s, why, retry) { s.stage = 'error'; s.err = why; s.retry = retry || ''; impDraw(s, '[data-act="imp-retry"], [data-act="imp-back"]'); }
   function impPreview(s, c) {
     (kcs.length ? Promise.resolve() : loadCatalog()).then(function () {
       if (!live(s)) return;
@@ -287,6 +287,11 @@
       s.pending = c.items.filter(function (i) { return i.needs.indexOf('kc') >= 0; }).length;
       impDraw(s, '[data-act="imp-only"][aria-pressed="true"]');
     }, function () { if (live(s)) impFail(s, 'Không tải được danh sách kỹ năng. Thử lại sau.'); });
+  }
+  function savedAnswers(t) {
+    var d = t.decisions_json ? JSON.parse(t.decisions_json) : {}, it = d && d.items === undefined ? {} : d && d.items;
+    if (!it || typeof it !== 'object' || Array.isArray(it)) throw new Error('decisions');
+    return it;
   }
   function impSaved(s, c) {
     s.card = c; s.stage = 'saved'; impDraw(s, '[data-act="imp-show"]');
@@ -298,7 +303,7 @@
       var st = c && c.stage;
       if (st === 'preview' && s.stage === 'reading') return impPreview(s, c);
       if (st === 'saved') return impSaved(s, c);
-      if (st === 'failed') return impFail(s, s.stage === 'saving' ? 'Chưa lưu được vào ngân hàng. Thử lại sau.' : 'Không đọc được nội dung file.');
+      if (st === 'failed') return (c.items || []).length ? impFail(s, 'Chưa lưu được vào ngân hàng.', 'saving') : impFail(s, 'Không đọc được nội dung file.', 'reading');
       if (st === 'gone') return impFail(s, 'Việc nạp này không còn nữa. Chọn lại file.');
       setTimeout(function () { if (live(s)) impPoll(s); }, 1000);
     });
@@ -339,12 +344,22 @@
     U.api.send('POST', '/bank/imports', { file: b.file }).then(function (r) {
       if (!live(s)) return;
       s.tid = r.thread_id;
-      // a thread kept from an earlier visit has saved answers, and a PUT replaces them all
-      var saved = r.status === 'running' ? Promise.resolve({}) : U.api.get('/threads/' + r.thread_id).then(function (t) { return JSON.parse(t.decisions_json || '{}').items || {}; }).catch(function () { return {}; });
-      saved.then(function (dec) { if (live(s)) { s.dec = dec; impPoll(s); } });
+      // a thread kept from an earlier visit has saved answers and a PUT replaces them all, so an unreadable copy stops the flow
+      var saved = r.status === 'running' ? Promise.resolve({}) : U.api.get('/threads/' + r.thread_id).then(savedAnswers);
+      saved.then(function (dec) { if (live(s)) { s.dec = dec; impPoll(s); } },
+        function () { if (live(s)) impFail(s, 'Không đọc được lựa chọn đã lưu lần trước. Thử lại sau.'); });
     }, function (e) { if (live(s)) impFail(s, e.status === 422 ? IMP_422 : 'Thử lại sau.'); });
   };
   ACT['imp-back'] = function () { impFiles(imp); };
+  ACT['imp-retry'] = function (btn) {
+    var s = imp;
+    btn.disabled = true;
+    U.api.send('POST', '/threads/' + s.tid + '/resume').then(function () {
+      if (live(s)) { s.stage = s.retry; impDraw(s); impPoll(s); }
+    }, function () {
+      if (live(s)) { btn.disabled = false; U.toast('Chưa thử lại được. Thử lại sau.', 'warn'); }
+    });
+  };
   ACT['imp-only'] = function (el) { imp.only = el.dataset.v === '1'; impDraw(imp, '[data-act="imp-only"][aria-pressed="true"]'); };
   ACT['imp-level'] = function (el) {
     var v = el.dataset.v;
