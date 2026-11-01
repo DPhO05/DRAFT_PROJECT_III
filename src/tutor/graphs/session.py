@@ -344,7 +344,8 @@ def card(paths: DataPaths, row: dict, state: dict, progress: int | None) -> dict
     res = state.get("ingest") or {"attempts": [], "flags": []}
     lanes = {lane["seq"]: lane for lane in state.get("lanes", [])}
     proposals = state.get("proposals", [])
-    saved = json.loads(row["decisions_json"]) if row.get("decisions_json") else state.get("review")
+    stored = json.loads(row["decisions_json"]) if row.get("decisions_json") else None
+    saved = state.get("review") if stored is None else stored
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         kc_names = {k["id"]: k["name"] for k in repo.list_kc(conn)}
         code_words = {c["code"]: c["description"] for c in repo.error_codes(conn)}
@@ -388,6 +389,7 @@ def card(paths: DataPaths, row: dict, state: dict, progress: int | None) -> dict
         "score": score,
         "max_score": max_score,
         "decided": decided,
+        "saved": stored,
         "confirm": _confirm(state, statements) if at == "confirm" else [],
         "attempts": attempts,
         "preview": preview,

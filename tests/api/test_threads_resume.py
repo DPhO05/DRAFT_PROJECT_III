@@ -130,7 +130,9 @@ def test_teacher_view_g1_card(paths, client):
     assert not keys(got) & {"node", "theta", "delta", "confidence", "tech"}
     assert "node" in client.get(f"/api/threads/{tid}").json()
     assert client.get("/api/threads/nope?view=teacher").status_code == 404
+    assert c["saved"] is None
     client.put(f"/api/threads/{tid}/decisions", json={"1": {"problem_ref": P1[0]}}, headers=W)
+    assert client.get(f"/api/threads/{tid}?view=teacher").json()["card"]["saved"] == {"1": {"problem_ref": P1[0]}}
     client.post(f"/api/threads/{tid}/resume", headers=W)
     poll(client, tid, until=("awaiting_review", "failed"))
     c = client.get(f"/api/threads/{tid}?view=teacher").json()["card"]

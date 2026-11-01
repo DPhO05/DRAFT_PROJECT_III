@@ -96,6 +96,31 @@ def test_stages(env):
     assert s["receipt"] == {"score": 3, "max_score": 3, "n_mistakes": 3, "backed_up": True}  # 4 cards, 1 rejected
 
 
+def test_saved_decisions_come_back(env):
+    go, conn, r = env
+    out, _, _ = go(prob(None, "LANE1 $x = 1$") + prob(None, "LANE2 $x = 2$"), handlers=lane_handlers() | MATCH)
+    tid = out["thread_id"]
+    assert card_of(r, tid)["saved"] is None
+    part = {"1": {"problem_ref": P1[0], "note": "đúng bài"}}
+    assert r.save_decisions(tid, part) == 1
+    c = card_of(r, tid)
+    assert c["saved"] == part and [f["seq"] for f in c["confirm"]] == [1, 2]  # confirm[] is not trimmed
+    assert r.save_decisions(tid, part | {"2": {"skip": True}}) == 0
+    r.resume(tid)
+    r.wait(tid)
+    # the confirm answers stay stored until the first review PUT replaces them
+    assert card_of(r, tid)["saved"] == part | {"2": {"skip": True}}
+
+    add = {"action": "add", "attempt_seq": 1, "step_idx": 1, "code": "notational.symbol", "description": "sót"}
+    review = {"cards": {"p1": {"action": "edit", "code": "notational.symbol", "description": "sửa"}, "n1": add},
+              "review_seconds": 40}  # fmt: skip
+    assert r.save_decisions(tid, review) == 0
+    assert card_of(r, tid)["saved"] == review
+    r.resume(tid)
+    assert r.wait(tid)["node"] == "gate_confirm_commit"
+    assert card_of(r, tid)["saved"] == review  # same at the preview step
+
+
 def test_confirm_low_match(env):
     go, conn, r = env
     out, _, _ = go(prob(P1[0], "LANE1 $4x = 20$") + prob(None, "LANE2 $x = 2$"), handlers=lane_handlers() | MATCH)
