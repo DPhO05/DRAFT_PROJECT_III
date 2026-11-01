@@ -86,14 +86,28 @@ BAD_ARGS = [
 
 
 @pytest.mark.parametrize(("name", "args", "words"), BAD_ARGS)
-def test_bad_arguments_are_errors_not_crashes(ro, name, args, words):
+def test_bad_arguments_are_errors_not_crashes(ro, caplog, name, args, words):
     tb = box(ro)
     out = tb.run(name, args)
     assert out.is_error and words in json.loads(out.content)["error"]
     assert out.card is None and tb.outcomes == [(name, out)]
+    if "không đúng" in words:
+        (rec,) = [r for r in caplog.records if r.name == "tutor"]
+        assert (rec.levelname, rec.exc_info is not None, rec.getMessage()) == ("ERROR", True, f"tool {name}")
 
 
-def test_busy_database_is_error(ro, monkeypatch):
+def test_tool_bug_is_logged_without_arguments(ro, caplog, monkeypatch):
+    def broken(conn):
+        return {}["students"]
+
+    monkeypatch.setattr(tools.students, "list_students", broken)
+    out = box(ro).run("list_students", {})
+    assert out.is_error
+    (rec,) = [r for r in caplog.records if r.name == "tutor"]
+    assert rec.exc_info[0] is KeyError and "tool list_students" == rec.getMessage()
+
+
+def test_busy_database_is_error(ro, caplog, monkeypatch):
     def locked(conn):
         raise sqlite3.OperationalError("database is locked")
 
@@ -101,6 +115,12 @@ def test_busy_database_is_error(ro, monkeypatch):
     tb = box(ro)
     out = tb.run("list_students", {})
     assert out.is_error and "bận" in json.loads(out.content)["error"] and tb.outcomes == [("list_students", out)]
+    (rec,) = [r for r in caplog.records if r.name == "tutor"]
+    assert (rec.levelname, rec.exc_info is not None, rec.getMessage()) == (
+        "WARNING",
+        True,
+        "tool list_students: DB busy",
+    )
 
 
 def test_content_capped(conn, ro):

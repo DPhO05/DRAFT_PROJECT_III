@@ -2,6 +2,7 @@
 
 import copy
 import json
+import logging
 import re
 import sqlite3
 from collections.abc import Callable
@@ -10,6 +11,7 @@ from datetime import date
 
 from tutor.services import search, students
 
+log = logging.getLogger("tutor")
 MAX_CONTENT = 6000  # chars of tool result sent to the model
 
 
@@ -171,8 +173,10 @@ class Toolbox:
         except ValueError as e:
             out = self._error(name, str(e))
         except (KeyError, TypeError):
+            log.exception("tool %s", name)  # name only: arguments can hold student text (C-40)
             out = self._error(name, "Tham số công cụ không đúng")
         except sqlite3.OperationalError:
+            log.warning("tool %s: DB busy", name, exc_info=True)
             out = self._error(name, "Cơ sở dữ liệu đang bận, thử lại sau")
         self.outcomes.append((name, out))
         return out
