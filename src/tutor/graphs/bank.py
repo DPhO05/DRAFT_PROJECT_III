@@ -197,6 +197,14 @@ def card(row: dict, state: dict, kcs: list[dict]) -> dict:
     }
 
 
+def reminder(paths: DataPaths, row: dict, state: dict) -> dict:
+    """One line of GET /api/assistant/pending (api-v3 §3.3) for a G2 thread."""
+    saved = json.loads(row["decisions_json"]) if row.get("decisions_json") else state.get("decisions")
+    n = final_items(state.get("items") or [], saved, _known_kc(paths))[1]
+    words = "nạp chưa xong" if row["status"] == "failed" else f"{n} bài cần chọn kỹ năng" if n else "chờ lưu kết quả"
+    return {"kind": "bank_import", "thread_id": row["thread_id"], "file": row["subject"], "words": words}
+
+
 def build(paths: DataPaths) -> StateGraph:
     def read(state: BankState) -> dict:
         tex = (paths.root / state["file"]).read_text(encoding="utf-8")

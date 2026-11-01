@@ -984,6 +984,26 @@ def commit_worksheet(conn: sqlite3.Connection, *, student_id: int, for_date: str
         return {"for_date": for_date, "n_problems": len(items), "replaced": bool(live)}
 
 
+def worksheets(conn: sqlite3.Connection, student_id: int) -> list[dict]:
+    """The student's live sheets (not rejected) grouped by for_date, newest first, each item in sheet order."""
+    rows = _dicts(conn.execute(
+        "SELECT for_date, position, problem_id, reason, reviewed_at FROM recommendation"
+        " WHERE student_id = ? AND status <> 'rejected' ORDER BY for_date DESC, position, id", (student_id,)
+    ))  # fmt: skip
+    cards = {c["id"]: c for c in items_by_id(conn, [r["problem_id"] for r in rows])}
+    out: dict[str, dict] = {}
+    for r in rows:
+        c = cards[r["problem_id"]]
+        sheet = out.setdefault(r["for_date"], {"student_id": student_id, "for_date": r["for_date"], "n_problems": 0,
+                                               "created_at": r["reviewed_at"], "items": []})  # fmt: skip
+        sheet["n_problems"] += 1
+        sheet["items"].append({
+            "position": r["position"], "ref": c["ref"], "problem_id": c["id"], "level": c["level"],
+            "kcs": [k["name"] for k in c["kcs"]], "reason": r["reason"], "statement_latex": c["statement_latex"],
+        })  # fmt: skip
+    return list(out.values())
+
+
 def session_detail(conn: sqlite3.Connection, session_id: int) -> dict:
     """A session with its attempts (problem ref, rubric, grade) and every mistake row, llm_json parsed (Buổi học)."""
     rows = _dicts(conn.execute("SELECT * FROM session WHERE id = ?", (session_id,)))

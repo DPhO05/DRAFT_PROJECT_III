@@ -9,6 +9,7 @@ import threading
 from collections.abc import Callable
 from contextlib import closing
 from datetime import date
+from pathlib import Path
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
@@ -39,6 +40,16 @@ def _ref(ref: object) -> str:
     if not isinstance(ref, str):
         raise ValueError(f"Mã bài phải là chữ: {ref!r}")
     return ref.strip().upper()
+
+
+def tex_url(student_id: int, for_date: str) -> str:
+    return f"/api/worksheets/{student_id}/{for_date}.tex"
+
+
+def sheet_file(paths: DataPaths, student_id: int, for_date: str) -> Path:
+    """data/out/phieu-<HS>-<yyyy-mm-dd>.tex; ValueError unless for_date is a real date, so it stays in data/out/."""
+    _day(for_date)
+    return paths.out / f"phieu-{student_code(student_id)}-{for_date}.tex"
 
 
 def resolve(conn: sqlite3.Connection, refs: list[str], reasons: dict) -> tuple[list[dict], list[dict]]:
@@ -182,6 +193,47 @@ def tex(code: str, for_date: str, problems: list[dict]) -> str:
     )
 
 
+def _shown(row: dict, state: dict) -> tuple[str, list[str]]:
+    """(for_date, refs) of the sheet as saved; the proposal when nothing is saved or the save is malformed."""
+    saved = json.loads(row["decisions_json"]) if row.get("decisions_json") else state.get("decisions")
+    try:
+        return plan(state, saved)[:2]
+    except ValueError:
+        return plan(state, None)[:2]
+
+
+def card(row: dict, state: dict, conn: sqlite3.Connection) -> dict:
+    """The teacher's view of a G4 thread (api-v3 §3.5): the sheet as saved or proposed, words only (no kc_id)."""
+    for_date, refs = _shown(row, state)
+    ok, invalid = resolve(conn, refs, state["reasons"])
+    stage = {"running": "saving", "awaiting_review": "draft", "committed": "saved"}.get(row["status"], "failed")
+    sid, receipt = state["student_id"], state.get("receipt")
+    live = repo.worksheet_problem_ids(conn, sid, for_date) if stage == "draft" else []
+    items = [{k: o[k] for k in ("ref", "problem_id", "level", "kcs", "bucket", "reason", "statement_latex")}
+             for o in ok]  # fmt: skip
+    return {
+        "kind": "worksheet",
+        "stage": stage,
+        "student_id": sid,
+        "for_date": for_date,
+        "items": items,
+        "counts": {b: sum(i["bucket"] == b for i in items) for b in select.BUCKETS}
+        | {"added": sum(i["bucket"] is None for i in items)},
+        "warnings": state.get("warnings", []),
+        "invalid": invalid,
+        "existing_for_date": {"n_problems": len(live)} if live else None,
+        "saved": {"for_date": receipt["for_date"], "n_problems": receipt["n_problems"],
+                  "tex": tex_url(sid, receipt["for_date"])} if stage == "saved" and receipt else None,
+    }  # fmt: skip
+
+
+def reminder(row: dict, state: dict) -> dict:
+    """One line of GET /api/assistant/pending (api-v3 §3.3) for a G4 thread."""
+    for_date, refs = _shown(row, state)
+    return {"kind": "worksheet", "thread_id": row["thread_id"], "student_id": state["student_id"], "date": for_date,
+            "words": f"{len(refs)} bài"}  # fmt: skip
+
+
 def build(paths: DataPaths) -> StateGraph:
     def gate_worksheet(state: WorksheetState) -> dict:
         return {"decisions": interrupt({"gate": "worksheet"})["decisions"]}
@@ -197,7 +249,7 @@ def build(paths: DataPaths) -> StateGraph:
                                                    for o in ok])  # fmt: skip
         code = student_code(state["student_id"])
         paths.out.mkdir(parents=True, exist_ok=True)
-        (paths.out / f"phieu-{code}-{for_date}.tex").write_text(tex(code, for_date, ok), encoding="utf-8")
+        sheet_file(paths, state["student_id"], for_date).write_text(tex(code, for_date, ok), encoding="utf-8")
         return {"receipt": receipt, "committed": True}
 
     g = StateGraph(WorksheetState)

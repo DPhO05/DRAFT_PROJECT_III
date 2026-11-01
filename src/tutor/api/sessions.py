@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from tutor.api import deps
+from tutor.config import guess_submission
 from tutor.db import repo
 from tutor.graphs import session
 
@@ -24,15 +25,19 @@ class Submit(BaseModel):
 
 @router.get("/inbox")
 def inbox(request: Request, conn: DB) -> list[dict]:
-    """Student files in data/inbox/ (bank files in inbox/bank/ excluded)."""
+    """Student files in data/inbox/ (bank files excluded); `guess` = student and day read from the file name."""
     root = request.app.state.paths.inbox
     done = repo.submitted_sha256(conn)
+    active = {s["id"] for s in repo.list_students(conn)}
     out = []
     for p in sorted(root.rglob("*")):
         if p.is_file() and p.suffix.lower() in (".tex", ".pdf") and "bank" not in p.relative_to(root).parts[:1]:
             sha = hashlib.sha256(p.read_bytes()).hexdigest()
-            out.append({"path": p.relative_to(root).as_posix(), "kind": p.suffix.lower()[1:], "bytes": p.stat().st_size,
-                        "sha256": sha, "submitted_by": done.get(sha, [])})  # fmt: skip
+            rel = p.relative_to(root).as_posix()
+            guess = guess_submission(rel)
+            out.append({"path": rel, "kind": p.suffix.lower()[1:], "bytes": p.stat().st_size, "sha256": sha,
+                        "submitted_by": done.get(sha, []),
+                        "guess": guess if guess and guess["student_id"] in active else None})  # fmt: skip
     return out
 
 

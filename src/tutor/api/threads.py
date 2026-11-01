@@ -5,7 +5,7 @@ from contextlib import closing
 from fastapi import APIRouter, Body, Request
 
 from tutor.db import repo
-from tutor.graphs import bank, session, threads
+from tutor.graphs import bank, session, threads, worksheet
 
 router = APIRouter(prefix="/api/threads")
 
@@ -36,6 +36,9 @@ def get_thread(thread_id: str, request: Request, include: str | None = None, vie
         elif row["graph"] == bank.GRAPH:
             with closing(repo.connect(request.app.state.paths.tutor_db, readonly=True)) as conn:
                 card = bank.card(row, r.state(thread_id), repo.list_kc(conn))
+        elif row["graph"] == worksheet.GRAPH:
+            with closing(repo.connect(request.app.state.paths.tutor_db, readonly=True)) as conn:
+                card = worksheet.card(row, r.state(thread_id), conn)
         return {k: row[k] for k in ("thread_id", "graph", "status", "updated_at")} | {"card": card}
     if include == "state" or row["status"] == "committed":
         state = r.state(thread_id)

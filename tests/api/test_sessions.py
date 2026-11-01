@@ -38,6 +38,20 @@ def test_inbox_lists_files_with_sha_and_submitted(paths, client):
     assert client.get("/api/sessions/inbox").json()[0]["submitted_by"] == [sid]
 
 
+def test_inbox_guess(paths, client):
+    sid = add_student(client)
+    gone = client.post("/api/students", json={"name": "Trần Bình", "grade": 8}, headers=W).json()["id"]
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        repo.archive_student(conn, gone)
+    names = ["hs01-2026-10-21.tex", "hs09-2026-10-21.tex", "bai-lam-moi.tex", f"hs{gone:02d}-2026-10-21.tex",
+             "hs01-2026-13-40.tex"]  # fmt: skip
+    for n in names:
+        (paths.inbox / n).write_text(TEX, encoding="utf-8")
+    got = {f["path"]: f["guess"] for f in client.get("/api/sessions/inbox").json()}
+    assert got == {"hs01-2026-10-21.tex": {"student_id": sid, "held_on": "2026-10-21"}} | {
+        n: None for n in names[1:]}  # fmt: skip
+
+
 def test_submit_202_then_poll_thread(paths, client):
     (paths.inbox / "a.tex").write_text(TEX, encoding="utf-8")
     sid = add_student(client)
