@@ -74,6 +74,35 @@ def test_unknown_tool_and_code_are_errors(ro):
     assert [n for n, _ in tb.outcomes] == ["delete_everything", "student_profile", "student_mistakes"]
 
 
+BAD_ARGS = [
+    ("find_problems", {}, "Thiếu tham số refs"),
+    ("student_profile", {}, "Thiếu tham số code"),
+    ("compare_students", {"kc": 1}, "Thiếu tham số metric"),
+    ("search_problems", {"text": "x", "limit": "3"}, "không đúng"),
+    ("student_mistakes", {"code": "HS-01", "since": 5}, "không đúng"),
+    ("student_profile", {"code": 1}, "không đúng"),
+    ("find_problems", {"refs": 5}, "không đúng"),
+]
+
+
+@pytest.mark.parametrize(("name", "args", "words"), BAD_ARGS)
+def test_bad_arguments_are_errors_not_crashes(ro, name, args, words):
+    tb = box(ro)
+    out = tb.run(name, args)
+    assert out.is_error and words in json.loads(out.content)["error"]
+    assert out.card is None and tb.outcomes == [(name, out)]
+
+
+def test_busy_database_is_error(ro, monkeypatch):
+    def locked(conn):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(tools.students, "list_students", locked)
+    tb = box(ro)
+    out = tb.run("list_students", {})
+    assert out.is_error and "bận" in json.loads(out.content)["error"] and tb.outcomes == [("list_students", out)]
+
+
 def test_content_capped(conn, ro):
     tb = box(ro)
     for name, args in CALLS:

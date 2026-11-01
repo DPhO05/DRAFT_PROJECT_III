@@ -3,6 +3,7 @@
 import copy
 import json
 import re
+import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
@@ -113,6 +114,9 @@ LABELS = {
 }
 
 
+_REQUIRED = {t["name"]: t["input_schema"]["required"] for t in TOOLS}
+
+
 def tool_defs(codes: list[str]) -> list[dict]:
     """TOOLS with the `kind` enum filled from the error codes in use."""
     defs = copy.deepcopy(TOOLS)
@@ -157,14 +161,25 @@ class Toolbox:
         self.outcomes: list[tuple[str, Outcome]] = []
 
     def run(self, name: str, args: dict) -> Outcome:
+        """Strict schema makes bad input rare, not impossible: any bad call becomes a tool error the model can retry."""
         try:
             if name not in LABELS:
                 raise ValueError(f"Không có công cụ {name}")
+            if missing := [k for k in _REQUIRED[name] if k not in args]:
+                raise ValueError(f"Thiếu tham số {missing[0]}")
             out = getattr(self, f"tool_{name}")(args)
         except ValueError as e:
-            out = Outcome(_dumps({"error": str(e)}), is_error=True, label=LABELS.get(name, ""))
+            out = self._error(name, str(e))
+        except (KeyError, TypeError):
+            out = self._error(name, "Tham số công cụ không đúng")
+        except sqlite3.OperationalError:
+            out = self._error(name, "Cơ sở dữ liệu đang bận, thử lại sau")
         self.outcomes.append((name, out))
         return out
+
+    @staticmethod
+    def _error(name: str, message: str) -> Outcome:
+        return Outcome(_dumps({"error": message}), is_error=True, label=LABELS.get(name, ""))
 
     def _out(self, name: str, result: dict, *, source: str, summary: str, card=None, trim=()) -> Outcome:
         return Outcome(
