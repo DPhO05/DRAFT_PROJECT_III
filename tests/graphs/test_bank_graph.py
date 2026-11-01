@@ -1,5 +1,6 @@
 """G2 bank import (P5-T03, MONO-P5-01): read .tex → DỪNG → one transaction, no LLM."""
 
+import json
 import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -226,14 +227,6 @@ def test_concurrent_start_makes_one_thread(g2, paths, monkeypatch):
     r.wait(outs[0]["thread_id"])
 
 
-@pytest.mark.parametrize(
-    ("delta", "word"),
-    [(-0.6, "dễ"), (-0.31, "dễ"), (-0.3, "vừa"), (0.0, "vừa"), (0.3, "vừa"), (0.31, "khó"), (None, None)],
-)
-def test_level_word(delta, word):
-    assert bank._level(delta) == word
-
-
 def test_card_stage_follows_status_and_items():
     item = {"ref": None, "statement_latex": "s", "solution_latex": "", "tags": [], "delta": None, "rubric_items": [],
             "needs": [], "unknown_label": False, "invalid": "thiếu mã bài", "existing": False}  # fmt: skip
@@ -249,3 +242,32 @@ def test_card_stage_follows_status_and_items():
     assert stage("failed", {}) == "failed"
     c = bank.card(row, {"items": [item]}, [])
     assert (c["n_total"], c["n_invalid"], c["topic"], c["items"][0]["needs"]) == (0, 1, None, [])
+
+
+KCS = [{"id": 1, "name": "Chủ đề", "parent_id": None}, {"id": 2, "name": "Kỹ năng", "parent_id": 1}]
+
+
+def saved_card(answer):
+    item = {"ref": "A-1", "statement_latex": "s", "solution_latex": "", "tags": [], "delta": None, "invalid": None,
+            "rubric_items": [{"item_id": "r1", "text": "t", "points": 1}], "needs": ["kc", "level"],
+            "unknown_label": False, "existing": False}  # fmt: skip
+    row = {"status": "awaiting_review", "subject": "x.tex", "decisions_json": json.dumps({"items": {"A-1": answer}})}
+    return bank.card(row, {"items": [item]}, KCS)
+
+
+def test_card_shows_level_saved_before_kc():
+    c = saved_card({"level": "khó"})
+    assert (c["items"][0]["level"], c["items"][0]["kcs"], c["items"][0]["needs"]) == ("khó", [], ["kc"])
+    assert (c["n_need"], c["n_ready"], c["topic"]) == (1, 0, None)
+
+
+def test_card_shows_kc_saved_before_level():
+    c = saved_card({"kc_ids": [2]})
+    assert (c["items"][0]["level"], c["items"][0]["kcs"], c["items"][0]["needs"]) == (
+        None, [{"id": 2, "name": "Kỹ năng"}], ["level"])  # fmt: skip
+    assert (c["n_need"], c["topic"]) == (1, {"id": 1, "name": "Chủ đề"})
+
+
+def test_card_bad_answer_keeps_the_good_one():
+    c = saved_card({"kc_ids": [99], "level": "vừa"})
+    assert (c["items"][0]["level"], c["items"][0]["kcs"], c["items"][0]["needs"]) == ("vừa", [], ["kc"])

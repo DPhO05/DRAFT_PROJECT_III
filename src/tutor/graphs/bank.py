@@ -17,7 +17,7 @@ from tutor.config import DataPaths
 from tutor.db import repo
 from tutor.graphs.runner import Runner
 from tutor.graphs.state import BankState
-from tutor.services import bank, latex
+from tutor.services import bank, elo, latex
 
 GRAPH = "G2"
 _START = threading.Lock()  # check-for-thread + start must not interleave: two POSTs for one file make one thread
@@ -83,6 +83,21 @@ def _kc_ok(ids: object, known_kc: set[int]) -> bool:
     )
 
 
+_ANSWER_KEYS = ("kc_ids", "level", "rubric_items")
+
+
+def _apply(final: dict, key: str, value: object, known_kc: set[int]) -> None:
+    """Put one teacher answer into `final`; ValueError or TypeError when it is malformed."""
+    if key == "kc_ids":
+        if not _kc_ok(value, known_kc):
+            raise ValueError("kc_ids")
+        final["tags"] = [[k, 0, None] for k in dict.fromkeys(value)]
+    elif key == "level":
+        final["delta"] = bank.level_delta(value)
+    else:
+        final["rubric_items"] = bank.rubric_items(value)
+
+
 def final_items(items: list[dict], decisions: object, known_kc: set[int]) -> tuple[list[dict], int]:
     """(items to write with the teacher's answers applied, how many still lack a valid KC).
 
@@ -98,14 +113,9 @@ def final_items(items: list[dict], decisions: object, known_kc: set[int]) -> tup
         d = d if isinstance(d, dict) else {}
         final = dict(it)
         try:
-            if "kc_ids" in d:
-                if not _kc_ok(d["kc_ids"], known_kc):
-                    raise ValueError("kc_ids")
-                final["tags"] = [[k, 0, None] for k in dict.fromkeys(d["kc_ids"])]
-            if "level" in d:
-                final["delta"] = bank.level_delta(d["level"])
-            if "rubric_items" in d:
-                final["rubric_items"] = bank.rubric_items(d["rubric_items"])
+            for key in _ANSWER_KEYS:
+                if key in d:
+                    _apply(final, key, d[key], known_kc)
         except (ValueError, TypeError):
             missing += 1
             continue
@@ -130,12 +140,6 @@ def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
     return count
 
 
-def _level(delta: float | None) -> str | None:
-    if delta is None:
-        return None
-    return "dễ" if delta < -0.3 else "khó" if delta > 0.3 else "vừa"
-
-
 def card(row: dict, state: dict, kcs: list[dict]) -> dict:
     """The teacher's view of an import thread; `kcs` is the catalog (repo.list_kc). Saved decisions are applied."""
     items, names = state.get("items") or [], {k["id"]: k for k in kcs}
@@ -143,20 +147,26 @@ def card(row: dict, state: dict, kcs: list[dict]) -> dict:
     saved = json.loads(row["decisions_json"]) if row.get("decisions_json") else state.get("decisions")
     answers = saved.get("items") if isinstance(saved, dict) else None
     answers = answers if isinstance(answers, dict) else {}
-    shown, write = [], []
+    shown = []
     for it in items:
-        kept, _ = final_items([it], saved, known)
-        fin = kept[0] if kept else it
-        decided = isinstance(a := answers.get(it["ref"]), dict) and "level" in a
         live = not (it["invalid"] or it["existing"])
-        needs = [n for n, lack in (("kc", not kept), ("level", fin["delta"] is None and not decided)) if live and lack]
-        write += kept
+        d = answers.get(it["ref"]) if live else None
+        d = d if isinstance(d, dict) else {}
+        fin, bad, done = dict(it), False, set()
+        for key in _ANSWER_KEYS:  # each answer on its own: a bad one must not hide the good ones
+            if key in d:
+                try:
+                    _apply(fin, key, d[key], known)
+                    done.add(key)
+                except (ValueError, TypeError):
+                    bad = True
+        lacks = (("kc", bad or not fin["tags"]), ("level", fin["delta"] is None and "level" not in done))
         shown.append({
             "ref": it["ref"],
             "statement_latex": it["statement_latex"],
             "kcs": [{"id": k, "name": names[k]["name"]} for k in dict.fromkeys(t[0] for t in fin["tags"])],
-            "level": _level(fin["delta"]),
-            "needs": needs,
+            "level": None if fin["delta"] is None else elo.difficulty_word(fin["delta"], True),
+            "needs": [n for n, lack in lacks if live and lack],
             "unknown_label": it["unknown_label"],
             "existing": it["existing"],
             "invalid": it["invalid"],
@@ -164,7 +174,7 @@ def card(row: dict, state: dict, kcs: list[dict]) -> dict:
         })  # fmt: skip
     # R5: a problem's topic is the parent (or itself) of its smallest KC id
     topics: Counter[int] = Counter()
-    for w in write:
+    for w in final_items(items, saved, known)[0]:
         k = names[min(t[0] for t in w["tags"])]
         topics[k["parent_id"] or k["id"]] += 1
     top = min(topics, key=lambda t: (-topics[t], t)) if topics else None
