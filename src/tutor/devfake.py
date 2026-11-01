@@ -12,7 +12,7 @@ MODEL = "dev-fake"
 
 
 def models() -> dict[str, str]:
-    return {f"{i:02d}": MODEL for i in range(1, 5)}
+    return {f"{i:02d}": MODEL for i in range(0, 5)}
 
 
 def _section(user: str, title: str) -> str:

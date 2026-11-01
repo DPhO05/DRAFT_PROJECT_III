@@ -6,6 +6,8 @@ import re
 import threading
 import time
 import unicodedata
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -43,14 +45,51 @@ class Reply:
 class Backend(Protocol):
     def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply: ...
 
+    def chat(
+        self, *, agent: str, model: str, system: list[str], tools: list[dict], messages: list[dict]
+    ) -> Iterator[dict]:
+        """{"type": "text", "delta"}*, then {"type": "message", "content", "stop_reason", "usage"}."""
+
 
 @dataclass
 class CallContext:
-    graph: str
+    graph: str | None
     thread_id: str | None = None
     session_id: int | None = None
     student_code: str | None = None
     redact: dict[str, str] = field(default_factory=dict)  # known name -> student code; never logged
+    conversation_id: str | None = None
+
+
+def _system(system: list[str]) -> list[dict]:
+    blocks = [{"type": "text", "text": t} for t in system]
+    if blocks:
+        blocks[-1]["cache_control"] = {"type": "ephemeral"}  # whole fixed part is the cached prefix
+    return blocks
+
+
+def _usage(u) -> dict:
+    return {
+        "input": u.input_tokens,
+        "output": u.output_tokens,
+        "cache_read": u.cache_read_input_tokens or 0,
+        "cache_write": u.cache_creation_input_tokens or 0,
+    }
+
+
+def chat_request(model: str, system: list[str], tools: list[dict], messages: list[dict]) -> dict:
+    """kwargs for client.beta.messages.stream; tools render before system, so the system breakpoint caches both."""
+    return {
+        "model": model,
+        "max_tokens": 64000,
+        "system": _system(system),
+        "tools": tools,
+        "messages": messages,
+        "thinking": {"type": "adaptive"},
+        "output_config": {"effort": "medium"},  # Opus 5.5 default, stated so a model change keeps it
+        "betas": ["server-side-fallback-2026-07-01"],
+        "fallbacks": "default",
+    }
 
 
 class AnthropicBackend:
@@ -60,38 +99,47 @@ class AnthropicBackend:
         self._a = anthropic
         self.client = anthropic.Anthropic(max_retries=0)  # retries are counted here (§8.4), not twice
 
-    def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply:
+    @contextmanager
+    def _net_errors(self):
         a = self._a
-        blocks = [{"type": "text", "text": t} for t in system]
-        if blocks:
-            blocks[-1]["cache_control"] = {"type": "ephemeral"}  # whole fixed part is the cached prefix
         try:
-            r = self.client.beta.messages.parse(
-                model=model,
-                max_tokens=16000,
-                system=blocks,
-                messages=[{"role": "user", "content": user}],
-                output_format=schema,
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
-            )
+            yield
         except (a.APIConnectionError, a.RateLimitError, a.InternalServerError) as e:
             raise Retryable(str(e)) from e
         except a.APIStatusError as e:
             if e.status_code == 529:
                 raise Retryable(str(e)) from e
             raise
+
+    def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply:
+        with self._net_errors():
+            r = self.client.beta.messages.parse(
+                model=model,
+                max_tokens=16000,
+                system=_system(system),
+                messages=[{"role": "user", "content": user}],
+                output_format=schema,
+                betas=["server-side-fallback-2026-07-01"],
+                fallbacks="default",
+            )
         if r.stop_reason == "refusal":
             raise LLMUnavailable(f"Claude từ chối: {getattr(r.stop_details, 'category', None)}")
-        u = r.usage
-        usage = {
-            "input": u.input_tokens,
-            "output": u.output_tokens,
-            "cache_read": u.cache_read_input_tokens or 0,
-            "cache_write": u.cache_creation_input_tokens or 0,
-        }
         raw = next((b.text for b in r.content if b.type == "text"), "")
-        return Reply(r.parsed_output, raw, usage)
+        return Reply(r.parsed_output, raw, _usage(r.usage))
+
+    def chat(
+        self, *, agent: str, model: str, system: list[str], tools: list[dict], messages: list[dict]
+    ) -> Iterator[dict]:
+        with self._net_errors(), self.client.beta.messages.stream(**chat_request(model, system, tools, messages)) as s:
+            for ev in s:
+                if ev.type == "text":
+                    yield {"type": "text", "delta": ev.text}
+            r = s.get_final_message()
+        if r.stop_reason == "refusal":
+            raise LLMUnavailable(f"Claude từ chối: {getattr(r.stop_details, 'category', None)}")
+        # by_alias: a fallback block's `from_` must go back to the API as `from`
+        content = [b.model_dump(mode="json", exclude_none=True, by_alias=True) for b in r.content]
+        yield {"type": "message", "content": content, "stop_reason": r.stop_reason, "usage": _usage(r.usage)}
 
 
 _backend: Backend | None = None
@@ -142,6 +190,19 @@ def _mask(text: str, redact: dict[str, str]) -> tuple[str, bool]:
     return text, bool(spans)
 
 
+def _mask_all(x, redact: dict[str, str]) -> tuple[object, bool]:
+    """_mask on every string inside nested lists / dicts (values only), returning a copy."""
+    if isinstance(x, str):
+        return _mask(x, redact)
+    if isinstance(x, dict):
+        done = {k: _mask_all(v, redact) for k, v in x.items()}
+        return {k: v for k, (v, _) in done.items()}, any(h for _, h in done.values())
+    if isinstance(x, list):
+        done = [_mask_all(v, redact) for v in x]
+        return [v for v, _ in done], any(h for _, h in done)
+    return x, False
+
+
 def _frame(work: str) -> str:
     # Break any "<<<" so the work cannot close (or reopen) the frame itself.
     safe = work.replace("<<<", "<<​<")
@@ -154,6 +215,19 @@ def _log(row: dict) -> None:
     _log_path.parent.mkdir(parents=True, exist_ok=True)
     with _log_lock, _log_path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def _row_tail(usage: dict, t0: float, result: str) -> dict:
+    """Log fields every API call row ends with (C-07), shared by call and chat."""
+    return {
+        "ts": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "input_tokens": usage.get("input", 0),
+        "output_tokens": usage.get("output", 0),
+        "cache_read_tokens": usage.get("cache_read", 0),
+        "cache_write_tokens": usage.get("cache_write", 0),
+        "ms": round((time.monotonic() - t0) * 1000),
+        "result": result,
+    }
 
 
 def call[T: BaseModel](
@@ -217,17 +291,8 @@ def call[T: BaseModel](
         finally:
             _log(
                 base
-                | {
-                    "ts": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "input_tokens": usage.get("input", 0),
-                    "output_tokens": usage.get("output", 0),
-                    "cache_read_tokens": usage.get("cache_read", 0),
-                    "cache_write_tokens": usage.get("cache_write", 0),
-                    "ms": round((time.monotonic() - t0) * 1000),
-                    "result": result,
-                    "output": raw if result != "retry" else None,
-                    **({"error": err} if err else {}),
-                }
+                | _row_tail(usage, t0, result)
+                | {"output": raw if result != "retry" else None, **({"error": err} if err else {})}
             )
             _last_result = "ok" if result in ("ok", "schema_error") else "error"
         if result == "ok":
@@ -241,6 +306,99 @@ def call[T: BaseModel](
         if net >= NET_TRIES:
             raise LLMUnavailable(f"{agent}: {err}")
         _sleep(2**net)
+
+
+def chat(
+    agent: str,
+    fixed: list[str],
+    tools: list[dict],
+    messages: list[dict],
+    *,
+    run_tool: Callable[[str, dict], tuple[str, bool]],
+    context: CallContext,
+    max_tool_turns: int,
+) -> Iterator[dict]:
+    """Streaming tool-use loop for one tutor message. Only tutor/agents/orchestrator.py may call this.
+
+    messages: history + current message. run_tool(name, input) -> (content, is_error). Yields text / tool events,
+    then {"type": "end", "text", "stopped": None | "max_tool_turns" | "max_tokens"}.
+    """
+    global _backend, _last_result
+    if _backend is None:
+        _backend = AnthropicBackend()
+    redact = context.redact
+    system, h1 = _mask_all(fixed, redact)
+    tools_sent, h2 = _mask_all(tools, redact)
+    msgs, h3 = _mask_all(messages, redact)
+    hits = h1 or h2 or h3
+    model = _models.get(agent, "claude-opus-5-5")
+    base = {
+        "agent": agent,
+        "prompt_version": prompt_version(agent, fixed + [json.dumps(tools, sort_keys=True, ensure_ascii=False)]),
+        "model": model,
+        "graph": context.graph,
+        "conversation_id": context.conversation_id,
+    }
+    said, turns = [], 0
+    while True:
+        net = 0
+        while True:  # one API call, retried only while nothing has streamed yet
+            t0 = time.monotonic()
+            usage, result, err, streamed, msg = {}, "error", None, False, None
+            try:
+                for ev in _backend.chat(agent=agent, model=model, system=system, tools=tools_sent, messages=msgs):
+                    if ev["type"] == "text":
+                        streamed = True
+                        said.append(ev["delta"])
+                        yield ev
+                    else:
+                        msg = ev
+                usage, result = msg["usage"], "ok"
+            except Retryable as e:
+                result, err = "retry", str(e)
+            except Exception as e:
+                err = str(e)
+                raise
+            finally:  # also runs when the consumer closes the stream: result stays "error"
+                out = [b for b in msg["content"] if b["type"] in ("text", "tool_use")] if msg else None
+                _log(
+                    base
+                    | {
+                        "tools": [b["name"] for b in out or [] if b["type"] == "tool_use"],
+                        "name_masked": hits,
+                        "user": json.dumps(msgs[-1]["content"], ensure_ascii=False),
+                    }
+                    | _row_tail(usage, t0, result)
+                    | {"output": out, **({"error": err} if err else {})}
+                )
+                _last_result = "ok" if result == "ok" else "error"
+            if result == "ok":
+                break
+            net += 1
+            if streamed or net >= NET_TRIES:
+                raise LLMUnavailable(f"{agent}: {err}")
+            _sleep(2**net)
+        msgs.append({"role": "assistant", "content": msg["content"]})  # append-only: thinking blocks stay valid
+        if msg["stop_reason"] != "tool_use":
+            stopped = "max_tokens" if msg["stop_reason"] == "max_tokens" else None
+            break
+        if turns >= max_tool_turns:
+            stopped = "max_tool_turns"
+            break
+        turns += 1
+        results = []
+        for b in msg["content"]:
+            if b["type"] != "tool_use":
+                continue
+            yield {"type": "tool", "id": b["id"], "name": b["name"], "input": b["input"], "state": "start"}
+            content, is_error = run_tool(b["name"], b["input"])
+            content, h = _mask(content, redact)
+            hits |= h
+            yield {"type": "tool", "id": b["id"], "name": b["name"], "state": "error" if is_error else "done"}
+            results.append({"type": "tool_result", "tool_use_id": b["id"], "content": content}
+                           | ({"is_error": True} if is_error else {}))  # fmt: skip
+        msgs.append({"role": "user", "content": results})
+    yield {"type": "end", "text": "".join(said), "stopped": stopped}
 
 
 _FILTERS = {"agent": "agent", "graph": "graph", "student": "student_code", "thread": "thread_id"}
