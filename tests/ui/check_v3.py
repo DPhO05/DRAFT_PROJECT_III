@@ -102,7 +102,8 @@ def walk_gear(page, rep: dict, phone: bool) -> None:
     keys = page.evaluate("[...document.querySelectorAll('[data-sys]')].map(b => b.dataset.sys)")
     if len(keys) != 4:
         rep["missing"].append(f"gear menu has {len(keys)} items, expected 4")
-    for key in keys:
+    for key, how in [(k, h) for k in keys for h in ("Esc", "×")]:
+        label = f"gear {key} closed by {how}"
         press(page, rep, "#gear-btn", "gear")
         if not page.is_visible(f'[data-sys="{key}"]'):
             rep["missing"].append(f"gear menu did not show {key}")
@@ -111,8 +112,15 @@ def walk_gear(page, rep: dict, phone: bool) -> None:
         if SOON not in page.inner_text("#modal-root"):
             rep["missing"].append(f"gear {key}: no '{SOON}'")
         see(page, rep, f"gear {key}", phone)
-        if not close_overlay(page):
-            rep["missing"].append(f"gear {key}: modal did not close")
+        if how == "Esc":
+            closed = close_overlay(page)
+        else:
+            press(page, rep, "#modal-root .icon-btn", f"modal × for {key}")
+            closed = page.evaluate("!document.querySelector('#modal-root .modal')")
+        if not closed:
+            rep["missing"].append(f"{label}: modal did not close")
+        elif (focus := page.evaluate("document.activeElement.id")) != "gear-btn":
+            rep["missing"].append(f"{label}: focus is on {focus or 'the page'}, not the ⚙ button")
 
 
 def walk_theme(page, rep: dict, base: str) -> None:
