@@ -190,6 +190,15 @@ JS_FAIL_SAVE = """() => { window.__send = U.api.send;
 JS_DELAY_SEARCH = """() => { window.__get = U.api.get;
   const late = p => new Promise(r => setTimeout(r, 1000)).then(() => window.__get(p));
   U.api.get = p => p.includes('q=zzzq') ? late(p) : window.__get(p); }"""
+# holds back the first-page answer to a level filter by 1 s, so Xem thêm can be clicked meanwhile
+JS_DELAY_FILTER = """() => { window.__get = U.api.get;
+  const late = r => new Promise(ok => setTimeout(() => ok(r), 1000));
+  const first = p => p.includes('offset=0') && p.includes('level=');
+  U.api.get = p => { const r = window.__get(p); return first(p) ? late(r) : r; }; }"""
+# every bank list request of a new page waits 2.5 s, so the teacher can type before the first answer
+JS_SLOW_LIST = """(() => { let a; Object.defineProperty(window, 'api', { configurable: true, get: () => a, set: v => {
+  a = v; const g = v.get, wait = () => new Promise(r => setTimeout(r, 2500));
+  v.get = p => p.includes('view=teacher') ? wait().then(() => g(p)) : g(p); } }); })();"""
 GRADE9 = "CAST(ref AS INTEGER) = 9"
 EASY = "difficulty_approved_at IS NOT NULL AND delta < -0.3"
 HARD = "difficulty_approved_at IS NOT NULL AND delta > 0.3"
@@ -271,6 +280,44 @@ def bank_filters(page, rep: dict, data_dir: str, reqs: list) -> None:
     page.evaluate("() => { U.api.get = window.__get; }")
 
 
+def bank_races(page, rep: dict, data_dir: str) -> None:
+    """Xem thêm while a newer filter or search is still loading must not mix two result sets."""
+    total, easy = problems(data_dir), problems(data_dir, EASY)
+    clear = ('[data-act="b-clear"]', "bank Xoá lọc", JS_COUNT_IS, total)
+    press(page, rep, *clear)
+    page.evaluate(JS_DELAY_FILTER)
+    page.click('[data-act="b-level"][data-v="dễ"]')
+    page.click('[data-act="b-more"]')
+    expect(page, rep, JS_COUNT_IS, f"bank: dễ should match {easy}", easy)
+    page.wait_for_timeout(300)
+    cards = page.locator("#b-grid .bcard").all_inner_texts()
+    if len(cards) != min(12, easy) or any("dễ" not in t for t in cards):
+        rep["missing"].append(f"bank: Xem thêm during a level filter left {len(cards)} cards, not {min(12, easy)} dễ")
+    page.evaluate("() => { U.api.get = window.__get; }")
+    press(page, rep, *clear)
+    page.fill("#b-q", "9DS-HPT")
+    page.click('[data-act="b-more"]')
+    n = problems(data_dir, "ref LIKE ?", "9DS-HPT%")
+    expect(page, rep, JS_COUNT_IS, f"bank: ref prefix 9DS-HPT should match {n}", n)
+    page.wait_for_timeout(300)
+    refs = page.locator("#b-grid .bcard .ref").all_inner_texts()
+    if len(refs) != min(12, n) or not all(r.startswith("9DS-HPT") for r in refs):
+        rep["missing"].append(f"bank: Xem thêm during a search left {len(refs)} cards, not {min(12, n)} for 9DS-HPT")
+    press(page, rep, *clear)
+    topics = scalar(
+        data_dir, "SELECT count(DISTINCT COALESCE(k.parent_id, k.id)) FROM problem_kc pk JOIN kc k ON k.id = pk.kc_id"
+    )
+    late = page.context.new_page()
+    late.on("pageerror", lambda e: rep["page_errors"].append(str(e)[:300]))
+    late.add_init_script(JS_SLOW_LIST)
+    late.goto(f"{page.url.split('#')[0]}#ngan-hang", wait_until="commit")
+    late.fill("#b-q", "zzz")
+    expect(late, rep, JS_COUNT_IS, "bank: typing before the first answer should end at 0 bài khớp", 0)
+    if f"{total} bài · {topics} chủ đề" not in late.inner_text("#panel-ngan-hang .page-head"):
+        rep["missing"].append("bank: typing before the first answer left a wrong head")
+    late.close()
+
+
 def bank_edit(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
     bank_level(page, rep, data_dir, "dễ", EASY)
     card = page.locator("#b-grid .bcard").first
@@ -333,6 +380,7 @@ def walk_bank(page, rep: dict, phone: bool, data_dir: str | None) -> None:
     see(page, rep, "ngan-hang", phone)
     if data_dir and loaded:
         bank_filters(page, rep, data_dir, reqs)
+        bank_races(page, rep, data_dir)
         bank_edit(page, rep, phone, data_dir, reqs)
     elif loaded and not data_dir and ("0 bài khớp" not in text or NO_MATCH not in text):
         rep["missing"].append(f"bank: an empty bank should say '0 bài khớp' and '{NO_MATCH}'")

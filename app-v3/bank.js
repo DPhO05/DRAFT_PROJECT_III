@@ -6,7 +6,7 @@
     not_found: 'Bài này không còn trong ngân hàng.'
   };
   var panel = null, kcs = [], counts = null, topicsDrawn = false;
-  var items = [], total = 0, bankTotal = 0, failed = false, seq = 0, openSeq = 0, timer = 0;
+  var items = [], listKey = '', total = 0, bankTotal = 0, failed = false, seq = 0, openSeq = 0, timer = 0;
   var f = { q: '', topic: '', grade: '', kc: '', level: '' };
   var cur = null, edit = null;
 
@@ -34,7 +34,6 @@
   function drawList(added) {
     var grid = $('b-grid');
     $('b-count').innerHTML = failed ? '' : '<b>' + total + ' bài</b> khớp';
-    $('b-head').textContent = bankTotal + ' bài · ' + Object.keys(counts || {}).length + ' chủ đề';
     if (added) grid.insertAdjacentHTML('beforeend', added.map(cardHTML).join(''));
     else grid.innerHTML = items.map(cardHTML).join('');
     U.typeset(grid);
@@ -44,19 +43,24 @@
       : items.length < total ? '<div class="row b-more"><button type="button" class="btn" data-act="b-more">Xem thêm (còn ' + (total - items.length) + ' bài)</button></div>' : '';
     if (added && added.length) grid.querySelector('[data-pid="' + added[0].id + '"] .ref').focus();
   }
+  function drawHead() { $('b-head').textContent = bankTotal + ' bài · ' + Object.keys(counts || {}).length + ' chủ đề'; }
   function load(more) {
+    var key = query(0);
+    if (more && key !== listKey) return;  // the list on screen is for older filters: the pending answer or search replaces it
     clearTimeout(timer);
-    var my = ++seq;  // an answer that is not for the latest request is dropped
+    var plain = !f.q.trim() && !f.topic && !f.grade && !f.kc && !f.level, my = ++seq;  // an answer that is not for the latest request is dropped
     return U.api.get('/bank/problems?' + query(more ? items.length : 0)).then(function (r) {
+      counts = r.topic_counts;  // bank-wide, so a dropped answer still tells the truth
+      if (plain) bankTotal = r.total;
+      drawHead(); drawTopics();
       if (my !== seq) return;
-      failed = false; total = r.total; counts = r.topic_counts;
-      if (!f.q.trim() && !f.topic && !f.grade && !f.kc && !f.level) bankTotal = r.total;
+      failed = false; total = r.total; listKey = key;
       items = more ? items.concat(r.items) : r.items;
-      drawTopics(); drawList(more ? r.items : null);
+      drawList(more ? r.items : null);
     }, function () {
       if (my !== seq) return;
       if (more) { U.toast('Không tải thêm được. Thử lại sau.', 'warn'); return; }
-      failed = true; items = []; total = 0; drawList();
+      failed = true; items = []; total = 0; listKey = ''; drawList();
     });
   }
   function loadCatalog() {
