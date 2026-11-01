@@ -1,8 +1,11 @@
 """/api/threads: list + lock, poll, save decisions, resume, cancel, cleanup (MONO-P1-03, P2-01, P3-01, P3-02)."""
 
+from contextlib import closing
+
 from fastapi import APIRouter, Body, Request
 
-from tutor.graphs import threads
+from tutor.db import repo
+from tutor.graphs import bank, threads
 
 router = APIRouter(prefix="/api/threads")
 
@@ -21,9 +24,16 @@ def cleanup(request: Request) -> dict:
 
 
 @router.get("/{thread_id}")
-def get_thread(thread_id: str, request: Request, include: str | None = None) -> dict:
+def get_thread(thread_id: str, request: Request, include: str | None = None, view: str = "") -> dict:
+    """view=teacher: the short row plus `card`, built by the server per graph (null for graphs with no card yet)."""
     r = request.app.state.runner
-    r.get(thread_id)  # 404 first
+    t = r.get(thread_id)  # 404 first
+    if view == "teacher":
+        card = None
+        if t["graph"] == bank.GRAPH:
+            with closing(repo.connect(request.app.state.paths.tutor_db, readonly=True)) as conn:
+                card = bank.card(t, r.state(thread_id), repo.list_kc(conn))
+        return {k: t[k] for k in ("thread_id", "graph", "status", "updated_at")} | {"card": card}
     row = next(t for t in threads.annotate(r.list_threads()) if t["thread_id"] == thread_id)
     if include == "state" or row["status"] == "committed":
         state = r.state(thread_id)

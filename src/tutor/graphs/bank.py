@@ -1,6 +1,10 @@
 """G2 bank import (P5-T03): read a teacher's .tex → DỪNG confirm_import → commit in one transaction. No LLM call."""
 
+import json
 import re
+import sqlite3
+import threading
+from collections import Counter
 from collections.abc import Callable
 from contextlib import closing
 from datetime import date
@@ -16,6 +20,7 @@ from tutor.graphs.state import BankState
 from tutor.services import bank, latex
 
 GRAPH = "G2"
+_START = threading.Lock()  # check-for-thread + start must not interleave: two POSTs for one file make one thread
 
 
 def _source(paths: DataPaths, file: str):
@@ -33,17 +38,41 @@ def start_import(paths: DataPaths, runner: Runner, *, file: str) -> dict:
     if not latex.split_problems(src.read_text(encoding="utf-8")):
         raise ValueError("Không tìm thấy bài nào trong file (chưa có dòng \\begin{problem})")
     name = src.relative_to(folder).as_posix()
-    for t in runner.list_threads(graph=GRAPH):
-        if t["subject"] == name and t["status"] in ("running", "awaiting_review", "failed"):
-            return {"thread_id": t["thread_id"], "status": t["status"], "existing": True}
-    stem = re.sub(r"[^a-z0-9-]", "-", src.stem.lower())
-    base = f"g2-{stem}-{date.today():%Y%m%d}"
-    tid, k = base, 1
-    while runner.exists(tid):
-        k += 1
-        tid = f"{base}-{k}"
-    runner.start(GRAPH, tid, {"file": src.relative_to(paths.root.resolve()).as_posix()}, {"subject": name})
+    with _START:
+        for t in runner.list_threads(graph=GRAPH):
+            if t["subject"] == name and t["status"] in ("running", "awaiting_review", "failed"):
+                return {"thread_id": t["thread_id"], "status": t["status"], "existing": True}
+        stem = re.sub(r"[^a-z0-9-]", "-", src.stem.lower())
+        base = f"g2-{stem}-{date.today():%Y%m%d}"
+        tid, k = base, 1
+        while runner.exists(tid):
+            k += 1
+            tid = f"{base}-{k}"
+        runner.start(GRAPH, tid, {"file": src.relative_to(paths.root.resolve()).as_posix()}, {"subject": name})
     return {"thread_id": tid, "status": "running", "existing": False}
+
+
+def inbox(paths: DataPaths, conn: sqlite3.Connection) -> list[dict]:
+    """Every .tex in data/inbox/bank/ with how much of it is already in the bank. Broken problems are not counted."""
+    created = repo.bank_created_at(conn)
+    out = []
+    for f in sorted((paths.inbox / "bank").glob("*.tex")):
+        text = f.read_text(encoding="utf-8-sig", errors="replace")
+        refs = [b.ref for b in bank.read_bank(text, {}) if not b.invalid]
+        have = [created[r] for r in refs if r in created]
+        first = text.split("\n", 1)[0].strip()
+        title = (first.lstrip("%").strip() or None) if first.startswith("%") else None
+        n, new = len(refs), len(refs) - len(have)
+        out.append({
+            "file": f.name,
+            "title": title,
+            "bytes": f.stat().st_size,
+            "n_problems": n,
+            "n_new": new,
+            "status": "empty" if n == 0 else "imported" if new == 0 else "new" if new == n else "partly",
+            "imported_at": max(have)[:10] if have else None,
+        })  # fmt: skip
+    return out
 
 
 def _kc_ok(ids: object, known_kc: set[int]) -> bool:
@@ -99,6 +128,63 @@ def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
         return final_items(state["items"], decisions, _known_kc(paths))[1]
 
     return count
+
+
+def _level(delta: float | None) -> str | None:
+    if delta is None:
+        return None
+    return "dễ" if delta < -0.3 else "khó" if delta > 0.3 else "vừa"
+
+
+def card(row: dict, state: dict, kcs: list[dict]) -> dict:
+    """The teacher's view of an import thread; `kcs` is the catalog (repo.list_kc). Saved decisions are applied."""
+    items, names = state.get("items") or [], {k["id"]: k for k in kcs}
+    known = set(names)
+    saved = json.loads(row["decisions_json"]) if row.get("decisions_json") else state.get("decisions")
+    answers = saved.get("items") if isinstance(saved, dict) else None
+    answers = answers if isinstance(answers, dict) else {}
+    shown, write = [], []
+    for it in items:
+        kept, _ = final_items([it], saved, known)
+        fin = kept[0] if kept else it
+        decided = isinstance(a := answers.get(it["ref"]), dict) and "level" in a
+        live = not (it["invalid"] or it["existing"])
+        needs = [n for n, lack in (("kc", not kept), ("level", fin["delta"] is None and not decided)) if live and lack]
+        write += kept
+        shown.append({
+            "ref": it["ref"],
+            "statement_latex": it["statement_latex"],
+            "kcs": [{"id": k, "name": names[k]["name"]} for k in dict.fromkeys(t[0] for t in fin["tags"])],
+            "level": _level(fin["delta"]),
+            "needs": needs,
+            "unknown_label": it["unknown_label"],
+            "existing": it["existing"],
+            "invalid": it["invalid"],
+            "rubric_items": fin["rubric_items"],
+        })  # fmt: skip
+    # R5: a problem's topic is the parent (or itself) of its smallest KC id
+    topics: Counter[int] = Counter()
+    for w in write:
+        k = names[min(t[0] for t in w["tags"])]
+        topics[k["parent_id"] or k["id"]] += 1
+    top = min(topics, key=lambda t: (-topics[t], t)) if topics else None
+    valid = [i for i in shown if not i["invalid"]]
+    status = row["status"]
+    stage = ("saving" if items else "reading") if status == "running" else {
+        "awaiting_review": "preview", "committed": "saved"}.get(status, "failed")  # fmt: skip
+    return {
+        "kind": "bank_import",
+        "stage": stage,
+        "file": row["subject"],
+        "topic": {"id": top, "name": names[top]["name"]} if top is not None else None,
+        "n_total": len(valid),
+        "n_ready": sum(not i["needs"] and not i["existing"] for i in valid),
+        "n_need": sum(bool(i["needs"]) for i in valid),
+        "n_existing": sum(i["existing"] for i in valid),
+        "n_invalid": len(shown) - len(valid),
+        "receipt": state.get("receipt"),
+        "items": shown,
+    }
 
 
 def build(paths: DataPaths) -> StateGraph:

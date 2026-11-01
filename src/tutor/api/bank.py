@@ -3,11 +3,12 @@
 import sqlite3
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 
 from tutor.api import deps
 from tutor.db import repo
+from tutor.graphs import bank as g2
 from tutor.services import search
 
 router = APIRouter(prefix="/api/bank")
@@ -18,6 +19,25 @@ class ProblemPatch(BaseModel):
     kc_ids: list[int] | None = None
     level: Literal["dễ", "vừa", "khó"] | None = None
     rubric_items: list[dict] | None = None
+
+
+class ImportBody(BaseModel):
+    file: str
+
+
+@router.get("/inbox")
+def inbox(request: Request, conn: DB) -> list[dict]:
+    """The .tex files waiting in data/inbox/bank/ and how many of their problems are already in the bank."""
+    return g2.inbox(request.app.state.paths, conn)
+
+
+@router.post("/imports", status_code=202)
+def start_import(body: ImportBody, request: Request, response: Response) -> dict:
+    """Start G2 for one inbox file; a file whose import is not committed yet answers 200 with that thread."""
+    out = g2.start_import(request.app.state.paths, request.app.state.runner, file=body.file)
+    if out["existing"]:
+        response.status_code = 200
+    return {"thread_id": out["thread_id"], "status": out["status"]}
 
 
 @router.get("/problems")

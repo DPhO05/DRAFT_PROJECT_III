@@ -1,11 +1,33 @@
 """SDD Phụ lục B #26 (read part): bank problems for Buổi học bước 3 › Chọn bài khác."""
 
+import shutil
 from contextlib import closing
+from datetime import UTC, datetime
+from pathlib import Path
 
+import pytest
+
+from tests.api.test_sessions import poll
 from tests.bankfix import P1, P2, add_bank
-from tutor.db import repo
+from tutor.db import repo, seed_dummy
 
 W = {"X-Tutor": "1"}
+ROOT = Path(__file__).resolve().parents[2]
+MIX = ROOT / "tests" / "fixtures" / "bank" / "import-mix.tex"
+ONE = (
+    "% Hàm số ôn tập\n\\begin{problem}[8DS-ONE-001]\n% kc_du_kien: 8DS-HSBN-02\nTính $f(0)$.\n"
+    "\\begin{solution}\nBước.\n\\end{solution}\n\\end{problem}\n"
+)
+
+
+def import_mix(paths, client) -> str:
+    """Dummy bank seeded, mix.tex in the inbox, G2 started; returns the thread id."""
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        seed_dummy.seed(conn, ROOT / "data" / "dummy" / "bank")
+    shutil.copy(MIX, paths.inbox / "bank" / "mix.tex")
+    r = client.post("/api/bank/imports", json={"file": "mix.tex"}, headers=W)
+    assert r.status_code == 202
+    return r.json()["thread_id"]
 
 
 def test_search_by_ref_or_statement_and_detail(paths, client):
@@ -99,3 +121,56 @@ def test_patch_needs_header(paths, client):
     pid = client.get("/api/bank/problems").json()[0]["id"]
     assert client.patch(f"/api/bank/problems/{pid}", json={"level": "khó"}).status_code == 403
     assert client.get(f"/api/bank/problems/{pid}").json()["level"] == "vừa"
+
+
+def test_inbox_status(paths, client):
+    folder = paths.inbox / "bank"
+    (folder / "a-one.tex").write_text(ONE, encoding="utf-8")
+    (folder / "b-empty.tex").write_text("Không có bài nào\n", encoding="utf-8")
+    (folder / "c-notes.txt").write_text("x", encoding="utf-8")
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        seed_dummy.seed(conn, ROOT / "data" / "dummy" / "bank")
+    shutil.copy(MIX, folder / "d-mix.tex")
+    got = {f["file"]: f for f in client.get("/api/bank/inbox").json()}
+    assert list(got) == ["a-one.tex", "b-empty.tex", "d-mix.tex"]
+    assert got["a-one.tex"] == {
+        "file": "a-one.tex",
+        "title": "Hàm số ôn tập",
+        "bytes": (folder / "a-one.tex").stat().st_size,
+        "n_problems": 1,
+        "n_new": 1,
+        "status": "new",
+        "imported_at": None,
+    }
+    assert (got["b-empty.tex"]["title"], got["b-empty.tex"]["status"], got["b-empty.tex"]["n_problems"]) == (
+        None, "empty", 0)  # fmt: skip
+    mix = got["d-mix.tex"]
+    assert (mix["n_problems"], mix["n_new"], mix["status"]) == (5, 4, "partly")  # 3 broken problems are not counted
+    assert mix["imported_at"] == f"{datetime.now(UTC):%Y-%m-%d}"
+    tid = client.post("/api/bank/imports", json={"file": "a-one.tex"}, headers=W).json()["thread_id"]
+    assert poll(client, tid, until=("awaiting_review", "failed"))["status"] == "awaiting_review"
+    assert client.post(f"/api/threads/{tid}/resume", headers=W).status_code == 202
+    assert poll(client, tid, until=("committed", "failed"))["status"] == "committed"
+    one = next(f for f in client.get("/api/bank/inbox").json() if f["file"] == "a-one.tex")
+    assert (one["n_new"], one["status"], one["imported_at"]) == (0, "imported", f"{datetime.now(UTC):%Y-%m-%d}")
+
+
+@pytest.mark.parametrize("name", ["../tutor.db", "/etc/hosts", "notes.txt", "missing.tex", "empty.tex"])
+def test_import_rejects_outside_inbox(paths, client, name):
+    (paths.inbox / "bank" / "notes.txt").write_text("x", encoding="utf-8")
+    (paths.inbox / "bank" / "empty.tex").write_text("Không có bài nào\n", encoding="utf-8")
+    r = client.post("/api/bank/imports", json={"file": name}, headers=W)
+    assert (r.status_code, r.json()["error"]["code"]) == (422, "validation_error")
+    assert client.get("/api/threads?graph=G2").json() == []
+
+
+def test_import_twice_returns_same_thread(paths, client):
+    tid = import_mix(paths, client)
+    r = client.post("/api/bank/imports", json={"file": "mix.tex"}, headers=W)
+    assert r.status_code == 200 and r.json()["thread_id"] == tid and set(r.json()) == {"thread_id", "status"}
+    assert len(client.get("/api/threads?graph=G2").json()) == 1
+
+
+def test_import_needs_header(paths, client):
+    shutil.copy(MIX, paths.inbox / "bank" / "mix.tex")
+    assert client.post("/api/bank/imports", json={"file": "mix.tex"}).status_code == 403

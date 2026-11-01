@@ -523,6 +523,11 @@ def bank_problems(conn: sqlite3.Connection) -> list[dict]:
     ))  # fmt: skip
 
 
+def bank_created_at(conn: sqlite3.Connection) -> dict[str, str]:
+    """ref → created_at of every problem."""
+    return dict(conn.execute("SELECT ref, created_at FROM problem"))
+
+
 def problem_detail(conn: sqlite3.Connection, problem_id: int) -> dict:
     """Problem + its approved KCs + latest approved rubric (None if none) for the 02 · 03 · 04 lane."""
     rows = _dicts(conn.execute(

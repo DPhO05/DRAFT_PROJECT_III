@@ -2,6 +2,7 @@
 
 from contextlib import closing
 
+from tests.api.test_bank import import_mix
 from tests.api.test_sessions import W, poll
 from tests.bankfix import P1, add_bank
 from tests.fakes import FakeLLM, lane_handlers
@@ -67,3 +68,62 @@ def test_failed_thread_reruns_from_checkpoint(paths, client):
 def test_unknown_thread_404(client):
     assert client.put("/api/threads/nope/decisions", json={}, headers=W).status_code == 404
     assert client.post("/api/threads/nope/resume", headers=W).status_code == 404
+
+
+def keys(node):
+    """Every dict key anywhere in a JSON value."""
+    if isinstance(node, dict):
+        return set(node) | {k for v in node.values() for k in keys(v)}
+    return {k for v in node for k in keys(v)} if isinstance(node, list) else set()
+
+
+def test_teacher_view_g2_card(paths, client):
+    tid = import_mix(paths, client)
+    poll(client, tid, until=("awaiting_review", "failed"))
+    got = client.get(f"/api/threads/{tid}?view=teacher").json()
+    assert set(got) == {"thread_id", "graph", "status", "updated_at", "card"}
+    assert (got["graph"], got["status"]) == ("G2", "awaiting_review")
+    c = got["card"]
+    assert (c["kind"], c["stage"], c["file"], c["receipt"]) == ("bank_import", "preview", "mix.tex", None)
+    assert (c["n_total"], c["n_ready"], c["n_need"], c["n_existing"], c["n_invalid"]) == (5, 1, 3, 1, 3)
+    assert c["topic"]["name"] == "Hàm số bậc nhất"
+    assert "delta" not in keys(got)
+    by = {i["ref"]: i for i in reversed(c["items"])}  # the file's first 8DS-NEW-001 wins over its invalid copy
+    assert len(c["items"]) == 8 and None in by  # the problem with no ref is listed as invalid
+    assert (by["8DS-NEW-001"]["level"], by["8DS-NEW-001"]["needs"], len(by["8DS-NEW-001"]["kcs"])) == ("dễ", [], 1)
+    assert set(by["8DS-NEW-001"]["kcs"][0]) == {"id", "name"} and by["8DS-NEW-001"]["rubric_items"]
+    assert (by["8DS-NEW-002"]["level"], by["8DS-NEW-002"]["needs"]) == (None, ["kc", "level"])
+    assert (by["8DS-NEW-003"]["level"], by["8DS-NEW-003"]["needs"], by["8DS-NEW-003"]["unknown_label"]) == (
+        "khó", ["kc"], True)  # fmt: skip
+    assert by["8DS-NEW-004"]["needs"] == ["level"] and by["8DS-PT1-001"]["existing"] is True
+    assert by[None]["invalid"] and by["8DS-NEW-005"]["invalid"] and by["8DS-NEW-005"]["needs"] == []
+
+
+def test_teacher_view_card_applies_saved_decisions(paths, client):
+    tid = import_mix(paths, client)
+    poll(client, tid, until=("awaiting_review", "failed"))
+    kc = {k["code"]: k["id"] for k in client.get("/api/catalog/kc").json()}
+    answer = {"items": {"8DS-NEW-002": {"kc_ids": [kc["8DS-HSBN-02"]], "level": "vừa"},
+                        "8DS-NEW-004": {"level": None}}}  # fmt: skip
+    assert client.put(f"/api/threads/{tid}/decisions", json=answer, headers=W).json()["pending"] == 1
+    c = client.get(f"/api/threads/{tid}?view=teacher").json()["card"]
+    by = {i["ref"]: i for i in reversed(c["items"])}
+    assert (by["8DS-NEW-002"]["level"], by["8DS-NEW-002"]["needs"]) == ("vừa", [])
+    assert [k["id"] for k in by["8DS-NEW-002"]["kcs"]] == [kc["8DS-HSBN-02"]]
+    assert by["8DS-NEW-004"]["needs"] == []  # null level is an answer: left empty on purpose
+    assert (c["n_ready"], c["n_need"]) == (3, 1)
+
+
+def test_teacher_view_other_graph_card_null(paths, client):
+    h = lane_handlers() | {"01": ingest.MatchResult(candidates=[ingest.Candidate(ref=P1[0], score=0.5)])}
+    tid, _, _ = start(paths, client, h)
+    got = client.get(f"/api/threads/{tid}?view=teacher").json()
+    assert (got["graph"], got["card"]) == ("G1", None) and set(got) == {
+        "thread_id",
+        "graph",
+        "status",
+        "updated_at",
+        "card",
+    }
+    assert "node" in client.get(f"/api/threads/{tid}").json()
+    assert client.get("/api/threads/nope?view=teacher").status_code == 404

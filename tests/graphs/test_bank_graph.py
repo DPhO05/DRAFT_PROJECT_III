@@ -1,6 +1,8 @@
 """G2 bank import (P5-T03, MONO-P5-01): read .tex → DỪNG → one transaction, no LLM."""
 
 import shutil
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -206,3 +208,44 @@ def test_committed_file_starts_new_thread(g2, paths):
     out = bank.start_import(paths, r, file="mix.tex")
     assert out["existing"] is False and out["thread_id"] == f"{tid}-2"
     r.wait(out["thread_id"])
+
+
+def test_concurrent_start_makes_one_thread(g2, paths, monkeypatch):
+    _, _, r, _, _ = g2
+    real = r.start
+
+    def slow(*a, **k):
+        time.sleep(0.2)
+        return real(*a, **k)
+
+    monkeypatch.setattr(r, "start", slow)
+    with ThreadPoolExecutor(2) as ex:
+        outs = list(ex.map(lambda _: bank.start_import(paths, r, file="mix.tex"), range(2)))
+    assert len({o["thread_id"] for o in outs}) == 1 and sorted(o["existing"] for o in outs) == [False, True]
+    assert len(r.list_threads(graph="G2")) == 1
+    r.wait(outs[0]["thread_id"])
+
+
+@pytest.mark.parametrize(
+    ("delta", "word"),
+    [(-0.6, "dễ"), (-0.31, "dễ"), (-0.3, "vừa"), (0.0, "vừa"), (0.3, "vừa"), (0.31, "khó"), (None, None)],
+)
+def test_level_word(delta, word):
+    assert bank._level(delta) == word
+
+
+def test_card_stage_follows_status_and_items():
+    item = {"ref": None, "statement_latex": "s", "solution_latex": "", "tags": [], "delta": None, "rubric_items": [],
+            "needs": [], "unknown_label": False, "invalid": "thiếu mã bài", "existing": False}  # fmt: skip
+    row = {"status": "running", "subject": "x.tex", "decisions_json": None}
+
+    def stage(status, state):
+        return bank.card(row | {"status": status}, state, [])["stage"]
+
+    assert stage("running", {}) == "reading"
+    assert stage("running", {"items": [item]}) == "saving"
+    assert stage("awaiting_review", {"items": [item]}) == "preview"
+    assert stage("committed", {"items": [item], "receipt": {"added": 0, "skipped_existing": 0}}) == "saved"
+    assert stage("failed", {}) == "failed"
+    c = bank.card(row, {"items": [item]}, [])
+    assert (c["n_total"], c["n_invalid"], c["topic"], c["items"][0]["needs"]) == (0, 1, None, [])
