@@ -73,7 +73,7 @@ def test_refs_skip_llm(ro):
     assert card["kind"] == "problem" and [p["ref"] for p in card["problems"]] == ["8DS-PT1-004", "8DS-PT1-005"]
     assert card["missing"] == []
     assert events[-2:] == [{"type": "source", "items": ["ngân hàng bài (theo mã)"]}, {"type": "done", "stopped": None}]
-    events, fake = say(ro, " 8DS-XXX-999 ")
+    events, fake = say(ro, " 8ds-xxx-999 ")
     assert fake.calls == [] and of(events, "card")[0]["card"]["missing"] == ["8DS-XXX-999"]
 
 
@@ -86,9 +86,9 @@ def test_refs_go_to_open_worksheet(ro):
 
     starters = Starters(start_grading=None, start_bank_import=None, propose_worksheet=None, add_to_worksheet=add)
     events, fake = say(ro, Turn("8ds-pt1-004", worksheet_thread_id="g4-hs01-20261024"), starters=starters)
-    assert fake.calls == [] and added == [("g4-hs01-20261024", ["8ds-pt1-004"])]
+    assert fake.calls == [] and added == [("g4-hs01-20261024", ["8DS-PT1-004"])]
     assert [e["card"] for e in of(events, "card")] == [
-        {"kind": "worksheet", "thread_id": "g4-hs01-20261024", "added": ["8ds-pt1-004"], "invalid": []}
+        {"kind": "worksheet", "thread_id": "g4-hs01-20261024", "added": ["8DS-PT1-004"], "invalid": []}
     ]
 
 

@@ -180,7 +180,7 @@ def reply(
     if _confirm_only(turn.text):
         yield {"type": "text", "delta": SAVED_NOTHING}
     elif _REFS_ONLY.match(turn.text):
-        refs = re.findall(_REF, turn.text, re.IGNORECASE)
+        refs = [r.upper() for r in re.findall(_REF, turn.text, re.IGNORECASE)]  # every bank ref is uppercase
         yield from _by_code(box, "find_problems", {"refs": refs}, card=not turn.worksheet_thread_id)
         if turn.worksheet_thread_id and not box.outcomes[-1][1].is_error:
             try:
