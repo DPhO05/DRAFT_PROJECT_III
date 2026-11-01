@@ -2,10 +2,11 @@
 """Robot UI check for the 4-tab app at /v3/ (P5-T05).
 
 Run: .venv/bin/python tests/ui/check_v3.py [--url http://127.0.0.1:8000/] [--data] [--shots]
-Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Ngân hàng bài tab (filters, view, edit), ⚙ menu, light/dark.
+Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu,
+light/dark.
 Exit 1 on any page error, app console error, dead button, horizontal overflow at 390 px or forbidden text on screen.
 Without --url it starts `tutor app` on a free port with a temp data dir; --data seeds dummy bank and students and
-checks the bank tab against that tutor.db (needs no --url).
+checks the bank tab against that tutor.db and imports tests/fixtures/bank/import-mix.tex (needs no --url).
 """
 
 import argparse
@@ -199,6 +200,16 @@ JS_DELAY_FILTER = """() => { window.__get = U.api.get;
 JS_SLOW_LIST = """(() => { let a; Object.defineProperty(window, 'api', { configurable: true, get: () => a, set: v => {
   a = v; const g = v.get, wait = () => new Promise(r => setTimeout(r, 2500));
   v.get = p => p.includes('view=teacher') ? wait().then(() => g(p)) : g(p); } }); })();"""
+JS_ROOT_HAS = "t => document.getElementById('modal-root').innerText.includes(t)"
+JS_ENABLED = (
+    """() => { const b = document.querySelector('#modal-foot [data-act="imp-save"]'); return !!b && !b.disabled; }"""
+)
+JS_HEAD_TOTAL = "n => document.getElementById('b-head').innerText.startsWith(n + ' bài ·')"
+JS_ROWS_N = "n => document.querySelectorAll('#modal-body .imp-row').length === n"
+# a second tab filled the last gaps first: the save is refused with 409 undecided_items
+JS_RACE_RESUME = """() => { window.__send = U.api.send;
+  const e = Object.assign(new Error('x'), {status: 409, code: 'undecided_items', detail: {n: 2}});
+  U.api.send = (m, p, b) => p.endsWith('/resume') ? Promise.reject(e) : window.__send(m, p, b); }"""
 GRADE9 = "CAST(ref AS INTEGER) = 9"
 EASY = "difficulty_approved_at IS NOT NULL AND delta < -0.3"
 HARD = "difficulty_approved_at IS NOT NULL AND delta > 0.3"
@@ -207,6 +218,13 @@ IN_TOPIC = (
     "id IN (SELECT pk.problem_id FROM problem_kc pk JOIN kc k ON k.id = pk.kc_id WHERE COALESCE(k.parent_id, k.id) = ?)"
 )
 HAS_KC = "id IN (SELECT problem_id FROM problem_kc WHERE kc_id = ?)"
+MIX = Path(__file__).resolve().parents[1] / "fixtures" / "bank" / "import-mix.tex"
+ONE_PROBLEM = (
+    "% Bài <u>thử</u>\n\\begin{problem}[8DS-BAD-001]\nCho $x = 1$.\n\n"
+    "\\begin{solution}\nĐáp số: $x = 1$.\n\\end{solution}\n\\end{problem}\n"
+)
+SUMMARY = "5 bài · 1 đã có kỹ năng và mức · 3 cần chọn"
+SAVE = '#modal-foot [data-act="imp-save"]'
 
 
 def scalar(data_dir: str, sql: str, *args) -> int:
@@ -244,8 +262,11 @@ def bank_filters(page, rep: dict, data_dir: str, reqs: list) -> None:
     off = [t for t in page.locator("#b-grid .bcard").all_inner_texts() if "lớp 9" not in t or "dễ" not in t]
     if off:
         rep["missing"].append(f"bank: {len(off)} cards are not Lớp 9 + dễ")
-    bank_level(page, rep, data_dir, "none", NO_LEVEL)
-    if not problems(data_dir, NO_LEVEL) and NO_MATCH not in page.inner_text("#panel-ngan-hang"):
+    grade9_none = (
+        f"({GRADE9}) AND ({NO_LEVEL})"  # Lớp 9 is still set; an earlier import may have left lớp 8 without a level
+    )
+    bank_level(page, rep, data_dir, "none", grade9_none)
+    if not problems(data_dir, grade9_none) and NO_MATCH not in page.inner_text("#panel-ngan-hang"):
         rep["missing"].append(f"bank: no '{NO_MATCH}'")
     press(page, rep, *clear)
     if [page.input_value(f"#b-{k}") for k in ("q", "grade", "topic", "skill")] != [""] * 4:
@@ -369,7 +390,113 @@ def bank_edit(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
         rep["missing"].append("bank view: focus did not return to the card")
 
 
-def walk_bank(page, rep: dict, phone: bool, data_dir: str | None) -> None:
+def bank_inbox(data_dir: str, phone: bool) -> tuple[str, str]:
+    """Put this viewport's two import files in data/inbox/bank/ and return their names: one to import, one to break.
+
+    The phone gets its own refs because the desktop import leaves import-mix.tex fully imported."""
+    folder = Path(data_dir, "inbox", "bank")
+    folder.mkdir(parents=True, exist_ok=True)
+    mix, bad = ("import-mix-2.tex", "bad<i>-2.tex") if phone else ("import-mix.tex", "bad<i>.tex")
+    text = MIX.read_text(encoding="utf-8")
+    (folder / mix).write_text(text.replace("8DS-NEW-", "8DS-NEX-") if phone else text, encoding="utf-8")
+    (folder / bad).write_text(ONE_PROBLEM, encoding="utf-8")
+    return mix, bad
+
+
+def bank_import(page, rep: dict, phone: bool, data_dir: str, reqs: list, files: tuple[str, str]) -> None:
+    mix, bad = files
+    ref = lambda n: f"8DS-{'NEX' if phone else 'NEW'}-{n:03d}"  # noqa: E731
+    row = lambda r: f'#modal-body [data-row="{r}"]'  # noqa: E731
+    file_row = lambda name: f'#modal-body .file-row:has-text("{name}")'  # noqa: E731
+    before, start = problems(data_dir), len(rep["missing"])
+    press(page, rep, '[data-act="b-import"]', "bank Nạp bài mới", JS_ROOT_HAS, mix)
+    if len(rep["missing"]) > start:  # no point in the later steps
+        return
+    if "<u>thử</u>" not in (listed := page.inner_text("#modal-body")) or bad not in listed:
+        rep["missing"].append("bank import: a file name or title with HTML is not shown as plain text")
+    see(page, rep, "bank import files", phone)
+    Path(data_dir, "inbox", "bank", bad).write_text("% Hỏng\nkhông còn bài nào\n", encoding="utf-8")
+    press(page, rep, f'{file_row(bad)} [data-act="imp-read"]', f"bank đọc {bad}", JS_ROOT_HAS, f"Không nạp được {bad}")
+    if not page.locator("#modal-body .callout-crit").count():
+        rep["missing"].append("bank import: a refused file has no red box")
+    see(page, rep, "bank import refused", phone)
+    press(page, rep, '[data-act="imp-back"]', "bank Chọn file khác", JS_ROOT_HAS, mix)
+    press(page, rep, f'{file_row(mix)} [data-act="imp-read"]', f"bank đọc {mix}", JS_ROOT_HAS, SUMMARY)
+    if len(rep["missing"]) > start:
+        return
+    modal = page.inner_text("#modal-root")
+    rep["missing"] += [
+        f"bank import: no '{w}'"
+        for w in ("Còn 2 bài chưa chọn kỹ năng", "Nhãn kỹ năng ghi trong file không có trong danh mục")
+        if w not in modal
+    ]
+    if not page.locator(SAVE).is_disabled(timeout=2000):
+        rep["missing"].append("bank import: Lưu vào ngân hàng is on while 2 bài lack a skill")
+    see(page, rep, "bank import preview", phone)
+    expect(page, rep, JS_ROWS_N, "bank import: Cần chọn should list 3 rows", 3)
+    press(page, rep, '[data-act="imp-only"][data-v="0"]', "bank import Tất cả", JS_ROWS_N, 8)
+    rep["missing"] += [
+        f"bank import: Tất cả has no '{w}'"
+        for w in ("thiếu lời giải", "đã có")
+        if w not in page.inner_text("#modal-body")
+    ]
+    see(page, rep, "bank import all", phone)
+    press(page, rep, '[data-act="imp-only"][data-v="1"]', "bank import Cần chọn", JS_ROWS_N, 3)
+    seen = len(reqs)
+    pick = lambda n, i: page.select_option(f"{row(ref(n))} select", index=i)  # noqa: E731
+    pick(2, 1)
+    expect(page, rep, JS_ROOT_HAS, "bank import: no 'Còn 1 bài chưa chọn kỹ năng'", "Còn 1 bài chưa chọn kỹ năng")
+    pick(3, 1)
+    press(page, rep, f'{row(ref(4))} [data-act="imp-level"][data-v="vừa"]', "bank import mức vừa", JS_ENABLED)
+    want = {
+        ref(2): {"kc_ids": [int(page.input_value(f"{row(ref(2))} select"))]},
+        ref(3): {"kc_ids": [int(page.input_value(f"{row(ref(3))} select"))]},
+        ref(4): {"level": "vừa"},
+    }  # fmt: skip
+    puts = [json.loads(b) for m, _, b in reqs[seen:] if m == "PUT"]
+    if len(puts) != 2 or puts[-1] != {"items": want}:
+        rep["missing"].append(f"bank import: decisions sent are {puts}, want 2 debounced PUTs ending in {want}")
+    page.evaluate(JS_RACE_RESUME)
+    press(page, rep, SAVE, "bank Lưu khi server báo còn thiếu", JS_ROOT_HAS, "Còn 2 bài chưa chọn kỹ năng")
+    if not page.locator(SAVE).is_disabled(timeout=2000):
+        rep["missing"].append("bank import: a 409 left Lưu vào ngân hàng on")
+    page.evaluate("() => { U.api.send = window.__send; }")
+    pick(2, 2)
+    expect(page, rep, JS_ENABLED, "bank import: a new choice did not bring the count back")
+    press(page, rep, SAVE, "bank Lưu vào ngân hàng", JS_ROOT_HAS, "Đã thêm 4 bài vào ngân hàng")
+    resumes = [u for m, u, _ in reqs if m == "POST" and u.endswith("/resume")]
+    if len(resumes) != 1:
+        rep["missing"].append(f"bank import: {len(resumes)} resume calls, want 1")
+    if (added := problems(data_dir) - before) != 4:
+        rep["missing"].append(f"bank import: tutor.db has {added} new problems, receipt says 4")
+    if not problems(data_dir, "ref = ? AND delta = 0 AND difficulty_approved_at IS NOT NULL", ref(4)):
+        rep["missing"].append(f"bank import: {ref(4)} is not vừa in tutor.db")
+    if "1 bài đã có trong ngân hàng" not in page.inner_text("#modal-body"):
+        rep["missing"].append("bank import: the receipt does not say 1 bài đã có")
+    see(page, rep, "bank import saved", phone)
+    press(page, rep, '[data-act="imp-show"]', "bank Xem các bài mới", JS_NO_MODAL)
+    if not (tid := page.input_value("#b-topic")):
+        rep["missing"].append("bank import: Xem các bài mới left the topic filter empty")
+    else:
+        n = problems(data_dir, IN_TOPIC, int(tid))
+        expect(page, rep, JS_COUNT_IS, f"bank import: topic {tid} should match {n}", n)
+    expect(page, rep, JS_HEAD_TOTAL, f"bank import: head should say {problems(data_dir)} bài", problems(data_dir))
+    press(page, rep, '[data-act="b-import"]', "bank Nạp bài mới lần 2", JS_ROOT_HAS, mix)
+    if len(rep["missing"]) > start:
+        return
+    done = page.locator(f"{file_row(mix)} button")
+    if done.inner_text(timeout=2000).strip() != "Đã nạp" or not done.is_disabled():
+        rep["missing"].append(f"bank import: {mix} is not a disabled Đã nạp after the import")
+    if page.locator(f"{file_row(bad)} button").inner_text(timeout=2000).strip() != "Không có bài":
+        rep["missing"].append(f"bank import: the broken {bad} is not Không có bài")
+    see(page, rep, "bank import files after", phone)
+    page.keyboard.press("Escape")
+    expect(page, rep, JS_NO_MODAL, "bank import: Esc did not close")
+    if page.evaluate("document.activeElement.dataset.act") != "b-import":
+        rep["missing"].append("bank import: focus did not return to Nạp bài mới")
+
+
+def walk_bank(page, rep: dict, phone: bool, data_dir: str | None, files: tuple[str, str] | None) -> None:
     reqs: list = []
     page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
     press(page, rep, "#tab-ngan-hang", "tab ngan-hang")
@@ -382,8 +509,13 @@ def walk_bank(page, rep: dict, phone: bool, data_dir: str | None) -> None:
         bank_filters(page, rep, data_dir, reqs)
         bank_races(page, rep, data_dir)
         bank_edit(page, rep, phone, data_dir, reqs)
+        bank_import(page, rep, phone, data_dir, reqs, files)
     elif loaded and not data_dir and ("0 bài khớp" not in text or NO_MATCH not in text):
         rep["missing"].append(f"bank: an empty bank should say '0 bài khớp' and '{NO_MATCH}'")
+    if loaded and not data_dir:
+        press(page, rep, '[data-act="b-import"]', "bank Nạp bài mới", JS_ROOT_HAS, "Chưa có file .tex nào")
+        page.keyboard.press("Escape")
+        expect(page, rep, JS_NO_MODAL, "bank import: Esc did not close")
 
 
 def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str | None) -> dict:
@@ -396,13 +528,14 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
         lambda m: m.type == "error" and not m.text.startswith(NET_NOISE) and rep["console_errors"].append(m.text[:300]),
     )
     page.on("pageerror", lambda e: rep["page_errors"].append(str(e)[:300]))
+    files = bank_inbox(data_dir, phone) if data_dir else None
     page.goto(base)
     if page.title() != "Trợ lý gia sư Toán":
         rep["missing"].append(f"page title is {page.title()!r}")
     if page.evaluate("U.api.get('/health')").get("status") != "ok":
         rep["missing"].append("U.api.get('/health') is not ok")
     walk_tabs(page, rep, phone, shots)
-    walk_bank(page, rep, phone, data_dir)
+    walk_bank(page, rep, phone, data_dir, files)
     walk_gear(page, rep, phone)
     walk_theme(page, rep, base)
     page.wait_for_timeout(500)  # late errors

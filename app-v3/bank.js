@@ -1,4 +1,4 @@
-/* Tab Ngân hàng bài: filter + browse, problem view, edit skill / level / rubric. Every server string goes through U.esc / U.texHtml. */
+/* Tab Ngân hàng bài: filter + browse, problem view, edit skill / level / rubric, import a .tex (G2). Every server string goes through U.esc / U.texHtml. */
 (function () {
   var PAGE = 12, LEVELS = ['dễ', 'vừa', 'khó'], NO_LEVEL = 'chưa có mức';
   var SAVE_ERR = {
@@ -71,6 +71,7 @@
     topicsDrawn = true;
     $('b-topic').innerHTML = '<option value="">Tất cả chủ đề</option>' + kcs.filter(function (k) { return k.parent_id == null && counts[k.id]; })
       .map(function (k) { return '<option value="' + k.id + '">' + U.esc(k.name) + '</option>'; }).join('');
+    $('b-topic').value = f.topic;
   }
   function drawSkills() {
     var t = +f.topic, g = +f.grade;
@@ -84,7 +85,7 @@
     panel.querySelectorAll('[data-act="b-level"]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.v === f.level ? 'true' : 'false'); });
   }
   function shell() {
-    return '<div class="page"><div class="page-head"><div><h1>Ngân hàng bài</h1><p id="b-head"></p></div></div>' +
+    return '<div class="page"><div class="page-head"><div><h1>Ngân hàng bài</h1><p id="b-head"></p></div><button type="button" class="btn btn-primary" data-act="b-import">Nạp bài mới</button></div>' +
       '<section class="section"><div class="filters">' +
       '<label class="field wide"><span>Tìm</span><input type="search" id="b-q" autocomplete="off" placeholder="Mã bài, chữ trong đề hoặc tên kỹ năng"></label>' +
       '<label class="field"><span>Chủ đề</span><select id="b-topic"><option value="">Tất cả chủ đề</option></select></label>' +
@@ -193,6 +194,180 @@
     }, function (e) {
       btn.disabled = false; err.textContent = SAVE_ERR[e.code] || 'Chưa lưu được. Thử lại sau.'; err.hidden = false;
     });
+  };
+
+  // ---- import (G2): pick a file, read it, fill the missing skills, save ----
+  var imp = null, IMP_422 = 'File cần là .tex trong thư mục data/inbox/bank/ và có ít nhất một khối \\begin{problem}.';
+
+  function live(s) { return s === imp && s.root.isConnected; }
+  function impDraw(s, focusSel) {
+    var body = $('modal-body');
+    body.innerHTML = impBody(s); drawFoot(s); U.typeset(body);
+    var n = focusSel && body.querySelector(focusSel); if (n) n.focus();
+  }
+  function drawFoot(s) { $('modal-foot').innerHTML = impFoot(s); }
+  function skillOptions(sel) {
+    return kcs.filter(function (t) { return t.parent_id == null; }).map(function (t) {
+      var ks = kcs.filter(function (k) { return k.parent_id === t.id; });
+      return ks.length ? '<optgroup label="' + U.esc(t.name) + '">' + ks.map(function (k) {
+        return '<option value="' + k.id + '"' + (k.id === sel ? ' selected' : '') + '>' + U.esc(k.name) + '</option>'; }).join('') + '</optgroup>' : '';
+    }).join('');
+  }
+  function filesHTML(s) {
+    if (s.files === null) return '<p class="muted" role="status">Đang tải…</p>';
+    if (!s.files) return '<p class="err" role="alert">Không đọc được thư mục bài. Thử lại sau.</p>';
+    if (!s.files.length) return '<div class="empty">Chưa có file .tex nào trong thư mục <b>data/inbox/bank/</b>.</div>';
+    return '<p>File .tex trong thư mục <b>data/inbox/bank/</b>:</p><div class="stack" style="gap:6px">' + s.files.map(function (b, i) {
+      var off = b.status === 'imported' || b.status === 'empty';
+      return '<div class="file-row"><span class="grow"><b>' + U.esc(b.file) + '</b><br><span class="small muted">' + U.esc(b.title || 'Chưa có tiêu đề') + ' · ' + b.n_problems + ' bài' +
+        (b.status === 'partly' ? ' (' + b.n_new + ' bài mới)' : '') + (b.imported_at ? ' · đã nạp ' + U.esc(U.d(b.imported_at)) : '') + '</span></span>' +
+        '<button type="button" class="btn btn-sm' + (off ? '' : ' btn-primary') + '" data-act="imp-read" data-i="' + i + '"' + (off ? ' disabled' : '') + '>' +
+        (b.status === 'imported' ? 'Đã nạp' : b.status === 'empty' ? 'Không có bài' : 'Đọc file') + '</button></div>';
+    }).join('') + '</div>';
+  }
+  function rowHTML(s, it) {
+    var ref = it.ref ? U.esc(it.ref) : '(chưa có mã)';
+    if (it.invalid) return '<div class="imp-row"><div class="row"><span class="ref">' + ref + '</span><span class="chip chip-crit">bỏ qua</span><span class="small muted">' + U.esc(it.invalid) +
+      '</span></div><div class="clamp">' + U.texHtml(it.statement_latex) + '</div></div>';
+    var d = s.dec[it.ref] || {}, edKc = it.needs.indexOf('kc') >= 0, edLv = it.needs.indexOf('level') >= 0, need = edKc || edLv;
+    var noKc = edKc && !(d.kc_ids && d.kc_ids.length), noLv = edLv && !('level' in d);
+    var tag = it.existing ? '<span class="chip">đã có trong ngân hàng</span>' : !need ? levelChip(it.level)
+      : noKc || noLv ? '<span class="chip chip-warn">thiếu ' + [noKc ? 'kỹ năng' : '', noLv ? 'mức' : ''].filter(Boolean).join(' và ') + '</span>' : '<span class="chip chip-ok">đã chọn</span>';
+    return '<div class="imp-row' + (noKc || noLv ? ' needs' : '') + '" data-row="' + U.esc(it.ref) + '"><div class="row"><span class="ref">' + ref + '</span>' + tag + '</div>' +
+      (it.unknown_label && edKc ? '<p class="small"><span class="chip chip-warn chip-wrap">Nhãn kỹ năng ghi trong file không có trong danh mục — chọn lại kỹ năng</span></p>' : '') +
+      (need ? U.texHtml(it.statement_latex) : '<div class="clamp">' + U.texHtml(it.statement_latex) + '</div>') +
+      (!need ? '<div class="row">' + kcChips(it.kcs) + '</div>' : '<div class="row">' +
+        (edKc ? '<label class="field grow"><span>Kỹ năng</span><select data-imp-kc="' + U.esc(it.ref) + '"><option value="">— chọn kỹ năng —</option>' + skillOptions(d.kc_ids && d.kc_ids[0]) + '</select></label>'
+          : kcChips(it.kcs)) +
+        (edLv ? '<div class="field"><span>Mức</span><div class="seg" role="group" aria-label="Mức bài ' + U.esc(it.ref) + '">' + LEVELS.concat('').map(function (l) {
+          return '<button type="button" class="seg-btn" data-act="imp-level" data-ref="' + U.esc(it.ref) + '" data-v="' + l + '" aria-pressed="' + ('level' in d && (d.level || '') === l) + '">' + (l || 'để trống') + '</button>'; }).join('') + '</div></div>'
+          : levelChip(it.level)) + '</div>') + '</div>';
+  }
+  function previewHTML(s) {
+    var c = s.card, need = c.items.filter(function (i) { return i.needs.length; }), rows = s.only ? need : c.items;
+    var extra = [c.n_existing ? c.n_existing + ' bài đã có trong ngân hàng, bỏ qua' : '', c.n_invalid ? c.n_invalid + ' khối không đọc được, bỏ qua' : ''].filter(Boolean).join(' · ');
+    return '<p><b>' + U.esc(c.file) + '</b>: ' + c.n_total + ' bài · ' + c.n_ready + ' đã có kỹ năng và mức · <b>' + c.n_need + ' cần chọn</b></p>' + (extra ? '<p class="small muted">' + extra + '</p>' : '') +
+      '<div class="seg" role="group" aria-label="Lọc bài" style="align-self:flex-start">' + [['1', 'Cần chọn (' + need.length + ')'], ['0', 'Tất cả (' + c.items.length + ')']].map(function (o) {
+        return '<button type="button" class="seg-btn" data-act="imp-only" data-v="' + o[0] + '" aria-pressed="' + ((o[0] === '1') === s.only) + '">' + o[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="stack" style="gap:8px">' + (rows.length ? rows.map(function (it) { return rowHTML(s, it); }).join('') : '<div class="empty">Không còn bài nào cần chọn.</div>') + '</div>' +
+      '<p class="small muted">Để trống mức thì tính như mức vừa.</p>';
+  }
+  function savedHTML(s) {
+    var r = s.card.receipt || { added: 0, skipped_existing: 0 }, t = s.card.topic;
+    return '<div class="callout callout-ok" role="status"><p><b>Đã thêm ' + r.added + ' bài vào ngân hàng</b>' + (t ? ' (chủ đề ' + U.esc(t.name) + ')' : '') + '.</p>' +
+      (r.skipped_existing ? '<p class="small">' + r.skipped_existing + ' bài đã có trong ngân hàng, bỏ qua.</p>' : '') + '</div>' +
+      (r.added && t ? '<div class="row"><button type="button" class="btn btn-primary" data-act="imp-show">Xem các bài mới</button></div>' : '');
+  }
+  function impBody(s) {
+    if (s.stage === 'files') return filesHTML(s);
+    if (s.stage === 'reading') return '<p class="muted" role="status">Đang đọc ' + U.esc(s.file) + '…</p>';
+    if (s.stage === 'saving') return '<p class="muted" role="status">Đang lưu…</p>';
+    if (s.stage === 'error') return '<div class="callout callout-crit" role="alert"><p><b>Không nạp được ' + U.esc(s.file) + '.</b> ' + s.err + '</p></div><div class="row"><button type="button" class="btn" data-act="imp-back">Chọn file khác</button></div>';
+    return s.stage === 'saved' ? savedHTML(s) : previewHTML(s);
+  }
+  function impFoot(s) {
+    if (s.stage !== 'preview') return '<button type="button" class="btn" data-act="modal-close">Đóng</button>';
+    var why = s.pending > 0 ? 'Còn ' + s.pending + ' bài chưa chọn kỹ năng' : s.putErr ? 'Chưa lưu được lựa chọn. Chọn lại để thử tiếp.' : s.dirty ? 'Đang lưu lựa chọn…' : '';
+    return '<button type="button" class="btn" data-act="modal-close">Thôi</button><span class="btn-wrap"><button type="button" class="btn btn-primary" data-act="imp-save"' +
+      (s.pending > 0 || s.dirty ? ' disabled' : '') + '>Lưu vào ngân hàng</button>' + (why ? '<span class="reason">' + why + '</span>' : '') + '</span>';
+  }
+
+  function impFiles(s) {
+    s.stage = 'files'; s.files = null; impDraw(s);
+    U.api.get('/bank/inbox').catch(function () { return false; }).then(function (l) {
+      if (!live(s) || s.stage !== 'files') return;
+      s.files = l; impDraw(s, '[data-act="imp-read"]:not(:disabled)');
+    });
+  }
+  function impFail(s, why) { s.stage = 'error'; s.err = why; impDraw(s, '[data-act="imp-back"]'); }
+  function impPreview(s, c) {
+    (kcs.length ? Promise.resolve() : loadCatalog()).then(function () {
+      if (!live(s)) return;
+      s.card = c; s.stage = 'preview'; s.only = c.n_need > 0;
+      s.pending = c.items.filter(function (i) { return i.needs.indexOf('kc') >= 0; }).length;
+      impDraw(s, '[data-act="imp-only"][aria-pressed="true"]');
+    }, function () { if (live(s)) impFail(s, 'Không tải được danh sách kỹ năng. Thử lại sau.'); });
+  }
+  function impSaved(s, c) {
+    s.card = c; s.stage = 'saved'; impDraw(s, '[data-act="imp-show"]');
+    bankTotal += (c.receipt || {}).added || 0; topicsDrawn = false; load();
+  }
+  function impPoll(s) {
+    U.api.get('/threads/' + s.tid + '?view=teacher').then(function (t) { return t.card; }, function (e) { return e.status === 404 ? { stage: 'gone' } : null; }).then(function (c) {
+      if (!live(s)) return;
+      var st = c && c.stage;
+      if (st === 'preview' && s.stage === 'reading') return impPreview(s, c);
+      if (st === 'saved') return impSaved(s, c);
+      if (st === 'failed') return impFail(s, s.stage === 'saving' ? 'Chưa lưu được vào ngân hàng. Thử lại sau.' : 'Không đọc được nội dung file.');
+      if (st === 'gone') return impFail(s, 'Việc nạp này không còn nữa. Chọn lại file.');
+      setTimeout(function () { if (live(s)) impPoll(s); }, 1000);
+    });
+  }
+  function impPut(s) {
+    var my = ++s.putSeq;  // only the newest change decides the count and the button
+    s.dirty = true; clearTimeout(s.timer); drawFoot(s);
+    s.timer = setTimeout(function () {
+      U.api.send('PUT', '/threads/' + s.tid + '/decisions', { items: s.dec }).then(function (r) {
+        if (my !== s.putSeq) return;
+        s.dirty = false; s.putErr = false; s.pending = r.pending; if (live(s)) drawFoot(s);
+      }, function () {
+        if (my !== s.putSeq) return;
+        s.putErr = true; if (live(s)) drawFoot(s);
+      });
+    }, 500);
+  }
+  function impChoose(s, ref, edit, focusSel) {
+    edit(s.dec[ref] = s.dec[ref] || {});
+    var rowAt = function () { return Array.prototype.find.call($('modal-body').querySelectorAll('[data-row]'), function (n) { return n.dataset.row === ref; }); };
+    rowAt().outerHTML = rowHTML(s, s.card.items.find(function (i) { return i.ref === ref; }));
+    var row = rowAt(); U.typeset(row); row.querySelector(focusSel).focus();
+    impPut(s);
+  }
+
+  ACT['b-import'] = function () {
+    var s = imp = { stage: 'files', files: null, only: true, dec: {}, pending: 0, dirty: false, putErr: false, putSeq: 0, timer: 0 };
+    s.root = U.modal({ title: 'Nạp bài mới', wide: true, body: impBody(s), foot: impFoot(s) });
+    s.root.addEventListener('change', function (ev) {
+      var ref = ev.target.dataset.impKc, v = ev.target.value;
+      if (ref != null) impChoose(s, ref, function (d) { if (v) d.kc_ids = [+v]; else delete d.kc_ids; }, '[data-imp-kc]');
+    });
+    impFiles(s);
+  };
+  ACT['imp-read'] = function (el) {
+    var s = imp, b = s.files[+el.dataset.i];
+    s.file = b.file; s.stage = 'reading'; s.dec = {}; impDraw(s);
+    U.api.send('POST', '/bank/imports', { file: b.file }).then(function (r) {
+      if (!live(s)) return;
+      s.tid = r.thread_id;
+      // a thread kept from an earlier visit has saved answers, and a PUT replaces them all
+      var saved = r.status === 'running' ? Promise.resolve({}) : U.api.get('/threads/' + r.thread_id).then(function (t) { return JSON.parse(t.decisions_json || '{}').items || {}; }).catch(function () { return {}; });
+      saved.then(function (dec) { if (live(s)) { s.dec = dec; impPoll(s); } });
+    }, function (e) { if (live(s)) impFail(s, e.status === 422 ? IMP_422 : 'Thử lại sau.'); });
+  };
+  ACT['imp-back'] = function () { impFiles(imp); };
+  ACT['imp-only'] = function (el) { imp.only = el.dataset.v === '1'; impDraw(imp, '[data-act="imp-only"][aria-pressed="true"]'); };
+  ACT['imp-level'] = function (el) {
+    var v = el.dataset.v;
+    impChoose(imp, el.dataset.ref, function (d) { d.level = v || null; }, '[data-act="imp-level"][data-v="' + v + '"]');
+  };
+  ACT['imp-save'] = function (btn) {
+    var s = imp;
+    btn.disabled = true;
+    U.api.send('POST', '/threads/' + s.tid + '/resume').then(function () {
+      if (live(s)) { s.stage = 'saving'; impDraw(s); impPoll(s); }
+    }, function (e) {
+      if (!live(s)) return;
+      var n = e.code === 'undecided_items' && e.detail && e.detail.n;
+      if (n) s.pending = n;
+      U.toast(n ? 'Còn ' + n + ' bài chưa chọn kỹ năng.' : 'Chưa lưu được vào ngân hàng. Thử lại sau.', 'warn');
+      drawFoot(s);
+    });
+  };
+  ACT['imp-show'] = function () {
+    var t = imp.card.topic;
+    U.closeModal();
+    f = { q: '', topic: String(t.id), grade: '', kc: '', level: '' };
+    drawSkills(); syncControls(); load();
   };
 
   // ---- filters ----

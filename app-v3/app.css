@@ -158,6 +158,10 @@ mjx-container[jax="SVG"][display="true"] { overflow-x: auto; overflow-y: hidden;
 .ref-btn { border: 0; background: none; padding: 0; cursor: pointer; }
 .b-more { justify-content: center; }
 .err { color: var(--crit); }
+.imp-row { border: 1px solid var(--line); border-radius: 3px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.imp-row.needs { border: 1.5px dashed var(--warn-line); background: color-mix(in srgb, var(--warn-soft) 45%, var(--sheet)); }
+.file-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; border: 1px solid var(--line); border-radius: 3px; padding: 10px; }
+.file-row .grow { overflow-wrap: anywhere; }
 summary { cursor: pointer; }
 .sol { border-left: 3px solid var(--line); padding-left: 10px; display: flex; flex-direction: column; gap: 4px; color: var(--ink-2); }
 .rub-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
