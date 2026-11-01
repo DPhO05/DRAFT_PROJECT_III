@@ -33,6 +33,20 @@ def test_teacher_view_shape(paths, client):
     assert client.get("/api/bank/problems?view=teacher&level=bogus").status_code == 422
 
 
+def test_teacher_view_default_limit_is_12(paths, client):
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        add_bank(conn)
+        for n in range(20):
+            repo.add_bank_problem(
+                conn, ref=f"8DS-X-{n:03}", statement="s", solution="s", source="t", delta=None, tags=[],
+                rubric_items=[{"item_id": "r1", "text": "t", "points": 1}],
+            )  # fmt: skip
+    got = client.get("/api/bank/problems?view=teacher").json()
+    assert (got["total"], len(got["items"])) == (23, 12)
+    assert len(client.get("/api/bank/problems?view=teacher&limit=500").json()["items"]) == 23
+    assert len(client.get("/api/bank/problems").json()) == 23
+
+
 def test_default_view_unchanged(paths, client):
     with closing(repo.connect(paths.tutor_db)) as conn:
         add_bank(conn)

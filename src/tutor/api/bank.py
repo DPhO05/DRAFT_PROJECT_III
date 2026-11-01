@@ -17,7 +17,7 @@ DB = Annotated[sqlite3.Connection, Depends(deps.db)]
 def list_problems(
     conn: DB,
     q: str = "",
-    limit: int = 50,
+    limit: int | None = None,
     view: str = "",
     topic: int | None = None,
     grade: int | None = None,
@@ -36,12 +36,12 @@ def list_problems(
             level=level,
             kc=kc,
             offset=max(offset, 0),
-            limit=min(max(limit, 1), 100),
+            limit=min(max(limit or 12, 1), 100),
         )
     q = q.strip().lower().replace("$", "")
     rows = [p for p in repo.bank_problems(conn)
             if q in p["ref"].lower() or q in p["statement_latex"].lower().replace("$", "")]  # fmt: skip
-    return rows[: max(limit, 0)]
+    return rows[: max(limit if limit is not None else 50, 0)]
 
 
 @router.get("/problems/{problem_id}")
