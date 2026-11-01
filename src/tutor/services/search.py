@@ -3,6 +3,8 @@
 import re
 import sqlite3
 
+from tutor.services import latex
+
 LEVELS = ("dễ", "vừa", "khó")
 
 _LEVEL = (
@@ -146,3 +148,12 @@ def find_problems(conn: sqlite3.Connection, refs: list[str]) -> list[dict]:
         if row := conn.execute("SELECT id FROM problem WHERE ref = ? COLLATE NOCASE LIMIT 1", (ref,)).fetchone():
             ids.append(row[0])
     return items_by_id(conn, ids)
+
+
+def solution_steps(conn: sqlite3.Connection, ids: list[int]) -> dict[int, list[str]]:
+    """Bank solution of each problem split into paragraph steps, as the problem page shows it."""
+    marks = ", ".join("?" * len(ids))
+    return {
+        pid: [s.latex for s in latex.split_steps(sol, 0, len(sol), by="paragraph")]
+        for pid, sol in conn.execute(f"SELECT id, solution_latex FROM problem WHERE id IN ({marks})", ids)
+    }
