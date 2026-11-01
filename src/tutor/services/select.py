@@ -72,11 +72,12 @@ def rank_problems(
     ]
     chosen: list[dict] = []
     taken: set[int] = set()
-    kcs: set[int] = set()  # main skills already on the sheet: a new one wins inside a bucket
+    kcs: set[int] = set()  # main skills already on the sheet
 
     def pick(bucket: str, k: int) -> None:
         for _ in range(k):
             left = [c for c in pool if c["id"] not in taken]
+            fresh_first = True  # a skill not yet on the sheet wins inside a bucket
             if bucket == "review":
                 cand, order = [c for c in left if c["kc"] in repeats], lambda c: abs(c["gap"])
             elif bucket == "zpd":
@@ -85,11 +86,11 @@ def rank_problems(
                 # S5: a challenge needs every prerequisite skill at theta >= 0 (missing = 0)
                 ok = [c for c in left if all(theta.get(p, 0.0) >= 0 for p in prereqs.get(c["kc"], []))]
                 cand, order = [c for c in ok if c["gap"] < lo], lambda c: -c["gap"]
-                if not cand:
-                    cand, order = ok, lambda c: -c["delta"]
+                if not cand:  # the hardest problem left, whatever its skill
+                    cand, order, fresh_first = ok, lambda c: -c["delta"], False
             if not cand:
                 return
-            best = min(cand, key=lambda c: (c["kc"] in kcs, order(c)))
+            best = min(cand, key=lambda c: (fresh_first and c["kc"] in kcs, order(c)))
             chosen.append(best | {"bucket": bucket, "fallback": bucket == "challenge" and best["gap"] >= lo})
             taken.add(best["id"])
             kcs.add(best["kc"])

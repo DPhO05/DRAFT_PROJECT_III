@@ -159,6 +159,19 @@ def test_challenge_fallback(conn):
     assert ch["problem_id"] == ids[-1] and "bài khó nhất còn lại" in ch["reason"]
 
 
+def test_challenge_fallback_ignores_new_skill_preference(conn):
+    w = world(conn)
+    w["dung"] = repo.add_student(conn, name="Phạm Thị Dung", grade=9)
+    z, hardest = by_kc(conn, 2)[:2]
+    (other,) = by_kc(conn, 3)[:1]
+    only(conn, [z, hardest, other], delta=0.1)
+    conn.execute("UPDATE problem SET delta = 0 WHERE id = ?", (z,))
+    conn.execute("UPDATE problem SET delta = 0.4 WHERE id = ?", (hardest,))
+    r = rank(conn, w, who="dung", n=2, ratios={"review": 0, "zpd": 0.5, "challenge": 0.5})
+    assert [(i["bucket"], i["problem_id"]) for i in r["items"]] == [("zpd", z), ("challenge", hardest)]
+    assert "bài khó nhất còn lại" in r["items"][1]["reason"]
+
+
 def test_challenge_needs_prerequisites(conn):
     w = world(conn)
     only(conn, by_kc(conn, 3), delta=1.2)
