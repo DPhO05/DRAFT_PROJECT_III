@@ -19,6 +19,8 @@ ALLOWED = {
 }
 LLM_READ_ONLY = {"iter_log", "cost"}  # what api / cli may take from tutor.llm
 API_AGENTS = {"orchestrator", "tools"}  # what api/assistant.py, the only api file that imports agents, may take
+ORCHESTRATOR = Path("tutor/agents/orchestrator.py")
+ASSISTANT_FILES = {Path("tutor/api/assistant.py"), ORCHESTRATOR, Path("tutor/agents/tools.py")}  # R21: no resume
 
 
 def layer(parts: list[str]) -> str | None:
@@ -70,14 +72,13 @@ def violations(root: Path) -> list[str]:
                 name = fn.attr if isinstance(fn, ast.Attribute) else fn.id if isinstance(fn, ast.Name) else ""
                 if name.startswith("commit_") and me != "graphs" and rel != Path("tutor/db/repo.py"):
                     bad(node, f"{name}() only from tutor/graphs/")
-                if (
-                    isinstance(fn, ast.Attribute)
-                    and fn.attr == "call"
-                    and isinstance(fn.value, ast.Name)
-                    and fn.value.id == "llm"
-                    and me != "agents"
-                ):
+                on_llm = isinstance(fn, ast.Attribute) and isinstance(fn.value, ast.Name) and fn.value.id == "llm"
+                if on_llm and name == "call" and me != "agents":
                     bad(node, "llm.call() only from tutor/agents/")
+                if on_llm and name == "chat" and rel != ORCHESTRATOR:
+                    bad(node, "llm.chat() only from tutor/agents/orchestrator.py")
+                if name == "resume" and rel in ASSISTANT_FILES:
+                    bad(node, "resume() never from the assistant (C-39)")
     return out
 
 
@@ -114,18 +115,24 @@ def test_commit_and_llm_call_rules(tmp_path):
     ]
 
 
-def test_only_assistant_api_file_may_import_agents(tmp_path):
+def test_assistant_rules(tmp_path):
+    """MONO-P6-01 (R21): agents only via api/assistant.py, llm.chat only in the orchestrator, no resume (C-39)."""
     write(
         tmp_path,
         "tutor/api/assistant.py",
-        "from tutor.agents.tools import Starters\nfrom tutor.agents import orchestrator\n",
+        "from tutor.agents.tools import Starters\nfrom tutor.agents import orchestrator\nrunner.resume('t')\n",
     )
     write(tmp_path, "tutor/api/other.py", "from tutor.agents import tools\nimport tutor.agents.orchestrator\n")
     write(tmp_path, "tutor/api/assistant_extra.py", "from tutor.agents.grader import GradeOut\n")
-    write(tmp_path, "tutor/agents/tools.py", "from tutor.db import repo\n")
+    write(tmp_path, "tutor/agents/tools.py", "from tutor.db import repo\nfrom tutor import llm\nllm.chat('00')\n")
+    write(tmp_path, "tutor/agents/orchestrator.py", "from tutor import llm\nllm.chat('00')\nself.resume()\n")
+    write(tmp_path, "tutor/api/threads.py", "runner.resume('t')\n")
     msg = "api may import only agents.orchestrator / agents.tools, and only in api/assistant.py"
     assert violations(tmp_path / "tutor") == [
+        "tutor/agents/orchestrator.py:3: resume() never from the assistant (C-39)",
         "tutor/agents/tools.py:1: agents must not import tutor.db",
+        "tutor/agents/tools.py:3: llm.chat() only from tutor/agents/orchestrator.py",
+        "tutor/api/assistant.py:3: resume() never from the assistant (C-39)",
         f"tutor/api/assistant_extra.py:1: {msg}",
         f"tutor/api/other.py:1: {msg}",
         f"tutor/api/other.py:2: {msg}",

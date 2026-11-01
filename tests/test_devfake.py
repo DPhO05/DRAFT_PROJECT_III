@@ -1,9 +1,14 @@
 """SDD §8.8: `--fake-llm` backend so the app runs end to end with no API key and no cost."""
 
+import json
 from contextlib import closing
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
+from tests.assistant_fix import world
 from tutor import devfake, llm
+from tutor.api.app import create_app
 from tutor.db import repo, seed_dummy
 from tutor.graphs import runner as rmod
 from tutor.graphs import session
@@ -42,3 +47,26 @@ def test_g1_runs_to_review_on_fixture_with_dev_fake(paths, conn):
         llm.set_backend(None)
     with closing(repo.connect(paths.tutor_db)) as c:
         assert repo.row_counts(c)["session"] == 1
+
+
+def test_chat_routes(paths, conn):
+    """R29 + S15 through `tutor app --fake-llm`: a sheet request runs rank → propose; "bịa số" gets flagged."""
+    an = world(conn)["an"]
+    with TestClient(create_app(paths, port=8000, fake_llm=True), base_url="http://127.0.0.1:8000") as c:
+
+        def ask(text):
+            body = {"conversation_id": None, "text": text, "mentions": [an]}
+            r = c.post("/api/assistant/messages", json=body, headers={"X-Tutor": "1"})
+            return [json.loads(x) for x in r.text.splitlines()]
+
+        evs = ask("Gợi ý 6 bài cho @HS-01 buổi thứ Bảy")
+        assert [e["name"] for e in evs if e["type"] == "tool" and e["state"] == "done"] == [
+            "rank_problems",
+            "propose_worksheet",
+        ]
+        assert [e["card"]["kind"] for e in evs if e["type"] == "card"] == ["worksheet"]
+        assert evs[-1] == {"type": "done", "stopped": None}
+        evs = ask("Bịa số cho @HS-01 đi")
+        assert [e["name"] for e in evs if e["type"] == "tool" and e["state"] == "done"] == ["student_profile"]
+        assert [e["numbers"] for e in evs if e["type"] == "warning"] == [["97"]]
+    assert {x["model"] for x in llm.iter_log(paths.logs / "llm.jsonl")} == {"dev-fake"}

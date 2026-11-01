@@ -4,7 +4,10 @@ Never used unless the flag is given. Every call it answers is logged with model 
 """
 
 import difflib
+import json
 import re
+from collections.abc import Iterator
+from datetime import date, timedelta
 
 from tutor import llm
 
@@ -66,6 +69,40 @@ def _answer(agent: str, system: list[str], user: str) -> dict:
     raise NotImplementedError(f"--fake-llm chưa có output cho agent {agent}")
 
 
+def _chat_turn(messages: list[dict]) -> list[dict]:
+    """R29 + S15: route on the tutor's last typed message; the tool results after it say which step is next."""
+    k = max(i for i, m in enumerate(messages) if m["role"] == "user" and isinstance(m["content"], str))
+    asked = messages[k]["content"]
+    low = asked.lower()
+    done = [json.loads(b["content"]) for m in messages[k + 1 :] if m["role"] == "user" for b in m["content"]
+            if b["type"] == "tool_result"]  # fmt: skip
+    code = hit.group(0) if (hit := re.search(r"HS-\d+", asked)) else "HS-01"
+    if "bịa số" in low:  # a tool first: the number check only runs when one did (R16)
+        calls, say = [("student_profile", {"code": code})], f"Tháng này {code} làm đúng 97 bài."
+    elif "yếu gì" in low:
+        calls, say = [("student_profile", {"code": code})], f"Mình đã xem hồ sơ của {code}, chi tiết ở nguồn bên dưới."
+    elif "gợi ý" in low or "phiếu" in low:
+        today = date.fromisoformat(re.search(r"Hôm nay: (\d{4}-\d{2}-\d{2})", asked).group(1))
+        saturday = today + timedelta(days=(5 - today.weekday()) % 7 or 7)
+        n = re.search(r"(\d+) bài", low)
+        refs = [i["ref"] for i in done[0].get("items", [])] if done else []
+        calls = [("rank_problems", {"code": code} | ({"n": int(n.group(1))} if n else {})),
+                 ("propose_worksheet", {"code": code, "for_date": saturday.isoformat(), "refs": refs})]  # fmt: skip
+        say = "Mình đã soạn phiếu nháp. Thầy/cô xem lại rồi bấm Tạo phiếu để lưu."
+    elif re.search(r"\bai\b", low) and ("sai" in low or "nhầm" in low):
+        calls = [("compare_students", {"metric": "open_repeats", "kind": "notational.operator_swap"})]
+        say = "Mình đã so sánh lỗi lặp của các học sinh, chi tiết ở nguồn bên dưới."
+    elif "tìm" in low:
+        calls = [("search_problems", {"text": low.split("tìm", 1)[1].removeprefix(" bài").strip()})]
+        say = "Đây là các bài mình tìm được."
+    else:
+        calls, say = [], "(dev-fake) Mình chưa hiểu câu này, thầy/cô hỏi cách khác giúp mình."
+    if len(done) < len(calls):
+        name, args = calls[len(done)]
+        return [{"type": "tool_use", "id": f"toolu_dev{len(messages)}", "name": name, "input": args}]
+    return [{"type": "text", "text": say}]
+
+
 class DevFakeLLM:
     def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> llm.Reply:
         out = schema.model_validate(_answer(agent, system, user))
@@ -73,3 +110,16 @@ class DevFakeLLM:
         usage = {"input": (len("".join(system)) + len(user)) // 4, "output": len(raw) // 4, "cache_read": 0,
                  "cache_write": 0}  # fmt: skip
         return llm.Reply(out, raw, usage)
+
+    def chat(
+        self, *, agent: str, model: str, system: list[str], tools: list[dict], messages: list[dict]
+    ) -> Iterator[dict]:
+        content = _chat_turn(messages)
+        for b in content:
+            if b["type"] == "text":
+                for i in range(0, len(b["text"]), 7):
+                    yield {"type": "text", "delta": b["text"][i : i + 7]}
+        stop = "tool_use" if content[0]["type"] == "tool_use" else "end_turn"
+        usage = {"input": len(json.dumps(messages, ensure_ascii=False)) // 4, "output": 20, "cache_read": 0,
+                 "cache_write": 0}  # fmt: skip
+        yield {"type": "message", "content": content, "stop_reason": stop, "usage": usage}

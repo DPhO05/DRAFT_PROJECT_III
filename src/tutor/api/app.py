@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from tutor import __version__, config, devfake, llm
-from tutor.api import backup, bank, catalog, errors, logs, sessions, students, threads, worksheets
+from tutor.api import assistant, backup, bank, catalog, errors, logs, sessions, students, threads, worksheets
 from tutor.db import repo
 from tutor.graphs.registry import make_runner
 
@@ -82,7 +82,7 @@ def create_app(paths: config.DataPaths, *, port: int, fake_llm: bool = False) ->
         return {"status": "ok", "version": __version__, "db": "ok" if db_ok else "error", "llm": llm.status(),
                 "fake_llm": fake_llm}  # fmt: skip
 
-    for r in (backup, students, catalog, sessions, threads, logs, bank, worksheets):
+    for r in (backup, students, catalog, sessions, threads, logs, bank, worksheets, assistant):
         app.include_router(r.router)
     app.mount("/v3", StaticFiles(directory=APP_V3_DIR, html=True), name="app-v3")  # before "/", which matches all
     app.mount("/", StaticFiles(directory=APP_DIR, html=True), name="app")
