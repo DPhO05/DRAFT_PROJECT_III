@@ -271,7 +271,7 @@ def test_bank_import_and_review(paths, conn):
     assert r.exit_code == 0 and "Lưu vào ngân hàng?" in r.output and f"tutor review {tid}" in r.output, r.output
     assert repo.row_counts(conn) == before
     r = cli_run.invoke(cli.cli, ["review", tid, "--data-dir", str(paths.root)], input="y\n")
-    assert r.exit_code == 0 and "Đã thêm 4 bài (bỏ qua 0 bài đã có)" in r.output, r.output
+    assert r.exit_code == 0 and "Đã thêm 4 bài (bỏ qua 1 bài đã có)" in r.output, r.output
     assert conn.execute("SELECT delta FROM problem WHERE ref = '8DS-NEW-002'").fetchone() == (0.0,)
     assert conn.execute("SELECT delta FROM problem WHERE ref = '8DS-NEW-003'").fetchone() == (0.6,)
     assert repo.row_counts(conn)["problem"] == before["problem"] + 4

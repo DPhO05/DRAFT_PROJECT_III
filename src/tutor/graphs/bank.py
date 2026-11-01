@@ -129,7 +129,9 @@ def build(paths: DataPaths) -> StateGraph:
         ]  # fmt: skip
         repo.backup(paths.tutor_db, paths.backup)
         with closing(repo.connect(paths.tutor_db)) as conn:
-            return {"receipt": repo.import_bank(conn, write), "committed": True}
+            receipt = repo.import_bank(conn, write)
+        receipt["skipped_existing"] += sum(i["existing"] for i in state["items"])  # flagged at read, never sent
+        return {"receipt": receipt, "committed": True}
 
     g = StateGraph(BankState)
     g.add_node("read", read)

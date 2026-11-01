@@ -93,7 +93,7 @@ def test_commit_receipt(g2, paths):
     start, conn, r, fake, kc = g2
     tid, row = commit_mix(start, r, kc)
     assert row["status"] == "committed"
-    assert r.state(tid)["receipt"] == {"added": 4, "skipped_existing": 0}
+    assert r.state(tid)["receipt"] == {"added": 4, "skipped_existing": 1}
     assert list(paths.backup.glob("tutor-*.db"))
     assert problem(conn, "8DS-NEW-002")[1:3] == (None, None)
     assert problem(conn, "8DS-NEW-003")[1] == 0.6 and problem(conn, "8DS-NEW-003")[2]
@@ -133,7 +133,7 @@ def test_reimport_zero_new(g2):
     assert len(valid) == 5 and all(i["existing"] for i in valid)
     r.resume(out["thread_id"])
     assert r.wait(out["thread_id"])["status"] == "committed"
-    assert r.state(out["thread_id"])["receipt"] == {"added": 0, "skipped_existing": 0}
+    assert r.state(out["thread_id"])["receipt"] == {"added": 0, "skipped_existing": 5}
 
 
 def test_race_existing_at_commit(g2):
@@ -146,7 +146,7 @@ def test_race_existing_at_commit(g2):
                                      "8DS-NEW-003": {"kc_ids": [kc["8DS-HSBN-01"]]}}})  # fmt: skip
     r.resume(tid)
     assert r.wait(tid)["status"] == "committed"
-    assert r.state(tid)["receipt"] == {"added": 3, "skipped_existing": 1}
+    assert r.state(tid)["receipt"] == {"added": 3, "skipped_existing": 2}
 
 
 @pytest.mark.parametrize(
