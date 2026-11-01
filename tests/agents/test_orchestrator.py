@@ -211,8 +211,13 @@ def test_attachment_needs_student_and_date(ro):
     for archived_or_unknown in ("hs03-2026-10-21.tex", "hs09-2026-10-21.tex"):
         events, _ = say(ro, Turn("", attachment=archived_or_unknown))
         assert of(events, "card")[0]["card"]["guess"] is None
-    events, _ = say(ro, Turn("", attachment="hs01-2026-10-21.tex", mentions=[w["an"]], held_on="2026-10-21"))
-    assert not [e for e in of(events, "card") if e["card"]["kind"] == "ask_grading"]
+    started = {"thread_id": "g1-hs01-20261021", "session_id": 1, "status": "running"}
+    starters = Starters(
+        start_grading=lambda *a: started, start_bank_import=None, propose_worksheet=None, add_to_worksheet=None
+    )
+    turn = Turn("", attachment="hs01-2026-10-21.tex", mentions=[w["an"]], held_on="2026-10-21")
+    events, _ = say(ro, turn, starters=starters)
+    assert of(events, "card") == [{"type": "card", "card": {"kind": "grading", "thread_id": started["thread_id"]}}]
     assert fake.calls == [] and llm._backend.calls == []
     assert config.guess_submission("HS01-2026-02-30.tex") is None
 

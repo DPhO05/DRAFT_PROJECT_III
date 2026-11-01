@@ -14,10 +14,11 @@ ALLOWED = {
     "db": {"config", "services"},
     "agents": {"llm", "services", "config"},
     "graphs": {"agents", "db", "services", "config"},
-    "api": {"graphs", "db", "services", "llm", "config", "devfake"},
+    "api": {"graphs", "db", "services", "llm", "config", "devfake", "agents"},  # agents: see API_AGENTS
     "cli": {"api", "graphs", "db", "services", "llm", "config", "devfake"},  # cli runs create_app() for `tutor app`
 }
 LLM_READ_ONLY = {"iter_log", "cost"}  # what api / cli may take from tutor.llm
+API_AGENTS = {"orchestrator", "tools"}  # what api/assistant.py, the only api file that imports agents, may take
 
 
 def layer(parts: list[str]) -> str | None:
@@ -54,6 +55,13 @@ def violations(root: Path) -> list[str]:
                 for t in layers:
                     if t != me and t not in ALLOWED[me]:
                         bad(node, f"{me} must not import tutor.{t}")
+                    if me == "api" and t == "agents":
+                        mods = {full[2]} if len(full) > 2 else set(names) if tl else {"agents"}
+                        if rel != Path("tutor/api/assistant.py") or mods - API_AGENTS:
+                            bad(
+                                node,
+                                "api may import only agents.orchestrator / agents.tools, and only in api/assistant.py",
+                            )
                 if tl == "llm" and me in ("api", "cli") and len(full) == 2:
                     for n in set(names) - LLM_READ_ONLY:
                         bad(node, f"{me} may only use llm.iter_log / llm.cost, not {n}")
@@ -103,4 +111,22 @@ def test_commit_and_llm_call_rules(tmp_path):
         "tutor/cli.py:1: cli may only use llm.iter_log / llm.cost, not call",
         "tutor/graphs/n.py:1: graphs must not import tutor.llm",
         "tutor/graphs/n.py:2: llm.call() only from tutor/agents/",
+    ]
+
+
+def test_only_assistant_api_file_may_import_agents(tmp_path):
+    write(
+        tmp_path,
+        "tutor/api/assistant.py",
+        "from tutor.agents.tools import Starters\nfrom tutor.agents import orchestrator\n",
+    )
+    write(tmp_path, "tutor/api/other.py", "from tutor.agents import tools\nimport tutor.agents.orchestrator\n")
+    write(tmp_path, "tutor/api/assistant_extra.py", "from tutor.agents.grader import GradeOut\n")
+    write(tmp_path, "tutor/agents/tools.py", "from tutor.db import repo\n")
+    msg = "api may import only agents.orchestrator / agents.tools, and only in api/assistant.py"
+    assert violations(tmp_path / "tutor") == [
+        "tutor/agents/tools.py:1: agents must not import tutor.db",
+        f"tutor/api/assistant_extra.py:1: {msg}",
+        f"tutor/api/other.py:1: {msg}",
+        f"tutor/api/other.py:2: {msg}",
     ]

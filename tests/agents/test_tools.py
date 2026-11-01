@@ -9,13 +9,13 @@ import pytest
 from tests.assistant_fix import world
 from tutor import config
 from tutor.agents import tools
-from tutor.agents.tools import LABELS, TOOLS, Toolbox
+from tutor.agents.tools import LABELS, TOOLS, Starters, Toolbox
 from tutor.db import repo
 
 REF = "9DS-BPT-001"
 ORDER = [
     "find_problems", "search_problems", "list_students", "student_profile", "student_mistakes", "compare_students",
-    "rank_problems",
+    "rank_problems", "start_grading", "start_bank_import", "propose_worksheet",
 ]  # fmt: skip
 CALLS = [
     ("find_problems", {"refs": [REF, "9ZZ-NOPE-999"]}),
@@ -35,9 +35,9 @@ def ro(conn, paths):
         yield c, w
 
 
-def box(ro, text="so sánh các học sinh"):
+def box(ro, text="so sánh các học sinh", starters=None):
     c, w = ro
-    return Toolbox(c, settings=config.defaults(), today=w["today"], text=text)
+    return Toolbox(c, settings=config.defaults(), today=w["today"], text=text, starters=starters)
 
 
 def test_readonly_connection(conn, paths):
@@ -86,6 +86,9 @@ BAD_ARGS = [
     ("student_profile", {"code": 1}, "không đúng"),
     ("find_problems", {"refs": 5}, "không đúng"),
     ("rank_problems", {}, "Thiếu tham số code"),
+    ("start_grading", {"code": "HS-01", "file": "a.tex"}, "Thiếu tham số held_on"),
+    ("start_bank_import", {}, "Thiếu tham số file"),
+    ("propose_worksheet", {"code": "HS-01", "for_date": "2026-10-24"}, "Thiếu tham số refs"),
     ("rank_problems", {"code": "HS-01", "n": "3"}, "không đúng"),
     ("rank_problems", {"code": "HS-01", "ratios": {"review": "a", "zpd": 1, "challenge": 0}}, "không đúng"),
 ]
@@ -271,7 +274,129 @@ def test_strict_schema_limits():
             assert not {"minimum", "maximum", "maxItems", "exclusiveMinimum", "exclusiveMaximum"} & set(node), d["name"]
             assert node.get("minItems", 0) <= 1, d["name"]
             optional += len(node.get("properties", {})) - len(node.get("required", []))
-    assert optional == 12
+    assert optional == 13
     rank = {d["name"]: d for d in TOOLS}["rank_problems"]["input_schema"]
     assert rank["required"] == ["code"] and set(rank["properties"]) == {"code", "n", "ratios"}
     assert rank["properties"]["ratios"]["required"] == ["review", "zpd", "challenge"]
+
+
+GRADING = {"thread_id": "g1-hs01-20261021", "session_id": 7, "status": "running"}
+IMPORT = {"thread_id": "g2-mix-20261021", "status": "running", "existing": False}
+SHEET = {
+    "thread_id": "g4-hs01-20261024",
+    "existing": True,
+    "added": ["9DS-BPT-001"],
+    "invalid": [{"ref": "ZZ", "why": "không có trong ngân hàng"}],
+}
+
+
+def recorder(calls, grading=GRADING):
+    def rec(name, out):
+        def f(*args):
+            calls.append((name, *args))
+            if isinstance(out, Exception):
+                raise out
+            return out
+
+        return f
+
+    return Starters(
+        start_grading=rec("start_grading", grading),
+        start_bank_import=rec("start_bank_import", IMPORT),
+        propose_worksheet=rec("propose_worksheet", SHEET),
+        add_to_worksheet=rec("add_to_worksheet", {}),
+    )
+
+
+def test_start_tools_outcomes(ro):
+    calls = []
+    tb = box(ro, starters=recorder(calls))
+    g = tb.run("start_grading", {"code": "HS-01", "file": "a.tex", "held_on": "2026-10-21"})
+    assert not g.is_error and calls == [("start_grading", 1, "a.tex", "2026-10-21")]
+    assert g.card == {"kind": "grading", "thread_id": GRADING["thread_id"]}
+    assert (g.label, g.source) == ("bắt đầu chấm bài", "chấm bài của HS-01")
+    assert json.loads(g.content) == {"code": "HS-01", "held_on": "2026-10-21", "status": "running"}
+    b = tb.run("start_bank_import", {"file": "mix.tex"})
+    assert not b.is_error and calls[-1] == ("start_bank_import", "mix.tex")
+    assert b.card == {
+        "kind": "actions",
+        "items": [{"label": "Mở Ngân hàng bài để chọn kỹ năng", "open": {"tab": "ngan-hang"}}],
+    }
+    assert b.label == "đọc file bài mới" and b.source
+    assert json.loads(b.content) == {"file": "mix.tex", "status": "running", "existing": False}
+    for out in (g, b):
+        assert "thread" not in out.content and "g1-" not in out.content and "g2-" not in out.content
+    assert [n for n, _ in tb.outcomes] == ["start_grading", "start_bank_import"]
+
+
+def test_propose_worksheet_outcome_and_rank_reasons(ro):
+    calls = []
+    tb = box(ro, starters=recorder(calls))
+    rank = tb.run("rank_problems", {"code": "HS-01"})
+    items = json.loads(rank.content)["items"]
+    refs = [i["ref"] for i in items[:2]]
+    assert "9DS-BPT-001" not in [i["ref"] for i in items]
+    args = {"code": "HS-01", "for_date": "2026-10-24", "refs": [refs[0].lower(), refs[1], "9DS-BPT-001"], "note": "ôn"}
+    out = tb.run("propose_worksheet", args)
+    assert not out.is_error
+    (_, sid, day, sent, note, warnings) = calls[0]
+    assert (sid, day, note, warnings) == (1, "2026-10-24", "ôn", [])
+    assert sent == [{"ref": r["ref"], "bucket": r["bucket"], "reason": r["reason"]} for r in items[:2]] + [
+        {"ref": "9DS-BPT-001"}
+    ]
+    assert out.card == {
+        "kind": "worksheet",
+        "thread_id": SHEET["thread_id"],
+        "added": SHEET["added"],
+        "invalid": SHEET["invalid"],
+    }
+    assert (out.label, out.source) == ("soạn phiếu nháp", "phiếu nháp cho HS-01")
+    body = json.loads(out.content)
+    assert body == {"code": "HS-01", "for_date": "2026-10-24", "n": 1, "added": SHEET["added"],
+                    "invalid": SHEET["invalid"], "replaced_draft": True}  # fmt: skip
+    assert "thread" not in out.content and "g4-" not in out.content
+
+
+def test_propose_passes_rank_warnings_and_skips_other_students_rank(ro, monkeypatch):
+    real = tools.select.rank_problems
+    warns = ["Chỉ tìm được 5 bài hợp"]
+    monkeypatch.setattr(tools.select, "rank_problems", lambda *a, **k: real(*a, **k) | {"warnings": warns})
+    calls = []
+    tb = box(ro, starters=recorder(calls))
+    tb.run("rank_problems", {"code": "HS-01"})
+    ref = tb.ranked[0]["ref"]
+    tb.run("propose_worksheet", {"code": "HS-01", "for_date": "2026-10-24", "refs": [ref]})
+    assert calls[-1][5] == warns
+    tb.run("propose_worksheet", {"code": "HS-02", "for_date": "2026-10-24", "refs": [ref]})
+    assert calls[-1][1:] == (2, "2026-10-24", [{"ref": ref}], None, [])
+
+
+@pytest.mark.parametrize(
+    ("name", "args", "words"),
+    [
+        ("start_grading", {"code": "HS-99", "file": "a.tex", "held_on": "2026-10-21"}, "Không có học sinh HS-99"),
+        ("start_grading", {"code": "HS-03", "file": "a.tex", "held_on": "2026-10-21"}, "Không có học sinh HS-03"),
+        ("propose_worksheet", {"code": "HS-99", "for_date": "2026-10-24", "refs": ["X"]}, "Không có học sinh HS-99"),
+        ("propose_worksheet", {"code": "HS-01", "for_date": "2026-10-24", "refs": []}, "ít nhất 1 mã bài"),
+    ],
+)
+def test_start_tools_reject_before_starting(ro, name, args, words):
+    calls = []
+    tb = box(ro, starters=recorder(calls))
+    out = tb.run(name, args)
+    assert out.is_error and words in json.loads(out.content)["error"] and out.card is None and calls == []
+
+
+@pytest.mark.parametrize("name", ["start_grading", "start_bank_import", "propose_worksheet"])
+def test_starter_value_error_is_the_tool_error(ro, name):
+    words = "Bài này đã nộp cho HS-01 rồi (buổi 07/10)."
+    args = {
+        "start_grading": {"code": "HS-01", "file": "a.tex", "held_on": "2026-10-21"},
+        "start_bank_import": {"file": "mix.tex"},
+        "propose_worksheet": {"code": "HS-01", "for_date": "2026-10-24", "refs": ["X"]},
+    }[name]
+    st = recorder([])
+    setattr(st, name, lambda *a: (_ for _ in ()).throw(ValueError(words)))
+    tb = box(ro, starters=st)
+    out = tb.run(name, args)
+    assert out.is_error and json.loads(out.content) == {"error": words} and out.card is None and out.source is None

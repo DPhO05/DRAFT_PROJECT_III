@@ -1,4 +1,6 @@
-"""Tools agent 00 can call (P6): API definitions and the runner. Read-only; students go by code only."""
+"""Tools agent 00 can call (P6): API definitions and the runner. Students go by code only.
+
+Writes are limited to what `Starters` does: G1's session row (①) and drafts that wait for a button (C-39)."""
 
 import copy
 import json
@@ -55,6 +57,7 @@ _CODE = {"type": "string", "description": "Mã học sinh, vd HS-01"}
 _KIND = {"type": "string", "description": "Loại lỗi, chọn trong danh mục"}
 _KC = {"type": "integer", "description": "Số thứ tự kỹ năng (kc_id) trong danh mục"}
 _LEVEL = {"type": "string", "enum": list(search.LEVELS)}
+_DAY = "dạng yyyy-mm-dd"
 
 TOOLS: list[dict] = [
     _tool(
@@ -122,6 +125,36 @@ TOOLS: list[dict] = [
         },
         ("code",),
     ),
+    _tool(
+        "start_grading",
+        "Bắt đầu chấm bài của một học sinh từ file .tex thầy/cô đã gửi. Chỉ bắt đầu, chưa lưu kết quả:"
+        " thầy/cô xem thẻ chấm bài rồi bấm Lưu kết quả.",
+        {
+            "code": _CODE,
+            "file": {"type": "string", "description": "Tên file .tex đã gửi"},
+            "held_on": {"type": "string", "description": f"Ngày học, {_DAY}"},
+        },
+        ("code", "file", "held_on"),
+    ),
+    _tool(
+        "start_bank_import",
+        "Đọc một file .tex bài mới để thêm vào ngân hàng bài. Chỉ đọc, chưa lưu bài nào:"
+        " thầy/cô chọn kỹ năng và lưu ở tab Ngân hàng bài.",
+        {"file": {"type": "string", "description": "Tên file .tex bài mới"}},
+        ("file",),
+    ),
+    _tool(
+        "propose_worksheet",
+        "Soạn phiếu bài nháp cho một học sinh từ các mã bài đã chọn, thay phiếu nháp cũ của học sinh đó."
+        " Chỉ là nháp: thầy/cô bấm Tạo phiếu để lưu.",
+        {
+            "code": _CODE,
+            "for_date": {"type": "string", "description": f"Ngày của phiếu, {_DAY}"},
+            "refs": {"type": "array", "items": {"type": "string"}, "description": "Mã bài theo thứ tự trên phiếu"},
+            "note": {"type": "string", "description": "Ghi chú cho phiếu"},
+        },
+        ("code", "for_date", "refs"),
+    ),
 ]
 
 LABELS = {
@@ -132,6 +165,9 @@ LABELS = {
     "student_mistakes": "lỗi đã duyệt",
     "compare_students": "so sánh học sinh",
     "rank_problems": "chọn bài theo tiến bộ",
+    "start_grading": "bắt đầu chấm bài",
+    "start_bank_import": "đọc file bài mới",
+    "propose_worksheet": "soạn phiếu nháp",
 }
 
 
@@ -181,6 +217,7 @@ class Toolbox:
         self.conn, self.settings, self.today, self.text, self.starters = conn, settings, today, text, starters
         self.outcomes: list[tuple[str, Outcome]] = []
         self.ranked: list[dict] = []  # items of the latest rank_problems, for propose_worksheet (R18)
+        self.rank_student, self.rank_warnings = 0, []  # whose sheet that was, and its warnings
 
     def run(self, name: str, args: dict) -> Outcome:
         """Strict schema makes bad input rare, not impossible: any bad call becomes a tool error the model can retry."""
@@ -311,7 +348,7 @@ class Toolbox:
             raise ValueError("Số bài từ 1 đến 12")
         sid = students.student_id(self.conn, a["code"])
         r = select.rank_problems(self.conn, sid, n, reco=reco, today=self.today, ratios=a.get("ratios"))
-        self.ranked = r["items"]
+        self.ranked, self.rank_student, self.rank_warnings = r["items"], sid, r["warnings"]
         items = [{k: v for k, v in i.items() if k != "statement_latex"} for i in r["items"]]
         c = r["counts"]
         return self._out(
@@ -321,4 +358,67 @@ class Toolbox:
             summary=f"rank_problems {student_code(sid)}: {len(items)} bài ({c['review']} ôn, {c['zpd']} vừa sức,"
             f" {c['challenge']} thử thách)",
             trim=("items",),
+        )
+
+    def tool_start_grading(self, a: dict) -> Outcome:
+        sid = students.student_id(self.conn, a["code"])
+        code = student_code(sid)
+        started = self.starters.start_grading(sid, a["file"], a["held_on"])
+        day = date.fromisoformat(a["held_on"])
+        return self._out(
+            "start_grading",
+            {"code": code, "held_on": a["held_on"], "status": started["status"]},
+            source=f"chấm bài của {code}",
+            summary=f"start_grading {code}: buổi {day:%d/%m/%Y}",
+            card={"kind": "grading", "thread_id": started["thread_id"]},
+        )
+
+    def tool_start_bank_import(self, a: dict) -> Outcome:
+        started = self.starters.start_bank_import(a["file"])
+        return self._out(
+            "start_bank_import",
+            {"file": a["file"], "status": started["status"], "existing": started["existing"]},
+            source=f"file bài mới {a['file']}",
+            summary=f"start_bank_import: {a['file']}",
+            card={
+                "kind": "actions",
+                "items": [{"label": "Mở Ngân hàng bài để chọn kỹ năng", "open": {"tab": "ngan-hang"}}],
+            },
+        )
+
+    def tool_propose_worksheet(self, a: dict) -> Outcome:
+        if not a["refs"]:
+            raise ValueError("Cho ít nhất 1 mã bài")
+        sid = students.student_id(self.conn, a["code"])
+        code = student_code(sid)
+        # reasons are the student's own: keep them only when the latest rank was for this student (R18)
+        same = self.rank_student == sid
+        ranked = {i["ref"].upper(): i for i in self.ranked} if same else {}
+        items = []
+        for ref in a["refs"]:
+            ref = str(ref).strip().upper()
+            hit = ranked.get(ref)
+            items.append({"ref": ref, "bucket": hit["bucket"], "reason": hit["reason"]} if hit else {"ref": ref})
+        made = self.starters.propose_worksheet(
+            sid, a["for_date"], items, a.get("note"), self.rank_warnings if same else []
+        )
+        day = date.fromisoformat(a["for_date"])
+        return self._out(
+            "propose_worksheet",
+            {
+                "code": code,
+                "for_date": a["for_date"],
+                "n": len(made["added"]),
+                "added": made["added"],
+                "invalid": made["invalid"],
+                "replaced_draft": made["existing"],
+            },
+            source=f"phiếu nháp cho {code}",
+            summary=f"propose_worksheet {code}: {len(made['added'])} bài cho {day:%d/%m/%Y}",
+            card={
+                "kind": "worksheet",
+                "thread_id": made["thread_id"],
+                "added": made["added"],
+                "invalid": made["invalid"],
+            },
         )
