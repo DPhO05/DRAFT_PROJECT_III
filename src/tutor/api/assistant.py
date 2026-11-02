@@ -33,7 +33,8 @@ UNAVAILABLE = "Chưa trả lời được, thử lại"
 INTERNAL = "Lỗi không lường trước, chi tiết ở data/logs/app.log"
 _ID = re.compile(r"\d{4}-\d{2}-\d{2}-\d+")
 _AT = re.compile(r"@HS-(\d+)", re.IGNORECASE)
-_lock = threading.Lock()  # every chat-log read / write and the busy set (R25)
+# RLock: a dropped stream's `finally` runs in GC, possibly inside a section that already holds the lock
+_lock = threading.RLock()  # every chat-log read / write and the busy set (R25)
 _busy: set[Path] = set()  # log files of the conversations answering right now
 
 
@@ -107,7 +108,14 @@ def _file(paths: DataPaths, cid: str) -> Path:
 
 
 def _read(f: Path) -> list[dict]:
-    return [json.loads(x) for x in f.read_text(encoding="utf-8").splitlines()]
+    """Rows of a chat log; a line cut short by a crash or full disk is skipped, as `llm.iter_log` does."""
+    rows = []
+    for x in f.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            rows.append(json.loads(x))
+        except ValueError:
+            continue
+    return rows
 
 
 def _write(f: Path, row: dict) -> None:

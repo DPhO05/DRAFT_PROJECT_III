@@ -158,7 +158,7 @@ class AnthropicBackend:
 _backend: Backend | None = None
 _log_path: Path | None = None
 _models: dict[str, str] = {}
-_log_lock = threading.Lock()
+_log_lock = threading.RLock()  # re-entrant: an abandoned `chat` generator is closed by GC inside `_log`
 _last_result = "unknown"
 
 

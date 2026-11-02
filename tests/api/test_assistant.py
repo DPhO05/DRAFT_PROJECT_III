@@ -216,3 +216,24 @@ def test_no_route_to_commit(client):
         ("GET", "/api/assistant/conversations/{conversation_id}"),
         ("GET", "/api/assistant/pending"),
     }
+
+
+def test_broken_log_line_is_skipped(paths, client, w):
+    """A crash or full disk mid-append leaves a partial line (even mid-character); the conversation stays usable."""
+    script([text("A.")], [text("B.")])
+    cid = lines(send(client, "Chào"))[0]["conversation_id"]
+    with (paths.logs / "chat" / f"{cid}.jsonl").open("ab") as f:
+        f.write('{"id": "m3", "role": "user", "text": "Chà'.encode()[:-1] + b"\n")
+    listed, one = client.get("/api/assistant/conversations"), client.get(f"/api/assistant/conversations/{cid}")
+    assert (listed.status_code, one.status_code) == (200, 200)
+    assert [(c["id"], c["n_messages"]) for c in listed.json()] == [(cid, 2)]
+    assert [m["text"] for m in one.json()["messages"]] == ["Chào", "A."]
+    assert lines(send(client, "Tiếp", cid=cid))[-1] == {"type": "done", "stopped": None}
+
+
+def test_chat_locks_are_reentrant():
+    """A stream the browser dropped is closed by GC, possibly inside a section that holds the same lock."""
+    for lock in (assistant._lock, llm._log_lock):
+        with lock:
+            assert lock.acquire(timeout=1)
+            lock.release()
