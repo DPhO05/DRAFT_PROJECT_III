@@ -76,11 +76,14 @@ def submit(paths: DataPaths, runner: Runner, *, student_id: int, held_on: str, r
 
 
 def _ctx(paths: DataPaths, student_id: int, session_id: int, config) -> CallContext:
-    # The name is read here for masking only; it never enters graph state or checkpoints (SDD §8.6).
+    # Names are read here for masking only; they never enter graph state or checkpoints (SDD §8.6).
+    # Another student's name pasted into a .tex is masked too (NFR7); a one-word name would hit common words (S24).
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         st = repo.get_student(conn, student_id)
+        everyone = repo.list_students(conn, include_archived=True)
+    redact = {s["name"]: s["code"] for s in everyone if len(s["name"].split()) >= 2} | {st["name"]: st["code"]}
     return CallContext(graph=GRAPH, thread_id=config["configurable"]["thread_id"], session_id=session_id,
-                       student_code=st["code"], redact={st["name"]: st["code"]})  # fmt: skip
+                       student_code=st["code"], redact=redact)  # fmt: skip
 
 
 def _unresolved(state: SessionState) -> list[dict]:

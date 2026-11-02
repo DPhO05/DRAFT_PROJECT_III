@@ -1,5 +1,7 @@
 """P1-T10: G1 first part — ① session row, 01 Ingest, gate confirm_match."""
 
+import json
+
 import pytest
 
 from tests.bankfix import P2, add_bank
@@ -115,3 +117,14 @@ def test_session_marked_failed_when_graph_cannot_start(env, monkeypatch):
     with pytest.raises(RuntimeError):
         session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path=put(paths, "a.tex", WITH_IDS))
     assert conn.execute("SELECT status FROM session").fetchone()[0] == "failed"
+
+
+def test_other_students_name_in_tex_is_masked(env):
+    paths, conn, r, sid, fake = env
+    repo.add_student(conn, name="Trần Thị Bình", grade=8)
+    tex = WITH_IDS.replace("$4x", "Bài làm của TRẦN THỊ BÌNH và nguyen van an: $4x")
+    out = session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path=put(paths, "a.tex", tex))
+    r.wait(out["thread_id"])
+    got = (json.dumps(fake.calls, ensure_ascii=False) + (paths.logs / "llm.jsonl").read_text("utf-8")).lower()
+    assert "HS-02".lower() in got and "HS-01".lower() in got
+    assert "bình" not in got and "văn an" not in got

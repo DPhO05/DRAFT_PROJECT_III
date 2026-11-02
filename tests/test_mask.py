@@ -37,3 +37,8 @@ def test_chat_masks_pasted_tex(tmp_path):
                   context=ctx, max_tool_turns=8))  # fmt: skip
     sent = json.dumps(fake.calls, ensure_ascii=False)
     assert "Văn Minh" not in sent and "HS-03" in sent
+
+
+def test_name_split_by_line_break_or_double_space():
+    assert llm.mask("Nguyễn Văn\nAn làm sai", {"Nguyễn Văn An": "HS-01"}) == "HS-01 làm sai"
+    assert llm.mask("Nguyễn  Văn   An", {"Nguyễn Văn An": "HS-01"}) == "HS-01"

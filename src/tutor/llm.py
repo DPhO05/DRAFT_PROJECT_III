@@ -197,7 +197,8 @@ def _mask(text: str, redact: dict[str, str]) -> tuple[str, bool]:
     for name, code in redact.items():
         key = "".join(_fold(c) for c in unicodedata.normalize("NFC", name.strip()))
         if key:
-            spans += [(m.start(), m.end(), code) for m in re.finditer(rf"(?<!\w){re.escape(key)}(?!\w)", folded)]
+            pattern = r"\s+".join(map(re.escape, key.split()))  # a line break or double space inside a name still hits
+            spans += [(m.start(), m.end(), code) for m in re.finditer(rf"(?<!\w){pattern}(?!\w)", folded)]
     kept = []
     for start, end, code in sorted(spans, key=lambda x: (x[0] - x[1], x[0])):  # longest first: nested names lose
         if all(end <= s or start >= e for s, e, _ in kept):

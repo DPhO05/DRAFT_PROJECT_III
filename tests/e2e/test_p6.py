@@ -60,11 +60,13 @@ def fold(s: str) -> str:
     return "".join(llm._fold(c) for c in s)
 
 
-def no_names(paths, fake) -> None:
+def no_names(paths, fake, seen: str = "hs-01") -> None:
     """C-40: not one student's full name, in any case or spelling, in llm.jsonl, the chat logs or a payload."""
+    assert (paths.logs / "chat").is_dir()
     files = [paths.logs / "llm.jsonl", *(paths.logs / "chat").glob("*.jsonl")]
-    got = fold("".join(f.read_text(encoding="utf-8") for f in files) + json.dumps(fake.calls, ensure_ascii=False))
-    assert "hs-01" in got
+    logged = fold("".join(f.read_text(encoding="utf-8") for f in files))
+    assert seen in logged  # the logs themselves hold it, else the scan below passes on empty logs
+    got = logged + fold(json.dumps(fake.calls, ensure_ascii=False))
     for name in NAMES:
         assert fold(name) not in got
 
@@ -81,7 +83,7 @@ def test_search_by_description(paths, client, w):
     assert {p["level"] for p in card["problems"]} == {"vừa"}
     assert [e["type"] for e in evs if e["type"] in ("warning", "source", "done")] == ["source", "done"]
     assert total(client) == before
-    no_names(paths, fake)
+    no_names(paths, fake, seen="search_problems")
 
 
 def test_worksheet_flow(paths, client, w):
@@ -191,9 +193,8 @@ def test_compare_students(paths, client, w):
 
 
 def test_no_names_anywhere(paths, client, w):
-    (paths.inbox / FILE).write_text(
-        prob("9DS-PT2-003", "Bài làm của NGUYỄN VĂN AN, tức nguyen van an. $x^2 = 1$"), encoding="utf-8"
-    )
+    body = "Bài làm của NGUYỄN VĂN AN, tức nguyen van an, cạnh Trần Thị Bình. $x^2 = 1$"
+    (paths.inbox / FILE).write_text(prob("9DS-PT2-003", body), encoding="utf-8")
     fake = backend([tool("student_profile", code="HS-01")], [text("Đã xem hồ sơ.")])
     ask = "Nguyễn Văn An với LÊ VĂN CƯỜNG và tran thi binh hay sai gì?"
     evs = lines(send(client, ask))
