@@ -128,3 +128,14 @@ def test_other_students_name_in_tex_is_masked(env):
     got = (json.dumps(fake.calls, ensure_ascii=False) + (paths.logs / "llm.jsonl").read_text("utf-8")).lower()
     assert "HS-02".lower() in got and "HS-01".lower() in got
     assert "bình" not in got and "văn an" not in got
+
+
+def test_compact_date_is_stored_as_iso_and_keeps_the_date_lock(env):
+    paths, conn, r, sid, _ = env
+    out = session.submit(paths, r, student_id=sid, held_on="20261021", rel_path=put(paths, "a.tex", WITH_IDS))
+    assert conn.execute("SELECT held_on FROM session WHERE id = ?", (out["session_id"],)).fetchone()[0] == "2026-10-21"
+    r.wait(out["thread_id"])
+    conn.execute("UPDATE session SET status = 'committed' WHERE id = ?", (out["session_id"],))
+    with pytest.raises(repo.DateOrderLocked):
+        session.submit(paths, r, student_id=sid, held_on="2026-10-13", rel_path=put(paths, "b.tex", NO_ID))
+    session.submit(paths, r, student_id=sid, held_on="2026-10-28", rel_path=put(paths, "c.tex", NO_ID + "\n"))

@@ -49,6 +49,7 @@ def submit(paths: DataPaths, runner: Runner, *, student_id: int, held_on: str, r
         day = date.fromisoformat(held_on)
     except ValueError as e:
         raise ValueError(f"Ngày học phải dạng YYYY-MM-DD: {held_on}") from e
+    held_on = day.isoformat()  # fromisoformat also takes "20261021"; a stored date must sort as text
     sha = hashlib.sha256(src.read_bytes()).hexdigest()
     rel = src.relative_to(paths.root.resolve()).as_posix()
     with closing(repo.connect(paths.tutor_db)) as conn:
