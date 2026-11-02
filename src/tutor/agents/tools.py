@@ -26,7 +26,6 @@ class Outcome:
     source: str | None = None
     summary: str = ""
     card: dict | None = None
-    data: object = None  # the full result, for the number check
 
 
 @dataclass
@@ -243,9 +242,7 @@ class Toolbox:
         return Outcome(_dumps({"error": message}), is_error=True, label=LABELS.get(name, ""))
 
     def _out(self, name: str, result: dict, *, source: str, summary: str, card=None, trim=()) -> Outcome:
-        return Outcome(
-            _content(result, trim), label=LABELS[name], source=source, summary=summary, card=card, data=result
-        )
+        return Outcome(_content(result, trim), label=LABELS[name], source=source, summary=summary, card=card)
 
     def _problem_card(self, items: list[dict], missing: list[str]) -> dict:
         steps = search.solution_steps(self.conn, [p["id"] for p in items])

@@ -56,7 +56,7 @@ def test_no_names_in_outcomes(conn, ro):
     for name, args in CALLS:
         out = tb.run(name, args)
         assert not out.is_error, (name, out.content)
-        text = json.dumps([out.content, out.data, out.card, out.summary, out.source], ensure_ascii=False)
+        text = json.dumps([out.content, out.card, out.summary, out.source], ensure_ascii=False)
         assert not [n for n in names if n in text], name
     assert [n for n, _ in tb.outcomes] == [n for n, _ in CALLS]
 
@@ -149,7 +149,6 @@ def test_long_list_is_trimmed_not_cut(conn, ro):
     body = json.loads(out.content)
     assert len(out.content) <= tools.MAX_CONTENT
     assert body["omitted"]["students"] == 152 - len(body["students"]) > 0
-    assert len(out.data["students"]) == 152
 
 
 def test_find_problems_outcome(ro):
@@ -238,7 +237,7 @@ def test_rank_problems_outcome(ro):
     assert body["n"] == 6 and body["counts"] == {"review": 2, "zpd": 3, "challenge": 1} and body["warnings"] == []
     assert len(body["items"]) == 6 and all("statement_latex" not in i for i in body["items"])
     assert {"ref", "bucket", "reason", "kcs"} <= set(body["items"][0])
-    assert out.data == body and [i["ref"] for i in tb.ranked] == [i["ref"] for i in body["items"]]
+    assert [i["ref"] for i in tb.ranked] == [i["ref"] for i in body["items"]]
     assert all(i["statement_latex"] for i in tb.ranked)
     again = tb.run("rank_problems", {"code": "HS-01", "n": 2, "ratios": {"review": 1, "zpd": 0, "challenge": 0}})
     assert json.loads(again.content)["counts"] == {"review": 2, "zpd": 0, "challenge": 0}
