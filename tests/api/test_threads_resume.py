@@ -139,3 +139,11 @@ def test_teacher_view_g1_card(paths, client):
     assert (c["stage"], c["progress"], c["decided"], c["score"], c["max_score"]) == (
         "review", {"done": 1, "total": 1}, {"done": 0, "total": 1}, 1, 1)  # fmt: skip
     assert c["attempts"][0]["mistakes"][0]["pid"] == "p1" and c["preview"] is None
+
+
+def test_thread_deleted_between_lookup_and_listing_is_404(paths, client, monkeypatch):
+    h = lane_handlers() | {"01": ingest.MatchResult(candidates=[ingest.Candidate(ref=P1[0], score=0.5)])}
+    tid, _, _ = start(paths, client, h)
+    monkeypatch.setattr("tutor.graphs.threads.annotate", lambda rows: [])  # a draft deleted after `r.get`
+    r = client.get(f"/api/threads/{tid}")
+    assert (r.status_code, r.json()["error"]["code"]) == (404, "not_found")

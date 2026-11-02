@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Request
 
 from tutor.db import repo
 from tutor.graphs import bank, session, threads, worksheet
+from tutor.graphs.runner import ThreadNotFound
 
 router = APIRouter(prefix="/api/threads")
 
@@ -28,7 +29,9 @@ def get_thread(thread_id: str, request: Request, include: str | None = None, vie
     """view=teacher: the short row plus `card`, built by the server per graph (null for graphs with no card yet)."""
     r = request.app.state.runner
     r.get(thread_id)  # 404 first
-    row = next(t for t in threads.annotate(r.list_threads()) if t["thread_id"] == thread_id)
+    row = next((t for t in threads.annotate(r.list_threads()) if t["thread_id"] == thread_id), None)
+    if row is None:  # deleted after the lookup above (a draft replaced by `propose`)
+        raise ThreadNotFound(thread_id)
     if view == "teacher":
         card = None
         if row["graph"] == session.GRAPH:
