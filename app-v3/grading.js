@@ -30,6 +30,13 @@
   function addsOf(s, seq) { return Object.keys(s.dec).filter(function (k) { return isAdd(s.dec[k]) && s.dec[k].attempt_seq === seq; }); }
   function words(c, fallback) { var x = (codes || []).find(function (y) { return y.code === c; }); return x ? x.description : fallback || ''; }
   function kcName(a, id) { var k = a.kcs.find(function (x) { return x.id === id; }); return k ? k.name : 'không gắn kỹ năng'; }
+  function wire(text) {  // C-40: a name shown or typed in a box goes back as its HS-xx code (chat.js sendBox does it for @)
+    return Object.keys(U.people).filter(function (c) { return U.people[c].trim().split(/\s+/).length >= 2; })  // one-word names stay (S24)
+      .sort(function (a, b) { return U.people[b].length - U.people[a].length; })
+      .reduce(function (t, c) {
+        return t.replace(new RegExp('(?<![\\p{L}\\p{N}])' + U.people[c].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}])', 'gu'), c);
+      }, String(text));
+  }
   function flagOf(s, seq) { return s.card.confirm.find(function (f) { return f.seq === seq; }); }
   function loadCodes() {
     codeReq = codeReq || U.api.get('/catalog/error-codes').then(function (rows) {
@@ -47,9 +54,10 @@
     C.poll(s.tid, function (row) { return onRow(s, row); }, host);
   };
   function onRow(s, row) {
-    var c = row.card, j = JSON.stringify(Object.assign({}, c, { saved: null }));  // `saved` only echoes this screen's PUTs
+    var c = row.card, j = JSON.stringify(Object.assign({}, c, { saved: null })), back = bounced(s, row);  // `saved` only echoes this screen's PUTs
     tick(s);
-    if (j !== s.json) {
+    if (back) { s.chain = null; U.toast(CHANGED, 'info'); }
+    if (j !== s.json || back) {
       if (!s.card || s.card.stage !== c.stage) s.busy = false;
       s.json = j; s.card = c;
       if (!s.seeded && /^(review|preview|saved)$/.test(c.stage)) seed(s, c.saved);
@@ -137,7 +145,7 @@
     var r = s.rubric && s.rubric.seq === f.seq ? s.rubric.items : null;
     return '<div class="callout callout-warn"><p><b>Bài ' + f.seq + (f.ref ? ' (<span class="ref">' + U.esc(f.ref) + '</span>)' : '') + ' chưa có cách chấm.</b> Trợ lý soạn nháp, thầy/cô xem lại rồi bấm Dùng cách chấm này:</p>' +
       (r ? '<div class="rub">' + r.map(function (it, i) {  // the bank's rubric list and form (bank.js rubricHTML, editHTML)
-        return '<div class="rub-row"><span class="muted small">Ý ' + (i + 1) + '</span><textarea rows="2" data-f="rtext" data-i="' + i + '" aria-label="Nội dung ý ' + (i + 1) + '">' + U.esc(it.text) + '</textarea>' +
+        return '<div class="rub-row"><span class="muted small">Ý ' + (i + 1) + '</span><textarea rows="2" data-f="rtext" data-i="' + i + '" aria-label="Nội dung ý ' + (i + 1) + '">' + esc(it.text) + '</textarea>' +
           '<input type="number" min="0.5" step="0.5" data-f="rpts" data-i="' + i + '" value="' + U.esc(it.points) + '" aria-label="Điểm ý ' + (i + 1) + '">' +
           '<button type="button" class="icon-btn icon-btn-sm" data-act="g-rub-del" data-i="' + i + '" aria-label="Bỏ ý ' + (i + 1) + '">×</button></div>';
       }).join('') + '</div>'
@@ -201,7 +209,7 @@
       '<label class="field"><span>Kỹ năng</span><select data-f="kc_id">' + opt('', 'Không gắn kỹ năng', d.kc_id == null) + a.kcs.map(function (x) { return opt(x.id, x.name, x.id === d.kc_id); }).join('') + '</select></label>' +
       (add ? '<label class="field"><span>Ở bước</span><select data-f="step_idx">' + a.steps.map(function (st) { return opt(st.idx, 'Bước ' + st.idx, st.idx === d.step_idx); }).join('') + '</select></label>' : '') +
       '<label class="field full"><span>' + (add ? 'Mô tả lỗi' : 'Mô tả (thầy/cô viết lại nếu cần)') + '</span><textarea rows="2" data-f="description"' + (add ? ' placeholder="Ví dụ: quên đổi dấu khi chuyển vế"' : '') + '>' +
-      U.esc(d.description) + '</textarea></label><div class="row full">' +
+      esc(d.description) + '</textarea></label><div class="row full">' +
       (add ? btn('g-add-ok', 'Thêm lỗi', '', 'btn-primary') + btn('g-add-cancel', 'Thôi') : btn('g-edit-done', 'Xong', 'data-pid="' + U.esc(k) + '"', 'btn-primary')) + '</div></div>';
   }
   function previewHTML(p) {
@@ -265,19 +273,30 @@
   function chainStep(s) {  // R7: the second resume goes only if the preview on screen still holds
     var c = s.card, ch = s.chain;
     if (c.stage === 'preview' && c.preview_sig !== ch.sig) { s.chain = null; U.toast(CHANGED, 'info'); }
-    else if (c.stage === 'preview' && ch.step === 1) { ch.step = 2; resume(s).catch(function () { s.chain = null; draw(s); }); }
+    else if (c.stage === 'preview' && ch.step === 1) commit(s);
     else if (/^(saved|failed|locked)$/.test(c.stage)) s.chain = null;
+  }
+  function commit(s) {  // resume 2 (commit ②); `after` starts once the server has taken it
+    var ch = s.chain;
+    ch.step = 2;
+    resume(s).then(function () { ch.after = 0; }, function () { if (s.chain === ch) { s.chain = null; draw(s); } });
+  }
+  function bounced(s, row) {  // commit ② refused (StaleProfile, session.py:548): back at the gate, maybe with the same preview
+    var ch = s.chain;
+    if (!ch || ch.after == null) return false;
+    if (row.status === 'running' || row.card.stage !== 'preview') { ch.moved = true; return false; }
+    return ch.moved || ++ch.after >= 2;  // polls go one at a time, so the 2nd one after the 202 was asked after the resume ran
   }
 
   // ---- buttons + fields ----
   ACT['g-save'] = function (el) {
     var s = stateOf(el), c = s.card;
     if (s.chain) return;  // one chain per click, however fast the second click comes
-    s.chain = { sig: c.preview_sig, step: c.stage === 'preview' ? 2 : 1 };
+    s.chain = { sig: c.preview_sig, step: 1 };
     s.editing = null; s.add = null; clearTimeout(s.timer);
     draw(s);
-    (c.stage === 'preview' ? resume(s) : send(s).then(function (r) { if (r.pending) throw r; return resume(s); }))
-      .catch(function () { s.chain = null; draw(s); });
+    if (c.stage === 'preview') commit(s);
+    else send(s).then(function (r) { if (r.pending) throw r; return resume(s); }).catch(function () { s.chain = null; draw(s); });
   };
   ACT['g-retry'] = function (el) {
     var s = stateOf(el);
@@ -354,9 +373,9 @@
     var t = ev.target, f = t.dataset && t.dataset.f, s = f && stateOf(t);
     if (!s) return;
     if (f === 'pick' || f === 'typed') { s[f][t.dataset.seq] = t.value; return; }
-    if (f === 'rtext' || f === 'rpts') { s.rubric.items[+t.dataset.i][f === 'rtext' ? 'text' : 'points'] = f === 'rtext' ? t.value : +t.value; return; }
+    if (f === 'rtext' || f === 'rpts') { s.rubric.items[+t.dataset.i][f === 'rtext' ? 'text' : 'points'] = f === 'rtext' ? wire(t.value) : +t.value; return; }
     var k = t.closest('[data-key]').dataset.key, d = k === 'add' ? s.add : s.dec[k];
-    d[f] = f === 'kc_id' ? (t.value ? +t.value : null) : f === 'step_idx' ? +t.value : t.value;
+    d[f] = f === 'kc_id' ? (t.value ? +t.value : null) : f === 'step_idx' ? +t.value : f === 'description' ? wire(t.value) : t.value;
     if (k === 'add') return;
     put(s);
     if (t.tagName === 'SELECT' && ev.type === 'change') draw(s);  // the mistake line shows the new kind / skill

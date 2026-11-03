@@ -18,7 +18,19 @@ from contextlib import closing
 from pathlib import Path
 
 # shortcut: generic helpers are imported from check.py; P8-T03 deletes check.py and they move into this file.
-from check import DESK, FIX, JS_OBSERVE, JS_OVERFLOW, NET_NOISE, PHONE, SHOTS, api, close_overlay, tutor_app
+from check import (
+    DESK,
+    FIX,
+    JS_OBSERVE,
+    JS_OVERFLOW,
+    NET_NOISE,
+    PHONE,
+    PREVIEW_TID,
+    SHOTS,
+    api,
+    close_overlay,
+    tutor_app,
+)
 from playwright.sync_api import sync_playwright
 
 from tutor.db.repo import TABLES
@@ -211,12 +223,17 @@ FAILED_WORDS = "Mất kết nối khi đang chấm bài 3. Bài làm vẫn còn 
 GONE = "Việc này đã xong"
 NEW_CODE, NEW_KIND = "computational.copy_error", "Chép sai số hoặc biểu thức từ đề / dòng trước"
 ADDED = "robot: quên đổi dấu khi chuyển vế"
+# the model only ever sees HS-xx, so its text can hold one; boxes show the name, PUTs carry the code (C-40)
+CODED, NAMED = "Em HS-01 quên đổi dấu ở bước cuối", f"Em {PEOPLE[0]} quên đổi dấu ở bước cuối"
 JS_HOST_SEL = """([t, s]) => !!document.querySelector(`.card-host[data-thread="${t}"] ${s}`)"""
 JS_HOST_HAS = """([t, w]) => { const h = document.querySelector(`.card-host[data-thread="${t}"]`);
   return !!h && h.innerText.includes(w); }"""
 JS_HOST_NO = """([t, s]) => !document.querySelector(`.card-host[data-thread="${t}"] ${s}`)"""
 JS_ON = "s => { const b = document.querySelector(s); return !!b && !b.disabled; }"
 JS_TOAST_HAS = "t => document.getElementById('toasts').innerText.includes(t)"
+JS_TOAST_NO = "t => !document.getElementById('toasts').innerText.includes(t)"
+JS_PRESSED = "s => document.querySelector(s)?.getAttribute('aria-pressed') === 'true'"
+JS_BOXES = "els => els.map(e => e.value)"
 
 
 def last_bot(page) -> str:
@@ -260,6 +277,8 @@ def db_state(data_dir: str) -> tuple:
 def see_chat(page, rep: dict, where: str, phone: bool) -> None:
     see(page, rep, where, phone)
     rep["forbidden"] += [f"{where}: {m.group(0)}" for m in HS_CODE.finditer(page.inner_text("#panel-tro-ly"))]
+    boxes = page.eval_on_selector_all("#panel-tro-ly textarea, #panel-tro-ly input", JS_BOXES)  # inner_text skips them
+    rep["forbidden"] += [f"{where} (box): {m.group(0)}" for v in boxes for m in HS_CODE.finditer(v)]
 
 
 def new_chat(page, rep: dict, phone: bool) -> None:
@@ -588,7 +607,53 @@ def grade_confirm(page, rep: dict, data_dir: str) -> None:
         rep["missing"].append(f"grading confirm: decisions_json of s04 is {decisions(data_dir, G_S04)}, want a skip")
 
 
-def grade_review(page, rep: dict, data_dir: str) -> bool:
+def other_sig(route) -> None:
+    """The poll of a thread at preview answers another preview_sig: another session of the student was saved."""
+    r = route.fetch()
+    j = r.json()
+    if j["card"]["stage"] == "preview":
+        j["card"]["preview_sig"] = "robot"
+    route.fulfill(response=r, json=j)
+
+
+def resumes(reqs: list, tid: str) -> int:
+    return sum(m == "POST" and u.endswith(f"/threads/{tid}/resume") for m, u, _ in reqs)
+
+
+def grade_changed(page, rep: dict, reqs: list) -> None:
+    """s04 at review, every mistake Bỏ: the preview changes under Lưu kết quả, so one resume and a toast (R7)."""
+    h, save = host(G_S04), f'{host(G_S04)} [data-act="g-save"]'
+    reject = f"{h} [data-act=g-dec][data-v=reject]"
+    if not (n := page.locator(reject).count()):
+        rep["missing"].append("grading s04: no mistake to Bỏ at review")
+        return
+    for i in range(n):
+        press(page, rep, f"{reject} >> nth={i}", f"grading Bỏ lỗi {i + 1} của s04")
+    if not expect(page, rep, JS_ON, "grading s04: Lưu kết quả did not turn on after every Bỏ", save):
+        return
+    expect(page, rep, JS_HOST_SEL, "grading s04: no preview table", [G_S04, ".preview-tbl"])
+    poll = re.compile(rf"/api/threads/{G_S04}\?view=teacher$")
+    page.route(poll, other_sig)
+    seen = resumes(reqs, G_S04)  # the confirm step resumed once already
+    press(page, rep, save, "grading Lưu kết quả khi xem trước đổi", JS_TOAST_HAS, SIG_CHANGED)
+    page.wait_for_timeout(1500)
+    if (n := resumes(reqs, G_S04) - seen) != 1:
+        rep["missing"].append(f"grading s04: a changed preview_sig gave {n} resumes, want 1")
+    page.unroute(poll)
+
+
+def coded(route) -> None:
+    """Mistake p2 of s01 as the model may write it: with the student's code."""
+    r = route.fetch()
+    j = r.json()
+    for a in j["card"]["attempts"]:
+        for m in a["mistakes"]:
+            if m["pid"] == "p2":
+                m["description"] = CODED
+    route.fulfill(response=r, json=j)
+
+
+def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
     """s06 waits for s01 (date lock); in s01 each choice is a PUT and tutor.db stays as it is until Lưu kết quả.
 
     False when a step failed: the later ones stand on it."""
@@ -596,6 +661,8 @@ def grade_review(page, rep: dict, data_dir: str) -> bool:
     ok = lambda: len(rep["missing"]) == start  # noqa: E731
     open_card(page, rep, False, G_S06, "grading Mở buổi bị khoá", JS_HOST_HAS, [G_S06, LOCKED])
     see_chat(page, rep, "grading locked", False)
+    poll = re.compile(rf"/api/threads/{G_S01}\?view=teacher$")
+    page.route(poll, coded)
     press(page, rep, f'{host(G_S06)} [data-act="g-open"]', "grading Mở buổi 20/10", JS_HOST_SEL, [G_S01, ".mistake"])
     h, save = host(G_S01), f'{host(G_S01)} [data-act="g-save"]'
     if not ok() or not page.locator(save).count():
@@ -605,17 +672,20 @@ def grade_review(page, rep: dict, data_dir: str) -> bool:
         rep["missing"].append(f"grading review: Lưu kết quả should be off with '{LEFT_5}'")
     rows = db_state(data_dir)[0]
     dec = lambda pid, v: f'{h} [data-act="g-dec"][data-pid="{pid}"][data-v="{v}"]'  # noqa: E731
-    pressed = "s => document.querySelector(s)?.getAttribute('aria-pressed') === 'true'"
-    press(page, rep, dec("p1", "accept"), "grading Đúng", pressed, dec("p1", "accept"))
+    press(page, rep, dec("p1", "accept"), "grading Đúng", JS_PRESSED, dec("p1", "accept"))
     press(page, rep, dec("p2", "edit"), "grading Sửa", JS_HOST_SEL, [G_S01, ".edit-form select[data-f=code]"])
     if not ok():
         return False
+    box = f"{h} .edit-form textarea"
+    if HS_CODE.search(shown := page.input_value(box)) or PEOPLE[0] not in shown:
+        rep["missing"].append(f"grading review: the Sửa box shows {shown!r}, want the name and no code")
     page.select_option(f"{h} .edit-form select[data-f=code]", NEW_CODE)
+    page.fill(box, NAMED)  # the tutor types the name: the PUT must carry the code
     press(page, rep, f'{h} [data-act="g-edit-done"]', "grading Sửa xong", JS_HOST_NO, [G_S01, ".edit-form"])
     if NEW_KIND not in " ".join(page.locator(f'{h} .mistake[data-pid="p2"]').all_inner_texts()):
         rep["missing"].append(f"grading review: the edited mistake does not say '{NEW_KIND}'")
     for pid in ("p3", "p4", "p5"):
-        press(page, rep, dec(pid, "reject"), f"grading Bỏ {pid}", pressed, dec(pid, "reject"))
+        press(page, rep, dec(pid, "reject"), f"grading Bỏ {pid}", JS_PRESSED, dec(pid, "reject"))
     press(page, rep, f'{h} [data-act="g-add"][data-seq="1"]', "grading + Thêm lỗi", JS_HOST_SEL, [G_S01, ".add-form"])
     if not ok():
         return False
@@ -623,39 +693,25 @@ def grade_review(page, rep: dict, data_dir: str) -> bool:
     press(page, rep, f'{h} [data-act="g-add-ok"]', "grading Thêm lỗi", JS_HOST_HAS, [G_S01, "Thầy/cô thêm"])
     expect(page, rep, JS_ON, "grading review: Lưu kết quả did not turn on after every choice", save)
     expect(page, rep, JS_HOST_SEL, "grading review: no preview table", [G_S01, ".preview-tbl"])
+    puts = [json.loads(b) for m, u, b in reqs if m == "PUT" and u.endswith(f"/threads/{G_S01}/decisions")]
+    p2 = puts[-1]["cards"].get("p2", {}).get("description") if puts else None
+    if p2 != CODED or any(PEOPLE[0] in json.dumps(b, ensure_ascii=False) for b in puts):
+        rep["missing"].append(f"grading review: the last PUT has p2 {p2!r}, want {CODED!r} and no name in any PUT")
     if db_state(data_dir)[0] != rows:
         rep["missing"].append("grading review: a choice changed tutor.db before Lưu kết quả")
     see_chat(page, rep, "grading review", False)
+    page.unroute(poll)
     return ok()
 
 
 def grade_save(page, rep: dict, data_dir: str, reqs: list) -> None:
-    """Lưu kết quả: the preview changes under it (one resume, a toast), then a double click commits (Review Focus 4)."""
+    """Lưu kết quả at review: PUT, resume 1, the same preview, resume 2 on its own; a double click is still 1 chain."""
     h, save = host(G_S01), f'{host(G_S01)} [data-act="g-save"]'
-    poll = re.compile(rf"/api/threads/{G_S01}\?view=teacher$")
-    resumes = lambda: sum(m == "POST" and u.endswith(f"/threads/{G_S01}/resume") for m, u, _ in reqs)  # noqa: E731
-
-    def other_sig(route) -> None:  # another session of the student was saved meanwhile
-        r = route.fetch()
-        j = r.json()
-        if j["card"]["stage"] == "preview":
-            j["card"]["preview_sig"] = "robot"
-        route.fulfill(response=r, json=j)
-
-    page.route(poll, other_sig)
-    press(page, rep, save, "grading Lưu kết quả khi xem trước đổi", JS_TOAST_HAS, SIG_CHANGED)
-    page.wait_for_timeout(1500)
-    if resumes() != 1:
-        rep["missing"].append(f"grading save: a changed preview_sig gave {resumes()} resumes, want 1")
-    page.unroute(poll)
-    page.wait_for_timeout(1500)  # the real preview is on screen again before the click
-    if not expect(page, rep, JS_ON, "grading save: Lưu kết quả is off on the new preview", save):
-        return
-    seen = resumes()
+    seen = resumes(reqs, G_S01)
     page.dblclick(save)
-    expect(page, rep, JS_HOST_HAS, "grading save: no 'Đã lưu'", [G_S01, "Đã lưu"])
-    if resumes() - seen != 1:
-        rep["missing"].append(f"grading save: a double click sent {resumes() - seen} resumes, want 1")
+    expect(page, rep, JS_HOST_HAS, "grading save: no 'Đã lưu' after one click at review", [G_S01, "Đã lưu"])
+    if (n := resumes(reqs, G_S01) - seen) != 2:
+        rep["missing"].append(f"grading save: a double click at review sent {n} resumes, want 2 (one chain)")
     rep["missing"] += [f"grading saved: no '{w}'" for w in ("Đã sao lưu trước khi lưu", "Xem hồ sơ",
                        "Soạn phiếu buổi sau") if w not in page.inner_text(h)]  # fmt: skip
     got = [(seq, st) for seq, st, _, _ in mistakes(data_dir, G_S01)]
@@ -663,7 +719,7 @@ def grade_save(page, rep: dict, data_dir: str, reqs: list) -> None:
     if got != want:
         rep["missing"].append(f"grading saved: mistake rows are {got}, want {want}")
     rows = {st: (code, text) for _, st, code, text in mistakes(data_dir, G_S01)}
-    if rows.get("edited", ("",))[0] != NEW_CODE or rows.get("added", ("", ""))[1] != ADDED:
+    if rows.get("edited") != (NEW_CODE, CODED) or rows.get("added", ("", ""))[1] != ADDED:
         rep["missing"].append(f"grading saved: edited / added rows are {rows}")
     if not scalar(data_dir, "SELECT COALESCE(review_seconds, 0) FROM session WHERE thread_id = ?", G_S01):
         rep["missing"].append("grading saved: session.review_seconds is not > 0")
@@ -672,6 +728,26 @@ def grade_save(page, rep: dict, data_dir: str, reqs: list) -> None:
     if not page.evaluate(JS_TAB, "hoc-sinh"):
         rep["missing"].append("grading saved: Xem hồ sơ did not open Học sinh")
     press(page, rep, "#tab-tro-ly", "tab tro-ly")
+
+
+def grade_stale(page, rep: dict, reqs: list) -> None:
+    """Commit ② refused (StaleProfile, session.py:548): the thread is back at the same preview, Lưu kết quả is on again.
+
+    The resume is stubbed, so the server row never moves: the card must still give up waiting."""
+    h, save = host(PREVIEW_TID), f'{host(PREVIEW_TID)} [data-act="g-save"]'
+    again = re.compile(rf"/api/threads/{PREVIEW_TID}/resume$")
+    expect(page, rep, JS_TOAST_NO, "grading stale: an earlier toast did not go away", SIG_CHANGED)
+    open_card(page, rep, False, PREVIEW_TID, "grading Mở bài chờ lưu", JS_ON, save)
+    page.route(again, lambda r: r.fulfill(status=202, json={"thread_id": PREVIEW_TID, "status": "running"}))
+    seen = resumes(reqs, PREVIEW_TID)
+    press(page, rep, save, "grading Lưu kết quả khi lưu bị trả lại", JS_TOAST_HAS, SIG_CHANGED)
+    expect(page, rep, JS_ON, "grading stale: Lưu kết quả stayed off after the commit came back", save)
+    if (n := resumes(reqs, PREVIEW_TID) - seen) != 1:
+        rep["missing"].append(f"grading stale: {n} resumes, want 1")
+    see_chat(page, rep, "grading stale", False)
+    page.unroute(again)
+    if "Đã lưu" in " ".join(page.locator(h).all_inner_texts()):
+        rep["missing"].append("grading stale: the card says Đã lưu")
 
 
 def grade_routes(page, rep: dict, reqs: list) -> None:
@@ -724,8 +800,10 @@ def walk_grading(page, rep: dict, phone: bool, data_dir: str) -> None:
     reqs: list = []
     page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
     grade_confirm(page, rep, data_dir)
-    if grade_review(page, rep, data_dir):
+    grade_changed(page, rep, reqs)
+    if grade_review(page, rep, data_dir, reqs):
         grade_save(page, rep, data_dir, reqs)
+    grade_stale(page, rep, reqs)
     grade_routes(page, rep, reqs)
 
 
