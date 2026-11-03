@@ -20,9 +20,11 @@ from tutor.agents.a08_recommender import select
 from tutor.api.app import create_app
 from tutor.db import repo, seed_dummy
 from tutor.graphs import bank as bank_graph
+from tutor.graphs import report as report_graph
 from tutor.graphs import session, threads, worksheet
 from tutor.graphs.registry import make_runner
 from tutor.graphs.runner import Runner, ThreadNotFound, UndecidedItems
+from tutor.services import facts
 from tutor.services.bank import LEVEL_DELTA
 
 cli = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -209,7 +211,8 @@ def review_cmd(
     fake_llm: FakeLLM = False,
 ) -> None:
     """Hộp duyệt trên terminal: in hàng đợi, duyệt lỗi G1 (A / E / R / N) → xem trước tiến bộ → Lưu kết quả,
-    chọn kỹ năng cho bài vừa nạp (G2) → Lưu vào ngân hàng, hoặc duyệt phiếu bài tập (G4) → Tạo phiếu."""
+    chọn kỹ năng cho bài vừa nạp (G2) → Lưu vào ngân hàng, duyệt phiếu bài tập (G4) → Tạo phiếu, hoặc báo cáo
+    kỳ (G5) → Duyệt báo cáo."""
     paths = config.paths(data_dir)
     lock = _hold_lock(paths)
     try:
@@ -228,6 +231,8 @@ def review_cmd(
                 _review_g2(paths, runner, thread_id)
             elif graph == worksheet.GRAPH:
                 _review_g4(paths, runner, thread_id)
+            elif graph == report_graph.GRAPH:
+                _review_g5(paths, runner, thread_id)
             else:
                 _review_g1(runner, thread_id)
         finally:
@@ -538,6 +543,93 @@ def _review_g4(paths: config.DataPaths, runner: Runner, thread_id: str) -> None:
         raise typer.Exit(1)
     n, code = runner.state(thread_id)["receipt"]["n_problems"], config.student_code(row["student_id"])
     typer.echo(f"Đã tạo phiếu {n} bài: {paths.out / f'phieu-{code}-{for_date}.tex'}")
+
+
+@cli.command("report")
+def report_cmd(
+    student: Annotated[str, typer.Argument(help="Mã HS (HS-03) hoặc id (3)")],
+    kind: Annotated[str, typer.Argument(help="Loại kỳ: day / week / month")],
+    start: Annotated[str, typer.Argument(help="Ngày bắt đầu kỳ YYYY-MM-DD (tuần: thứ Hai, tháng: ngày 1)")],
+    data_dir: DataDir = None,
+    fake_llm: FakeLLM = False,
+) -> None:
+    """Làm báo cáo kỳ nháp và DỪNG (= Báo cáo › Tạo báo cáo). Chưa ghi gì vào tutor.db."""
+    paths = config.paths(data_dir)
+    lock = _hold_lock(paths)
+    try:
+        m = re.fullmatch(r"(?:HS-)?0*([0-9]{1,9})", student.strip(), re.I)
+        if not m:
+            typer.echo(f"Mã HS không hợp lệ: {student}")
+            raise typer.Exit(1)
+        sid, code = int(m[1]), config.student_code(int(m[1]))
+        runner = _runner(paths, fake_llm)
+        try:
+            try:
+                out = report_graph.start(paths, runner, student_id=sid, period_kind=kind, period_start=start,
+                                         today=date.today())  # fmt: skip
+            except repo.NotFound:
+                typer.echo(f"Không có {code}")
+                raise typer.Exit(1) from None
+            except facts.NotReady as e:
+                typer.echo("Chưa làm được báo cáo: kỳ này chưa có buổi nào đã duyệt")
+                for p in e.detail["pending"]:
+                    typer.echo(f"  Buổi {date.fromisoformat(p['held_on']):%d/%m} còn chờ duyệt: "
+                               f"tutor review {p['thread_id']}")  # fmt: skip
+                if prev := e.detail["previous_start"]:
+                    typer.echo(f"  Kỳ trước có buổi đã duyệt: tutor report {code} {kind} {prev}")
+                raise typer.Exit(1) from None
+            except repo.ReportApproved as e:
+                typer.echo(str(e))
+                raise typer.Exit(1) from None
+            except ValueError as e:
+                typer.echo(f"Không làm được báo cáo: {e}")
+                raise typer.Exit(1) from None
+            tid = out["thread_id"]
+            row = runner.wait(tid, timeout=900)
+            if row["status"] != "awaiting_review":
+                typer.echo(f"{tid}: {row['status']} ở {row['node']}: {row['error']}")
+                raise typer.Exit(1)
+            _echo_report(runner, tid)
+            typer.echo(f"Duyệt: tutor review {tid}")
+        finally:
+            runner.close()
+    finally:
+        lock.release()
+
+
+def _echo_report(runner: Runner, thread_id: str, decisions: object = None) -> list[dict]:
+    """Print each sentence of the draft (saved decisions applied) and its flag; returns them."""
+    typer.echo(runner.get(thread_id)["subject"])
+    shown = report_graph.sentences(runner.state(thread_id), decisions)
+    for n, s in enumerate(shown, 1):
+        typer.echo(f"{n}. {s['text']}" + (f"\n  ⚠ {s['why']}" if s["why"] else ""))
+    return shown
+
+
+def _review_g5(paths: config.DataPaths, runner: Runner, thread_id: str) -> None:
+    row = runner.get(thread_id)
+    if row["status"] != "awaiting_review":
+        typer.echo(f"{thread_id}: {row['status']} ở {row['node']} — chưa duyệt được")
+        raise typer.Exit(1)
+    try:
+        shown = _echo_report(runner, thread_id, json.loads(row["decisions_json"]) if row["decisions_json"] else None)
+    except ValueError as e:
+        typer.echo(f"Bản nháp chưa hợp lệ, sửa trong app: {e}")
+        raise typer.Exit(1) from None
+    if not shown:
+        typer.echo("Báo cáo cần ít nhất 1 câu: sửa trong app")
+        raise typer.Exit(1)
+    if not typer.confirm("Duyệt báo cáo?", default=False):
+        typer.echo(f"Chưa duyệt. Duyệt sau: tutor review {thread_id}")
+        return
+    runner.resume(thread_id)
+    row = runner.wait(thread_id, timeout=300)
+    if row["status"] != "committed":
+        typer.echo(f"{row['status']} ở {row['node']}: {row['error']}")
+        raise typer.Exit(1)
+    st = runner.state(thread_id)
+    out = report_graph.report_file(paths, st["student_id"], st["period_kind"], st["period_start"])
+    typer.echo(f"Đã duyệt báo cáo: {out}")
 
 
 @cli.command("replay")

@@ -52,3 +52,13 @@ class WorksheetState(TypedDict, total=False):
     decisions: dict | None  # answers at gate_worksheet: {for_date, refs, replace}; None = the proposal as it is
     receipt: dict  # commit: {for_date, n_problems, replaced}
     committed: bool  # runner marks the thread committed
+
+
+class ReportState(TypedDict, total=False):
+    student_id: int
+    period_kind: str  # day / week / month (C-44)
+    period_start: str
+    draft: dict  # reporter.run: facts, insights, low, dates, sentences, audit (the writer's rows)
+    decisions: dict | None  # answers at gate_report: {sentences: [{text, facts}]}; None = 09's sentences as they are
+    receipt: dict  # commit: {report_id, approved_at}
+    committed: bool  # runner marks the thread committed

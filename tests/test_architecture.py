@@ -13,7 +13,7 @@ ALLOWED = {
     "devfake": {"llm"},
     "db": {"config", "services"},
     "agents": {"llm", "services", "config"},
-    "graphs": {"agents", "db", "services", "config"},
+    "graphs": {"agents", "db", "services", "config", "mcp"},  # R14: G5 is a 09 client
     "mcp": {"agents", "services", "db", "config"},  # R12
     "api": {"graphs", "db", "services", "llm", "config", "devfake", "agents", "mcp"},  # agents: see API_AGENTS
     # cli runs create_app() for `tutor app`; agents: see CLI_AGENTS
@@ -161,8 +161,9 @@ def test_assistant_rules(tmp_path):
 
 
 def test_mcp_rules(tmp_path):
-    """R12: mcp sits above agents; api may import it, agents never; no resume in tutor/mcp/ (C-39)."""
+    """R12: mcp sits above agents; api and graphs may import it, agents never; no resume in tutor/mcp/ (C-39)."""
     write(tmp_path, "tutor/agents/x.py", "import tutor.mcp.client\n")
+    write(tmp_path, "tutor/graphs/x.py", "import tutor.mcp.client\n")  # R14: G5's write node is a 09 client
     write(
         tmp_path,
         "tutor/mcp/server.py",

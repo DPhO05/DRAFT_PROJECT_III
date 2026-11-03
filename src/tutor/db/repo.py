@@ -58,6 +58,14 @@ class WorksheetExists(Exception):
         self.for_date, self.n_problems = for_date, n_problems
 
 
+class ReportApproved(Exception):
+    """The period already has an approved report (409 already_committed, C-44)."""
+
+    def __init__(self, report_id: int, approved_at: str):
+        super().__init__("Kỳ này đã duyệt báo cáo: mỗi kỳ chỉ duyệt một lần")
+        self.report_id, self.approved_at = report_id, approved_at
+
+
 class StaleProfile(Exception):
     """The student's skill_* prior changed since the preview was computed (another session committed first)."""
 
@@ -1002,6 +1010,53 @@ def worksheets(conn: sqlite3.Connection, student_id: int) -> list[dict]:
             "kcs": [k["name"] for k in c["kcs"]], "reason": r["reason"], "statement_latex": c["statement_latex"],
         })  # fmt: skip
     return list(out.values())
+
+
+_PERIOD = "student_id = ? AND period_kind = ? AND period_start = ?"
+
+
+def report_for(conn: sqlite3.Connection, student_id: int, period_kind: str, period_start: str) -> dict | None:
+    """{id, approved_at} of the period's approved report, None when it has none."""
+    rows = _dicts(conn.execute(f"SELECT id, approved_at FROM report WHERE {_PERIOD}",
+                               (student_id, period_kind, period_start)))  # fmt: skip
+    return rows[0] if rows else None
+
+
+def commit_report(conn: sqlite3.Connection, *, student_id: int, period_kind: str, period_start: str, facts: list,
+                  text_md: str, audit: dict) -> dict:  # fmt: skip
+    """G5 commit in one transaction. The period's row with this same text is a rerun (file error): that row back;
+    any other text raises ReportApproved (one approval per period). Returns {report_id, approved_at}."""
+    with write_tx(conn):
+        row = conn.execute(f"SELECT id, approved_at, text_md FROM report WHERE {_PERIOD}",
+                           (student_id, period_kind, period_start)).fetchone()  # fmt: skip
+        if row and row[2] == text_md:
+            return {"report_id": row[0], "approved_at": row[1]}
+        if row:
+            raise ReportApproved(row[0], row[1])
+        ts = now()
+        rid = conn.execute(
+            "INSERT INTO report (student_id, period_kind, period_start, facts_json, text_md, audit_json, approved_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (student_id, period_kind, period_start, json.dumps(facts, ensure_ascii=False), text_md,
+             json.dumps(audit, ensure_ascii=False), ts),
+        ).lastrowid  # fmt: skip
+        return {"report_id": rid, "approved_at": ts}
+
+
+_REPORT = "SELECT id, student_id, period_kind, period_start, approved_at"
+
+
+def reports(conn: sqlite3.Connection, student_id: int | None = None) -> list[dict]:
+    """Approved reports, newest first; one student's when student_id is given."""
+    where, args = ("WHERE student_id = ?", (student_id,)) if student_id is not None else ("", ())
+    return _dicts(conn.execute(f"{_REPORT} FROM report {where} ORDER BY approved_at DESC, id DESC", args))
+
+
+def report(conn: sqlite3.Connection, report_id: int) -> dict:
+    rows = _dicts(conn.execute(f"{_REPORT}, text_md FROM report WHERE id = ?", (report_id,)))
+    if not rows:
+        raise NotFound(f"báo cáo {report_id}")
+    return rows[0]
 
 
 def session_detail(conn: sqlite3.Connection, session_id: int) -> dict:

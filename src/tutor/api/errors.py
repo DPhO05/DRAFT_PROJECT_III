@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException
 
 from tutor.db import repo
 from tutor.graphs import runner, threads
+from tutor.services import facts
 
 log = logging.getLogger("tutor")
 _CODES = {400: "bad_request", 403: "forbidden", 404: "not_found", 422: "validation_error"}
@@ -42,6 +43,9 @@ def install(app: FastAPI) -> None:
         threads.ThreadLocked: lambda e: (409, "date_order_locked", {"blocking_thread_id": e.blocking_thread_id}),
         repo.WorksheetExists: lambda e: (409, "worksheet_exists", {"for_date": e.for_date,
                                                                    "n_problems": e.n_problems}),
+        repo.ReportApproved: lambda e: (409, "already_committed", {"report_id": e.report_id,
+                                                                    "approved_at": e.approved_at}),
+        facts.NotReady: lambda e: (409, "not_ready", e.detail),
         repo.CatalogError: lambda e: (422, "validation_error", {"cycle": e.cycle} if e.cycle else None),
         ValueError: lambda e: (422, "validation_error", None),
     }  # fmt: skip

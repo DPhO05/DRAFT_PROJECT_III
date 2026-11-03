@@ -19,8 +19,11 @@ from typer.testing import CliRunner
 
 from tests.assistant_fix import world
 from tests.db.test_profile_repo import D1, D2, WRONG, bank, commit, mk, skill_rows, start  # noqa: F401
-from tutor import cli, config
+from tests.fakes import FakeLLM
+from tests.graphs.test_report import writer
+from tutor import cli, config, llm
 from tutor.db import repo
+from tutor.graphs.registry import make_runner
 from tutor.graphs.runner import Runner
 from tutor.services import elo
 
@@ -369,3 +372,42 @@ def test_worksheet_review_replace(paths, conn):
     assert "nope-nope-1".upper() in r.output and "không có trong ngân hàng" in r.output
     r = run("review", r.output.split("Duyệt: tutor review ")[1].strip(), input="y\n")
     assert r.exit_code == 1 and "Tạo phiếu?" not in r.output
+
+
+def test_report_and_review(paths, conn):
+    """R18: `tutor report` stops at the draft; `tutor review` shows each sentence and its flag, then approves."""
+    world(conn)
+    llm.set_backend(FakeLLM({"09": writer}))
+    before = repo.row_counts(conn)
+    cli_run = CliRunner()
+
+    def run(*args, input=None):
+        return cli_run.invoke(cli.cli, [*args, "--data-dir", str(paths.root)], input=input)
+
+    r = run("report", "HS-01", "week", "2026-10-12")
+    assert r.exit_code == 0, r.output
+    assert re.search(r"^1\. Số buổi học: 1\.$", r.output, re.M) and "⚠" not in r.output, r.output
+    tid = r.output.split("Duyệt: tutor review ")[1].strip()
+    assert tid == "g5-hs01w-20261012" and repo.row_counts(conn) == before
+    runner = make_runner(paths)
+    runner.save_decisions(tid, {"sentences": [{"text": "Em làm 45 bài.", "facts": []}]})
+    runner.close()
+    r = run("review", tid, input="n\n")
+    assert r.exit_code == 0 and "Duyệt báo cáo?" in r.output and f"tutor review {tid}" in r.output, r.output
+    assert "1. Em làm 45 bài.\n  ⚠ Số “45” không có trong dữ liệu đã duyệt.\n" in r.output
+    assert repo.row_counts(conn) == before
+    r = run("review", tid, input="y\n")
+    out = paths.out / "baocao-HS-01-week-2026-10-12.md"
+    assert r.exit_code == 0 and f"Đã duyệt báo cáo: {out}" in r.output, r.output
+    assert out.read_text(encoding="utf-8") == "Em làm 45 bài.\n"
+    r = run("report", "1", "week", "2026-10-12")
+    assert r.exit_code == 1 and "mỗi kỳ chỉ duyệt một lần" in r.output, r.output
+
+
+def test_report_not_ready(paths, conn):
+    world(conn)
+    r = CliRunner().invoke(cli.cli, ["report", "HS-01", "week", "2026-10-19", "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and "chưa có buổi nào đã duyệt" in r.output, r.output
+    assert "tutor report HS-01 week 2026-10-12" in r.output
+    r = CliRunner().invoke(cli.cli, ["report", "HS-01", "year", "2026-10-01", "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and "Loại kỳ" in r.output, r.output

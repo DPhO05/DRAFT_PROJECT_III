@@ -80,14 +80,14 @@ def submit(paths: DataPaths, runner: Runner, *, student_id: int, held_on: str, r
     return {"thread_id": tid, "session_id": session_id, "status": "running"}
 
 
-def _ctx(paths: DataPaths, student_id: int, session_id: int, config) -> CallContext:
+def call_context(paths: DataPaths, student_id: int, session_id: int | None, config, graph: str = GRAPH) -> CallContext:
     # Names are read here for masking only; they never enter graph state or checkpoints (SDD §8.6).
     # Another student's name pasted into a .tex is masked too (NFR7); a one-word name would hit common words (S24).
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         st = repo.get_student(conn, student_id)
         everyone = repo.list_students(conn, include_archived=True)
     redact = {s["name"]: s["code"] for s in everyone if len(s["name"].split()) >= 2} | {st["name"]: st["code"]}
-    return CallContext(graph=GRAPH, thread_id=config["configurable"]["thread_id"], session_id=session_id,
+    return CallContext(graph=graph, thread_id=config["configurable"]["thread_id"], session_id=session_id,
                        student_code=st["code"], redact=redact)  # fmt: skip
 
 
@@ -439,7 +439,7 @@ def build(paths: DataPaths) -> StateGraph:
             st = repo.get_student(conn, state["student_id"])
             bank = repo.bank_problems(conn)
         tex = (paths.root / state["source_path"]).read_text(encoding="utf-8")
-        ctx = _ctx(paths, state["student_id"], state["session_id"], config)
+        ctx = call_context(paths, state["student_id"], state["session_id"], config)
         res = ingest.run(tex, bank, grade=st["grade"], ctx=ctx)
         return {"transcript": tex, "ingest": res.model_dump(), "rubric_drafts": {}, "approved_rubrics": {}}
 
@@ -460,7 +460,7 @@ def build(paths: DataPaths) -> StateGraph:
                     res["flags"].append({"type": "no_rubric", "seq": a["seq"], "resolved": False,
                                          "detail": f"Bài {a['seq']} ({a['ref']}) chưa có rubric đã duyệt"})  # fmt: skip
                 if key not in drafts:
-                    ctx = _ctx(paths, state["student_id"], state["session_id"], config)
+                    ctx = call_context(paths, state["student_id"], state["session_id"], config)
                     drafts[key] = grader.generate_rubric(problem, ctx=ctx)
         return {"ingest": res, "rubric_drafts": drafts}
 
@@ -591,7 +591,7 @@ def _lane(paths: DataPaths) -> StateGraph:
     def grade(state: LaneState, config) -> dict:
         lane = state["lane"]
         problem, rubric = load(lane)
-        ctx = _ctx(paths, lane["student_id"], lane["session_id"], config)
+        ctx = call_context(paths, lane["student_id"], lane["session_id"], config)
         return {"lane_grade": grader.grade(lane["steps"], problem, rubric, ctx=ctx).model_dump()}
 
     def diagnose(state: LaneState, config) -> dict:
@@ -601,7 +601,7 @@ def _lane(paths: DataPaths) -> StateGraph:
         with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
             codes = repo.error_codes(conn, active_only=True)
             history = repo.recent_mistakes(conn, lane["student_id"])
-        ctx = _ctx(paths, lane["student_id"], lane["session_id"], config)
+        ctx = call_context(paths, lane["student_id"], lane["session_id"], config)
         d = diagnoser.run(lane["steps"], problem, codes=codes, history=history, ctx=ctx,
                           failed_items=[i["text"] for i in rubric["items"] if i["item_id"] in failed])  # fmt: skip
         return {"lane_diag": d.model_dump() | {"context": history}}
@@ -611,7 +611,7 @@ def _lane(paths: DataPaths) -> StateGraph:
         problem, rubric = load(lane)
         with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
             codes = repo.error_codes(conn, active_only=True)
-        ctx = _ctx(paths, lane["student_id"], lane["session_id"], config)
+        ctx = call_context(paths, lane["student_id"], lane["session_id"], config)
         mistakes = [m | {"verifier": verifier.run(m, lane["steps"], problem, codes=codes, ctx=ctx).model_dump()}
                     for m in d["mistakes"]]  # fmt: skip
         return {"lanes": [{"seq": lane["seq"], "problem_id": lane["problem_id"], "rubric": rubric,
