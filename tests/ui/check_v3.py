@@ -227,6 +227,7 @@ FAILED_WORDS = "Mất kết nối khi đang chấm bài 3. Bài làm vẫn còn 
 GONE = "Việc này đã xong"
 NEW_CODE, NEW_KIND = "computational.copy_error", "Chép sai số hoặc biểu thức từ đề / dòng trước"
 ADDED = "robot: quên đổi dấu khi chuyển vế"
+OPEN_FORM = "Bấm Thêm lỗi hoặc Thôi trước"
 # the model only ever sees HS-xx, so its text can hold one; boxes show the name, PUTs carry the code (C-40)
 CODED, NAMED = "Em HS-01 quên đổi dấu ở bước cuối", f"Em {PEOPLE[0]} quên đổi dấu ở bước cuối"
 JS_HOST_SEL = """([t, s]) => !!document.querySelector(`.card-host[data-thread="${t}"] ${s}`)"""
@@ -234,6 +235,7 @@ JS_HOST_HAS = """([t, w]) => { const h = document.querySelector(`.card-host[data
   return !!h && h.innerText.includes(w); }"""
 JS_HOST_NO = """([t, s]) => !document.querySelector(`.card-host[data-thread="${t}"] ${s}`)"""
 JS_ON = "s => { const b = document.querySelector(s); return !!b && !b.disabled; }"
+JS_OFF = "s => { const b = document.querySelector(s); return !!b && b.disabled; }"
 JS_TOAST_HAS = "t => document.getElementById('toasts').innerText.includes(t)"
 JS_TOAST_NO = "t => !document.getElementById('toasts').innerText.includes(t)"
 JS_PRESSED = "s => document.querySelector(s)?.getAttribute('aria-pressed') === 'true'"
@@ -789,6 +791,14 @@ def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
     press(page, rep, f'{h} [data-act="g-add-ok"]', "grading Thêm lỗi", JS_HOST_HAS, [G_S01, "Thầy/cô thêm"])
     expect(page, rep, JS_ON, "grading review: Lưu kết quả did not turn on after every choice", save)
     expect(page, rep, JS_HOST_SEL, "grading review: no preview table", [G_S01, ".preview-tbl"])
+    # a mistake still being typed in + Thêm lỗi must hold Lưu kết quả back, or the save drops it
+    add = f'{h} [data-act="g-add"][data-seq="1"]'
+    press(page, rep, add, "grading + Thêm lỗi nửa chừng", JS_HOST_SEL, [G_S01, ".add-form"])
+    page.fill(f"{h} .add-form textarea", ADDED)
+    expect(page, rep, JS_OFF, "grading review: Lưu kết quả stayed on over a mistake still being typed", save)
+    if OPEN_FORM not in page.inner_text(h):
+        rep["missing"].append(f"grading review: no '{OPEN_FORM}' while the Thêm lỗi form holds text")
+    press(page, rep, f'{h} [data-act="g-add-cancel"]', "grading Thôi", JS_ON, save)
     puts = [json.loads(b) for m, u, b in reqs if m == "PUT" and u.endswith(f"/threads/{G_S01}/decisions")]
     p2 = puts[-1]["cards"].get("p2", {}).get("description") if puts else None
     if p2 != CODED or any(PEOPLE[0] in json.dumps(b, ensure_ascii=False) for b in puts):

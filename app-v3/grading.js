@@ -231,8 +231,8 @@
     var c = s.card, st = c && c.stage;
     if (st !== 'review' && st !== 'preview') return '';
     var ps = props(s), left = st === 'preview' ? 0 : s.left != null ? s.left : c.decided ? c.decided.total - c.decided.done : 0;  // P1
-    var why = s.chain ? '' : left ? 'Còn ' + left + ' lỗi chưa chọn Đúng / Sửa / Bỏ.' : s.dirty ? 'Đang lưu lựa chọn…'
-      : s.putErr ? 'Chưa lưu được lựa chọn, thầy/cô chọn lại giúp mình.' : c.preview ? '' : 'Đang tính xem trước…';
+    var why = s.chain ? '' : s.add && s.add.description.trim() ? 'Bấm Thêm lỗi hoặc Thôi trước.' : left ? 'Còn ' + left + ' lỗi chưa chọn Đúng / Sửa / Bỏ.'
+      : s.dirty ? 'Đang lưu lựa chọn…' : s.putErr ? 'Chưa lưu được lựa chọn, thầy/cô chọn lại giúp mình.' : c.preview ? '' : 'Đang tính xem trước…';
     var seen = ps.filter(function (m) { var d = s.dec[m.pid]; return d && /^(accept|edit|reject)$/.test(d.action); }).length, id = 'why-' + U.esc(s.tid);
     return '<div class="gfoot"><span class="progress-words">' + (st === 'preview' ? 'Xem lại tiến bộ rồi bấm Lưu kết quả' : ps.length ? 'Đã xem ' + seen + '/' + ps.length + ' lỗi' : 'Không có lỗi nào cần xem') + '</span>' +
       '<span class="btn-wrap"><button type="button" class="btn btn-primary" data-act="g-save"' + (s.chain || why ? ' disabled' : '') + (why ? ' aria-describedby="' + id + '"' : '') + '>' +
@@ -376,7 +376,7 @@
     if (f === 'rtext' || f === 'rpts') { s.rubric.items[+t.dataset.i][f === 'rtext' ? 'text' : 'points'] = f === 'rtext' ? wire(t.value) : +t.value; return; }
     var k = t.closest('[data-key]').dataset.key, d = k === 'add' ? s.add : s.dec[k];
     d[f] = f === 'kc_id' ? (t.value ? +t.value : null) : f === 'step_idx' ? +t.value : f === 'description' ? wire(t.value) : t.value;
-    if (k === 'add') return;
+    if (k === 'add') { drawFoot(s); return; }  // Lưu kết quả waits while the form holds text
     put(s);
     if (t.tagName === 'SELECT' && ev.type === 'change') draw(s);  // the mistake line shows the new kind / skill
   }
