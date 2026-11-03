@@ -50,10 +50,14 @@ def start(paths: DataPaths, runner: Runner, *, student_id: int, period_kind: str
           today: date) -> dict:  # fmt: skip
     """Start the period's draft, or hand back the one it has (R16). Nothing is written to tutor.db (C-39).
 
-    ValueError: malformed period; ReportApproved: approved already; NotReady: no committed session in the period."""
+    ValueError: malformed period, archived student; ReportApproved: approved already;
+    NotReady: no committed session in the period."""
     lo, hi = facts.period(period_kind, period_start, today)
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
-        code = repo.get_student(conn, student_id)["code"]
+        student = repo.get_student(conn, student_id)
+        code = student["code"]
+        if student["archived_at"]:  # 09's MCP tools skip archived students, so the draft would fail on every retry
+            raise ValueError(f"Không có học sinh {code}, hoặc học sinh đã lưu trữ")
         _approved(conn, student_id, period_kind, period_start)
         base = base_id(code, period_kind, period_start)
         with _START:

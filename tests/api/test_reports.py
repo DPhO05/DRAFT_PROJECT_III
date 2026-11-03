@@ -126,6 +126,21 @@ def test_resume_refused_after_new_session(paths, env):
     assert card(client, tid, "draft")["stage"] == "draft" and client.get("/api/reports").json()["approved"] == []
 
 
+def test_archived_student_refused(paths, env):
+    """H14: 09 cannot read an archived student, so no draft starts (the chat door refuses them too)."""
+    client, w = env
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        repo.archive_student(conn, w["an"])  # An has two saved sessions
+        before = repo.row_counts(conn)
+    r, _ = start(client, w["an"])
+    err = r.json()["error"]
+    assert (r.status_code, err["code"]) == (422, "validation_error")
+    assert err["message"] == "Không có học sinh HS-01, hoặc học sinh đã lưu trữ"
+    assert client.app.state.runner.list_threads(graph="G5") == []
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        assert repo.row_counts(conn) == before
+
+
 def test_put_refusals(env):
     client, w = env
     _, tid = start(client, w["an"])
