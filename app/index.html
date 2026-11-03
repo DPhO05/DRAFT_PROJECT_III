@@ -484,7 +484,8 @@ window.MathJax = {
   loader: { load: ['ui/safe'] },  // student LaTeX: no javascript: links, \class or \style
   tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
   svg: { fontCache: 'global' },
-  options: { ignoreHtmlClass: 'tex-ignore', processHtmlClass: 'tex', enableMenu: false },
+  options: { ignoreHtmlClass: 'tex-ignore', processHtmlClass: 'tex', enableMenu: false,
+    safeOptions: { allow: { URLs: 'none' } } },  // a tab-split javascript: scheme slips past the safe filter's regex
   startup: {
     typeset: false,
     ready: function () {

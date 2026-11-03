@@ -228,7 +228,8 @@ GONE = "Việc này đã xong"
 NEW_CODE, NEW_KIND = "computational.copy_error", "Chép sai số hoặc biểu thức từ đề / dòng trước"
 ADDED = "robot: quên đổi dấu khi chuyển vế"
 OPEN_FORM = "Bấm Thêm lỗi hoặc Thôi trước"
-EVIL = r"$\href{javascript:alert(1)}{x}$"  # student LaTeX; only MathJax's safe extension stops \href
+# student LaTeX; the tab splits the scheme, so MathJax's safe regex misses it
+EVIL = "$\\href{javascript:alert(1)}{y}$ $\\href{java\tscript:alert(1)}{x}$"
 # the model only ever sees HS-xx, so its text can hold one; boxes show the name, PUTs carry the code (C-40)
 CODED, NAMED = "Em HS-01 quên đổi dấu ở bước cuối", f"Em {PEOPLE[0]} quên đổi dấu ở bước cuối"
 JS_HOST_SEL = """([t, s]) => !!document.querySelector(`.card-host[data-thread="${t}"] ${s}`)"""
@@ -246,7 +247,7 @@ JS_IN_DRAFT = "() => !!document.activeElement.closest('#draft')"
 JS_NO_DRAWER = "() => !document.querySelector('.convs.open')"
 JS_HREF_READY = r"() => MathJax.tex2svgPromise('\\href{x}{y}').then(() => true)"
 JS_LIVE_LINKS = """() => document.querySelectorAll(
-  '#panel-tro-ly [href^="javascript:" i], #panel-tro-ly [*|href^="javascript:" i]').length"""
+  'mjx-container a[*|href], [*|href*="script" i]').length"""
 
 
 def last_bot(page) -> str:
@@ -832,7 +833,7 @@ def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
     if db_state(data_dir)[0] != rows:
         rep["missing"].append("grading review: a choice changed tutor.db before Lưu kết quả")
     see_chat(page, rep, "grading review", False)
-    # EVIL in the evidence and in a step is typeset, and leaves no javascript: link
+    # EVIL in the evidence and in a step is typeset, and leaves no link and no dialog on a click
     work = f'{h} [data-act="g-work"][data-seq="1"]'
     press(page, rep, work, "grading Xem bài làm có EVIL", JS_HOST_SEL, [G_S01, ".wstep"])
     sels = ('.mistake[data-pid="p1"]', ".wstep:nth-child(2)")  # the evidence, the first step
@@ -840,8 +841,23 @@ def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
         expect(page, rep, JS_HOST_SEL, f"grading review: EVIL not typeset in {s}", [G_S01, f"{s} mjx-container"])
         for s in sels
     ]
-    if all(typeset) and (n := page.evaluate(JS_LIVE_LINKS)):
-        rep["missing"].append(f"grading review: {n} javascript: links on screen after MathJax drew student LaTeX")
+    if all(typeset):
+        popups: list = []
+
+        def on_dialog(d) -> None:
+            popups.append(d.message)
+            d.dismiss()
+
+        page.on("dialog", on_dialog)
+        for sel in sels:
+            for box in page.locator(f"{h} {sel} mjx-container").all():
+                box.click()
+        page.wait_for_timeout(300)
+        page.remove_listener("dialog", on_dialog)
+        if n := page.evaluate(JS_LIVE_LINKS):
+            rep["missing"].append(f"grading review: {n} links on screen after MathJax drew student LaTeX")
+        if popups:
+            rep["missing"].append(f"grading review: clicking student LaTeX raised dialogs {popups}")
     press(page, rep, work, "grading Ẩn bài làm có EVIL", JS_HOST_NO, [G_S01, ".wstep"])
     page.unroute(poll)
     return ok()
