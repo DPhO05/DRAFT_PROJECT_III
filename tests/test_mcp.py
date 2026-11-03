@@ -50,6 +50,18 @@ def test_call_matches_toolbox(ro):
         assert "tutor/" not in content and all(k.startswith("tutor/") for k in meta), name
 
 
+@pytest.mark.parametrize(
+    ("name", "args"),
+    [("start_grading", GRADE), ("start_bank_import", {"file": "mix.tex"}), ("propose_worksheet", SHEET)],
+)
+def test_start_call_matches_toolbox(ro, name, args):
+    """`_meta` of the start tools' cards survives the SDK's JSON dump unchanged."""
+    out = box(ro, starters=recorder([])).run(name, args)
+    content, is_error, meta = client.connect("00", box(ro, starters=recorder([]))).call(name, args)
+    assert (content, is_error, meta) == (out.content, out.is_error, tools.meta(out))
+    assert "tutor/card" in meta and not is_error
+
+
 def test_unknown_name_two_layers(ro):
     b = box(ro)
     content, is_error, meta = client.connect("00", b).call("start_report", {"code": "HS-01"})
