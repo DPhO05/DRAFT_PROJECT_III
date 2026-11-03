@@ -172,6 +172,24 @@ def test_fact_ids_never_in_text(ro):
     assert "Không viết mã số liệu vào chữ của câu." in reporter.INSTRUCTIONS
 
 
+@pytest.mark.parametrize(
+    ("text", "kept"),
+    [
+        ("[F01]", None),
+        ("(F01) · .", None),
+        ("· Em làm 2 bài.", "Em làm 2 bài."),
+        ("F01 · Em làm 2 bài.", "Em làm 2 bài."),
+    ],
+)
+def test_fact_line_leftovers(ro, text, kept):
+    """H6: a sentence left with no words is dropped, never sent to rewrite; a copied "F01 · " or "· " prefix is cut."""
+    f = fake(out((text, "F02")))
+    r = reporter.run(session(ro).call, **MONTH, ctx=CTX)
+    assert f.count["09"] == 1
+    assert [s["text"] for s in r["sentences"]] == ([kept] if kept else [])
+    assert r["audit"][0]["status"] == ("ok" if kept else "dropped")
+
+
 def test_weak_skill_gets_suggestions(conn, ro):
     conn.execute("UPDATE skill_event SET theta_after = -1 WHERE kc_id = ?", (ro[1]["kc_swap"],))  # level from events
     s, calls = session(ro), []

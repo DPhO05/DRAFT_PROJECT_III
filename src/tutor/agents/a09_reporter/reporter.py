@@ -30,6 +30,7 @@ INSTRUCTIONS = (
 _IDS = r"F\d\d(?:\s*,\s*F\d\d)*"
 # fact ids copied into the text: "[F02]", "(F01, F03)", bare "F01"; F1, F012, AF01 are not ids
 _ID_MARK = re.compile(rf"\s*(?:\[{_IDS}\]|\({_IDS}\)|(?<!\w){_IDS}(?!\w))")
+_EMPTY = {"flag": "empty", "detail": "câu không còn chữ"}  # H6: dropped, never sent to rewrite
 
 
 class Sentence(BaseModel):
@@ -86,13 +87,16 @@ def run(
     ]
 
     def check(s: Sentence) -> tuple[Sentence, list[str], dict | None]:
-        s = Sentence(text=_ID_MARK.sub("", s.text).strip(), facts=s.facts)  # C-44: the app never shows an id
+        # C-44: the app never shows an id; H6: nor the "· " left of a copied "F01 · " fact line
+        s = Sentence(text=_ID_MARK.sub("", s.text).strip().lstrip("· "), facts=s.facts)
         ids = [x for x in dict.fromkeys(s.facts) if x in by_id]  # an unknown id is no citation (Review Focus 4)
+        if not any(c.isalnum() for c in s.text):
+            return s, ids, _EMPTY
         return s, ids, check_sentence(s.text, [by_id[x] for x in ids], low=r["low"], need_fact=True, dates=dates)
 
     # SchemaFlag here goes up: G5 marks the thread failed
     checked = [check(s) for s in llm.call("09", [INSTRUCTIONS], ReportOut, extra=extra, context=ctx).sentences]
-    failed = [k for k, (_, _, flag) in enumerate(checked) if flag]
+    failed = [k for k, (_, _, flag) in enumerate(checked) if flag and flag is not _EMPTY]
     again: list[Sentence] = []
     if failed:
         ask = "Câu cần viết lại (trả đúng từng ấy câu, cùng thứ tự, vẫn theo mọi luật trên):\n" + "\n".join(
