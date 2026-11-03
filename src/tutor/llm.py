@@ -1,4 +1,4 @@
-"""The only path to the Anthropic API (SDD §8): prompt framing, name masking, retry, llm.jsonl."""
+"""The only path to the LLM APIs (SDD §8): prompt framing, name masking, retry, llm.jsonl."""
 
 import hashlib
 import json
@@ -94,11 +94,11 @@ def _retryable(e: Exception) -> bool:
 
 
 @contextmanager
-def _net_errors():
+def _net_errors(retryable: Callable[[Exception], bool] = _retryable):
     try:
         yield
     except Exception as e:
-        if _retryable(e):
+        if retryable(e):
             raise Retryable(str(e)) from e
         raise
 
@@ -155,7 +155,9 @@ class AnthropicBackend:
         yield {"type": "message", "content": content, "stop_reason": r.stop_reason, "usage": _usage(r.usage)}
 
 
-_backend: Backend | None = None
+PROVIDERS: dict[str, Callable[[], Backend]] = {"anthropic": AnthropicBackend}
+_backend: Backend | None = None  # test / --fake-llm override: wins over every provider
+_live: dict[str, Backend] = {}  # real backends, built on first use, one per provider
 _log_path: Path | None = None
 _models: dict[str, str] = {}
 _log_lock = threading.RLock()  # re-entrant: an abandoned `chat` generator is closed by GC inside `_log`
@@ -168,9 +170,33 @@ def configure(log_path: Path, models: dict[str, str]) -> None:
 
 
 def set_backend(backend: Backend | None) -> None:
-    """None -> real Anthropic API on next call."""
+    """None -> real provider APIs on next call."""
     global _backend
     _backend = backend
+
+
+def split_model(setting: str) -> tuple[str, str]:
+    """'openai:gpt-x' -> ('openai', 'gpt-x'); no prefix -> Anthropic. Unknown prefix: ValueError."""
+    head, sep, name = setting.partition(":")
+    if not sep:
+        return "anthropic", setting
+    if head not in PROVIDERS:
+        raise ValueError(f"không biết provider {head}")
+    return head, name
+
+
+def _route(agent: str) -> tuple[Backend, str, str]:
+    """(backend, model name sent to the API, models setting as logged) for one agent."""
+    setting = _models.get(agent, "claude-opus-5-5")
+    try:
+        provider, name = split_model(setting)
+    except ValueError as e:
+        raise LLMUnavailable(f"models.{agent}: {e}") from None
+    if _backend is not None:
+        return _backend, name, setting
+    if provider not in _live:
+        _live[provider] = PROVIDERS[provider]()
+    return _live[provider], name, setting
 
 
 def status() -> str:
@@ -266,9 +292,8 @@ def call[T: BaseModel](
     fixed: cached system blocks, hashed into prompt_version. extra: per-call material (problem, rubric,
     history) sent in the user turn before the framed student work, not part of prompt_version.
     """
-    global _backend, _last_result
-    if _backend is None:
-        _backend = AnthropicBackend()
+    global _last_result
+    backend, name, setting = _route(agent)
     masked, hits = [], False
     for part in fixed:
         m, h = _mask(part, context.redact)
@@ -284,11 +309,10 @@ def call[T: BaseModel](
         hits |= h
         user.append(_frame(work))
     user = "\n\n".join(user) or "(không có bài làm)"
-    model = _models.get(agent, "claude-opus-5-5")
     base = {
         "agent": agent,
         "prompt_version": prompt_version(agent, fixed),
-        "model": model,
+        "model": setting,
         "graph": context.graph,
         "thread_id": context.thread_id,
         "session_id": context.session_id,
@@ -301,7 +325,7 @@ def call[T: BaseModel](
         t0 = time.monotonic()
         usage, raw, result, err = {}, "", "ok", None
         try:
-            reply = _backend(agent=agent, model=model, system=masked, user=user, schema=schema)
+            reply = backend(agent=agent, model=name, system=masked, user=user, schema=schema)
             usage, raw = reply.usage, reply.raw
             if reply.parsed is None:
                 result = "schema_error"
@@ -345,19 +369,17 @@ def chat(
     messages: history + current message. run_tool(name, input) -> (content, is_error). Yields text / tool events,
     then {"type": "end", "text", "stopped": None | "max_tool_turns" | "max_tokens"}.
     """
-    global _backend, _last_result
-    if _backend is None:
-        _backend = AnthropicBackend()
+    global _last_result
+    backend, name, setting = _route(agent)
     redact = context.redact
     system, h1 = _mask_all(fixed, redact)
     tools_sent, h2 = _mask_all(tools, redact)
     msgs, h3 = _mask_all(messages, redact)
     hits = h1 or h2 or h3
-    model = _models.get(agent, "claude-opus-5-5")
     base = {
         "agent": agent,
         "prompt_version": prompt_version(agent, fixed + [json.dumps(tools, sort_keys=True, ensure_ascii=False)]),
-        "model": model,
+        "model": setting,
         "graph": context.graph,
         "conversation_id": context.conversation_id,
     }
@@ -368,7 +390,7 @@ def chat(
             t0 = time.monotonic()
             usage, result, err, streamed, msg = {}, "error", None, False, None
             try:
-                for ev in _backend.chat(agent=agent, model=model, system=system, tools=tools_sent, messages=msgs):
+                for ev in backend.chat(agent=agent, model=name, system=system, tools=tools_sent, messages=msgs):
                     if ev["type"] == "text":
                         if said and not streamed:  # text of an earlier call in this turn: keep it a paragraph apart
                             said.append("\n\n")
