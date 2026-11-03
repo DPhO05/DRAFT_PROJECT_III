@@ -1,7 +1,7 @@
 /* Thẻ chấm bài G1 in the Trợ lý tab (api-v3 §3.4): polls its thread through CHAT.poll, PUTs every choice (500 ms debounce)
    and resumes only from the last confirm answer, Lưu kết quả (two resumes, R7) and Chấm lại. Server text goes through U.names / U.esc. */
 (function () {
-  var C = window.CHAT, codes = null, codeReq = null;
+  var C = window.CHAT, codes = null, codeReq = null, esc = U.nesc, dm = U.dm, code = U.code, who = U.who, btn = U.btn;
   var CHANGED = 'Kết quả xem trước vừa thay đổi, xem lại rồi bấm Lưu kết quả';
   var NO_CODES = 'Chưa tải được danh sách loại lỗi. Thử lại sau.';
   var NO_TEXT = 'Viết vài chữ mô tả lỗi trước nhé.';
@@ -17,12 +17,7 @@
   var TREND = { 'tiến bộ': 'chip-ok', 'cần ôn': 'chip-warn' };
 
   function noop() { /* the next poll or click tries again */ }
-  function esc(s) { return U.esc(U.names(s == null ? '' : s)); }
   function num(x) { return String(x).replace('.', ','); }
-  function dm(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
-  function code(id) { return 'HS-' + String(id).padStart(2, '0'); }
-  function who(id) { return U.people[code(id)] || 'học sinh'; }
-  function btn(act, label, attrs, cls) { return '<button type="button" class="btn btn-sm ' + (cls || '') + '" data-act="' + act + '" ' + (attrs || '') + '>' + label + '</button>'; }
   function path(s, tail) { return '/threads/' + encodeURIComponent(s.tid) + tail; }
   function stateOf(el) { var h = el.closest('.card-host'); return h && h.gstate; }
   function props(s) { return [].concat.apply([], s.card.attempts.map(function (a) { return a.mistakes; })); }

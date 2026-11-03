@@ -2,6 +2,7 @@
    Grading and worksheet cards register in CHAT.cards from grading.js / worksheet.js. Every server string goes through U.names / U.md / U.esc. */
 (function () {
   var C = window.CHAT = { cards: {} };
+  var dm = U.dm, code = U.code, btn = U.btn;
   var panel = null, students = [], pending = null, convs = [], cur = { id: null }, busy = false, remindOpen = true;
   var inbox = [], attached = null, mentionMap = {}, pop = { open: false, items: [], i: -1, start: 0 };
   var retries = {}, turnSeq = 0;
@@ -15,12 +16,9 @@
 
   function $(sel) { return panel && panel.querySelector(sel); }
   function noop() { /* a failed refresh keeps what is on screen; the next one tries again */ }
-  function dm(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
   function norm(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').toLowerCase(); }
-  function code(id) { return 'HS-' + String(id).padStart(2, '0'); }
   function nameOf(id) { return U.people[code(id)] || code(id); }
   function active() { return students.filter(function (s) { return !s.archived_at; }); }
-  function btn(act, label, attrs, cls) { return '<button type="button" class="btn btn-sm ' + (cls || '') + '" data-act="' + act + '" ' + (attrs || '') + '>' + label + '</button>'; }
   function scrollEnd(force) {
     var s = $('.chat-scroll');
     if (s && (force || s.scrollHeight - s.scrollTop - s.clientHeight < 120)) s.scrollTop = s.scrollHeight;
@@ -97,7 +95,7 @@
   // ---- messages ----
   function userHTML(t) {
     var html = U.esc(t.text || '').replace(/(@?)\b(HS-\d{2,})\b/gi, function (x, at, c) {  // a name is escaped on its own: U.names runs after U.esc
-      var name = U.esc(U.names(c));
+      var name = U.nesc(c);
       return at ? '<span class="mention">' + name + '</span>' : name;
     });
     return (t.attachment ? '<span class="file-chip"><span>📄 ' + U.esc(t.attachment.path) + '</span></span>' : '') + (html ? '<p>' + html + '</p>' : '');

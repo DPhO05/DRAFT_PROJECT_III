@@ -1,7 +1,7 @@
 /* Khung phiếu nháp G4 beside the chat (api-v3 §3.5, IA-app §1.5): one draft on screen (R9), polled through CHAT.poll.
    Every change PUTs the whole sheet (500 ms debounce) and redraws from the server card; only Tạo phiếu and Thử lại resume. */
 (function () {
-  var C = window.CHAT, W = null;  // the draft on screen
+  var C = window.CHAT, W = null, esc = U.nesc, who = U.who, btn = U.btn;  // W: the draft on screen
   var NEED_ONE = 'Phiếu cần ít nhất 1 bài.', BAD = 'Bỏ mã không hợp lệ trước khi tạo phiếu.';
   var GROUPS = [['review', 'ôn lại'], ['zpd', 'vừa sức'], ['challenge', 'thử thách'], [null, 'thầy/cô thêm']];
   var REF = /\d[A-Z]{2}-[A-Z0-9]+-\d{3}/g;
@@ -9,11 +9,8 @@
   var ERR = { not_ready: 'Phiếu đang được lưu, chờ một lát.', undecided_items: NEED_ONE, already_committed: 'Phiếu này đã tạo rồi.' };
 
   function noop() { /* the next poll or click tries again */ }
-  function esc(s) { return U.esc(U.names(s == null ? '' : s)); }
-  function who(id) { return U.people['HS-' + String(id).padStart(2, '0')] || 'học sinh'; }
   function day(iso) { return U.wd(iso) + ' ' + U.d(iso); }
   function ref(r) { return '<span class="ref">' + U.esc(r) + '</span>'; }
-  function btn(act, label, attrs, cls) { return '<button type="button" class="btn btn-sm ' + (cls || '') + '" data-act="' + act + '" ' + (attrs || '') + '>' + label + '</button>'; }
   function icon(act, label, i, d, off, aria) {
     return '<button type="button" class="icon-btn icon-btn-sm" data-act="' + act + '" data-i="' + i + '"' + (d ? ' data-d="' + d + '"' : '') + ' aria-label="' + U.esc(aria) + '"' + (off ? ' disabled' : '') + '>' + label + '</button>';
   }

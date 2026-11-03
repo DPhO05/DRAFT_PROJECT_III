@@ -26,6 +26,11 @@ var U = {};
   U.names = function (text) {
     return String(text).replace(/\bHS-(\d{2,})\b/gi, function (m, n) { return U.people['HS-' + n.padStart(2, '0')] || m; });
   };
+  U.nesc = function (s) { return U.esc(U.names(s == null ? '' : s)); };  // server text: codes to names, then escaped
+  U.code = function (id) { return 'HS-' + String(id).padStart(2, '0'); };
+  U.who = function (id) { return U.people[U.code(id)] || 'học sinh'; };
+  U.dm = function (iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); };
+  U.btn = function (act, label, attrs, cls) { return '<button type="button" class="btn btn-sm ' + (cls || '') + '" data-act="' + act + '" ' + (attrs || '') + '>' + label + '</button>'; };
   U.score = function (score, max) { return String(Math.round(max ? score / max * 20 : 0) / 2).replace('.', ',') + '/10'; };
   U.md = function (text) {
     var inline = function (s) {
