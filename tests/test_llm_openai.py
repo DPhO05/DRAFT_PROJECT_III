@@ -274,6 +274,8 @@ def test_chat_request_shape():
     assert r["max_output_tokens"] == 64000 and r["reasoning"] == {"effort": "medium"}
     assert r["tools"][0]["type"] == "function" and r["input"] == ASK
     assert "include" not in r and "previous_response_id" not in r
+    said = {"role": "assistant", "content": "ok"}
+    assert llm.openai_input([*ASK, said])[-1] == said | {"phase": "final_answer"}
 
 
 def test_text_tool_then_answer(use_openai, tmp_path):

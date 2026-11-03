@@ -251,7 +251,10 @@ def openai_input(messages: list[dict]) -> list[dict]:
     out = []
     for m in messages:
         if isinstance(m["content"], str):
-            out.append({"role": m["role"], "content": m["content"]})
+            out.append(
+                {"role": m["role"], "content": m["content"]}
+                | ({"phase": "final_answer"} if m["role"] == "assistant" else {})
+            )
             continue
         for b in m["content"]:  # text / tool_use blocks are copies of the openai_item blocks
             if b["type"] == "openai_item":
