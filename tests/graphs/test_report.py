@@ -9,7 +9,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from tests.assistant_fix import world
+from tests.assistant_fix import SWAP, _problem_of_grade, world
+from tests.db import test_profile_repo as prof
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import llm
 from tutor.agents.a09_reporter.reporter import ReportOut, Sentence
@@ -17,7 +18,7 @@ from tutor.api import errors
 from tutor.db import repo
 from tutor.graphs import report, session
 from tutor.graphs.registry import make_runner
-from tutor.graphs.runner import AlreadyCommitted
+from tutor.graphs.runner import AlreadyCommitted, NotResumable
 from tutor.services import facts
 
 TODAY = date(2026, 10, 21)
@@ -149,6 +150,25 @@ def test_second_thread_of_approved_period(g5, paths, conn, monkeypatch):
     with pytest.raises(repo.ReportApproved):  # 409 at resume, not a failed thread
         r.resume(b)
     assert r.get(b)["status"] == "awaiting_review" and len(rows(conn)) == 1
+
+
+@pytest.mark.parametrize(("day", "stale"), [("2026-10-20", False), ("2026-10-16", True)])
+def test_stale_draft_not_approved(g5, paths, conn, day, stale):
+    """H13: a session approved in the period after the draft was written: approving would lock an old count.
+    A later week's session only moves `repeat` (R9), so that draft still goes through."""
+    r, _, _, sid = g5
+    tid = draft(paths, r, sid)["thread_id"]
+    p9, kc = _problem_of_grade(conn, 9)
+    prof.commit(conn, prof.start(conn, sid, day), [(p9, [prof.mk(SWAP, kc)])])
+    before = repo.row_counts(conn)
+    if not stale:
+        assert approve(r, tid)["status"] == "committed"
+        return
+    with pytest.raises(NotResumable) as e:
+        r.resume(tid)
+    assert str(e.value) == "Có buổi mới được duyệt trong kỳ này. Bỏ bản nháp rồi tạo lại."
+    assert r.get(tid)["status"] == "awaiting_review" and repo.row_counts(conn) == before
+    assert not rows(conn) and not report.report_file(paths, sid, "week", "2026-10-12").exists()
 
 
 def test_write_uses_start_today(g5, paths, monkeypatch):

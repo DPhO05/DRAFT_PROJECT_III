@@ -186,12 +186,23 @@ def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
     return count
 
 
+def _counted(found: list[dict]) -> list[tuple]:
+    """The facts that count the period's sessions; `repeat` / `resolved` move with later sessions (R9)."""
+    return [(f["kind"], f["value"]) for f in found if f["kind"] in ("sessions", "problems", "score", "session")]
+
+
 def check(paths: DataPaths) -> Callable[[dict, object], None]:
-    """Runner resume check: ReportApproved (409) when another thread approved the period first."""
+    """Runner resume check: ReportApproved (409) when another thread approved the period first, NotResumable (409)
+    when a session was approved in the period after 09 wrote the draft (H13). Writes nothing."""
 
     def run(state: dict, decisions: object) -> None:
+        sid, kind, start = state["student_id"], state["period_kind"], state["period_start"]
         with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
-            _approved(conn, state["student_id"], state["period_kind"], state["period_start"])
+            _approved(conn, sid, kind, start)
+            now = facts.report_facts(conn, sid, kind, start, today=date.fromisoformat(state["today"]),
+                                     low_pass_rate=_settings(paths)["report"]["low_pass_rate"])  # fmt: skip
+        if _counted(now["facts"]) != _counted(state["draft"]["facts"]):
+            raise NotResumable("Có buổi mới được duyệt trong kỳ này. Bỏ bản nháp rồi tạo lại.")
 
     return run
 

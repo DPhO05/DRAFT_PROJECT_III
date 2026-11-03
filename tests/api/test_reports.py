@@ -10,7 +10,8 @@ import pytest
 from tests.agents.test_orchestrator import text, tool
 from tests.api.test_review_api import submit
 from tests.api.test_sessions import W
-from tests.assistant_fix import world
+from tests.assistant_fix import SWAP, _problem_of_grade, world
+from tests.db import test_profile_repo as prof
 from tests.fakes import FakeLLM, lane_handlers
 from tests.graphs.test_report import writer
 from tutor import llm
@@ -108,6 +109,21 @@ def test_post_conflicts(env):
     r, _ = start(client, 99)
     assert (r.status_code, r.json()["error"]["code"]) == (404, "not_found")
     assert client.post("/api/reports", json={"student_id": 1} | WEEK).status_code == 403  # no X-Tutor
+
+
+def test_resume_refused_after_new_session(paths, env):
+    """H13: a session approved in the period after the draft was written: 409, nothing saved."""
+    client, w = env
+    _, tid = start(client, w["an"])
+    card(client, tid, "draft")
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        p9, kc = _problem_of_grade(conn, 9)
+        prof.commit(conn, prof.start(conn, w["an"], "2026-10-16"), [(p9, [prof.mk(SWAP, kc)])])
+    r = client.post(f"/api/threads/{tid}/resume", headers=W)
+    err = r.json()["error"]
+    assert (r.status_code, err["code"]) == (409, "not_ready")
+    assert err["message"] == "Có buổi mới được duyệt trong kỳ này. Bỏ bản nháp rồi tạo lại."
+    assert card(client, tid, "draft")["stage"] == "draft" and client.get("/api/reports").json()["approved"] == []
 
 
 def test_put_refusals(env):
