@@ -74,10 +74,20 @@ def md_file(paths, kind, start):
     return paths.out / f"baocao-HS-01-{kind}-{start}.md"
 
 
+TAIL = re.compile(r" (\[F\d\d\])+$")  # R17: "câu [F01][F03]", one space, adjacent brackets
+
+
 def only_ids_in_tail(md: str) -> None:
     """R17: a fact id sits after the sentence, never inside its words (C-44, H9)."""
     for line in md.splitlines():
-        assert not FACT_ID.search(re.sub(r"( \[F\d\d\])+$", "", line)), line
+        assert not FACT_ID.search(TAIL.sub("", line)), line
+
+
+def no_ids(card: dict) -> None:
+    """C-44: no sentence `text` or `why` on the teacher card shows a fact id; its `facts` hold bare ids by design."""
+    for s in card["sentences"]:
+        for words in (s["text"], s["why"] or ""):
+            assert "[F" not in words and not FACT_ID.search(words), words
 
 
 def test_three_periods(paths, client, w):
@@ -87,18 +97,24 @@ def test_three_periods(paths, client, w):
         r = post(client, w["an"], kind, start)
         tid = r.json()["thread_id"]
         assert (r.status_code, r.json()) == (202, {"thread_id": thread_id(kind, start), "status": "running"})
-        shown = card_at(client, tid, "draft")["sentences"]
-        assert shown and all(s["flag"] is None for s in shown)
+        fresh = card_at(client, tid, "draft")
+        shown = fresh["sentences"]
+        assert len(shown) >= 2 and all(s["flag"] is None for s in shown)
+        no_ids(fresh)
         assert counts(paths) == rows and total(client) == base  # C-39: a draft writes nothing
         assert not md_file(paths, kind, start).exists()  # the .md is written once, after the commit
 
         edited = [{"text": s["text"], "facts": s["facts"]} for s in shown]
         edited[0] = {"text": INVENTED, "facts": []}
+        edited[1]["text"] += " [F07]"  # H9: a typed id never reaches the card, text_md or the app
         got = client.put(f"/api/threads/{tid}/decisions", json={"sentences": edited}, headers=W).json()
         flagged = {"i": 0, "flag": "number", "why": "Số “97” không có trong dữ liệu đã duyệt."}
         clean = [{"i": i, "flag": None, "why": None} for i in range(1, len(shown))]
         assert got == {"saved": True, "pending": 0, "audit": [flagged, *clean]}
-        assert card_at(client, tid, "draft")["n_flagged"] == 1  # Review Focus 1: a warning, approval still allowed
+        edited_card = card_at(client, tid, "draft")
+        assert edited_card["n_flagged"] == 1  # Review Focus 1: a warning, approval still allowed
+        assert [s["text"] for s in edited_card["sentences"]] == [INVENTED, *(s["text"] for s in shown[1:])]
+        no_ids(edited_card)
         assert counts(paths) == rows and total(client) == base
 
         done = approve(client, tid)
@@ -113,7 +129,11 @@ def test_three_periods(paths, client, w):
                                           (done["report_id"],)).fetchone()  # fmt: skip
         assert json.loads(audit)["approved"][0] == {"i": 0, "flag": "number", "why": flagged["why"]}
         assert md_file(paths, kind, start).read_text(encoding="utf-8") == text_md
-        assert text_md.startswith(INVENTED + "\n") and "[F0" in text_md
+        body = text_md.splitlines()
+        assert len(body) == len(shown) and body[0] == INVENTED  # the tutor's sentence cites nothing: no tail
+        assert all(TAIL.search(line) for line in body[1:])  # 09's sentences all end in their [Fxx] tail
+        assert body[1] == shown[1]["text"] + " " + "".join(f"[{f}]" for f in shown[1]["facts"])
+        assert "F07" not in text_md
         only_ids_in_tail(text_md)
 
     got = client.get(f"/api/reports?student={w['an']}").json()
@@ -123,8 +143,8 @@ def test_three_periods(paths, client, w):
         r = client.get(f"/api/reports/{a['id']}")
         assert "[F" not in r.text and not FACT_ID.search(r.text)  # C-44: the app never sees a fact id
         body = r.json()
-        assert body["sentences"][0] == INVENTED and body["file"] == md_file(paths, a["period_kind"],
-                                                                            a["period_start"]).name  # fmt: skip
+        assert body["file"] == md_file(paths, a["period_kind"], a["period_start"]).name
+        assert body["sentences"][0] == INVENTED and "F07" not in r.text
 
 
 def test_chat_then_tab_once(paths, client, w):
