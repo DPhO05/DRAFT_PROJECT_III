@@ -313,7 +313,7 @@
     if (!ref) { U.toast('Chọn một bài hoặc gõ mã bài trước nhé.', 'warn'); return; }
     answer(s, seq, { problem_ref: ref }, 'Không có bài ' + ref + ' trong ngân hàng.');
   };
-  ACT['g-skip'] = function (el) { answer(stateOf(el), +el.dataset.seq, { skip: true }, ''); };
+  ACT['g-skip'] = function (el) { answer(stateOf(el), +el.dataset.seq, { skip: true }, 'Chưa bỏ được bài này.'); };
   function newItem(items) { var n = items.length + 1; while (items.some(function (i) { return i.item_id === 'i' + n; })) n++; return { item_id: 'i' + n, text: '', points: 1 }; }
   ACT['g-rub-edit'] = function (el) {
     var s = stateOf(el), seq = +el.dataset.seq;
