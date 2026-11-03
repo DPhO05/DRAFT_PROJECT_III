@@ -452,6 +452,12 @@ def archive_student(conn: sqlite3.Connection, student_id: int) -> str:
         return conn.execute("SELECT archived_at FROM student WHERE id = ?", (student_id,)).fetchone()[0]
 
 
+def unarchive_student(conn: sqlite3.Connection, student_id: int) -> None:
+    with write_tx(conn):
+        if conn.execute("UPDATE student SET archived_at = NULL WHERE id = ?", (student_id,)).rowcount == 0:
+            raise NotFound(f"HS {student_id}")
+
+
 def list_students(conn: sqlite3.Connection, include_archived: bool = False) -> list[dict]:
     rows = _dicts(conn.execute(
         "SELECT id, name, grade, note, created_at, archived_at FROM student"

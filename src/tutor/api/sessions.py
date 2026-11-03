@@ -12,6 +12,7 @@ from tutor.api import deps
 from tutor.config import guess_submission
 from tutor.db import repo
 from tutor.graphs import session
+from tutor.services import students
 
 router = APIRouter(prefix="/api/sessions")
 DB = Annotated[sqlite3.Connection, Depends(deps.db)]
@@ -52,10 +53,20 @@ def submit(body: Submit, request: Request) -> JSONResponse:
 
 
 @router.get("")
-def list_sessions(conn: DB, student: int | None = None, month: str | None = None, status: str | None = None) -> list:
+def list_sessions(
+    conn: DB, student: int | None = None, month: str | None = None, status: str | None = None, view: str = ""
+) -> list:
+    """view=teacher: the numbers the Học sinh tab shows, without the file and thread columns (api-v3 §4.5)."""
+    if view == "teacher":
+        return students.session_rows(conn, student_id=student, status=status, month=month)
     return repo.list_sessions(conn, student_id=student, month=month, status=status)
 
 
 @router.get("/{session_id}")
-def detail(session_id: int, conn: DB) -> dict:
-    return repo.session_detail(conn, session_id)
+def detail(session_id: int, conn: DB, view: str = "") -> dict:
+    """view=teacher: only the mistakes in force, in words."""
+    if view != "teacher":
+        return repo.session_detail(conn, session_id)
+    if (out := students.session_view(conn, session_id)) is None:
+        raise repo.NotFound(f"buổi {session_id}")
+    return out
