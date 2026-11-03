@@ -184,6 +184,102 @@ def _openai_retryable(e: Exception) -> bool:
     return isinstance(e, o.APIError) and isinstance(e.body, dict) and e.body.get("code") in _OPENAI_RETRY_CODES
 
 
+_KEY_TEXT = re.compile(r"\bsk-[\w*.…-]+")
+
+
+def _scrub(text: str) -> str:
+    """A 401 body echoes part of the key ("Incorrect API key provided: sk-…abcd"): never let it reach a log."""
+    return _KEY_TEXT.sub("sk-***", text)
+
+
+@contextmanager
+def _openai_errors():
+    """_net_errors for the OpenAI SDK, with key fragments scrubbed from the error text first (G4)."""
+    import openai
+
+    with _net_errors(_openai_retryable):
+        try:
+            yield
+        except openai.OpenAIError as e:
+            e.args = (_scrub(str(e)),)  # str(e), its traceback and Retryable(str(e)) all read args
+            raise
+
+
+def _openai_failed(err) -> Exception:
+    """A `failed` response's error or an SSE `error` event: transient code -> Retryable, else LLMUnavailable (R6)."""
+    code = getattr(err, "code", None)
+    text = _scrub(f"GPT lỗi {code}: {getattr(err, 'message', '')}")
+    return (Retryable if code in _OPENAI_RETRY_CODES else LLMUnavailable)(text)
+
+
+def _openai_check(r) -> None:
+    """Raise for a failed (G3) or refused (R5) response; shared by the call and the chat path."""
+    if r.status == "failed":
+        raise _openai_failed(r.error)
+    refusal = next((c.refusal for m in r.output if m.type == "message" for c in m.content if c.type == "refusal"), None)
+    filtered = r.incomplete_details is not None and r.incomplete_details.reason == "content_filter"
+    if refusal is not None or filtered:
+        raise LLMUnavailable(f"GPT từ chối: {refusal or 'content_filter'}")
+
+
+def _strict(schema: dict, optional: bool = False) -> dict:
+    """Strict-mode copy (R9, S7): every key required, an optional key may be null, no extra keys."""
+    out = dict(schema)
+    if out.get("type") == "object":
+        req = set(out.get("required", []))
+        out["properties"] = {k: _strict(v, k not in req) for k, v in out.get("properties", {}).items()}
+        out["required"] = list(out["properties"])
+        out["additionalProperties"] = False
+    if optional:
+        out["type"] = [out["type"], "null"]
+        if "enum" in out:
+            out["enum"] = [*out["enum"], None]
+    return out
+
+
+def openai_tools(tools: list[dict]) -> list[dict]:
+    """Anthropic-style tool definitions -> Responses strict function tools."""
+    return [
+        {"type": "function", "name": t["name"], "description": t["description"], "strict": True,
+         "parameters": _strict(t["input_schema"])}
+        for t in tools
+    ]  # fmt: skip
+
+
+def openai_input(messages: list[dict]) -> list[dict]:
+    """Shared messages -> Responses input (R7): an OpenAI turn goes back as its own items, unchanged."""
+    out = []
+    for m in messages:
+        if isinstance(m["content"], str):
+            out.append({"role": m["role"], "content": m["content"]})
+            continue
+        for b in m["content"]:  # text / tool_use blocks are copies of the openai_item blocks
+            if b["type"] == "openai_item":
+                out.append(b["item"])
+            elif b["type"] == "tool_result":
+                out.append({"type": "function_call_output", "call_id": b["tool_use_id"], "output": b["content"]})
+    return out
+
+
+def responses_chat_request(model: str, system: list[str], tools: list[dict], messages: list[dict]) -> dict:
+    """kwargs for client.responses.create: one streamed tool-use turn, nothing stored server-side."""
+    return {
+        "model": model,
+        "store": False,
+        "stream": True,
+        "instructions": "\n\n".join(system),
+        "tools": openai_tools(tools),
+        "input": openai_input(messages),
+        "max_output_tokens": 64000,
+        "reasoning": {"effort": "medium"},
+    }
+
+
+def _tool_input(arguments: str) -> dict:
+    """Strict mode sends null for an optional key (S7): drop it so the tool sees it as missing (R8)."""
+    return {k: v for k, v in json.loads(arguments).items() if v is not None}
+
+
 def responses_request(model: str, system: list[str], user: str, schema: type[BaseModel]) -> dict:
     """kwargs for client.responses.create: one call, strict json_schema output, nothing stored server-side."""
     from openai.lib._pydantic import to_strict_json_schema  # private: openai is pinned <4 for it
@@ -216,20 +312,42 @@ class OpenAIBackend:
             raise LLMUnavailable("Thiếu OPENAI_API_KEY (.env)") from None
 
     def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply:
-        with _net_errors(_openai_retryable):
+        with _openai_errors():
             r = self.client.responses.create(**responses_request(model, system, user, schema))
-        refusal = next(
-            (c.refusal for m in r.output if m.type == "message" for c in m.content if c.type == "refusal"), None
-        )
-        filtered = r.incomplete_details is not None and r.incomplete_details.reason == "content_filter"
-        if refusal is not None or filtered:
-            raise LLMUnavailable(f"GPT từ chối: {refusal or 'content_filter'}")
+        _openai_check(r)
         raw = r.output_text
         try:
             parsed = schema.model_validate_json(raw)  # not responses.parse: that raises and loses raw + usage
         except ValidationError:
             parsed = None
         return Reply(parsed, raw, openai_usage(r.usage))
+
+    def chat(
+        self, *, agent: str, model: str, system: list[str], tools: list[dict], messages: list[dict]
+    ) -> Iterator[dict]:
+        r = None  # not the responses.stream helper: its items carry parsed_arguments, which the API rejects (S8)
+        req = responses_chat_request(model, system, tools, messages)
+        with _openai_errors(), self.client.responses.create(**req) as stream:
+            for ev in stream:
+                if ev.type == "response.output_text.delta":
+                    yield {"type": "text", "delta": ev.delta}
+                elif ev.type == "error":
+                    raise _openai_failed(ev)
+                elif ev.type in ("response.completed", "response.incomplete", "response.failed"):
+                    r = ev.response
+        if r is None:
+            raise Retryable("GPT: stream hết mà không có sự kiện cuối")
+        _openai_check(r)
+        stop = "max_tokens" if r.status == "incomplete" else None  # content_filter has raised above
+        content = []
+        for i in r.output:
+            if i.type == "message":
+                content.append({"type": "text", "text": "".join(c.text for c in i.content if c.type == "output_text")})
+            elif i.type == "function_call" and stop is None:  # a cut-off call's arguments may not parse
+                content.append({"type": "tool_use", "id": i.call_id, "name": i.name, "input": _tool_input(i.arguments)})
+        stop = stop or ("tool_use" if any(b["type"] == "tool_use" for b in content) else "end_turn")
+        content += [{"type": "openai_item", "item": i.model_dump(mode="json", exclude_none=True)} for i in r.output]
+        yield {"type": "message", "content": content, "stop_reason": stop, "usage": openai_usage(r.usage)}
 
 
 PROVIDERS: dict[str, Callable[[], Backend]] = {"anthropic": AnthropicBackend, "openai": OpenAIBackend}

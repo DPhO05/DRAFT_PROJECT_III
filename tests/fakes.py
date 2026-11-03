@@ -68,16 +68,19 @@ class FakeLLM:
         yield {"type": "message", "content": content, "stop_reason": stop, "usage": dict(USAGE)}
 
 
-def openai_client(*replies: dict | list[dict] | int) -> tuple[openai.OpenAI, list[dict]]:
+def openai_client(*replies: dict | list[dict] | int | httpx2.Response) -> tuple[openai.OpenAI, list[dict]]:
     """openai.OpenAI over httpx2.MockTransport (C-34): one reply per request, in order; bodies = each request's JSON.
 
-    dict -> 200 JSON; list of dicts -> SSE events (event name = their `type`); int -> that status with an error body.
+    dict -> 200 JSON; list of dicts -> SSE events (event name = their `type`); int -> that status with an error body;
+    httpx2.Response -> sent as is.
     """
     bodies, queue = [], list(replies)
 
     def handler(req: httpx2.Request) -> httpx2.Response:
         bodies.append(json.loads(req.content))
         r = queue.pop(0)
+        if isinstance(r, httpx2.Response):
+            return r
         if isinstance(r, int):
             return httpx2.Response(r, json={"error": {"message": "x", "type": "x", "code": "x"}})
         if isinstance(r, list):
