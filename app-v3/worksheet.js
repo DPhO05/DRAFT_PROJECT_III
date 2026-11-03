@@ -165,6 +165,7 @@
   function create(s) {
     var c = s && s.card, box = s && s.el.querySelector('.ws-date');
     if (!c || c.stage !== 'draft' || s.busy || !c.items.length || s.pending > 0 || c.invalid.length) return;
+    if (s.saving) { U.toast(ERR.not_ready, 'info'); return; }  // the sheet in the air must land before this one is sent
     if (!box.value) { U.toast('Chọn ngày buổi học trước nhé.', 'warn'); box.focus(); return; }
     c.for_date = box.value;
     var go = function (replace) {
