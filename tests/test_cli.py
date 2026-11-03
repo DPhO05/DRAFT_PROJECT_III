@@ -7,6 +7,7 @@ import socket
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -24,8 +25,19 @@ from tutor.graphs.runner import Runner
 from tutor.services import elo
 
 TUTOR = [str(Path(sys.executable).with_name("tutor"))]
-# C-34: a child process must never find a real key, even if the developer's shell has one.
-ENV = {k: v for k, v in os.environ.items() if not k.startswith("ANTHROPIC")}
+REPO = Path(__file__).resolve().parents[1]
+BANK = REPO / "data" / "dummy" / "bank"
+
+
+def clean_env(environ) -> dict:
+    return {k: v for k, v in environ.items() if not k.startswith(("ANTHROPIC", "OPENAI"))}
+
+
+# C-34: a child process must never find a real key: not in the developer's shell, and not in the repo .env,
+# which `tutor` loads from its cwd, so children start in an empty directory.
+ENV = clean_env(os.environ)
+_CWD = tempfile.TemporaryDirectory(prefix="tutor-child-")
+CHILD = {"env": ENV, "cwd": _CWD.name}
 
 
 def free_port() -> int:
@@ -43,13 +55,13 @@ def health(port: int) -> dict | None:
 
 
 def run(*args: str, timeout: float = 15) -> subprocess.CompletedProcess:
-    return subprocess.run(TUTOR + list(args), capture_output=True, text=True, timeout=timeout, env=ENV)
+    return subprocess.run(TUTOR + list(args), capture_output=True, text=True, timeout=timeout, **CHILD)
 
 
 @pytest.fixture
 def running_app(tmp_path):
     port, data = free_port(), tmp_path / "data"
-    p = subprocess.Popen(TUTOR + ["app", "--no-browser", "--port", str(port), "--data-dir", str(data)], env=ENV)
+    p = subprocess.Popen(TUTOR + ["app", "--no-browser", "--port", str(port), "--data-dir", str(data)], **CHILD)
     try:
         for _ in range(100):
             if health(port):
@@ -114,9 +126,25 @@ def test_env_file_read_by_cli(tmp_path, monkeypatch):
     assert os.environ["OPENAI_API_KEY"] == "sk-test" and "sk-test" not in out.output
 
 
+PROBE = "import os; from tutor import config; config.load_env(config.ENV_FILE); print('OPENAI_API_KEY' in os.environ)"
+
+
+def sees_key(**kw) -> str:
+    r = subprocess.run([sys.executable, "-I", "-c", PROBE], capture_output=True, text=True, timeout=30, **kw)
+    return r.stdout.strip()
+
+
+def test_children_never_see_a_key(tmp_path):
+    (tmp_path / ".env").write_text("OPENAI_API_KEY=sk-fake\n", encoding="utf-8")
+    assert sees_key(cwd=tmp_path, env=ENV) == "True"  # control: a child that starts next to a .env loads it
+    assert sees_key(**CHILD) == "False"
+    assert not (Path(CHILD["cwd"]) / ".env").exists() and Path(CHILD["cwd"]).resolve() != REPO
+    assert clean_env({"OPENAI_API_KEY": "x", "ANTHROPIC_API_KEY": "y", "PATH": "p"}) == {"PATH": "p"}
+
+
 def test_ingest_runs_g1_in_process(tmp_path):
     data = tmp_path / "data"
-    assert run("seed-dummy", "--dev", "--data-dir", str(data), timeout=60).returncode == 0
+    assert run("seed-dummy", "--dev", "--bank", str(BANK), "--data-dir", str(data), timeout=60).returncode == 0
     from contextlib import closing
 
     from tutor.db import repo
@@ -140,7 +168,7 @@ def test_ingest_while_app_holds_lock_exits_2(running_app):
 
 def test_review_queue_then_review_commits(tmp_path):
     data = tmp_path / "data"
-    assert run("seed-dummy", "--dev", "--data-dir", str(data), timeout=60).returncode == 0
+    assert run("seed-dummy", "--dev", "--bank", str(BANK), "--data-dir", str(data), timeout=60).returncode == 0
     from contextlib import closing
 
     from tutor.db import repo
@@ -155,12 +183,12 @@ def test_review_queue_then_review_commits(tmp_path):
     # card 1: add a missed mistake, then accept; 2: edit code; 3: reject; 4: pause (saved, nothing written)
     script = "N\n1\n1\nother.unclear\nsót bước\nA\nE\npresentation.format\n\n\nR\n\nQ\n"
     r = subprocess.run(TUTOR + ["review", tid, "--data-dir", str(data)], input=script, capture_output=True,
-                       text=True, timeout=60, env=ENV)  # fmt: skip
+                       text=True, timeout=60, **CHILD)  # fmt: skip
     assert r.returncode == 0 and "đã lưu" in r.stdout, r.stdout + r.stderr
     with closing(repo.connect(data / "tutor.db")) as c:
         assert c.execute("SELECT status FROM session").fetchone()[0] == "awaiting_review"
     r = subprocess.run(TUTOR + ["review", tid, "--data-dir", str(data)], input="A\nA\nn\n", capture_output=True,
-                       text=True, timeout=60, env=ENV)  # fmt: skip
+                       text=True, timeout=60, **CHILD)  # fmt: skip
     assert r.returncode == 0 and "Lưu kết quả?" in r.stdout, r.stdout + r.stderr  # N: preview shown, then asked
     assert "Xem trước" in r.stdout
     assert f"Đang chờ Lưu kết quả. Lưu sau: tutor review {tid}" in r.stdout, r.stdout + r.stderr
@@ -177,11 +205,11 @@ def test_review_queue_then_review_commits(tmp_path):
     assert cards["p2"]["code"] == "presentation.format"
     # at the preview: no cards asked again, straight to the question; N keeps the gate
     r = subprocess.run(TUTOR + ["review", tid, "--data-dir", str(data)], input="n\n", capture_output=True,
-                       text=True, timeout=60, env=ENV)  # fmt: skip
+                       text=True, timeout=60, **CHILD)  # fmt: skip
     assert r.returncode == 0 and "Xem trước" in r.stdout and "Lưu kết quả?" in r.stdout, r.stdout + r.stderr
     assert "A đồng ý" not in r.stdout and f"Đang chờ Lưu kết quả. Lưu sau: tutor review {tid}" in r.stdout
     r = subprocess.run(TUTOR + ["review", tid, "--data-dir", str(data)], input="y\n", capture_output=True,
-                       text=True, timeout=60, env=ENV)  # fmt: skip
+                       text=True, timeout=60, **CHILD)  # fmt: skip
     assert r.returncode == 0 and "committed" in r.stdout and "+5 attempt" in r.stdout, r.stdout + r.stderr
     assert "skill_event" in r.stdout and "Đang chờ" not in r.stdout
     with closing(repo.connect(data / "tutor.db")) as c:
