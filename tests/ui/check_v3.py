@@ -2,11 +2,11 @@
 """Robot UI check for the 4-tab app at /v3/ (P5-T05).
 
 Run: .venv/bin/python tests/ui/check_v3.py [--url http://127.0.0.1:8000/] [--data] [--shots]
-Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu,
-light/dark.
+Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Trợ lý chat tab (reminders, @, stream, cards, 📎, retry),
+the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu, light/dark.
 Exit 1 on any page error, app console error, dead button, horizontal overflow at 390 px or forbidden text on screen.
 Without --url it starts `tutor app` on a free port with a temp data dir; --data seeds dummy bank and students and
-checks the bank tab against that tutor.db and imports tests/fixtures/bank/import-mix.tex (needs no --url).
+checks the chat and bank tabs against that tutor.db and imports tests/fixtures/bank/import-mix.tex (needs no --url).
 """
 
 import argparse
@@ -18,8 +18,10 @@ from contextlib import closing
 from pathlib import Path
 
 # shortcut: generic helpers are imported from check.py; P8-T03 deletes check.py and they move into this file.
-from check import DESK, JS_OBSERVE, JS_OVERFLOW, NET_NOISE, PHONE, SHOTS, api, close_overlay, tutor_app
+from check import DESK, FIX, JS_OBSERVE, JS_OVERFLOW, NET_NOISE, PHONE, SHOTS, api, close_overlay, tutor_app
 from playwright.sync_api import sync_playwright
+
+from tutor.db.repo import TABLES
 
 TABS = ("tro-ly", "hoc-sinh", "bao-cao", "ngan-hang")
 # docs/prototype/app-user/build.py FORBIDDEN, plus the word "node" and skill codes like 8DS-HSBN-02
@@ -102,8 +104,9 @@ def walk_tabs(page, rep: dict, phone: bool, shots: bool) -> None:
         press(page, rep, f"#tab-{tab}", f"tab {tab}")
         if not page.evaluate(JS_TAB, tab):
             rep["missing"].append(f"tab {tab} did not open")
-        if (SOON in page.inner_text(f"#panel-{tab}")) == (tab == "ngan-hang"):
-            rep["missing"].append(f"{tab}: '{SOON}' {'still' if tab == 'ngan-hang' else 'missing'}")
+        real = tab in ("tro-ly", "ngan-hang")
+        if (SOON in page.inner_text(f"#panel-{tab}")) == real:
+            rep["missing"].append(f"{tab}: '{SOON}' {'still' if real else 'missing'}")
         see(page, rep, tab, phone)
         if shots:
             shoot(page, rep, f"{tab}-{'phone' if phone else 'desktop'}")
@@ -164,6 +167,344 @@ def walk_theme(page, rep: dict, base: str) -> None:
     page.goto(f"{base}?theme=dark#bao-cao")
     if not page.evaluate(JS_TAB, "bao-cao") or page.evaluate(JS_THEME)["attr"] != "dark":
         rep["missing"].append("?theme=dark#bao-cao did not open Báo cáo in dark")
+
+
+PEOPLE = ("Nguyễn Văn An", "Trần Thị Bình")
+ARCHIVED = "Lê Văn Cường"  # HS-03, archived: its code still shows as the name
+HS_CODE = re.compile(r"\bHS-\d")
+NO_WORK = "Không có việc nào đang chờ thầy/cô."
+SAVED_NOTHING = "Mình chưa lưu gì cả"
+ERR_BUBBLE = "Chưa trả lời được, thử lại"
+STOPPED = "Mình dừng sau 8 lượt tra cứu, thầy/cô hỏi hẹp hơn giúp mình nhé."
+SEND = '[data-act="c-send"]'
+MSGS = "**/api/assistant/messages"
+JS_REPLIED = """n => document.querySelectorAll('#chat-msgs .msg').length > n
+  && !document.querySelector('.asst.is-busy')"""
+JS_LAST_BOT = """() => { const b = [...document.querySelectorAll('#chat-msgs .msg-bot .bubble')];
+  return b.length ? b.at(-1).innerText : ''; }"""
+JS_LIST_HAS = "() => document.querySelectorAll('#conv-list .conv-item').length > 0"
+JS_RETRY = "() => !!document.querySelector('#chat-msgs .bubble-err [data-act=\"c-retry\"]')"
+JS_SOL_OPEN = "() => !document.querySelector('#chat-msgs .pcard .sol').hidden"
+JS_TWO_TEX = "() => document.querySelectorAll('#chat-msgs .pcard mjx-container').length >= 2"
+JS_CARDS_OPEN = "() => !!document.querySelector('.remind-cards')"
+JS_SUGGEST = "() => !!document.querySelector('.suggest')"
+JS_DRAWER = "() => !!document.querySelector('.convs.open')"
+JS_FILES = "() => document.querySelectorAll('#modal-body .file-row').length >= 5"
+JS_POP = "() => document.querySelectorAll('#mention-pop .mention-opt').length > 0"
+JS_N_MSGS = "n => document.querySelectorAll('#chat-msgs .msg').length === n"
+# the stream is fed by hand: the page shows only what the robot emits
+JS_FEED = """() => { window.__ndjson = U.ndjson;
+  U.ndjson = (path, body, onEvent) => new Promise(done => { window.__emit = onEvent; window.__end = done; }); }"""
+JS_UNFEED = "() => { U.ndjson = window.__ndjson; }"
+JS_ASK_GRADE = """() => { const c = document.querySelector('.ask-grade'); if (!c) return null;
+  const s = c.querySelector('select');
+  return [s.options[s.selectedIndex].text, c.querySelector('input[type=date]').value,
+    c.querySelector('[data-act="c-grade"]').disabled]; }"""
+NOT_FOUND = {"error": {"code": "not_ready", "message": "x", "detail": {"reason": "x"}}}
+
+
+def last_bot(page) -> str:
+    return page.evaluate(JS_LAST_BOT)
+
+
+def msgs(page) -> int:
+    return page.locator("#chat-msgs .msg").count()
+
+
+def posts(reqs: list) -> list:
+    return [json.loads(b) for m, u, b in reqs if m == "POST" and u.endswith("/api/assistant/messages")]
+
+
+def say(page, rep: dict, text: str) -> str:
+    """Type a plain message, press Enter, wait for the finished answer; returns its text."""
+    n = msgs(page)
+    page.fill("#chat-input", text)
+    page.press("#chat-input", "Enter")
+    expect(page, rep, JS_REPLIED, f"chat: no answer to {text!r}", n)
+    return last_bot(page)
+
+
+def pick_mention(page, rep: dict, before: str, query: str, who: str) -> None:
+    """Type `before@query`, ArrowDown, Enter: the box must then start with `before@who`."""
+    page.fill("#chat-input", f"{before}@{query}")
+    expect(page, rep, JS_POP, "chat: @ shows no list")
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    if not page.input_value("#chat-input").startswith(f"{before}@{who}"):
+        rep["missing"].append(f"chat: @ pick left {page.input_value('#chat-input')!r}, want @{who}")
+
+
+def db_state(data_dir: str) -> tuple:
+    """Rows in every tutor.db table, and the saved decisions of every thread (checkpoints.db)."""
+    rows = [scalar(data_dir, f"SELECT count(*) FROM {t}") for t in TABLES]
+    with closing(sqlite3.connect(f"{Path(data_dir, 'checkpoints.db').as_uri()}?mode=ro", uri=True)) as con:
+        return rows, con.execute("SELECT thread_id, decisions_json FROM tutor_thread ORDER BY 1").fetchall()
+
+
+def see_chat(page, rep: dict, where: str, phone: bool) -> None:
+    see(page, rep, where, phone)
+    rep["forbidden"] += [f"{where}: {m.group(0)}" for m in HS_CODE.finditer(page.inner_text("#panel-tro-ly"))]
+
+
+def new_chat(page, rep: dict, phone: bool) -> None:
+    """Mới sits in the conversation list, which is a drawer on the phone."""
+    if phone:
+        press(page, rep, "#conv-toggle", "chat ☰ Hội thoại", JS_DRAWER)
+    press(page, rep, '[data-act="c-new"]', "chat Mới", JS_SUGGEST)
+
+
+def chat_basics(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> bool:
+    """Reminders, badge, welcome buttons; False when the tab has no chat to walk."""
+    js = "() => (document.getElementById('remind') || {innerText: ''}).innerText.trim() !== ''"
+    if not expect(page, rep, js, "chat: no reminder area"):
+        return False
+    badge = page.locator("#badge-tro-ly")
+    if not data_dir:
+        if NO_WORK not in page.inner_text("#remind"):
+            rep["missing"].append(f"chat: an empty queue should say '{NO_WORK}'")
+        if not badge.is_hidden():
+            rep["missing"].append("chat: the Trợ lý badge shows with nothing waiting")
+    else:
+        n = api(root, "GET", "/assistant/pending")["counts"]["assistant"]
+        if (page.locator(".remind-cards").count() == 0) != phone:
+            rep["missing"].append(f"chat: reminder cards should be {'folded' if phone else 'open'} at first")
+        if phone:
+            press(page, rep, '[data-act="c-remind"]', "chat Xem việc chờ", JS_CARDS_OPEN)
+        text = page.inner_text("#remind")
+        rep["missing"] += [f"chat: reminder has no '{w}'" for w in PEOPLE if w not in text]
+        if HS_CODE.search(text):
+            rep["missing"].append("chat: a reminder shows an HS code")
+        if not n or badge.inner_text().strip() != str(n):
+            rep["missing"].append(f"chat: badge says {badge.inner_text()!r}, pending.counts.assistant is {n}")
+    want = 6 if data_dir else 2
+    if page.locator(".suggest .btn").count() != want:
+        rep["missing"].append(f"chat: a new conversation should offer {want} suggestion buttons")
+    see_chat(page, rep, "chat start", phone)
+    return True
+
+
+def chat_cut_code(page, rep: dict, phone: bool) -> None:
+    """Codes cut between two deltas and the code of an archived student show as names only (Review Focus 1).
+
+    The stream is fed by hand, so Gửi and Enter can also be checked while the answer is still coming."""
+    page.evaluate(JS_FEED)
+    page.fill("#chat-input", "thử")
+    page.press("#chat-input", "Enter")
+    page.fill("#chat-input", "x")  # typed while the answer comes: Gửi stays off and Enter sends nothing
+    if not page.locator(SEND).is_disabled():
+        rep["missing"].append("chat: Gửi stayed on while the answer comes")
+    page.press("#chat-input", "Enter")
+    if page.input_value("#chat-input") != "x":
+        rep["missing"].append("chat: Enter sent a second message while the answer comes")
+    page.fill("#chat-input", "")
+    emit = lambda ev: page.evaluate("ev => window.__emit(ev)", ev)  # noqa: E731
+    emit({"type": "start", "conversation_id": "2026-01-01-1", "message_id": "m2"})
+    emit({"type": "text", "delta": "Hồ sơ của HS-"})
+    if "HS-" in last_bot(page):
+        rep["missing"].append(f"chat: a code cut after 'HS-' shows: {last_bot(page)!r}")
+    emit({"type": "text", "delta": "03 và HS-0"})
+    if "HS-" in last_bot(page) or ARCHIVED not in last_bot(page):
+        rep["missing"].append(f"chat: archived HS-03 or a cut HS-0 is not a name: {last_bot(page)!r}")
+    emit({"type": "text", "delta": "1 có 2 buổi."})
+    emit({"type": "done", "stopped": "max_tool_turns"})
+    page.evaluate("window.__end()")
+    final = last_bot(page)
+    if f"{ARCHIVED} và {PEOPLE[0]} có 2 buổi." not in final or "HS-" in final:
+        rep["missing"].append(f"chat: cut codes did not end as names: {final!r}")
+    if STOPPED not in final:
+        rep["missing"].append("chat: done.stopped max_tool_turns has no message")
+    page.evaluate(JS_UNFEED)
+    see_chat(page, rep, "chat cut code", phone)
+    new_chat(page, rep, phone)
+
+
+def chat_mentions(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
+    """@ picks a name on screen, the wire message holds the code; a made-up number is marked."""
+    page.fill("#chat-input", "")
+    page.type("#chat-input", "@")
+    names = page.locator("#mention-pop .mention-opt b").all_inner_texts()
+    if names != list(PEOPLE):
+        rep["missing"].append(f"chat: @ lists {names}, want only {list(PEOPLE)}")
+    seen = len(posts(reqs))
+    pick_mention(page, rep, "Tháng này ", "", PEOPLE[0])
+    page.keyboard.type("yếu gì?")
+    if (got := page.input_value("#chat-input")) != f"Tháng này @{PEOPLE[0]} yếu gì?":
+        rep["missing"].append(f"chat: the box holds {got!r}")
+    n = msgs(page)
+    page.press("#chat-input", "Enter")
+    expect(page, rep, JS_REPLIED, "chat: no answer to the @ question", n)
+    answer = last_bot(page)
+    if PEOPLE[0] not in answer or HS_CODE.search(answer) or "Nguồn:" not in answer:
+        rep["missing"].append(f"chat: answer should name {PEOPLE[0]}, hide HS-01 and cite a source: {answer!r}")
+    sent = posts(reqs)[seen:]
+    if len(sent) != 1 or sent[0]["text"] != "Tháng này @HS-01 yếu gì?" or sent[0]["mentions"] != [1]:
+        rep["missing"].append(f"chat: wire message is {sent}, want '@HS-01' and mentions [1]")
+    if any("Nguyễn" in json.dumps(b, ensure_ascii=False) for b in sent):
+        rep["missing"].append("chat: a student name went to /api/assistant")
+    see_chat(page, rep, "chat answer", phone)
+    pick_mention(page, rep, "bịa số cho ", "Trần", PEOPLE[1])
+    n = msgs(page)
+    page.press("#chat-input", "Enter")
+    expect(page, rep, JS_REPLIED, "chat: no answer to the made-up number", n)
+    if page.locator("#chat-msgs .msg-bot:last-child .uncheck").count() != 1 or "Số chưa kiểm: 97" not in last_bot(page):
+        rep["missing"].append(f"chat: no underlined sentence + 'Số chưa kiểm: 97': {last_bot(page)!r}")
+    see_chat(page, rep, "chat warning", phone)
+
+
+def chat_codes(page, rep: dict, phone: bool, data_dir: str) -> None:
+    """Bank codes alone are answered by code: 2 problem cards with formulas, no model call."""
+    logs = Path(data_dir, "logs", "llm.jsonl")
+    lines = len(logs.read_text(encoding="utf-8").splitlines())
+    say(page, rep, "8DS-PT1-001, 8DS-PT1-002")
+    expect(page, rep, JS_TWO_TEX, "chat: the two bank codes did not show 2 problem cards with mjx-container")
+    if (cards := page.locator("#chat-msgs .pcard").count()) != 2:
+        rep["missing"].append(f"chat: {cards} problem cards, want 2")
+    if len(logs.read_text(encoding="utf-8").splitlines()) != lines:
+        rep["missing"].append("chat: bank codes called the model (llm.jsonl grew)")
+    press(page, rep, '#chat-msgs .pcard [data-act="c-sol"]', "chat Xem lời giải", JS_SOL_OPEN)
+    see_chat(page, rep, "chat problem cards", phone)
+
+
+def chat_keys(page, rep: dict, reqs: list) -> None:
+    """Shift+Enter breaks the line, Enter sends, Gửi is off when the box is empty."""
+    page.fill("#chat-input", "")
+    if not page.locator(SEND).is_disabled():
+        rep["missing"].append("chat: Gửi is on with an empty box")
+    seen = len(posts(reqs))
+    page.type("#chat-input", "a")
+    page.keyboard.press("Shift+Enter")
+    page.keyboard.type("b")
+    page.wait_for_timeout(300)
+    if page.input_value("#chat-input") != "a\nb" or len(posts(reqs)) != seen or page.locator(SEND).is_disabled():
+        rep["missing"].append(f"chat: Shift+Enter did not just break the line: {page.input_value('#chat-input')!r}")
+    say(page, rep, "xin chào")
+    if len(posts(reqs)) != seen + 1:
+        rep["missing"].append(f"chat: {len(posts(reqs)) - seen} messages sent, want 1")
+    if page.input_value("#chat-input") != "":
+        rep["missing"].append("chat: the box kept the text after a good answer")
+
+
+def chat_retry(page, rep: dict, phone: bool) -> None:
+    """A lost network or a 409: red bubble + Gửi lại, the text stays, Gửi lại then answers (Review Focus 5)."""
+    for how in ("abort", "409"):
+        if how == "abort":
+            page.route(MSGS, lambda r: r.abort())
+        else:
+            page.route(
+                MSGS, lambda r: r.fulfill(status=409, content_type="application/json", body=json.dumps(NOT_FOUND))
+            )
+        mine = page.locator("#chat-msgs .msg-me").count()
+        page.fill("#chat-input", f"thử lại {how}")
+        page.press("#chat-input", "Enter")
+        expect(page, rep, JS_RETRY, f"chat {how}: no red bubble with Gửi lại")
+        if how == "abort" and ERR_BUBBLE not in page.inner_text("#chat-msgs .bubble-err"):
+            rep["missing"].append(f"chat: the red bubble does not say '{ERR_BUBBLE}'")
+        if page.input_value("#chat-input") != f"thử lại {how}" or page.locator(SEND).is_disabled():
+            rep["missing"].append(
+                f"chat {how}: the text left the box or Gửi stayed off: {page.input_value('#chat-input')!r}"
+            )
+        see_chat(page, rep, f"chat {how}", phone)
+        page.unroute(MSGS)
+        shown = msgs(page)
+        press(page, rep, '[data-act="c-retry"]', f"chat Gửi lại ({how})", JS_REPLIED, shown - 1)
+        if page.locator(".bubble-err").count() or page.locator("#chat-msgs .msg-me").count() != mine + 1:
+            rep["missing"].append(f"chat {how}: Gửi lại left the red bubble or added a second tutor bubble")
+        if page.input_value("#chat-input") != "":
+            rep["missing"].append(f"chat {how}: the box kept the text after Gửi lại worked")
+
+
+def chat_reload(page, rep: dict, phone: bool) -> None:
+    """After a reload the conversation is in the list and opens with every message; the phone gets a drawer."""
+    count = page.locator("#chat-msgs .msg").count()
+    page.reload()
+    expect(page, rep, JS_LIST_HAS, "chat: no conversation in the list after a reload")
+    if phone:
+        press(page, rep, "#conv-toggle", "chat ☰ Hội thoại", JS_DRAWER)
+        see_chat(page, rep, "chat drawer", phone)
+    elif page.locator(".convs").is_hidden():
+        rep["missing"].append("chat: the conversation list is hidden at desktop width")
+    item = '#conv-list .conv-item:has-text("Tháng này @Nguyễn Văn An") >> nth=0'
+    press(page, rep, item, "chat mở hội thoại", JS_N_MSGS, count)
+    text = page.inner_text("#chat-msgs")
+    rep["missing"] += [
+        f"chat: reopened conversation has no '{w}'"
+        for w in ("Số chưa kiểm: 97", "Nguồn:", SAVED_NOTHING)
+        if w not in text
+    ]
+    if page.locator(".convs.open").count():
+        rep["missing"].append("chat: opening a conversation left the drawer open")
+    see_chat(page, rep, "chat reopened", phone)
+
+
+def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
+    """📎 lists data/inbox/; the chosen file rides with the message; ask_grading pre-fills the guess."""
+    inbox = Path(data_dir, "inbox")
+    (inbox / "hs01-2026-10-25.tex").write_bytes((FIX / "s01.tex").read_bytes() + b"\n% robot\n")  # new sha: not graded
+    (inbox / "bai-scan.pdf").write_bytes(b"%PDF-1.4\n")
+    new_chat(page, rep, phone)
+    press(page, rep, '[data-act="c-attach"]', "chat 📎", JS_MODAL)
+    expect(page, rep, JS_FILES, "chat 📎: the inbox is not listed")
+    modal = page.inner_text("#modal-body")
+    rep["missing"] += [
+        f"chat 📎: no '{w}'"
+        for w in (f"Bài của {PEOPLE[0]} · 25/10/2026", "Chưa rõ học sinh, ngày học")
+        if w not in modal
+    ]
+    for name, label in (("s01.tex", "đã chấm"), ("bai-scan.pdf", "chưa nhận PDF")):
+        b = page.locator(f'#modal-body .file-row:has-text("{name}") button')
+        if b.inner_text().strip() != label or not b.is_disabled():
+            rep["missing"].append(f"chat 📎: {name} should be a disabled '{label}'")
+    see_chat(page, rep, "chat 📎", phone)
+    press(page, rep, '#modal-body .file-row:has-text("hs01-2026-10-25.tex") button', "chat Chọn bài", JS_NO_MODAL)
+    if "hs01-2026-10-25.tex" not in page.inner_text("#attach-row") or page.locator(SEND).is_disabled():
+        rep["missing"].append("chat 📎: the chosen file is not a chip on the box, or Gửi is off")
+    seen, n = len(posts(reqs)), msgs(page)
+    page.press("#chat-input", "Enter")
+    expect(page, rep, JS_REPLIED, "chat 📎: no answer to the file", n)
+    sent = posts(reqs)[seen:]
+    if len(sent) != 1 or sent[0]["attachment"] != {"path": "hs01-2026-10-25.tex"} or sent[0]["held_on"] != "2026-10-25":
+        rep["missing"].append(f"chat 📎: sent {sent}, want attachment hs01-2026-10-25.tex + held_on 2026-10-25")
+    if page.locator("#attach-row .file-chip").count():
+        rep["missing"].append("chat 📎: the chip stayed after sending")
+    if (form := page.evaluate(JS_ASK_GRADE)) != [PEOPLE[0], "2026-10-25", False]:
+        rep["missing"].append(f"chat ask_grading: form is {form}, want {PEOPLE[0]}, 2026-10-25, button on")
+    see_chat(page, rep, "chat ask_grading", phone)
+    page.route(MSGS, lambda r: r.abort())  # only the message is read: grading would start a thread
+    seen = len(posts(reqs))
+    page.click('.ask-grade [data-act="c-grade"]')
+    page.wait_for_timeout(300)
+    page.unroute(MSGS)
+    sent = posts(reqs)[seen:]
+    if len(sent) != 1 or sent[0]["mentions"] != [1] or "@HS-01" not in sent[0]["text"]:
+        rep["missing"].append(f"chat ask_grading: Chấm bài này sent {sent}, want @HS-01 and mentions [1]")
+    elif sent[0]["held_on"] != "2026-10-25" or sent[0]["attachment"] != {"path": "hs01-2026-10-25.tex"}:
+        rep["missing"].append(f"chat ask_grading: Chấm bài này sent {sent}, want the file and held_on")
+
+
+def walk_chat(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> None:
+    """The Trợ lý tab (the app is on it already). With --data the walk must leave tutor.db and the decisions alone."""
+    reqs: list = []
+    page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
+    before = db_state(data_dir) if data_dir else None
+    if not chat_basics(page, rep, phone, data_dir, root):
+        return
+    if data_dir:
+        chat_cut_code(page, rep, phone)
+        chat_mentions(page, rep, phone, data_dir, reqs)
+    saved = db_state(data_dir) if data_dir else None
+    if SAVED_NOTHING not in say(page, rep, "ok"):
+        rep["missing"].append(f"chat: 'ok' should answer '{SAVED_NOTHING}'")
+    if data_dir:
+        if db_state(data_dir) != saved:
+            rep["missing"].append("chat: 'ok' changed tutor.db or the saved decisions")
+        chat_codes(page, rep, phone, data_dir)
+    chat_keys(page, rep, reqs)
+    chat_retry(page, rep, phone)
+    if data_dir:
+        chat_reload(page, rep, phone)
+        chat_attach(page, rep, phone, data_dir, reqs)
+        if db_state(data_dir) != before:
+            rep["missing"].append("chat: the walk changed tutor.db or the saved decisions")
 
 
 BANK_LABELS = ("Tìm", "Chủ đề", "Lớp", "Kỹ năng", "Mức", "Xoá lọc")
@@ -661,6 +1002,7 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
     if page.evaluate("U.api.get('/health')").get("status") != "ok":
         rep["missing"].append("U.api.get('/health') is not ok")
     walk_tabs(page, rep, phone, shots)
+    walk_chat(page, rep, phone, data_dir, base.removesuffix("v3/"))
     walk_bank(page, rep, phone, data_dir, files)
     walk_gear(page, rep, phone)
     walk_theme(page, rep, base)
@@ -674,6 +1016,7 @@ def check(url: str, args: argparse.Namespace) -> int:
     data_dir = getattr(url, "data_dir", None) if args.data else None
     if data_dir:
         api(url, "POST", "/catalog/kc", {"code": "ROBOT-LE-01", "name": LEAF, "description": "robot", "lop": 8})
+        api(url, "POST", f"/students/{api(url, 'POST', '/students', {'name': ARCHIVED, 'grade': 7})['id']}/archive")
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome")
         views = [walk(browser, base, n, vp, args.shots, data_dir) for n, vp in (("desktop", DESK), ("phone", PHONE))]

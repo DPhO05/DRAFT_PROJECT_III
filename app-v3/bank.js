@@ -164,6 +164,7 @@
     U.api.get('/bank/problems/' + el.dataset.pid).then(function (p) { if (my === openSeq) showProblem(p); },
       function () { U.toast('Không mở được bài này. Thử lại sau.', 'warn'); });
   };
+  window.BANK = { open: function (id) { U.tab('ngan-hang'); ACT['b-open']({ dataset: { pid: id } }); } };  // chat's "Mở trong Ngân hàng"
   ACT['b-edit'] = function () {
     (kcs.length ? Promise.resolve() : loadCatalog()).then(function () {
       var p = cur;

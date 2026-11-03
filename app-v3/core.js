@@ -21,6 +21,63 @@ var U = {};
     return '<div class="tex tex-block">' + String(latex).split(/\n\s*\n/).map(function (p) { return '<p>' + U.esc(p) + '</p>'; }).join('') + '</div>';
   };
 
+  // ---- chat text: HS-xx -> name (C-40), sub-Markdown (api-v3 §3.1), score on a 10 scale ----
+  U.people = {};  // "HS-01" -> full name; the Trợ lý tab fills it from /students?archived=true
+  U.names = function (text) {
+    return String(text).replace(/\bHS-(\d{2,})\b/gi, function (m, n) { return U.people['HS-' + n.padStart(2, '0')] || m; });
+  };
+  U.score = function (score, max) { return String(Math.round(max ? score / max * 20 : 0) / 2).replace('.', ',') + '/10'; };
+  U.md = function (text) {
+    var inline = function (s) {
+      return U.esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\$([^$\n]+)\$/g, '<span class="tex">$$$1$$</span>');
+    };
+    var cell = function (tag) { return function (c) { return '<' + tag + '>' + inline(c.trim()) + '</' + tag + '>'; }; };
+    var out = [], kind = '', buf = [];
+    var flush = function () {
+      if (!buf.length) return;
+      if (kind === 'ul' || kind === 'ol') {
+        out.push('<' + kind + '>' + buf.map(function (l) { return '<li>' + inline(l.replace(/^\s*(?:[-*]|\d+\.)\s+/, '')) + '</li>'; }).join('') + '</' + kind + '>');
+      } else if (kind === 'table') {
+        var rows = buf.filter(function (l) { return !/^[\s|:-]+$/.test(l); }).map(function (l) { return l.trim().replace(/^\||\|$/g, '').split('|'); });
+        out.push('<div class="table-wrap"><table class="tbl"><thead><tr>' + (rows.shift() || []).map(cell('th')).join('') + '</tr></thead><tbody>' +
+          rows.map(function (r) { return '<tr>' + r.map(cell('td')).join('') + '</tr>'; }).join('') + '</tbody></table></div>');
+      } else out.push('<p>' + buf.map(inline).join('<br>') + '</p>');
+      buf = []; kind = '';
+    };
+    String(text).split('\n').forEach(function (l) {
+      var k = !l.trim() ? '' : /^\s*[-*]\s/.test(l) ? 'ul' : /^\s*\d+\.\s/.test(l) ? 'ol' : /^\s*\|/.test(l) ? 'table' : 'p';
+      if (k !== kind) flush();
+      kind = k;
+      if (k) buf.push(l);
+    });
+    flush();
+    return out.join('');
+  };
+
+  // ---- NDJSON POST (the assistant stream): onEvent gets every complete line; a non-2xx answer rejects like app/api.js ----
+  U.ndjson = function (path, body, onEvent) {
+    return fetch('/api' + path, { method: 'POST', headers: { 'X-Tutor': '1', 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }).then(function (r) {
+      if (!r.ok) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          var err = j.error || {}, e = new Error(err.message || r.statusText);
+          e.status = r.status; e.code = err.code; e.detail = err.detail;
+          throw e;
+        });
+      }
+      var rd = r.body.getReader(), dec = new TextDecoder(), buf = '';
+      var pump = function () {
+        return rd.read().then(function (x) {
+          buf += dec.decode(x.value, { stream: !x.done });
+          var lines = buf.split('\n');
+          buf = lines.pop();  // a line cut short stays unread: the caller sees a stream that ended before `done`
+          lines.forEach(function (l) { if (l.trim()) onEvent(JSON.parse(l)); });
+          return x.done ? undefined : pump();
+        });
+      };
+      return pump();
+    });
+  };
+
   // ---- MathJax: typeset on demand, queue until the CDN script is ready ----
   var texQueue = [], texReady = false;
   window.__texReady = function () { texReady = true; var q = texQueue; texQueue = []; q.forEach(U.typeset); };

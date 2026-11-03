@@ -2,7 +2,6 @@
 (function () {
   var NEXT = '<span class="chip chip-info">Sắp có</span>';
   var PAGES = {
-    'tro-ly': ['Trợ lý', 'Nhờ trợ lý bằng lời: chấm bài, soạn phiếu, hỏi về từng em, bắt đầu báo cáo và tìm bài.'],
     'hoc-sinh': ['Học sinh', 'Xem từng em tiến bộ ra sao và quản lý danh sách học sinh.'],
     'bao-cao': ['Báo cáo', 'Làm báo cáo cho phụ huynh theo ngày, tuần hoặc tháng, chỉ từ các buổi đã duyệt.']
   };
