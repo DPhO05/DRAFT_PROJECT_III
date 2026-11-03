@@ -825,6 +825,13 @@ JS_WS_OPEN = "() => (document.getElementById('draft')?.getBoundingClientRect().h
 JS_WS_SHUT = "() => document.getElementById('draft')?.getBoundingClientRect().height === 0"
 JS_STATUS = "u => fetch(u).then(r => r.status)"
 JS_NO_PRINT = "() => { window.__printed = 0; window.print = () => { window.__printed++; }; }"
+BAD_CODE, BAD_WHY = "9ZZ-ZZZ-999", "Bỏ mã không hợp lệ trước khi tạo phiếu"  # P8
+# PUTs of the G4 drafts reach the server `ms` late; only g4- threads, the grading cards keep their own PUTs
+JS_SLOW_PUT = """ms => { window.__wsSend = U.api.send;
+  const late = (m, p, b) => new Promise(r => setTimeout(r, ms)).then(() => window.__wsSend(m, p, b));
+  U.api.send = (m, p, b) => m === 'PUT' && p.startsWith('/threads/g4-') ? late(m, p, b) : window.__wsSend(m, p, b); }"""
+JS_FAST_PUT = "() => { U.api.send = window.__wsSend; }"
+JS_CARD_REFS = "t => U.api.get('/threads/' + t + '?view=teacher').then(r => r.card.items.map(i => i.ref))"
 
 
 def recs(data_dir: str, where: str = "1", *args) -> int:
@@ -841,10 +848,10 @@ def sheet(data_dir: str, sid: int) -> list:
         ).fetchall()
 
 
-def ws_propose(page, rep: dict, phone: bool) -> str | None:
-    """'Gợi ý 6 bài cho @Trần Thị Bình buổi thứ Bảy' opens the draft panel with 6 problems; returns its thread."""
+def ws_propose(page, rep: dict, phone: bool, who: str = PEOPLE[1]) -> str | None:
+    """'Gợi ý 6 bài cho @<who> buổi thứ Bảy' opens the draft panel with 6 problems; returns its thread."""
     new_chat(page, rep, phone)
-    pick_mention(page, rep, WS_ASK, "Trần", PEOPLE[1])
+    pick_mention(page, rep, WS_ASK, who.split()[0], who)
     page.keyboard.type("buổi thứ Bảy")
     n = msgs(page)
     page.press("#chat-input", "Enter")
@@ -879,6 +886,12 @@ def ws_edit(page, rep: dict, data_dir: str, reqs: list, tid: str) -> list:
     expect(page, rep, JS_WS_REFS_ARE, "worksheet: Enter in Thêm theo mã did not add 9DS-PT2-001 last", want)
     if SELF_ADDED not in " ".join(page.locator("#draft .draft-item").all_inner_texts()[-1:]):
         rep["missing"].append(f"worksheet: the added problem does not say '{SELF_ADDED}'")
+    page.fill(WS_CODE, BAD_CODE)
+    page.press(WS_CODE, "Enter")
+    expect(page, rep, JS_WS_HAS, f"worksheet: Thêm {BAD_CODE} shows no invalid line", f"{BAD_CODE}: không có")
+    if not page.locator(CREATE).is_disabled() or BAD_WHY not in page.inner_text("#draft"):
+        rep["missing"].append(f"worksheet: an invalid code should turn Tạo phiếu off with '{BAD_WHY}' (P8)")
+    press(page, rep, '#draft [data-act="ws-bad-del"]', f"worksheet × {BAD_CODE}", JS_ON, CREATE)
     if recs(data_dir) or resumes(reqs, tid):
         rep["missing"].append("worksheet: an edit or Enter in Thêm theo mã wrote recommendation rows or resumed")
     return want
@@ -897,8 +910,15 @@ def ws_chat_enter(page, rep: dict, data_dir: str, reqs: list, tid: str, want: li
     page.wait_for_timeout(500)
     if recs(data_dir) or resumes(reqs, tid) or page.locator(CREATE).count() != 1:
         rep["missing"].append("worksheet: Enter in the chat box made a sheet (Review Focus 2)")
+    page.evaluate(JS_SLOW_PUT, 400)  # Important 1: the PUT of a panel change lands after the chat added a code
+    page.click('#draft [data-act="ws-move"][data-i="0"][data-d="1"]')
     say(page, rep, "8DS-PT1-001")
-    expect(page, rep, JS_WS_REFS_ARE, "worksheet: a code typed in the chat did not join (C-43)", [*want, "8DS-PT1-001"])
+    want = [want[1], want[0], *want[2:], "8DS-PT1-001"]
+    expect(page, rep, JS_WS_REFS_ARE, "worksheet: a code typed in the chat did not join (C-43)", want)
+    page.wait_for_timeout(2500)
+    page.evaluate(JS_FAST_PUT)
+    if page.evaluate(JS_WS_REFS) != want or page.evaluate(JS_CARD_REFS, tid) != want:
+        rep["missing"].append("worksheet: a code typed in the chat right after ↓ left the panel or the server")
     if posts(reqs)[-1]["context"]["worksheet_thread_id"] != tid:
         rep["missing"].append(f"worksheet: the chat sent context {posts(reqs)[-1]['context']}, want the draft {tid}")
     if recs(data_dir):
@@ -947,6 +967,19 @@ def ws_replace(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
         rep["missing"].append(f"worksheet: the replace sent {resumes(reqs, tid)} resumes, want 1")
 
 
+def ws_switch(page, rep: dict, phone: bool) -> None:
+    """Important 2: another student's draft replaces the panel while the last one's PUT is in the air."""
+    if not ws_propose(page, rep, phone):
+        return
+    page.evaluate(JS_SLOW_PUT, 1500)
+    page.click('#draft [data-act="ws-move"][data-i="0"][data-d="1"]')
+    ws_propose(page, rep, phone, PEOPLE[0])
+    page.wait_for_timeout(2500)  # the slow PUT of the first draft has come back
+    page.evaluate(JS_FAST_PUT)
+    if PEOPLE[0] not in (head := page.inner_text("#draft h2")) or PEOPLE[1] in head:
+        rep["missing"].append(f"worksheet: the panel head says {head!r} over the draft of {PEOPLE[0]}")
+
+
 def walk_worksheet(page, rep: dict, phone: bool, data_dir: str) -> None:
     """The G4 draft panel beside the chat; a sheet at 390 px. Each desktop step stands on the one before."""
     reqs: list = []
@@ -977,6 +1010,8 @@ def walk_worksheet(page, rep: dict, phone: bool, data_dir: str) -> None:
         see_chat(page, rep, "worksheet saved", phone)
     if ok():
         ws_replace(page, rep, phone, data_dir, reqs)
+    if ok():
+        ws_switch(page, rep, phone)
 
 
 BANK_LABELS = ("Tìm", "Chủ đề", "Lớp", "Kỹ năng", "Mức", "Xoá lọc")

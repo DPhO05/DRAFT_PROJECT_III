@@ -2,9 +2,10 @@
    Every change PUTs the whole sheet (500 ms debounce) and redraws from the server card; only Tạo phiếu and Thử lại resume. */
 (function () {
   var C = window.CHAT, W = null;  // the draft on screen
-  var NEED_ONE = 'Phiếu cần ít nhất 1 bài.';
+  var NEED_ONE = 'Phiếu cần ít nhất 1 bài.', BAD = 'Bỏ mã không hợp lệ trước khi tạo phiếu.';
   var GROUPS = [['review', 'ôn lại'], ['zpd', 'vừa sức'], ['challenge', 'thử thách'], [null, 'thầy/cô thêm']];
   var REF = /\d[A-Z]{2}-[A-Z0-9]+-\d{3}/g;
+  var CODES_ONLY = /^\s*\d[A-Z]{2}-[A-Z0-9]+-\d{3}(\s*,\s*\d[A-Z]{2}-[A-Z0-9]+-\d{3})*\s*$/i;  // orchestrator _REFS_ONLY: answered by add_refs
   var ERR = { not_ready: 'Phiếu đang được lưu, chờ một lát.', undecided_items: NEED_ONE, already_committed: 'Phiếu này đã tạo rồi.' };
 
   function noop() { /* the next poll or click tries again */ }
@@ -19,7 +20,7 @@
   function path(s, tail) { return '/threads/' + encodeURIComponent(s.tid) + tail; }
   function refsOf(s) { return s.card.items.map(function (i) { return i.ref; }).concat(s.card.invalid.map(function (x) { return x.ref; }), s.extra); }
   function dirty(s) { return !!s.timer || s.saving > 0; }
-  function live(s) { return !!s && !!s.el.querySelector('.ws'); }  // CHAT.poll puts "Việc này đã xong" in place of the card on a 404
+  function live(s) { return !!s && s.el.isConnected && !!s.el.querySelector('.ws'); }  // not replaced by another draft, and no 404 ("Việc này đã xong")
 
   // ---- the panel: an aside in the Trợ lý grid + "Phiếu nháp (n)" in the chat head (a sheet at ≤ 860 px) ----
   function aside() {
@@ -40,9 +41,10 @@
     a.parentNode.classList.toggle('has-draft', on);
     document.getElementById('draft-toggle').hidden = !W;
   }
-  function open(tid, fresh) {
+  function open(tid, how) {  // how: null = only show, true = a new proposal, [refs] = codes the chat just added
     var a = aside();
-    if (!W || W.tid !== tid || !live(W)) {
+    if (!W || W.tid !== tid || !live(W) || how === true) {
+      if (W && W.tid === tid) clearTimeout(W.timer);  // propose re-made this thread: the old sheet must not land on it
       var el = document.createElement('div');
       el.className = 'draft-main';
       el.innerHTML = '<div class="ws draft-body"><p class="tool-line">Đang mở phiếu nháp…</p></div>';
@@ -50,7 +52,10 @@
       var s = W = { tid: tid, el: el, card: null, json: '', extra: [], pending: null, timer: 0, putSeq: 0, saving: 0, fresh: 0, busy: false };
       a.querySelector('h2').textContent = ''; a.querySelector('.eyebrow').textContent = 'Phiếu nháp';
       C.poll(tid, function (row) { return onRow(s, row); }, el);
-    } else if (fresh) { W.pending = null; refresh(W); }  // the chat added codes or proposed again: the server sheet wins
+    } else if (how && W.card) {  // add_refs saved them before the card came, but a panel PUT may still carry the old list
+      var have = refsOf(W), more = how.filter(function (r) { return have.indexOf(r) < 0; });
+      if (more.length) { W.extra = W.extra.concat(more); put(W); draw(W); }
+    }
     show(true);
   }
 
@@ -125,9 +130,9 @@
       return '<div class="draft-foot"><div class="row">' + (c.saved ? '<a class="btn btn-primary ws-tex" href="' + U.esc(c.saved.tex) + '" download>Tải .tex</a>' : '') + btn('ws-pdf', 'In PDF') + '</div></div>';
     }
     if (c.stage !== 'draft') return '';
-    var off = !c.items.length || s.pending > 0;  // P3
+    var off = !c.items.length || s.pending > 0 || c.invalid.length > 0;  // P3, P8
     return '<div class="draft-foot"><span class="btn-wrap"><button type="button" class="btn btn-primary" data-act="ws-create"' + (off || s.busy ? ' disabled' : '') + (off ? ' aria-describedby="ws-why"' : '') + '>' +
-      (s.busy ? 'Đang tạo phiếu…' : 'Tạo phiếu') + '</button>' + (off ? '<span class="reason" id="ws-why">' + NEED_ONE + '</span>' : '') + '</span>' +
+      (s.busy ? 'Đang tạo phiếu…' : 'Tạo phiếu') + '</button>' + (off ? '<span class="reason" id="ws-why">' + (c.invalid.length ? BAD : NEED_ONE) + '</span>' : '') + '</span>' +
       '<p class="small muted">Chưa lưu gì cho tới khi bấm “Tạo phiếu”.</p></div>';
   }
 
@@ -158,7 +163,7 @@
   }
   function create(s) {
     var c = s && s.card, box = s && s.el.querySelector('.ws-date');
-    if (!c || c.stage !== 'draft' || s.busy || !c.items.length || s.pending > 0) return;
+    if (!c || c.stage !== 'draft' || s.busy || !c.items.length || s.pending > 0 || c.invalid.length) return;
     if (!box.value) { U.toast('Chọn ngày buổi học trước nhé.', 'warn'); box.focus(); return; }
     c.for_date = box.value;
     var go = function (replace) {
@@ -197,6 +202,7 @@
     var s = editing();
     if (!s) return;
     s.card.invalid.splice(+el.dataset.i, 1);
+    s.pending = null;  // that `pending` counted the code just dropped; the PUT below gives the new one
     put(s); draw(s, '.ws-code');
   };
   ACT['ws-add'] = function () {
@@ -241,7 +247,8 @@
     host.innerHTML = (add.length ? '<p>Đã thêm ' + add.length + ' bài vào phiếu nháp: ' + add.map(ref).join(', ') + '.</p>' : '') +
       (card.invalid || []).map(function (x) { return '<p class="small">Không thêm được ' + ref(x.ref) + ': ' + U.esc(x.why) + '.</p>'; }).join('') +
       '<div class="row">' + btn('ws-open', 'Mở phiếu nháp', 'data-tid="' + U.esc(card.thread_id) + '"') + '</div>';
-    if (!(m && m.done)) open(card.thread_id, true);  // a reopened conversation shows its old cards without opening them
+    var said = m && m.retry ? m.retry.text : null;  // the message this card answers (chat.js go); none from Mở
+    if (!(m && m.done)) open(card.thread_id, said == null ? null : CODES_ONLY.test(said) ? card.added || [] : true);  // a reopened conversation does not open its old cards
   };
   C.worksheetThread = function () {  // R9: the draft on screen, while it can still take codes
     var s = W;
