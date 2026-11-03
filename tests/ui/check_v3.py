@@ -228,6 +228,7 @@ GONE = "Việc này đã xong"
 NEW_CODE, NEW_KIND = "computational.copy_error", "Chép sai số hoặc biểu thức từ đề / dòng trước"
 ADDED = "robot: quên đổi dấu khi chuyển vế"
 OPEN_FORM = "Bấm Thêm lỗi hoặc Thôi trước"
+EVIL = r"$\href{javascript:alert(1)}{x}$"  # student LaTeX; only MathJax's safe extension stops \href
 # the model only ever sees HS-xx, so its text can hold one; boxes show the name, PUTs carry the code (C-40)
 CODED, NAMED = "Em HS-01 quên đổi dấu ở bước cuối", f"Em {PEOPLE[0]} quên đổi dấu ở bước cuối"
 JS_HOST_SEL = """([t, s]) => !!document.querySelector(`.card-host[data-thread="${t}"] ${s}`)"""
@@ -240,6 +241,9 @@ JS_TOAST_HAS = "t => document.getElementById('toasts').innerText.includes(t)"
 JS_TOAST_NO = "t => !document.getElementById('toasts').innerText.includes(t)"
 JS_PRESSED = "s => document.querySelector(s)?.getAttribute('aria-pressed') === 'true'"
 JS_BOXES = "els => els.map(e => e.value)"
+JS_HREF_READY = r"() => MathJax.tex2svgPromise('\\href{x}{y}').then(() => true)"
+JS_LIVE_LINKS = """() => document.querySelectorAll(
+  '#panel-tro-ly [href^="javascript:" i], #panel-tro-ly [*|href^="javascript:" i]').length"""
 
 
 def last_bot(page) -> str:
@@ -740,13 +744,17 @@ def grade_changed(page, rep: dict, reqs: list) -> None:
 
 
 def coded(route) -> None:
-    """Mistake p2 of s01 as the model may write it: with the student's code."""
+    """Mistake p2 of s01 as the model may write it: with the student's code. Evidence and a step hold EVIL."""
     r = route.fetch()
     j = r.json()
     for a in j["card"]["attempts"]:
+        for st in a["steps"][:1]:
+            st["latex"] += f" {EVIL}"
         for m in a["mistakes"]:
             if m["pid"] == "p2":
                 m["description"] = CODED
+            if m["pid"] == "p1":
+                m["evidence_latex"] = EVIL
     route.fulfill(response=r, json=j)
 
 
@@ -760,6 +768,7 @@ def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
     open_card(page, rep, False, G_S06, "grading Mở buổi bị khoá", JS_HOST_HAS, [G_S06, LOCKED])
     see_chat(page, rep, "grading locked", False)
     poll = re.compile(rf"/api/threads/{G_S01}\?view=teacher$")
+    page.evaluate(JS_HREF_READY)  # MathJax autoloads \href; typeset at once, runs break each other
     page.route(poll, coded)
     press(page, rep, f'{host(G_S06)} [data-act="g-open"]', "grading Mở buổi 20/10", JS_HOST_SEL, [G_S01, ".mistake"])
     h, save = host(G_S01), f'{host(G_S01)} [data-act="g-save"]'
@@ -806,6 +815,17 @@ def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
     if db_state(data_dir)[0] != rows:
         rep["missing"].append("grading review: a choice changed tutor.db before Lưu kết quả")
     see_chat(page, rep, "grading review", False)
+    # EVIL in the evidence and in a step is typeset, and leaves no javascript: link
+    work = f'{h} [data-act="g-work"][data-seq="1"]'
+    press(page, rep, work, "grading Xem bài làm có EVIL", JS_HOST_SEL, [G_S01, ".wstep"])
+    sels = ('.mistake[data-pid="p1"]', ".wstep:nth-child(2)")  # the evidence, the first step
+    typeset = [
+        expect(page, rep, JS_HOST_SEL, f"grading review: EVIL not typeset in {s}", [G_S01, f"{s} mjx-container"])
+        for s in sels
+    ]
+    if all(typeset) and (n := page.evaluate(JS_LIVE_LINKS)):
+        rep["missing"].append(f"grading review: {n} javascript: links on screen after MathJax drew student LaTeX")
+    press(page, rep, work, "grading Ẩn bài làm có EVIL", JS_HOST_NO, [G_S01, ".wstep"])
     page.unroute(poll)
     return ok()
 

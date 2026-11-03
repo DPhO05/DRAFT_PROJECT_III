@@ -63,6 +63,7 @@
 <div id="print-root" class="tex-ignore" aria-hidden="true"></div>
 <script>
 window.MathJax = {
+  loader: { load: ['ui/safe'] },  // student LaTeX: no javascript: links, \class or \style
   tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
   svg: { fontCache: 'global' },
   options: { ignoreHtmlClass: 'tex-ignore', processHtmlClass: 'tex', enableMenu: false },

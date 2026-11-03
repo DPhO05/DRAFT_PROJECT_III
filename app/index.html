@@ -481,6 +481,7 @@ mjx-container[jax="SVG"][display="true"] { overflow-x: auto; overflow-y: hidden;
 <div id="tour-root" class="tex-ignore"></div>
 <script>
 window.MathJax = {
+  loader: { load: ['ui/safe'] },  // student LaTeX: no javascript: links, \class or \style
   tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
   svg: { fontCache: 'global' },
   options: { ignoreHtmlClass: 'tex-ignore', processHtmlClass: 'tex', enableMenu: false },
