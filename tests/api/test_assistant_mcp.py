@@ -52,5 +52,5 @@ def test_tool_crash_is_internal(paths, client, monkeypatch):
     assert evs[-1] == {"type": "error", "code": "internal", "message": assistant.INTERNAL}
     logged = (paths.logs / "app.log").read_text(encoding="utf-8")
     assert "RuntimeError: tool broke" in logged and "in boom" in logged
-    assert "tutor/mcp/client.py" in logged  # it went through the Session, not the direct path
+    assert "tutor/mcp/client.py" in logged and "tutor/mcp/server.py" in logged  # Session, then the server handler
     assert "ExceptionGroup" not in logged and "MCPError" not in logged
