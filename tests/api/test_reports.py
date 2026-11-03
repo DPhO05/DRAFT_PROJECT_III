@@ -8,13 +8,16 @@ from contextlib import closing
 import pytest
 
 from tests.agents.test_orchestrator import text, tool
+from tests.api.test_review_api import submit
 from tests.api.test_sessions import W
 from tests.assistant_fix import world
-from tests.fakes import FakeLLM
+from tests.fakes import FakeLLM, lane_handlers
 from tests.graphs.test_report import writer
 from tutor import llm
+from tutor.api import assistant
 from tutor.db import repo
 from tutor.graphs import report
+from tutor.services import facts
 
 WEEK = {"period_kind": "week", "period_start": "2026-10-12"}  # An: 14/10 session; Bình: 14/10 too
 # tests/ui/check_v3.py FORBIDDEN, copied: that module needs playwright
@@ -240,15 +243,78 @@ def test_start_report_in_chat(paths, env):
 
 
 def test_start_report_not_ready_words(env):
+    """An's week of 19/10 has no approved session; the week before has one (H11: the words carry that)."""
     client, w = env
     evs, fake = ask(client, w, [tool("start_report", code="HS-01", period_kind="week", period_start="2026-10-19")],
                     [text("Tuần này chưa làm được.")])  # fmt: skip
     assert [e["state"] for e in evs if e["type"] == "tool"] == ["start", "error"]
     assert not [e for e in evs if e["type"] == "card"]
     assert json.loads(sent_back(fake)) == {
-        "error": "Chưa làm được báo cáo cho HS-01: kỳ này chưa có buổi nào đã duyệt."
+        "error": "Kỳ này chưa có buổi nào đã duyệt. Kỳ gần nhất có dữ liệu bắt đầu 12/10."
     }
     assert client.app.state.runner.list_threads(graph="G5") == []
+
+
+G1_TEX = "\\begin{problem}[9DS-BPT-001]\n$4x = 20$\n$x = 5$\n\\end{problem}\n"
+NOT_READY = "Kỳ này chưa có buổi nào đã duyệt."
+
+
+def waiting(client, w, day):
+    """A G1 session of An left at its review gate: not approved, so not in any report period."""
+    llm.set_backend(FakeLLM({"09": writer} | lane_handlers()))
+    _, _, t = submit(client, w["an"], day, tex=G1_TEX)
+    assert t["status"] == "awaiting_review"
+
+
+def test_start_report_names_the_session_waiting(env):
+    client, w = env
+    waiting(client, w, "2026-10-20")
+    _, fake = ask(client, w, [tool("start_report", code="HS-01", period_kind="week", period_start="2026-10-19")],
+                  [text("Chưa làm được.")])  # fmt: skip
+    assert json.loads(sent_back(fake)) == {
+        "error": f"{NOT_READY} Buổi 20/10 còn chờ duyệt. Kỳ gần nhất có dữ liệu bắt đầu 12/10."
+    }
+
+
+def test_start_report_not_ready_numbers_are_known(env):
+    """C-41: dates in a failed tool result count as known, so repeating them gets no warning; others still do."""
+    client, w = env
+    waiting(client, w, "2026-10-20")
+    call = [tool("start_report", code="HS-01", period_kind="week", period_start="2026-10-19")]
+    said = "Buổi 20/10 còn chờ duyệt, kỳ gần nhất có dữ liệu bắt đầu 12/10."
+    evs, _ = ask(client, w, call, [text(said)])
+    assert [e for e in evs if e["type"] == "warning"] == []
+    evs, _ = ask(client, w, call, [text("Buổi 23/10 còn chờ duyệt.")])
+    assert [e["numbers"] for e in evs if e["type"] == "warning"] == [["23/10"]]
+
+
+@pytest.mark.parametrize(
+    ("detail", "words"),
+    [
+        ({"previous_start": None, "pending": []}, NOT_READY),
+        ({"previous_start": "2026-10-05", "pending": []}, f"{NOT_READY} Kỳ gần nhất có dữ liệu bắt đầu 05/10."),
+        (
+            {"previous_start": None, "pending": [{"held_on": "2026-10-08"}, {"held_on": "2026-10-06"}]},
+            f"{NOT_READY} Buổi 06/10 còn chờ duyệt. Buổi 08/10 còn chờ duyệt.",
+        ),
+        (
+            {"previous_start": "2026-09-28", "pending": [{"held_on": d} for d in ("2026-10-09", "2026-10-07",
+                                                                                 "2026-10-08", "2026-10-06")]},
+            f"{NOT_READY} Buổi 06/10 còn chờ duyệt. Buổi 07/10 còn chờ duyệt. Buổi 08/10 còn chờ duyệt."
+            " Kỳ gần nhất có dữ liệu bắt đầu 28/09.",
+        ),
+    ],
+)  # fmt: skip
+def test_not_ready_words_by_detail(monkeypatch, detail, words):
+    """Pending sessions: oldest first, at most 3, dd/mm; the previous-period line only when one exists."""
+
+    def refuse(*a, **k):
+        raise facts.NotReady({"reason": "no_committed_session"} | detail)
+
+    monkeypatch.setattr(assistant.report, "start", refuse)
+    with pytest.raises(ValueError) as e:
+        assistant.make_starters(None, None).start_report(1, "week", "2026-10-05")
+    assert str(e.value) == words
 
 
 def test_start_report_approved_words(env):

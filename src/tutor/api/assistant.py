@@ -61,6 +61,15 @@ def _dm(day: str) -> str:
     return f"{date.fromisoformat(day):%d/%m}"
 
 
+def _not_ready(detail: dict) -> str:
+    """Words for a period with no approved session: the model gets what to tell the tutor, no chat buttons (H11)."""
+    words = ["Kỳ này chưa có buổi nào đã duyệt."]
+    words += [f"Buổi {_dm(day)} còn chờ duyệt." for day in sorted(p["held_on"] for p in detail.get("pending", []))[:3]]
+    if detail.get("previous_start"):
+        words.append(f"Kỳ gần nhất có dữ liệu bắt đầu {_dm(detail['previous_start'])}.")
+    return " ".join(words)
+
+
 def make_starters(paths: DataPaths, runner: Runner) -> Starters:
     """start_* wrappers around `runner.start`; a domain error becomes a ValueError with words for the tutor (R20)."""
 
@@ -99,9 +108,7 @@ def make_starters(paths: DataPaths, runner: Runner) -> Starters:
             return report.start(paths, runner, student_id=student_id, period_kind=period_kind,
                                 period_start=period_start, today=date.today())  # fmt: skip
         except facts.NotReady as e:
-            raise ValueError(
-                f"Chưa làm được báo cáo cho {student_code(student_id)}: kỳ này chưa có buổi nào đã duyệt."
-            ) from e
+            raise ValueError(_not_ready(e.detail)) from e
         except repo.ReportApproved as e:
             done = f"{date.fromisoformat(e.approved_at[:10]):%d/%m/%Y}"
             raise ValueError(f"Báo cáo kỳ này đã duyệt ngày {done}. Mỗi kỳ chỉ duyệt một lần.") from e
