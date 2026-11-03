@@ -7,14 +7,18 @@ the G1 grading card, the G4 worksheet panel), the Ngân hàng bài tab (filters,
 Exit 1 on any page error, app console error, dead button, horizontal overflow at 390 px or forbidden text on screen.
 Without --url it starts `tutor app` on a free port with a temp data dir; --data seeds dummy bank and students and
 checks the chat and bank tabs against that tutor.db and imports tests/fixtures/bank/import-mix.tex (needs no --url).
+It also prints db_changes (tutor.db row counts around each step; only commit-button steps may change them) and
+scans llm.jsonl and the chat logs for student names.
 """
 
 import argparse
+import functools
 import json
 import re
 import sqlite3
 import sys
-from contextlib import closing
+import unicodedata
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 # shortcut: generic helpers are imported from check.py; P8-T03 deletes check.py and they move into this file.
@@ -274,6 +278,58 @@ def db_state(data_dir: str) -> tuple:
         return rows, con.execute("SELECT thread_id, decisions_json FROM tutor_thread ORDER BY 1").fetchall()
 
 
+# Row counts of every tutor.db table around each walk step (db_changes); only a commit-button step may change them,
+# bar the tables in its `may` (Chấm bài này starts grading: transaction ① adds the session row, status running).
+# `last` = the counts when the previous step ended, so a change between two steps is caught too.
+LEDGER: dict = {"dir": None, "log": [], "last": None, "depth": 0}
+# steps that must move rows, or the counts are blind (the Sửa save of a bank problem may only update a row)
+MOVES_ROWS = {"chat_attach", "grade_save", "ws_create", "ws_replace", "bank_import"}
+
+
+def counts(data_dir: str) -> dict:
+    with closing(sqlite3.connect(f"{Path(data_dir, 'tutor.db').as_uri()}?mode=ro", uri=True)) as con:
+        return {t: con.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in TABLES}
+
+
+def moved(a: dict, b: dict) -> dict:
+    return {t: [a[t], b[t]] for t in TABLES if a[t] != b[t]}
+
+
+@contextmanager
+def step(rep: dict, name: str, commit: bool = False, may: tuple = ()):
+    if not LEDGER["dir"] or LEDGER["depth"]:  # no --data, or a step inside a step: the outer one counts
+        yield
+        return
+    before = counts(LEDGER["dir"])
+    if gap := moved(LEDGER["last"], before):
+        rep["missing"].append(f"db: rows changed before {name}, outside any step: {gap}")
+    LEDGER["depth"] = 1
+    try:
+        yield
+    finally:
+        LEDGER["depth"] = 0
+        LEDGER["last"] = after = counts(LEDGER["dir"])
+        changed = moved(before, after)
+        LEDGER["log"].append({"view": rep["viewport"], "step": name, "commit": commit, "changed": changed})
+        extra = {} if commit else {t: v for t, v in changed.items() if t not in may}
+        if extra:
+            rep["missing"].append(f"db: {name} changed rows with no commit button pressed: {extra}")
+
+
+def counted(commit: bool = False, may: tuple = ()):
+    """Run a walk step (page, rep, ...) inside `step`, named after the function."""
+
+    def wrap(fn):
+        @functools.wraps(fn)
+        def run(page, rep, *args, **kw):
+            with step(rep, fn.__name__, commit, may):
+                return fn(page, rep, *args, **kw)
+
+        return run
+
+    return wrap
+
+
 def see_chat(page, rep: dict, where: str, phone: bool) -> None:
     see(page, rep, where, phone)
     rep["forbidden"] += [f"{where}: {m.group(0)}" for m in HS_CODE.finditer(page.inner_text("#panel-tro-ly"))]
@@ -288,6 +344,7 @@ def new_chat(page, rep: dict, phone: bool) -> None:
     press(page, rep, '[data-act="c-new"]', "chat Mới", JS_SUGGEST)
 
 
+@counted()
 def chat_basics(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> bool:
     """Reminders, badge, welcome buttons; False when the tab has no chat to walk."""
     js = "() => (document.getElementById('remind') || {innerText: ''}).innerText.trim() !== ''"
@@ -318,6 +375,7 @@ def chat_basics(page, rep: dict, phone: bool, data_dir: str | None, root: str) -
     return True
 
 
+@counted()
 def chat_cut_code(page, rep: dict, phone: bool) -> None:
     """A code cut between deltas or by a lost stream, and an archived code, never show raw (Review Focus 1).
 
@@ -364,6 +422,7 @@ def chat_cut_code(page, rep: dict, phone: bool) -> None:
     new_chat(page, rep, phone)
 
 
+@counted()
 def chat_mentions(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
     """@ picks a name on screen, the wire message holds the code; a made-up number is marked."""
     page.fill("#chat-input", "")
@@ -397,6 +456,7 @@ def chat_mentions(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> No
     see_chat(page, rep, "chat warning", phone)
 
 
+@counted()
 def chat_codes(page, rep: dict, phone: bool, data_dir: str) -> None:
     """Bank codes alone are answered by code: 2 problem cards with formulas, no model call."""
     logs = Path(data_dir, "logs", "llm.jsonl")
@@ -411,6 +471,19 @@ def chat_codes(page, rep: dict, phone: bool, data_dir: str) -> None:
     see_chat(page, rep, "chat problem cards", phone)
 
 
+@counted()
+def chat_ask(page, rep: dict, phone: bool) -> None:
+    """A bank search and the all-students question run their tools; the answers cite a source and show no code."""
+    if "tìm được" not in say(page, rep, "Tìm bài đổi dấu"):
+        rep["missing"].append(f"chat: 'Tìm bài đổi dấu' got {last_bot(page)!r}")
+    see_chat(page, rep, "chat search", phone)
+    answer = say(page, rep, "Ai còn sai dấu khi chuyển vế?")
+    if "so sánh lỗi lặp" not in answer or "Nguồn:" not in answer:
+        rep["missing"].append(f"chat: 'Ai còn sai dấu khi chuyển vế?' got {answer!r}, want a comparison and 'Nguồn:'")
+    see_chat(page, rep, "chat compare", phone)
+
+
+@counted()
 def chat_keys(page, rep: dict, reqs: list) -> None:
     """Shift+Enter breaks the line, Enter sends, Gửi is off when the box is empty."""
     page.fill("#chat-input", "")
@@ -430,6 +503,7 @@ def chat_keys(page, rep: dict, reqs: list) -> None:
         rep["missing"].append("chat: the box kept the text after a good answer")
 
 
+@counted()
 def chat_retry(page, rep: dict, phone: bool) -> None:
     """A lost network or a 409: red bubble + Gửi lại, the text stays, Gửi lại then answers (Review Focus 5)."""
     for how in ("abort", "409"):
@@ -459,6 +533,7 @@ def chat_retry(page, rep: dict, phone: bool) -> None:
             rep["missing"].append(f"chat {how}: the box kept the text after Gửi lại worked")
 
 
+@counted()
 def chat_reload(page, rep: dict, phone: bool) -> None:
     """After a reload the conversation is in the list and opens with every message; the phone gets a drawer."""
     count = page.locator("#chat-msgs .msg").count()
@@ -488,6 +563,7 @@ def llm_lines(data_dir: str, agent: str) -> int:
     return len(re.findall(rf'^\{{"agent": "{agent}"', text, re.M))
 
 
+@counted(may=("session",))
 def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list, before: tuple) -> None:
     """📎 lists data/inbox/; the chosen file rides with the message; ask_grading pre-fills the guess.
 
@@ -557,12 +633,14 @@ def walk_chat(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> 
         chat_cut_code(page, rep, phone)
         chat_mentions(page, rep, phone, data_dir, reqs)
     saved = db_state(data_dir) if data_dir else None
-    if SAVED_NOTHING not in say(page, rep, "ok"):
-        rep["missing"].append(f"chat: 'ok' should answer '{SAVED_NOTHING}'")
+    with step(rep, "chat ok"):
+        if SAVED_NOTHING not in say(page, rep, "ok"):
+            rep["missing"].append(f"chat: 'ok' should answer '{SAVED_NOTHING}'")
     if data_dir:
         if db_state(data_dir) != saved:
             rep["missing"].append("chat: 'ok' changed tutor.db or the saved decisions")
         chat_codes(page, rep, phone, data_dir)
+        chat_ask(page, rep, phone)
     chat_keys(page, rep, reqs)
     chat_retry(page, rep, phone)
     if data_dir:
@@ -597,6 +675,7 @@ def open_card(page, rep: dict, phone: bool, tid: str, label: str, js: str, arg) 
     press(page, rep, f'#remind [data-act="c-open"][data-tid="{tid}"]', label, js, arg)
 
 
+@counted()
 def grade_confirm(page, rep: dict, data_dir: str) -> None:
     """s04 has a problem with no ref: the candidates are formulas; Bỏ bài này sends skip and grading goes on."""
     open_card(page, rep, False, G_S04, "grading Mở bài cần xác nhận", JS_HOST_SEL, [G_S04, ".match-opt mjx-container"])
@@ -620,6 +699,7 @@ def resumes(reqs: list, tid: str) -> int:
     return sum(m == "POST" and u.endswith(f"/threads/{tid}/resume") for m, u, _ in reqs)
 
 
+@counted()
 def grade_changed(page, rep: dict, reqs: list) -> None:
     """s04 at review, every mistake Bỏ: the preview changes under Lưu kết quả, so one resume and a toast (R7)."""
     h, save = host(G_S04), f'{host(G_S04)} [data-act="g-save"]'
@@ -653,6 +733,7 @@ def coded(route) -> None:
     route.fulfill(response=r, json=j)
 
 
+@counted()
 def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
     """s06 waits for s01 (date lock); in s01 each choice is a PUT and tutor.db stays as it is until Lưu kết quả.
 
@@ -704,6 +785,7 @@ def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
     return ok()
 
 
+@counted(commit=True)
 def grade_save(page, rep: dict, data_dir: str, reqs: list) -> None:
     """Lưu kết quả at review: PUT, resume 1, the same preview, resume 2 on its own; a double click is still 1 chain."""
     h, save = host(G_S01), f'{host(G_S01)} [data-act="g-save"]'
@@ -730,6 +812,7 @@ def grade_save(page, rep: dict, data_dir: str, reqs: list) -> None:
     press(page, rep, "#tab-tro-ly", "tab tro-ly")
 
 
+@counted()
 def grade_stale(page, rep: dict, reqs: list) -> None:
     """Commit ② refused (StaleProfile, session.py:548): the thread is back at the same preview, Lưu kết quả is on again.
 
@@ -750,6 +833,7 @@ def grade_stale(page, rep: dict, reqs: list) -> None:
         rep["missing"].append("grading stale: the card says Đã lưu")
 
 
+@counted()
 def grade_routes(page, rep: dict, reqs: list) -> None:
     """A failed thread offers Chấm lại (one resume); a thread gone (404) in a reopened conversation stops polling."""
     h, poll = host(G_NEW), re.compile(rf"/api/threads/{G_NEW}\?view=teacher$")
@@ -792,10 +876,11 @@ def grade_routes(page, rep: dict, reqs: list) -> None:
 def walk_grading(page, rep: dict, phone: bool, data_dir: str) -> None:
     """The G1 card in the chat. The phone only looks at one (s06, under review once s01 is saved)."""
     if phone:
-        open_card(page, rep, phone, G_S06, "grading Mở bài chờ duyệt", JS_HOST_SEL, [G_S06, ".mistake"])
-        press(page, rep, f"{host(G_S06)} [data-act=g-work] >> nth=0", "grading Xem đề & bài làm", JS_HOST_SEL,
-              [G_S06, ".wstep.hit"])  # fmt: skip
-        see_chat(page, rep, "grading phone", phone)
+        with step(rep, "grading phone"):
+            open_card(page, rep, phone, G_S06, "grading Mở bài chờ duyệt", JS_HOST_SEL, [G_S06, ".mistake"])
+            press(page, rep, f"{host(G_S06)} [data-act=g-work] >> nth=0", "grading Xem đề & bài làm", JS_HOST_SEL,
+                  [G_S06, ".wstep.hit"])  # fmt: skip
+            see_chat(page, rep, "grading phone", phone)
         return
     reqs: list = []
     page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
@@ -848,6 +933,7 @@ def sheet(data_dir: str, sid: int) -> list:
         ).fetchall()
 
 
+@counted()
 def ws_propose(page, rep: dict, phone: bool, who: str = PEOPLE[1]) -> str | None:
     """'Gợi ý 6 bài cho @<who> buổi thứ Bảy' opens the draft panel with 6 problems; returns its thread."""
     new_chat(page, rep, phone)
@@ -861,6 +947,7 @@ def ws_propose(page, rep: dict, phone: bool, who: str = PEOPLE[1]) -> str | None
     return page.evaluate(JS_WS_TID)
 
 
+@counted()
 def ws_edit(page, rep: dict, data_dir: str, reqs: list, tid: str) -> list:
     """↑ ↓ × and Thêm theo mã redraw from the server card; nothing reaches tutor.db; Enter in the code box adds."""
     r = page.evaluate(JS_WS_REFS)
@@ -897,6 +984,7 @@ def ws_edit(page, rep: dict, data_dir: str, reqs: list, tid: str) -> list:
     return want
 
 
+@counted()
 def ws_chat_enter(page, rep: dict, data_dir: str, reqs: list, tid: str, want: list) -> None:
     """Review Focus 2: Enter in the chat box, empty or 'ok', makes no sheet; a code typed there joins the draft."""
     page.fill("#chat-input", "")
@@ -925,6 +1013,7 @@ def ws_chat_enter(page, rep: dict, data_dir: str, reqs: list, tid: str, want: li
         rep["missing"].append("worksheet: a code typed in the chat wrote recommendation rows")
 
 
+@counted(commit=True)
 def ws_create(page, rep: dict, data_dir: str, reqs: list, tid: str) -> None:
     """× hết turns Tạo phiếu off; 2 codes back, one ↑, Enter in the date box makes the sheet in screen order."""
     while (n := page.locator("#draft .draft-item").count()) and len(rep["missing"]) < 50:
@@ -952,6 +1041,7 @@ def ws_create(page, rep: dict, data_dir: str, reqs: list, tid: str) -> None:
         rep["missing"].append("worksheet: In PDF did not put the 2 statements in #print-root")
 
 
+@counted(commit=True)
 def ws_replace(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
     """A second sheet the same day asks to replace; Tạo phiếu mới marks the old rows rejected."""
     if not (tid := ws_propose(page, rep, phone)):
@@ -967,6 +1057,7 @@ def ws_replace(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
         rep["missing"].append(f"worksheet: the replace sent {resumes(reqs, tid)} resumes, want 1")
 
 
+@counted()
 def ws_switch(page, rep: dict, phone: bool) -> None:
     """Important 2: another student's draft replaces the panel while the last one's PUT is in the air."""
     if not ws_propose(page, rep, phone):
@@ -986,13 +1077,14 @@ def walk_worksheet(page, rep: dict, phone: bool, data_dir: str) -> None:
     page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
     if phone:
         if ws_propose(page, rep, phone):
-            see_chat(page, rep, "worksheet phone open", phone)
-            press(page, rep, '#draft [data-act="ws-close"]', "worksheet đóng tấm trượt", JS_WS_SHUT)
-            toggle = page.locator("#draft-toggle")
-            if not toggle.is_visible() or toggle.inner_text().strip() != "Phiếu nháp (6)":
-                rep["missing"].append("worksheet phone: no 'Phiếu nháp (6)' button once the sheet is closed")
-            press(page, rep, "#draft-toggle", "worksheet Phiếu nháp (6)", JS_WS_OPEN)
-            see_chat(page, rep, "worksheet phone sheet", phone)
+            with step(rep, "worksheet phone"):
+                see_chat(page, rep, "worksheet phone open", phone)
+                press(page, rep, '#draft [data-act="ws-close"]', "worksheet đóng tấm trượt", JS_WS_SHUT)
+                toggle = page.locator("#draft-toggle")
+                if not toggle.is_visible() or toggle.inner_text().strip() != "Phiếu nháp (6)":
+                    rep["missing"].append("worksheet phone: no 'Phiếu nháp (6)' button once the sheet is closed")
+                press(page, rep, "#draft-toggle", "worksheet Phiếu nháp (6)", JS_WS_OPEN)
+                see_chat(page, rep, "worksheet phone sheet", phone)
         return
     if recs(data_dir):
         rep["missing"].append("worksheet: recommendation has rows before the walk")
@@ -1141,6 +1233,7 @@ def bank_level(page, rep: dict, data_dir: str, level: str, where: str) -> None:
     press(page, rep, f'[data-act="b-level"][data-v="{level}"]', f"bank level {level}", JS_COUNT_IS, n)
 
 
+@counted()
 def bank_filters(page, rep: dict, data_dir: str, reqs: list) -> None:
     total = problems(data_dir)
     topics = scalar(
@@ -1200,6 +1293,7 @@ def bank_filters(page, rep: dict, data_dir: str, reqs: list) -> None:
     page.evaluate("() => { U.api.get = window.__get; }")
 
 
+@counted()
 def bank_races(page, rep: dict, data_dir: str) -> None:
     """Xem thêm while a newer filter or search is still loading must not mix two result sets."""
     total, easy = problems(data_dir), problems(data_dir, EASY)
@@ -1238,6 +1332,7 @@ def bank_races(page, rep: dict, data_dir: str) -> None:
     late.close()
 
 
+@counted(commit=True)
 def bank_edit(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
     bank_level(page, rep, data_dir, "dễ", EASY)
     card = page.locator("#b-grid .bcard").first
@@ -1372,6 +1467,7 @@ def import_reopen(page, rep: dict, phone: bool, mix: str, file_row, reqs: list) 
     press(page, rep, read, f"bank đọc lại {mix}", JS_ROOT_HAS, "Còn 1 bài chưa chọn kỹ năng")
 
 
+@counted(commit=True)
 def bank_import(page, rep: dict, phone: bool, data_dir: str, reqs: list, files: tuple[str, str]) -> None:
     mix, bad = files
     ref = lambda n: f"8DS-{'NEX' if phone else 'NEW'}-{n:03d}"  # noqa: E731
@@ -1519,7 +1615,40 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
     walk_gear(page, rep, phone)
     walk_theme(page, rep, base)
     page.wait_for_timeout(500)  # late errors
+    with step(rep, "walk end"):  # catches rows changed since the last step
+        pass
     page.context.close()
+    return rep
+
+
+NAMES = ("nguyen van an", "tran thi binh")  # PEOPLE, lowercase and without diacritics
+
+
+def fold(text: str) -> str:
+    """Lowercase, no diacritics; đ has no decomposition, so it is mapped by hand."""
+    plain = unicodedata.normalize("NFD", text.lower())
+    return "".join(c for c in plain if not unicodedata.combining(c)).replace("đ", "d")
+
+
+def finish(data_dir: str) -> dict:
+    """After both walks: no student name in llm.jsonl or the chat logs (C-40), and the row counts saw the saves.
+
+    A missing or empty log would pass the scan, so it fails it."""
+    rep = {k: [] for k in ("console_errors", "page_errors", "dead", "missing", "forbidden", "overflow", "shots")}
+    logs = Path(data_dir, "logs")
+    files = [logs / "llm.jsonl", *sorted(logs.glob("chat/*.jsonl"))]
+    texts = {f.name: f.read_text(encoding="utf-8") if f.is_file() else "" for f in files}
+    rep |= {"viewport": "end", "scanned": {name: len(text) for name, text in texts.items()}}
+    if [fold(n) for n in PEOPLE] != list(NAMES):
+        rep["missing"].append(f"log scan: NAMES {NAMES} are not the folded {PEOPLE}")
+    if len(files) < 2:
+        rep["missing"].append("log scan: no chat log in data/logs/chat/")
+    for name, text in texts.items():
+        if not text.strip():
+            rep["missing"].append(f"log scan: {name} is missing or empty")
+        rep["missing"] += [f"log scan: '{n}' is in {name}" for n in NAMES if n in fold(text)]
+    if lost := MOVES_ROWS - {e["step"] for e in LEDGER["log"] if e["changed"]}:
+        rep["missing"].append(f"db: steps {sorted(lost)} changed no rows, so the row counts see nothing")
     return rep
 
 
@@ -1529,14 +1658,18 @@ def check(url: str, args: argparse.Namespace) -> int:
     if data_dir:
         api(url, "POST", "/catalog/kc", {"code": "ROBOT-LE-01", "name": LEAF, "description": "robot", "lop": 8})
         api(url, "POST", f"/students/{api(url, 'POST', '/students', {'name': ARCHIVED, 'grade': 7})['id']}/archive")
+        LEDGER.update(dir=data_dir, last=counts(data_dir))
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome")
         views = [walk(browser, base, n, vp, args.shots, data_dir) for n, vp in (("desktop", DESK), ("phone", PHONE))]
         browser.close()
+    if data_dir:
+        views.append(finish(data_dir))
     keys = ("console_errors", "page_errors", "dead", "missing", "forbidden", "overflow")
     summary = {k: sum(len(v[k]) for v in views) for k in keys}
     summary["ok"] = not any(summary.values())
-    print(json.dumps({"page": base, "views": views, "summary": summary}, ensure_ascii=False, indent=1))
+    print(json.dumps({"page": base, "views": views, "db_changes": LEDGER["log"], "summary": summary},
+                     ensure_ascii=False, indent=1))  # fmt: skip
     return 0 if summary["ok"] else 1
 
 
