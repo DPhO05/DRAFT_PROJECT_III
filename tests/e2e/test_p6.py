@@ -177,7 +177,8 @@ def test_grading_in_chat(paths, client, w):
 
 def test_compare_students(paths, client, w):
     ask = [tool("compare_students", metric="open_repeats", kind=SWAP)]
-    fake = backend(ask, [text("HS-01 còn 2 lần.")], ask, [text("HS-01 còn 4 lần.")])
+    # 97 is never a day or month, so the "Hôm nay" line cannot make it a known number.
+    fake = backend(ask, [text("HS-01 còn 2 lần.")], ask, [text("HS-01 còn 97 lần.")])
     before = total(client)
     evs = lines(send(client, "Ai còn sai dấu khi chuyển vế?"))
     assert "".join(e["delta"] for e in evs if e["type"] == "text") == "HS-01 còn 2 lần."
@@ -187,7 +188,7 @@ def test_compare_students(paths, client, w):
 
     evs = lines(send(client, "Ai còn sai dấu khi chuyển vế?", cid=evs[0]["conversation_id"]))
     [warning] = [e for e in evs if e["type"] == "warning"]
-    assert (warning["kind"], warning["numbers"]) == ("unverified_number", ["4"])
+    assert (warning["kind"], warning["numbers"]) == ("unverified_number", ["97"])
     assert evs[-1] == {"type": "done", "stopped": None} and total(client) == before
     no_names(paths, fake)
 
