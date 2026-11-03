@@ -17,6 +17,7 @@ INSTRUCTIONS = (
     "- Mỗi câu một ý. Mỗi câu ghi vào facts ít nhất một mã số liệu (F01, F02…) có trong khối “Số liệu”: số liệu "
     "mà câu đó dựa vào. Không viết mã số liệu vào chữ của câu.\n"
     "- Chỉ dùng con số có trong số liệu câu đó trích; không tự cộng, trừ, nhân, chia hay tính tỉ lệ; không dùng %.\n"
+    "- Mọi số viết bằng chữ số (2, không “hai”).\n"
     "- Điểm viết “x trong y” như trong số liệu (vd “đạt 4 trong 6 ý”), không viết x/y. Ngày viết dd/mm như trong "
     "số liệu (vd 07/10).\n"
     "- Mức kỹ năng chỉ nói bằng chữ (vững, đang hình thành, chưa vững), không dùng số.\n"

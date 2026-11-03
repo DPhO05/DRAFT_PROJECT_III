@@ -170,6 +170,7 @@ def test_fact_ids_never_in_text(ro):
     ]
     assert [a["text"] for a in r["audit"]] == [s["text"] for s in r["sentences"]]
     assert "Không viết mã số liệu vào chữ của câu." in reporter.INSTRUCTIONS
+    assert "Mọi số viết bằng chữ số (2, không “hai”)." in reporter.INSTRUCTIONS
 
 
 @pytest.mark.parametrize(

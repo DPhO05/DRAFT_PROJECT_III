@@ -2,6 +2,7 @@
 
 import json
 import re
+import unicodedata
 from collections.abc import Iterable
 from datetime import date
 
@@ -19,6 +20,8 @@ _PLAIN = re.compile(r"(?:(?<![^\W_.])|(?<=\dT))\d+(?:\.\d+)?")
 # m/yyyy or dd/mm[/yyyy]: zero-padded as facts write dates, so a score like 7/10 is never a date;
 # not glued to a digit, "," or ".", so "8,05/10" and "10/2026" keep their numbers
 _DATE = re.compile(r"(?<![\d,.])(?:(?P<m>\d{1,2})/(?P<y>\d{4})|(?P<d>\d\d)/(?P<mo>\d\d)(?:/\d{4})?)(?!\d)")
+# number words the digit check cannot see; một, ba, năm are left out: they mean other things too
+_WORDS = re.compile(r"(?<!\w)(?:hai|bốn|sáu|bảy|tám|chín|mười|mươi|trăm)(?!\w)", re.IGNORECASE)
 PRAISE = ("xuất sắc", "tuyệt vời", "hoàn hảo", "rất tốt", "rất giỏi")
 
 
@@ -84,10 +87,17 @@ def _drop_dates(text: str, dates: Iterable[date]) -> str:
 def check_sentence(text: str, cited: list[dict], *, low: bool, need_fact: bool, dates: Iterable[date]) -> dict | None:
     """Report sentence vs cited facts (C-41): None = pass, else the first flag of percent, no_fact, number, tone.
 
+    A number written in words (hai, sáu, bảy…) is flagged `number`: it cannot be checked against the facts.
+
     `dates` = the report's real days (period bounds, session days, previous span); only those are exempt from the check.
     """
-    if "%" in text:
-        return {"flag": "percent", "why": "Báo cáo cho phụ huynh không dùng phần trăm.", "detail": "câu có dấu %"}
+    text = unicodedata.normalize("NFC", text)  # a typed "bảy" may be b-a + combining hook
+    if "%" in text or "phần trăm" in text.lower():
+        return {
+            "flag": "percent",
+            "why": "Báo cáo cho phụ huynh không dùng phần trăm.",
+            "detail": "câu có dấu %" if "%" in text else "câu có chữ phần trăm",
+        }
     if need_fact and not cited:
         return {"flag": "no_fact", "why": "Câu chưa dựa vào số liệu đã duyệt.", "detail": "câu không trích fact nào"}
     known = known_numbers(json.dumps(f["value"], ensure_ascii=False) for f in cited)
@@ -98,6 +108,13 @@ def check_sentence(text: str, cited: list[dict], *, low: bool, need_fact: bool, 
             "flag": "number",
             "why": f"Số {', '.join(f'“{n}”' for n in bad)} không có trong dữ liệu đã duyệt.",
             "detail": f"số {', '.join(bad)} không khớp {shown}",
+        }
+    if words := list(dict.fromkeys(_WORDS.findall(text))):
+        shown = ", ".join(f"“{w}”" for w in words)
+        return {
+            "flag": "number",
+            "why": f"Số viết bằng chữ ({shown}): viết bằng chữ số để kiểm được.",
+            "detail": "số viết bằng chữ: " + ", ".join(words),
         }
     praised = [w for w in PRAISE if w in text.lower()]
     if low and praised:

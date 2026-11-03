@@ -1,5 +1,6 @@
 """P7-T03: report sentence audit (C-41, C-44): flags in order percent, no_fact, number, tone. Pure, no DB."""
 
+import unicodedata
 from datetime import date
 
 from tutor.services.audit import PRAISE, check_sentence
@@ -80,10 +81,36 @@ def test_every_praise_word():
         assert check(f"Em làm {word}.", [F01], low=True)["flag"] == "tone", word
 
 
+def test_percent_in_words():
+    for text in ("Em đúng 6 phần trăm số bài.", "Em đúng 6 Phần Trăm số bài."):
+        out = check(text, [F02])
+        assert out["flag"] == "percent" and out["why"] == "Báo cáo cho phụ huynh không dùng phần trăm."
+
+
+def test_number_in_words():
+    out = check("Em học ba buổi và làm bảy bài.", [F01, F02])  # sessions = 2, problems = 6: still not checked
+    assert out["flag"] == "number"
+    assert out["why"] == "Số viết bằng chữ (“bảy”): viết bằng chữ số để kiểm được."
+    both = check("Em học hai buổi, làm Sáu bài.", [F01, F02], need_fact=False)
+    assert both["why"] == "Số viết bằng chữ (“hai”, “Sáu”): viết bằng chữ số để kiểm được."
+    for word in ("hai", "bốn", "sáu", "bảy", "tám", "chín", "mười", "mươi", "trăm"):
+        assert check(f"Em làm {word} bài.", [F02])["flag"] == "number", word
+    assert check(unicodedata.normalize("NFD", "Em làm bảy bài."), [F02])["flag"] == "number"  # typed with marks apart
+    assert check("Em làm 6 bài.", [F02]) is None
+
+
+def test_everyday_words_are_not_numbers():
+    for text in ("Em làm một bài.", "Em làm ba bước.", "Năm nay em học chăm.", "Em đọc haiku.", "Em có chai nước."):
+        assert check(text, [F02]) is None, text
+
+
 def test_flag_order():
     assert check("Em đúng 40% số bài.", [])["flag"] == "percent"  # before no_fact
     assert check("Em làm 7 bài.", [])["flag"] == "no_fact"  # before number
     assert check("Em làm rất tốt 7 bài.", [F02], low=True)["flag"] == "number"  # before tone
+    assert check("Em đúng sáu phần trăm số bài.", [])["flag"] == "percent"
+    assert check("Em làm sáu bài.", [])["flag"] == "no_fact"
+    assert check("Em làm rất tốt sáu bài.", [F02], low=True)["flag"] == "number"
 
 
 def test_invented_fractions_are_flagged():
