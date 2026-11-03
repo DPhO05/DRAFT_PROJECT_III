@@ -218,11 +218,26 @@ def exercise(page, tab: str, rep: dict, want: dict | None = None) -> None:
 
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "submissions"
+BANK = Path(__file__).resolve().parents[2] / "data" / "dummy" / "bank"
+KEY_VARS = ("ANTHROPIC", "OPENAI")
+# what `tutor` does at start: load ./.env, then see which API-key variables the process holds (names only, never values)
+KEY_PROBE = (
+    "import os; from tutor import config; config.load_env(config.ENV_FILE); "
+    f"print(*[k for k in os.environ if k.startswith({KEY_VARS})])"
+)
 
 
-def seed(exe: str, data: str) -> None:
+def keys_seen(env: dict, cwd: str) -> list[str]:
+    """Names of the API-key variables a `tutor` process started with `env` in `cwd` would hold."""
+    run = subprocess.run([sys.executable, "-c", KEY_PROBE], env=env, cwd=cwd, capture_output=True, text=True,
+                         check=True, timeout=30)  # fmt: skip
+    return run.stdout.split()
+
+
+def seed(exe: str, data: str, env: dict) -> None:
     """Dummy bank + inbox files; students are added over the API once the app is up."""
-    subprocess.run([exe, "seed-dummy", "--dev", "--data-dir", data], check=True, capture_output=True, timeout=120)
+    subprocess.run([exe, "seed-dummy", "--dev", "--bank", str(BANK), "--data-dir", data], check=True,
+                   capture_output=True, timeout=120, env=env, cwd=Path(data).parent)  # fmt: skip
     inbox = Path(data) / "inbox"
     for name in ("s01.tex", "s04.tex", "s06.tex"):
         (inbox / name).write_bytes((FIX / name).read_bytes())
@@ -284,13 +299,16 @@ def tutor_app(with_data: bool = False):
     url = AppUrl(f"http://127.0.0.1:{port}/")
     with tempfile.TemporaryDirectory() as tmp:
         url.data_dir = f"{tmp}/data"
-        exe = str(Path(sys.executable).with_name("tutor"))
+        exe = str(Path(sys.executable).absolute().with_name("tutor"))
+        # --fake-llm, no ANTHROPIC* / OPENAI* env, and a cwd with no .env (the CLI loads ./.env): the robot
+        # never reaches a real API (C-34)
+        env = {k: v for k, v in os.environ.items() if not k.startswith(KEY_VARS)}
+        if leaked := keys_seen(env, tmp):
+            raise RuntimeError(f"the robot's app would hold API keys: {leaked}")
         if with_data:
-            seed(exe, f"{tmp}/data")
-        # --fake-llm + no ANTHROPIC_* env: the robot never reaches the real API (C-34)
-        env = {k: v for k, v in os.environ.items() if not k.startswith("ANTHROPIC")}
+            seed(exe, f"{tmp}/data", env)
         proc = subprocess.Popen([exe, "app", "--no-browser", "--port", str(port), "--data-dir", f"{tmp}/data",
-                                 "--fake-llm"], env=env)  # fmt: skip
+                                 "--fake-llm"], env=env, cwd=tmp)  # fmt: skip
         try:
             for _ in range(100):
                 try:
