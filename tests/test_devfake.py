@@ -77,6 +77,34 @@ def test_chat_routes(paths, conn):
     assert {x["model"] for x in llm.iter_log(paths.logs / "llm.jsonl")} == {"dev-fake"}
 
 
+def test_chat_report_route(paths, conn):
+    """ "báo cáo" → start_report; the period comes from the words, else the week of "Hôm nay:"."""
+    ask = "Hôm nay: 2026-10-21 (thứ Tư).\n\n"
+
+    def routed(words):
+        msg = [{"role": "user", "content": ask + words}]
+        [call] = [b for e in devfake.DevFakeLLM().chat(agent="00", model="x", system=[], tools=[], messages=msg)
+                  if e["type"] == "message" for b in e["content"]]  # fmt: skip
+        return call["name"], call["input"]
+
+    for words, kind, start in [
+        ("Làm báo cáo tuần 19/10/2026 cho @HS-01", "week", "2026-10-19"),
+        ("Làm báo cáo tuần 14/10/2026 cho @HS-01", "week", "2026-10-12"),
+        ("Làm báo cáo ngày 14/10/2026 cho @HS-01", "day", "2026-10-14"),
+        ("Làm báo cáo tháng 10/2026 cho @HS-01", "month", "2026-10-01"),
+        ("Làm báo cáo cho @HS-01", "week", "2026-10-19"),
+    ]:
+        assert routed(words) == ("start_report", {"code": "HS-01", "period_kind": kind, "period_start": start}), words
+    an = world(conn)["an"]
+    with TestClient(create_app(paths, port=8000, fake_llm=True), base_url="http://127.0.0.1:8000") as c:
+        body = {"conversation_id": None, "text": "Làm báo cáo tuần 12/10/2026 cho @HS-01", "mentions": [an]}
+        evs = [
+            json.loads(x)
+            for x in c.post("/api/assistant/messages", json=body, headers={"X-Tutor": "1"}).text.splitlines()
+        ]
+        assert [e["card"] for e in evs if e["type"] == "card"] == [{"kind": "report", "thread_id": "g5-hs01w-20261012"}]
+
+
 def test_reporter_answers(paths, conn):
     """DevFakeLLM 09 on the world's real facts: every sentence passes the audit, so no rewrite."""
     world(conn)

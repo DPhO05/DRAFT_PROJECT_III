@@ -15,7 +15,7 @@ from tutor.db import repo
 REF = "9DS-BPT-001"
 ORDER = [
     "find_problems", "search_problems", "list_students", "student_profile", "student_mistakes", "compare_students",
-    "rank_problems", "start_grading", "start_bank_import", "propose_worksheet",
+    "rank_problems", "start_grading", "start_bank_import", "propose_worksheet", "start_report",
 ]  # fmt: skip
 CALLS = [
     ("find_problems", {"refs": [REF, "9ZZ-NOPE-999"]}),
@@ -89,6 +89,7 @@ BAD_ARGS = [
     ("start_grading", {"code": "HS-01", "file": "a.tex"}, "Thiếu tham số held_on"),
     ("start_bank_import", {}, "Thiếu tham số file"),
     ("propose_worksheet", {"code": "HS-01", "for_date": "2026-10-24"}, "Thiếu tham số refs"),
+    ("start_report", {"code": "HS-01", "period_kind": "week"}, "Thiếu tham số period_start"),
     ("rank_problems", {"code": "HS-01", "n": "3"}, "không đúng"),
     ("rank_problems", {"code": "HS-01", "ratios": {"review": "a", "zpd": 1, "challenge": 0}}, "không đúng"),
 ]
@@ -224,6 +225,9 @@ def test_tool_defs_strict(conn):
     kinds = [d["input_schema"]["properties"]["kind"] for d in defs if "kind" in d["input_schema"]["properties"]]
     assert len(kinds) == 2 and all(k["enum"] == active for k in kinds)
     assert "enum" not in TOOLS[4]["input_schema"]["properties"]["kind"]
+    report = defs[ORDER.index("start_report")]["input_schema"]
+    assert report["required"] == ["code", "period_kind", "period_start"]
+    assert report["properties"]["period_kind"]["enum"] == ["day", "week", "month"]
     levels = TOOLS[1]["input_schema"]["properties"]
     assert levels["level_min"]["enum"] == levels["level_max"]["enum"] == ["dễ", "vừa", "khó"]
 
@@ -287,6 +291,7 @@ SHEET = {
     "added": ["9DS-BPT-001"],
     "invalid": [{"ref": "ZZ", "why": "không có trong ngân hàng"}],
 }
+REPORT = {"thread_id": "g5-hs01w-20261012", "status": "awaiting_review", "existing": True}
 
 
 def recorder(calls, grading=GRADING):
@@ -304,6 +309,7 @@ def recorder(calls, grading=GRADING):
         start_bank_import=rec("start_bank_import", IMPORT),
         propose_worksheet=rec("propose_worksheet", SHEET),
         add_to_worksheet=rec("add_to_worksheet", {}),
+        start_report=rec("start_report", REPORT),
     )
 
 
@@ -326,6 +332,18 @@ def test_start_tools_outcomes(ro):
     for out in (g, b):
         assert "thread" not in out.content and "g1-" not in out.content and "g2-" not in out.content
     assert [n for n, _ in tb.outcomes] == ["start_grading", "start_bank_import"]
+
+
+def test_start_report_outcome(ro):
+    calls = []
+    tb = box(ro, starters=recorder(calls))
+    r = tb.run("start_report", {"code": "HS-01", "period_kind": "week", "period_start": "2026-10-12"})
+    assert not r.is_error and calls == [("start_report", 1, "week", "2026-10-12")]
+    assert r.card == {"kind": "report", "thread_id": REPORT["thread_id"]}
+    assert (r.label, r.source) == ("bắt đầu báo cáo", "báo cáo của HS-01")
+    assert json.loads(r.content) == {"code": "HS-01", "period_kind": "week", "period_start": "2026-10-12",
+                                     "status": "awaiting_review", "existing": True}  # fmt: skip
+    assert "thread" not in r.content and "g5-" not in r.content
 
 
 def test_propose_worksheet_outcome_and_rank_reasons(ro):

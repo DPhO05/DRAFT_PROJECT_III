@@ -23,6 +23,7 @@ from tutor.db import repo
 from tutor.mcp import client, server
 
 GRADE = {"code": "HS-01", "file": "a.tex", "held_on": "2026-10-21"}
+REPORT = {"code": "HS-01", "period_kind": "week", "period_start": "2026-10-12"}
 SHEET = {"code": "HS-01", "for_date": "2026-10-24", "refs": ["9DS-BPT-001"]}
 START_ONCE = "Mỗi tin chỉ bắt đầu việc này một lần. Thầy/cô nhắn tin mới nếu cần làm thêm."
 SHEET_TWICE = "Mỗi tin chỉ soạn phiếu nháp tối đa hai lần."
@@ -38,7 +39,7 @@ def ro(conn, paths):
 def test_role_00_tools_equal_tool_defs(ro):
     codes = [c["code"] for c in repo.error_codes(ro[0], active_only=True)]
     got = client.connect("00", box(ro)).tools()
-    assert got == tool_defs(codes) and len(got) == 10
+    assert got == tool_defs(codes) and len(got) == 11
 
 
 def test_call_matches_toolbox(ro):
@@ -52,7 +53,12 @@ def test_call_matches_toolbox(ro):
 
 @pytest.mark.parametrize(
     ("name", "args"),
-    [("start_grading", GRADE), ("start_bank_import", {"file": "mix.tex"}), ("propose_worksheet", SHEET)],
+    [
+        ("start_grading", GRADE),
+        ("start_bank_import", {"file": "mix.tex"}),
+        ("propose_worksheet", SHEET),
+        ("start_report", REPORT),
+    ],
 )
 def test_start_call_matches_toolbox(ro, name, args):
     """`_meta` of the start tools' cards survives the SDK's JSON dump unchanged."""
@@ -64,18 +70,18 @@ def test_start_call_matches_toolbox(ro, name, args):
 
 def test_unknown_name_two_layers(ro):
     b = box(ro)
-    content, is_error, meta = client.connect("00", b).call("start_report", {"code": "HS-01"})
-    assert json.loads(content) == {"error": "Không có công cụ start_report"}
+    content, is_error, meta = client.connect("00", b).call("delete_everything", {"code": "HS-01"})
+    assert json.loads(content) == {"error": "Không có công cụ delete_everything"}
     assert (is_error, meta, b.outcomes) == (True, {}, [])
 
     b = box(ro)
 
     async def go():
         async with Client(server.build("00", b)) as c:
-            return await c.call_tool("start_report", {"code": "HS-01"})
+            return await c.call_tool("delete_everything", {"code": "HS-01"})
 
     r = anyio.run(go)
-    assert r.is_error is True and json.loads(r.content[0].text) == {"error": "Không có công cụ start_report"}
+    assert r.is_error is True and json.loads(r.content[0].text) == {"error": "Không có công cụ delete_everything"}
     assert b.outcomes == []
 
 
@@ -90,9 +96,13 @@ def test_start_limits(ro):
     assert [e for _, e, _ in imports] == [False, True]
     sheets = [s.call("propose_worksheet", SHEET) for _ in range(3)]
     assert [e for _, e, _ in sheets] == [False, False, True]
-    assert [c[0] for c in calls] == ["start_grading", "start_bank_import", "propose_worksheet", "propose_worksheet"]
-    refused = [*grading[1:], imports[1], sheets[2]]
-    assert [json.loads(c)["error"] for c, _, _ in refused] == [START_ONCE] * 5 + [SHEET_TWICE]
+    reports = [s.call("start_report", REPORT) for _ in range(2)]
+    assert [e for _, e, _ in reports] == [False, True]
+    assert [c[0] for c in calls] == [
+        "start_grading", "start_bank_import", "propose_worksheet", "propose_worksheet", "start_report",
+    ]  # fmt: skip
+    refused = [*grading[1:], imports[1], reports[1], sheets[2]]
+    assert [json.loads(c)["error"] for c, _, _ in refused] == [START_ONCE] * 6 + [SHEET_TWICE]
     assert all(re.search(r"\d", c) is None and m == {} for c, _, m in refused)
 
 

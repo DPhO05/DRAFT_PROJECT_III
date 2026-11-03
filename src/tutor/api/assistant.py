@@ -26,6 +26,7 @@ from tutor.db import repo
 from tutor.graphs import bank, report, session, threads, worksheet
 from tutor.graphs.runner import Runner, ThreadBusy, ThreadNotFound
 from tutor.mcp import client, server
+from tutor.services import facts
 
 router = APIRouter(prefix="/api/assistant")
 log = logging.getLogger("tutor")
@@ -93,11 +94,24 @@ def make_starters(paths: DataPaths, runner: Runner) -> Starters:
         except ThreadNotFound as e:
             raise ValueError("Không có phiếu nháp để thêm bài") from e
 
+    def start_report(student_id: int, period_kind: str, period_start: str) -> dict:
+        try:
+            return report.start(paths, runner, student_id=student_id, period_kind=period_kind,
+                                period_start=period_start, today=date.today())  # fmt: skip
+        except facts.NotReady as e:
+            raise ValueError(
+                f"Chưa làm được báo cáo cho {student_code(student_id)}: kỳ này chưa có buổi nào đã duyệt."
+            ) from e
+        except repo.ReportApproved as e:
+            done = f"{date.fromisoformat(e.approved_at[:10]):%d/%m/%Y}"
+            raise ValueError(f"Báo cáo kỳ này đã duyệt ngày {done}. Mỗi kỳ chỉ duyệt một lần.") from e
+
     return Starters(
         start_grading=start_grading,
         start_bank_import=lambda file: bank.start_import(paths, runner, file=file),
         propose_worksheet=propose_worksheet,
         add_to_worksheet=add_to_worksheet,
+        start_report=start_report,
     )
 
 

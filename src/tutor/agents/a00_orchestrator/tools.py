@@ -13,7 +13,7 @@ from datetime import date
 
 from tutor.agents.a08_recommender import select
 from tutor.config import student_code
-from tutor.services import search, students
+from tutor.services import facts, search, students
 
 log = logging.getLogger("tutor")
 MAX_CONTENT = 6000  # chars of tool result sent to the model
@@ -37,6 +37,7 @@ class Starters:
     start_bank_import: Callable[[str], dict]
     propose_worksheet: Callable[[int, str, list[dict], str | None, list[str]], dict]
     add_to_worksheet: Callable[[str, list[str]], dict]
+    start_report: Callable[[int, str, str], dict] | None = None
 
 
 def _tool(name: str, description: str, props: dict | None = None, required: tuple[str, ...] = ()) -> dict:
@@ -155,6 +156,18 @@ TOOLS: list[dict] = [
         },
         ("code", "for_date", "refs"),
     ),
+    _tool(
+        "start_report",
+        "Bắt đầu làm báo cáo cho phụ huynh về một học sinh trong một kỳ, từ các buổi đã duyệt."
+        " Chỉ bắt đầu, chưa lưu: thầy/cô sửa câu và bấm Duyệt báo cáo ở tab Báo cáo."
+        " period_start: ngày học (day), thứ Hai (week), ngày 1 (month), dạng yyyy-mm-dd.",
+        {
+            "code": _CODE,
+            "period_kind": {"type": "string", "enum": list(facts.KINDS)},
+            "period_start": {"type": "string", "description": f"Ngày bắt đầu kỳ, {_DAY}"},
+        },
+        ("code", "period_kind", "period_start"),
+    ),
 ]
 
 LABELS = {
@@ -168,6 +181,7 @@ LABELS = {
     "start_grading": "bắt đầu chấm bài",
     "start_bank_import": "đọc file bài mới",
     "propose_worksheet": "soạn phiếu nháp",
+    "start_report": "bắt đầu báo cáo",
 }
 
 
@@ -425,4 +439,22 @@ class Toolbox:
                 "added": made["added"],
                 "invalid": made["invalid"],
             },
+        )
+
+    def tool_start_report(self, a: dict) -> Outcome:
+        sid = students.student_id(self.conn, a["code"])
+        code = student_code(sid)
+        started = self.starters.start_report(sid, a["period_kind"], a["period_start"])
+        return self._out(
+            "start_report",
+            {
+                "code": code,
+                "period_kind": a["period_kind"],
+                "period_start": a["period_start"],
+                "status": started["status"],
+                "existing": started["existing"],
+            },
+            source=f"báo cáo của {code}",
+            summary=f"start_report {code}: {a['period_kind']} {a['period_start']}",
+            card={"kind": "report", "thread_id": started["thread_id"]},
         )

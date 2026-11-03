@@ -72,6 +72,17 @@ def _answer(agent: str, system: list[str], user: str) -> dict:
     raise NotImplementedError(f"--fake-llm chưa có output cho agent {agent}")
 
 
+def _report_period(low: str, today: date) -> tuple[str, str]:
+    """(kind, start) from "ngày dd/mm/yyyy", "tuần dd/mm/yyyy" or "tháng mm/yyyy"; else the week of today."""
+    if m := re.search(r"ngày (\d{1,2})/(\d{1,2})/(\d{4})", low):
+        return "day", date(int(m[3]), int(m[2]), int(m[1])).isoformat()
+    if m := re.search(r"tháng (\d{1,2})/(\d{4})", low):
+        return "month", date(int(m[2]), int(m[1]), 1).isoformat()
+    m = re.search(r"tuần (\d{1,2})/(\d{1,2})/(\d{4})", low)
+    day = date(int(m[3]), int(m[2]), int(m[1])) if m else today
+    return "week", (day - timedelta(days=day.weekday())).isoformat()
+
+
 def _chat_turn(messages: list[dict]) -> list[dict]:
     """R29 + S15: route on the tutor's last typed message; the tool results after it say which step is next."""
     k = max(i for i, m in enumerate(messages) if m["role"] == "user" and isinstance(m["content"], str))
@@ -84,6 +95,11 @@ def _chat_turn(messages: list[dict]) -> list[dict]:
         calls, say = [("student_profile", {"code": code})], f"Tháng này {code} làm đúng 97 bài."
     elif "yếu gì" in low:
         calls, say = [("student_profile", {"code": code})], f"Mình đã xem hồ sơ của {code}, chi tiết ở nguồn bên dưới."
+    elif "báo cáo" in low:
+        today = date.fromisoformat(re.search(r"Hôm nay: (\d{4}-\d{2}-\d{2})", asked).group(1))
+        kind, start = _report_period(low, today)
+        calls = [("start_report", {"code": code, "period_kind": kind, "period_start": start})]
+        say = "Mình đã bắt đầu báo cáo nháp. Thầy/cô sửa câu rồi bấm Duyệt báo cáo."
     elif "gợi ý" in low or "phiếu" in low:
         today = date.fromisoformat(re.search(r"Hôm nay: (\d{4}-\d{2}-\d{2})", asked).group(1))
         saturday = today + timedelta(days=(5 - today.weekday()) % 7 or 7)

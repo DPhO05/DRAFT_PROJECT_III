@@ -256,7 +256,7 @@ def fold(s):
 def test_openai_tools_strict():
     defs = tool_defs(["a.b"])
     out = llm.openai_tools(defs)
-    assert [t["name"] for t in out] == [d["name"] for d in defs] and len(out) == 10
+    assert [t["name"] for t in out] == [d["name"] for d in defs] and len(out) == 11
     assert all(t["type"] == "function" and t["strict"] is True for t in out)
     for t in out:
         for o in objects(t["parameters"]):

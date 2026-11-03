@@ -7,6 +7,7 @@ from contextlib import closing
 
 import pytest
 
+from tests.agents.test_orchestrator import text, tool
 from tests.api.test_sessions import W
 from tests.assistant_fix import world
 from tests.fakes import FakeLLM
@@ -204,3 +205,61 @@ def test_pending_reports(env):
     assert [(i["kind"], i["words"]) for i in got["items"]] == [("report", "nháp"), ("report", "chưa làm xong")]
     approve(client, tid)
     assert client.get("/api/assistant/pending").json()["counts"]["reports"] == 1
+
+
+def ask(client, w, *turns, said="Làm báo cáo tuần cho @HS-01"):
+    """One chat message to 00 scripted with `turns`; 09 writes from the fact lines. (events, fake)"""
+    llm.set_backend(fake := FakeLLM({"09": writer, "00": list(turns)}))
+    body = {"conversation_id": None, "text": said, "mentions": [w["an"]]}
+    r = client.post("/api/assistant/messages", json=body, headers=W)
+    assert r.status_code == 200, r.text
+    return [json.loads(x) for x in r.text.splitlines()], fake
+
+
+def sent_back(fake):
+    """What 00 got as the tool result on its second turn."""
+    return fake.calls[1]["messages"][-1]["content"][0]["content"]
+
+
+def test_start_report_in_chat(paths, env):
+    """P7-T09: the chat tool starts the G5 draft and shows its card; tutor.db is untouched until approval."""
+    client, w = env
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        before = repo.row_counts(conn)
+    evs, fake = ask(client, w, [tool("start_report", code="HS-01", period_kind="week", period_start="2026-10-12")],
+                    [text("Mình đã bắt đầu.")])  # fmt: skip
+    assert [e["card"] for e in evs if e["type"] == "card"] == [{"kind": "report", "thread_id": "g5-hs01w-20261012"}]
+    assert [e["state"] for e in evs if e["type"] == "tool"] == ["start", "done"]
+    assert [e["items"] for e in evs if e["type"] == "source"] == [["báo cáo của HS-01"]]
+    assert json.loads(sent_back(fake)) == {"code": "HS-01", "period_kind": "week", "period_start": "2026-10-12",
+                                           "status": "running", "existing": False}  # fmt: skip
+    assert [t["thread_id"] for t in client.app.state.runner.list_threads(graph="G5")] == ["g5-hs01w-20261012"]
+    card(client, "g5-hs01w-20261012", "draft")
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        assert repo.row_counts(conn) == before  # C-39: only Duyệt báo cáo writes
+
+
+def test_start_report_not_ready_words(env):
+    client, w = env
+    evs, fake = ask(client, w, [tool("start_report", code="HS-01", period_kind="week", period_start="2026-10-19")],
+                    [text("Tuần này chưa làm được.")])  # fmt: skip
+    assert [e["state"] for e in evs if e["type"] == "tool"] == ["start", "error"]
+    assert not [e for e in evs if e["type"] == "card"]
+    assert json.loads(sent_back(fake)) == {
+        "error": "Chưa làm được báo cáo cho HS-01: kỳ này chưa có buổi nào đã duyệt."
+    }
+    assert client.app.state.runner.list_threads(graph="G5") == []
+
+
+def test_start_report_approved_words(env):
+    client, w = env
+    _, tid = start(client, w["an"])
+    card(client, tid, "draft")
+    done = approve(client, tid)
+    day = client.get(f"/api/reports/{done['report_id']}").json()["approved_at"][:10]
+    _, fake = ask(client, w, [tool("start_report", code="HS-01", period_kind="week", period_start="2026-10-12")],
+                  [text("Kỳ này đã duyệt rồi.")])  # fmt: skip
+    d, m, y = day[8:], day[5:7], day[:4]
+    assert json.loads(sent_back(fake)) == {
+        "error": f"Báo cáo kỳ này đã duyệt ngày {d}/{m}/{y}. Mỗi kỳ chỉ duyệt một lần."
+    }
