@@ -27,9 +27,8 @@ ASSISTANT_FILES = {
     Path("tutor/api/assistant.py"),
     ORCHESTRATOR,
     Path("tutor/agents/a00_orchestrator/tools.py"),
-    Path("tutor/mcp/server.py"),
-    Path("tutor/mcp/client.py"),
-}  # R21: no resume
+}  # R21: no resume; nor anywhere under tutor/mcp/ (MCP_DIR)
+MCP_DIR = Path("tutor/mcp")
 
 
 def layer(parts: list[str]) -> str | None:
@@ -85,7 +84,7 @@ def violations(root: Path) -> list[str]:
                     bad(node, "llm.call() only from tutor/agents/")
                 if on_llm and name == "chat" and rel != ORCHESTRATOR:
                     bad(node, "llm.chat() only from tutor/agents/a00_orchestrator/orchestrator.py")
-                if name == "resume" and rel in ASSISTANT_FILES:
+                if name == "resume" and (rel in ASSISTANT_FILES or rel.is_relative_to(MCP_DIR)):
                     bad(node, "resume() never from the assistant (C-39)")
     return out
 
@@ -170,10 +169,12 @@ def test_mcp_rules(tmp_path):
         "from tutor.agents.a00_orchestrator import tools\nfrom tutor.db import repo\nrunner.resume('t')\n",
     )
     write(tmp_path, "tutor/mcp/client.py", "from mcp import Client\nrunner.resume('t')\n")
+    write(tmp_path, "tutor/mcp/roles.py", "runner.resume('t')\n")
     write(tmp_path, "tutor/api/assistant.py", "from tutor.mcp.client import connect\n")
     assert violations(tmp_path / "tutor") == [
         "tutor/agents/x.py:1: agents must not import tutor.mcp",
         "tutor/mcp/client.py:2: resume() never from the assistant (C-39)",
+        "tutor/mcp/roles.py:1: resume() never from the assistant (C-39)",
         "tutor/mcp/server.py:3: resume() never from the assistant (C-39)",
     ]
 

@@ -79,13 +79,15 @@ def test_start_limits(ro):
     assert all(re.search(r"\d", c) is None and m == {} for c, _, m in refused)
 
 
-def test_crash_keeps_original_error(ro, monkeypatch):
+@pytest.mark.parametrize("cause", [None, KeyError("k")])
+def test_crash_keeps_original_error(ro, monkeypatch, cause):
     def boom(self, a):
-        raise RuntimeError("x")
+        raise RuntimeError("x") from cause
 
     monkeypatch.setattr(Toolbox, "tool_list_students", boom)
     with pytest.raises(RuntimeError, match="x") as e:
         client.connect("00", box(ro)).call("list_students", {})
+    assert e.value.__cause__ is cause  # the tool error's own chain survives, like the direct path
     logged = "".join(traceback.format_exception(e.value))  # what log.exception writes to app.log
     assert "in boom" in logged and "ExceptionGroup" not in logged and "MCPError" not in logged
 

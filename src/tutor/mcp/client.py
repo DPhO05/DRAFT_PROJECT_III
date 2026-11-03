@@ -44,7 +44,8 @@ class Session:
         try:
             return anyio.run(go)
         except BaseExceptionGroup as eg:
-            raise _origin(eg) from None
+            err = _origin(eg)
+        raise err  # outside the except, so the tool error keeps its own cause and context
 
     def tools(self) -> list[dict]:
         if self._tools is None:
