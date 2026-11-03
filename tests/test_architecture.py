@@ -206,6 +206,7 @@ def test_one_folder_per_agent():
         "a08_recommender",
         "a09_reporter",
     ]
-    for pointer_only in ("a05_profiler", "a06_tagger", "a09_reporter"):
+    for pointer_only in ("a05_profiler", "a06_tagger"):
         assert entries(agents / pointer_only) == ["README.md"]
     assert entries(agents / "a08_recommender") == ["README.md", "__init__.py", "select.py"]
+    assert entries(agents / "a09_reporter") == ["__init__.py", "reporter.py"]

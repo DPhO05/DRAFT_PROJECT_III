@@ -101,13 +101,17 @@ def _points(t: dict) -> str:
 
 
 def report_facts(conn, student_id: int, kind: str, start: str, *, today: date, low_pass_rate: float) -> dict:
-    """Facts F01… (R10), up to 3 insights (R11) and `low` (pass rate below `low_pass_rate`) of committed sessions."""
+    """Facts F01… (R10), up to 3 insights (R11) and `low` (pass rate below `low_pass_rate`) of committed sessions.
+
+    `dates` (H5): ISO days the report may name, for `audit.check_sentence`.
+    """
     lo, hi = period(kind, start, today)
     rows = _sessions(conn, student_id, lo, hi)
     if not rows:
         last = _latest(conn, student_id, kind, lo)  # may skip empty periods: "Làm báo cáo kỳ trước" must find one
         raise NotReady({"reason": "no_committed_session", "previous_start": last[0].isoformat() if last else None})
     args = {"sid": student_id, "lo": lo.isoformat(), "hi": hi.isoformat()}
+    dates = {args["lo"], args["hi"], *(r["held_on"] for r in rows)}
     out: list[dict] = []
 
     def add(fact_kind: str, val, text: str) -> str:
@@ -181,6 +185,7 @@ def report_facts(conn, student_id: int, kind: str, start: str, *, today: date, l
     if prev and (p_rows := _sessions(conn, student_id, *prev)):
         p_total = _total(p_rows)
         span = _dm(prev[0]) if prev[0] == prev[1] else f"{_dm(prev[0])}–{_dm(prev[1])}"
+        dates |= {prev[0].isoformat(), prev[1].isoformat()}
         prev_id = add(
             "previous",
             {"sessions": len(p_rows)} | p_total,
@@ -202,4 +207,5 @@ def report_facts(conn, student_id: int, kind: str, start: str, *, today: date, l
         "facts": out,
         "insights": insights,
         "low": _rate(total) < low_pass_rate,
+        "dates": sorted(dates),
     }

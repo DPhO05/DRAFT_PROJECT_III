@@ -2,16 +2,21 @@
 
 import json
 from contextlib import closing
+from datetime import date
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from tests.assistant_fix import world
-from tutor import devfake, llm
+from tutor import config, devfake, llm
+from tutor.agents import CallContext
+from tutor.agents.a00_orchestrator.tools import Toolbox
+from tutor.agents.a09_reporter import reporter
 from tutor.api.app import create_app
 from tutor.db import repo, seed_dummy
 from tutor.graphs import runner as rmod
 from tutor.graphs import session
+from tutor.mcp import client
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "submissions"
 BANK = Path(__file__).resolve().parents[1] / "data" / "dummy" / "bank"
@@ -70,3 +75,17 @@ def test_chat_routes(paths, conn):
         assert [e["name"] for e in evs if e["type"] == "tool" and e["state"] == "done"] == ["student_profile"]
         assert [e["numbers"] for e in evs if e["type"] == "warning"] == [["97"]]
     assert {x["model"] for x in llm.iter_log(paths.logs / "llm.jsonl")} == {"dev-fake"}
+
+
+def test_reporter_answers(paths, conn):
+    """DevFakeLLM 09 on the world's real facts: every sentence passes the audit, so no rewrite."""
+    world(conn)
+    llm.configure(paths.logs / "llm.jsonl", devfake.models())
+    llm.set_backend(devfake.DevFakeLLM())
+    with closing(repo.connect(paths.tutor_db, readonly=True)) as ro:
+        box = Toolbox(ro, settings=config.defaults(), today=date(2026, 10, 21), text="", starters=None)
+        r = reporter.run(client.connect("09", box).call, code="HS-01", period_kind="week", period_start="2026-10-12",
+                         ctx=CallContext(graph="G5"))  # fmt: skip
+    assert [a["status"] for a in r["audit"]] == ["ok"] * 3
+    assert [s["facts"] for s in r["sentences"]] == [["F01"], ["F02"], ["F03"]]
+    assert [(x["agent"], x["model"]) for x in llm.iter_log(paths.logs / "llm.jsonl")] == [("09", "dev-fake")]

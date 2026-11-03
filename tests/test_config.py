@@ -38,7 +38,7 @@ def test_corrupt_file_raises_and_is_not_overwritten(tmp_path):
 
 def test_defaults_match_appendix_c():
     s = config.defaults()
-    assert s["models"] == {f"{i:02d}": "claude-opus-5-5" for i in range(0, 5)}
+    assert s["models"] == {f"{i:02d}": "claude-opus-5-5" for i in range(0, 5)} | {"09": "claude-opus-5-5"}
     assert s["assistant"] == {"max_tool_turns": 8}
     assert s["backup"] == {"keep_recent": 30, "keep_monthly": True}
     assert s["app"]["port"] == 8000

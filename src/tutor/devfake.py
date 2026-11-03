@@ -15,7 +15,7 @@ MODEL = "dev-fake"
 
 
 def models() -> dict[str, str]:
-    return {f"{i:02d}": MODEL for i in range(0, 5)}
+    return {f"{i:02d}": MODEL for i in (*range(0, 5), 9)}
 
 
 def _section(user: str, title: str) -> str:
@@ -66,6 +66,9 @@ def _answer(agent: str, system: list[str], user: str) -> dict:
              "description": "dev-fake: lỗi mẫu ở bước cuối", "confidence": 0.55}]}  # fmt: skip
     if agent == "04":
         return {"verdict": "agree", "reason": "dev-fake: đồng ý"}
+    if agent == "09":  # fact lines with numbers, each citing itself: they pass the audit, so no rewrite
+        lines = re.findall(r"^(F\d\d) · (.*\d.*)$", _section(user, "Số liệu"), re.M)[:3]
+        return {"sentences": [{"text": text, "facts": [fid]} for fid, text in lines]}
     raise NotImplementedError(f"--fake-llm chưa có output cho agent {agent}")
 
 

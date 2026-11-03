@@ -258,7 +258,7 @@ def test_role_00_resources(ro):
         async with Client(server.build("00", box(ro))) as c:
             return await c.list_resources()
 
-    assert server.RESOURCES == {"00": (server.ERROR_CODES, server.KCS)}
+    assert server.RESOURCES["00"] == (server.ERROR_CODES, server.KCS)
     assert [str(r.uri) for r in anyio.run(go).resources] == [server.ERROR_CODES, server.KCS]
     with pytest.raises(MCPError, match="Không có tài nguyên"):  # outside the role: an error, nothing is read
         client.connect("00", box(ro)).resource("tutor://catalog/students")

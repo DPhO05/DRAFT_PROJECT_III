@@ -184,6 +184,15 @@ def test_previous_is_the_adjacent_week(conn):
     assert "07/10" in kinds(run("day", "2026-10-14"), "previous")[0]["text"]
 
 
+def test_dates(conn):
+    """H5: period bounds, the period's session days, and the previous span only when there is a `previous` fact."""
+    w = world(conn)
+    run = lambda kind, start_: facts.report_facts(conn, w["an"], kind, start_, today=w["today"], low_pass_rate=0.5)  # noqa: E731
+    assert run("week", "2026-10-12")["dates"] == ["2026-10-05", "2026-10-11", "2026-10-12", "2026-10-14", "2026-10-18"]
+    assert run("month", "2026-10-01")["dates"] == ["2026-10-01", "2026-10-07", "2026-10-14", "2026-10-31"]
+    assert run("day", "2026-10-14")["dates"] == ["2026-10-07", "2026-10-14"]
+
+
 def test_not_ready(conn):
     w = world(conn)
     with pytest.raises(facts.NotReady) as e:
