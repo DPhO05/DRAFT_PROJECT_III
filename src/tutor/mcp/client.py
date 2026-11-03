@@ -43,8 +43,8 @@ class Session:
 
         try:
             return anyio.run(go)
-        except BaseExceptionGroup as eg:
-            err = _origin(eg)
+        except (BaseExceptionGroup, MCPError) as e:  # MCPError bare: an SDK patch that stops wrapping
+            err = _origin(e)
         raise err  # outside the except, so the tool error keeps its own cause and context
 
     def tools(self) -> list[dict]:

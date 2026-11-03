@@ -9,7 +9,7 @@ from contextlib import closing
 
 import anyio
 import pytest
-from mcp import Client, MCPError
+from mcp import Client, MCPError, types
 
 from tests.agents.test_orchestrator import text, tool
 from tests.agents.test_tools import CALLS, box, recorder
@@ -92,6 +92,19 @@ def test_limit_without_refusal_text_is_worded(ro, monkeypatch):
     content, is_error, meta = s.call("list_students", {})
     assert is_error and meta == {} and json.loads(content)["error"]
     assert re.search(r"\d", content) is None
+
+
+def test_bare_mcperror_is_unwrapped(ro, monkeypatch):
+    """If the SDK stops wrapping in an ExceptionGroup, the tool's own error still comes out."""
+    cause = KeyError("k")
+
+    def bare(_):
+        raise MCPError(types.INTERNAL_ERROR, "x") from cause
+
+    monkeypatch.setattr(client.anyio, "run", bare)
+    with pytest.raises(KeyError) as e:
+        client.connect("00", box(ro)).tools()
+    assert e.value is cause
 
 
 @pytest.mark.parametrize("cause", [None, KeyError("k")])
