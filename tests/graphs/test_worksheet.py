@@ -77,7 +77,8 @@ def test_migration_003_keeps_rows(tmp_path):
             " VALUES (?, 1, ?, ?, 1, 'approved', 't')",
             [(7, DAY, 1), (4, DAY, 2)],
         )
-    assert repo.migrate(db, tmp_path / "bk") == 3
+    shutil.copy(repo.MIGRATIONS / "003.sql", mig)  # later migrations (004+) are not under test here
+    assert repo.migrate(db, tmp_path / "bk", mig) == 3
     with closing(repo.connect(db)) as c:
         assert c.execute("SELECT id, position FROM recommendation ORDER BY id").fetchall() == [(4, 1), (7, 2)]
         ins = (

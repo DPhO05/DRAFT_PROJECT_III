@@ -28,8 +28,8 @@ SESSION = (
     " VALUES (1, '2026-10-21', 'inbox/b.tex', 'tex', ?, 'g1-b', 'running')"
 )
 REPORT = (
-    "INSERT INTO report (student_id, month, facts_json, text_md, audit_json, approved_at)"
-    " VALUES (1, ?, '[]', 't', '[]', 't')"
+    "INSERT INTO report (student_id, period_kind, period_start, facts_json, text_md, audit_json, approved_at)"
+    " VALUES (1, ?, ?, '[]', 't', '[]', 't')"
 )
 
 # (name, sql, good params, bad params): good proves the row is otherwise valid.
@@ -46,7 +46,7 @@ CASES = [
     ("5 mistake.status proposed", MISTAKE, ("confirmed", "{}"), ("proposed", "{}")),
     ("6a added with llm_json", MISTAKE, ("added", None), ("added", "{}")),
     ("6b non-added without llm_json", MISTAKE, ("edited", "{}"), ("edited", None)),
-    ("7 report.month format", REPORT, ("2026-10",), ("2026-1",)),
+    ("7 report.period_kind", REPORT, ("week", "2026-10-19"), ("year", "2026-10-19")),
 ]
 
 
