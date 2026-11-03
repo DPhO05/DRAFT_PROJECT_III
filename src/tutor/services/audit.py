@@ -3,6 +3,7 @@
 import json
 import re
 from collections.abc import Iterable
+from datetime import date
 
 # "." is a thousands mark only in 1.000 / 12.345.678 (never after a leading 0); "," is the decimal mark
 _NUM = r"[1-9]\d{0,2}(?:\.\d{3})+(?!\d)(?:,\d+)?|\d+(?:[.,]\d+)?"
@@ -15,7 +16,8 @@ _CODE = re.compile(_CODE_PAT)
 _SENTENCE = re.compile(r"\S[^\n]*?(?:[.!?…]+(?=\s)|$)", re.M)
 # a digit run after a letter or digit belongs to a name (kc2), except "_10" (score_10) and the hour of 2026-10-07T14
 _PLAIN = re.compile(r"(?:(?<![^\W_.])|(?<=\dT))\d+(?:\.\d+)?")
-_DATE = re.compile(r"\d{1,2}/\d{1,2}(?:/\d{4})?")
+# m/yyyy or d/m[/yyyy]; not glued to a digit, "," or "." so "8,5/10" and "10/2026" keep their numbers
+_DATE = re.compile(r"(?<![\d,.])(?:(?P<m>\d{1,2})/(?P<y>\d{4})|(?P<d>\d{1,2})/(?P<mo>\d{1,2})(?:/\d{4})?)(?!\d)")
 PRAISE = ("xuất sắc", "tuyệt vời", "hoàn hảo", "rất tốt", "rất giỏi")
 
 
@@ -66,15 +68,29 @@ def unverified(text: str, known: set[float]) -> list[dict]:
     return out
 
 
-def check_sentence(text: str, cited: list[dict], *, low: bool, need_fact: bool) -> dict | None:
-    """Report sentence vs cited facts (C-41): None = pass, else the first flag of percent, no_fact, number, tone."""
+def _drop_dates(text: str, dates: Iterable[date]) -> str:
+    """Blank out d/m[/yyyy] naming a day of `dates` and m/yyyy naming one of their months (d/m ignores the year)."""
+    days = {(d.day, d.month) for d in dates}
+    months = {(d.month, d.year) for d in dates}
+
+    def drop(m: re.Match) -> str:
+        real = (int(m["m"]), int(m["y"])) in months if m["m"] else (int(m["d"]), int(m["mo"])) in days
+        return " " if real else m.group()
+
+    return _DATE.sub(drop, text)
+
+
+def check_sentence(text: str, cited: list[dict], *, low: bool, need_fact: bool, dates: Iterable[date]) -> dict | None:
+    """Report sentence vs cited facts (C-41): None = pass, else the first flag of percent, no_fact, number, tone.
+
+    `dates` = the report's real days (period bounds, session days, previous span); only those are exempt from the check.
+    """
     if "%" in text:
         return {"flag": "percent", "why": "Báo cáo cho phụ huynh không dùng phần trăm.", "detail": "câu có dấu %"}
     if need_fact and not cited:
         return {"flag": "no_fact", "why": "Câu chưa dựa vào số liệu đã duyệt.", "detail": "câu không trích fact nào"}
-    # facts write scores "x trong y", so stripping d/m dates cannot eat a score
     known = known_numbers(json.dumps(f["value"], ensure_ascii=False) for f in cited)
-    bad = [n for u in unverified(_DATE.sub(" ", text), known) for n in u["numbers"]]
+    bad = [n for u in unverified(_drop_dates(text, dates), known) for n in u["numbers"]]
     if bad:
         shown = ", ".join(f"{f['fact_id']} = {json.dumps(f['value'], ensure_ascii=False)}" for f in cited)
         return {
