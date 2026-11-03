@@ -137,14 +137,39 @@ def test_period_line(ro, kind, start, line):
     assert line in f.calls[0]["user"].splitlines()
 
 
-def test_low_period_is_said(ro):
-    """R23: 09 is told the result is low, so it does not praise too much."""
+def test_low_period_no_praise(ro):
+    """R23: 09 is told the result is low, and the audit's tone check rewrites praise all the same (C-41)."""
     settings = config.defaults()
     settings["report"]["low_pass_rate"] = 0.6  # 2 of 4 points
     s = connect("09", Toolbox(ro[0], settings=settings, today=TODAY, text="", starters=None))
-    f = fake(out(("Tháng này em học 2 buổi.", "F01")))
-    assert reporter.run(s.call, **MONTH, ctx=CTX)["low"] is True
-    assert "Kết quả kỳ này thấp." in f.calls[0]["user"].splitlines()
+    f = fake(out(("Tháng này em học 2 buổi, rất giỏi.", "F01")), out(("Tháng này em học 2 buổi.", "F01")))
+    r = reporter.run(s.call, **MONTH, ctx=CTX)
+    assert r["low"] is True and "Kết quả kỳ này thấp." in f.calls[0]["user"].splitlines()
+    assert [(a["status"], a["flag"]) for a in r["audit"]] == [("rewritten", "tone")]
+    assert r["sentences"] == [{"text": "Tháng này em học 2 buổi.", "facts": ["F01"]}]
+
+
+def test_fact_ids_never_in_text(ro):
+    """C-44: fact ids the model writes into a sentence are cut out; look-alikes such as F1, F012, AF01 stay."""
+    look_alike = "Em làm 2 bài dạng F1, F012 và AF01."
+    f = fake(out(
+        ("Em làm 2 bài [F02].", "F02"),
+        ("Em học 2 buổi, làm 2 bài (F01, F02).", "F01", "F02"),
+        ("Buổi 07/10 [F04][F99] em đạt 1 trong 2 ý.", "F04"),
+        ("F01 Em học 2 buổi F01.", "F01"),
+        (look_alike, "F02"),
+    ))  # fmt: skip
+    r = reporter.run(session(ro).call, **MONTH, ctx=CTX)
+    assert f.count["09"] == 1
+    assert [s["text"] for s in r["sentences"]] == [
+        "Em làm 2 bài.",
+        "Em học 2 buổi, làm 2 bài.",
+        "Buổi 07/10 em đạt 1 trong 2 ý.",
+        "Em học 2 buổi.",
+        look_alike,
+    ]
+    assert [a["text"] for a in r["audit"]] == [s["text"] for s in r["sentences"]]
+    assert "Không viết mã số liệu vào chữ của câu." in reporter.INSTRUCTIONS
 
 
 def test_weak_skill_gets_suggestions(conn, ro):
