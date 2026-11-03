@@ -241,6 +241,9 @@ JS_TOAST_HAS = "t => document.getElementById('toasts').innerText.includes(t)"
 JS_TOAST_NO = "t => !document.getElementById('toasts').innerText.includes(t)"
 JS_PRESSED = "s => document.querySelector(s)?.getAttribute('aria-pressed') === 'true'"
 JS_BOXES = "els => els.map(e => e.value)"
+JS_ACTIVE = "() => document.activeElement.id"
+JS_IN_DRAFT = "() => !!document.activeElement.closest('#draft')"
+JS_NO_DRAWER = "() => !document.querySelector('.convs.open')"
 JS_HREF_READY = r"() => MathJax.tex2svgPromise('\\href{x}{y}').then(() => true)"
 JS_LIVE_LINKS = """() => document.querySelectorAll(
   '#panel-tro-ly [href^="javascript:" i], #panel-tro-ly [*|href^="javascript:" i]').length"""
@@ -394,6 +397,17 @@ def chat_basics(page, rep: dict, phone: bool, data_dir: str | None, root: str) -
         rep["missing"].append(f"chat: a new conversation should offer {want} suggestion buttons")
     see_chat(page, rep, "chat start", phone)
     return True
+
+
+@counted()
+def chat_drawer(page, rep: dict) -> None:
+    """Esc closes the conversation drawer and the focus goes back to ☰ Hội thoại."""
+    press(page, rep, "#conv-toggle", "chat ☰ Hội thoại", JS_DRAWER)
+    page.keyboard.press("Escape")
+    if expect(page, rep, JS_NO_DRAWER, "chat: Esc did not close the conversation drawer") and (
+        (on := page.evaluate(JS_ACTIVE)) != "conv-toggle"
+    ):
+        rep["missing"].append(f"chat: the focus is on {on!r} after the drawer closed, want conv-toggle")
 
 
 @counted()
@@ -650,6 +664,8 @@ def walk_chat(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> 
     before = db_state(data_dir) if data_dir else None
     if not chat_basics(page, rep, phone, data_dir, root):
         return
+    if phone:
+        chat_drawer(page, rep)
     if data_dir:
         chat_cut_code(page, rep, phone)
         chat_mentions(page, rep, phone, data_dir, reqs)
@@ -1161,12 +1177,22 @@ def walk_worksheet(page, rep: dict, phone: bool, data_dir: str) -> None:
         if ws_propose(page, rep, phone):
             with step(rep, "worksheet phone"):
                 see_chat(page, rep, "worksheet phone open", phone)
+                if not page.evaluate(JS_IN_DRAFT):
+                    rep["missing"].append("worksheet phone: the sheet took no focus when it opened")
                 press(page, rep, '#draft [data-act="ws-close"]', "worksheet đóng tấm trượt", JS_WS_SHUT)
+                if (on := page.evaluate(JS_ACTIVE)) != "draft-toggle":
+                    rep["missing"].append(f"worksheet phone: the focus is on {on!r} after ×, want draft-toggle")
                 toggle = page.locator("#draft-toggle")
                 if not toggle.is_visible() or toggle.inner_text().strip() != "Phiếu nháp (6)":
                     rep["missing"].append("worksheet phone: no 'Phiếu nháp (6)' button once the sheet is closed")
                 press(page, rep, "#draft-toggle", "worksheet Phiếu nháp (6)", JS_WS_OPEN)
                 see_chat(page, rep, "worksheet phone sheet", phone)
+                if not page.evaluate(JS_IN_DRAFT):
+                    rep["missing"].append("worksheet phone: the sheet took no focus when the toggle opened it")
+                page.keyboard.press("Escape")
+                expect(page, rep, JS_WS_SHUT, "worksheet phone: Esc did not close the sheet")
+                if (on := page.evaluate(JS_ACTIVE)) != "draft-toggle":
+                    rep["missing"].append(f"worksheet phone: the focus is on {on!r} after Esc, want draft-toggle")
         return
     if recs(data_dir):
         rep["missing"].append("worksheet: recommendation has rows before the walk")

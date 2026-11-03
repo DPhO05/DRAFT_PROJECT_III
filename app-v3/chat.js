@@ -309,7 +309,7 @@
     var cv = $('.convs'), open = !cv.classList.contains('open');
     cv.classList.toggle('open', open); $('#sheet-back').classList.toggle('open', open);
     $('#conv-toggle').setAttribute('aria-expanded', open);
-    if (open) cv.querySelector('button').focus();
+    if (open) cv.querySelector('button').focus(); else $('#conv-toggle').focus();
   };
   ACT['c-back'] = closeDrawer;
   ACT['c-conv'] = function (el) {

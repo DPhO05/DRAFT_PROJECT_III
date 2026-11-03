@@ -28,7 +28,7 @@
     if (a) return a;
     a = document.createElement('aside');
     a.className = 'draft'; a.id = 'draft'; a.hidden = true; a.setAttribute('aria-label', 'Phiếu bài tập nháp');
-    a.innerHTML = '<div class="draft-head"><div><div class="eyebrow"></div><h2></h2></div><button type="button" class="icon-btn" data-act="ws-close" aria-label="Đóng khung phiếu">×</button></div><div class="draft-main"></div>';
+    a.innerHTML = '<div class="draft-head"><div><div class="eyebrow"></div><h2 tabindex="-1"></h2></div><button type="button" class="icon-btn" data-act="ws-close" aria-label="Đóng khung phiếu">×</button></div><div class="draft-main"></div>';
     asst.appendChild(a);
     asst.querySelector('.chat-head').insertAdjacentHTML('beforeend', '<button type="button" class="btn btn-sm draft-toggle" id="draft-toggle" data-act="ws-show" hidden></button>');
     a.addEventListener('keydown', onKey);
@@ -36,10 +36,11 @@
     return a;
   }
   function show(on) {
-    var a = aside();
+    var a = aside(), toggle = document.getElementById('draft-toggle'), flip = a.hidden === on;
     a.hidden = !on;
     a.parentNode.classList.toggle('has-draft', on);
-    document.getElementById('draft-toggle').hidden = !W;
+    toggle.hidden = !W;
+    if (flip && matchMedia('(max-width: 860px)').matches) (on ? a.querySelector('h2') : toggle).focus();  // the sheet is a layer over the chat
   }
   function open(tid, how) {  // how: null = only show, true = a new proposal, [refs] = codes the chat just added
     var a = aside();
@@ -233,6 +234,7 @@
   ACT['ws-show'] = function () { show(true); };
   ACT['ws-open'] = function (el) { open(el.dataset.tid, false); };
   function onKey(ev) {  // IA-app §6: Enter in the panel = Tạo phiếu, in Thêm theo mã = Thêm; buttons and links keep their own Enter
+    if (ev.key === 'Escape' && matchMedia('(max-width: 860px)').matches) { show(false); return; }
     if (ev.key !== 'Enter' || ev.isComposing || /^(BUTTON|A)$/.test(ev.target.tagName)) return;
     ev.preventDefault();
     if (ev.target.classList.contains('ws-code')) ACT['ws-add']();
