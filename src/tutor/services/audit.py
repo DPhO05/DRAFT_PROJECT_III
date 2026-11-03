@@ -1,5 +1,6 @@
-"""Number check (P6-T06): numbers in an answer that no tool result holds. Pure text, no DB; P7 reuses `values`."""
+"""Number check (P6-T06): numbers in an answer that no tool result holds. Pure text, no DB; P7 checks each sentence."""
 
+import json
 import re
 from collections.abc import Iterable
 
@@ -14,6 +15,8 @@ _CODE = re.compile(_CODE_PAT)
 _SENTENCE = re.compile(r"\S[^\n]*?(?:[.!?…]+(?=\s)|$)", re.M)
 # a digit run after a letter or digit belongs to a name (kc2), except "_10" (score_10) and the hour of 2026-10-07T14
 _PLAIN = re.compile(r"(?:(?<![^\W_.])|(?<=\dT))\d+(?:\.\d+)?")
+_DATE = re.compile(r"\d{1,2}/\d{1,2}(?:/\d{4})?")
+PRAISE = ("xuất sắc", "tuyệt vời", "hoàn hảo", "rất tốt", "rất giỏi")
 
 
 def values(token: str) -> set[float]:
@@ -61,3 +64,29 @@ def unverified(text: str, known: set[float]) -> list[dict]:
         if bad:
             out.append({"sentence": text[sentence.start() : sentence.end()], "numbers": list(dict.fromkeys(bad))})
     return out
+
+
+def check_sentence(text: str, cited: list[dict], *, low: bool, need_fact: bool) -> dict | None:
+    """Report sentence vs cited facts (C-41): None = pass, else the first flag of percent, no_fact, number, tone."""
+    if "%" in text:
+        return {"flag": "percent", "why": "Báo cáo cho phụ huynh không dùng phần trăm.", "detail": "câu có dấu %"}
+    if need_fact and not cited:
+        return {"flag": "no_fact", "why": "Câu chưa dựa vào số liệu đã duyệt.", "detail": "câu không trích fact nào"}
+    # facts write scores "x trong y", so stripping d/m dates cannot eat a score
+    known = known_numbers(json.dumps(f["value"], ensure_ascii=False) for f in cited)
+    bad = [n for u in unverified(_DATE.sub(" ", text), known) for n in u["numbers"]]
+    if bad:
+        shown = ", ".join(f"{f['fact_id']} = {json.dumps(f['value'], ensure_ascii=False)}" for f in cited)
+        return {
+            "flag": "number",
+            "why": f"Số {', '.join(f'“{n}”' for n in bad)} không có trong dữ liệu đã duyệt.",
+            "detail": f"số {', '.join(bad)} không khớp {shown}",
+        }
+    praised = [w for w in PRAISE if w in text.lower()]
+    if low and praised:
+        return {
+            "flag": "tone",
+            "why": "Câu khen hơi quá so với kết quả kỳ này.",
+            "detail": "kết quả kỳ thấp, câu có: " + ", ".join(praised),
+        }
+    return None
