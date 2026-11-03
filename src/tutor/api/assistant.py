@@ -25,7 +25,7 @@ from tutor.config import DataPaths, student_code
 from tutor.db import repo
 from tutor.graphs import bank, session, threads, worksheet
 from tutor.graphs.runner import Runner, ThreadBusy, ThreadNotFound
-from tutor.mcp import client
+from tutor.mcp import client, server
 
 router = APIRouter(prefix="/api/assistant")
 log = logging.getLogger("tutor")
@@ -205,11 +205,11 @@ def message(body: Message, request: Request):
         redact = {s["name"]: s["code"] for s in everyone.values()}  # archived too; one-word names skipped (S24)
         text = orchestrator.mask(body.text, redact)
         _check(text, body, everyone)
-        codes = repo.error_codes(conn, active_only=True)
         starters = make_starters(paths, request.app.state.runner)
         # this sync route runs in a worker thread, so the Session's anyio.run is safe here (design §11 M8, M10)
         s = client.connect("00", Toolbox(conn, settings=settings, today=today, text=text, starters=starters))
-        fixed, tools = orchestrator.fixed_parts(repo.list_kc(conn), codes), s.tools()
+        fixed = orchestrator.fixed_parts(json.loads(s.resource(server.KCS)), json.loads(s.resource(server.ERROR_CODES)))
+        tools = s.tools()
         attachment = body.attachment.model_dump() if body.attachment else None
         user = {"role": "user", "ts": repo.now(), "text": text, "mentions": body.mentions, "attachment": attachment}
         opened = _open(paths, body.conversation_id, user)

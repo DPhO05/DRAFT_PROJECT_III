@@ -9,11 +9,11 @@ from contextlib import closing
 
 import anyio
 import pytest
-from mcp import Client
+from mcp import Client, MCPError
 
 from tests.agents.test_orchestrator import text, tool
 from tests.agents.test_tools import CALLS, box, recorder
-from tests.assistant_fix import world
+from tests.assistant_fix import SWAP, world
 from tests.fakes import FakeLLM
 from tutor import config, llm
 from tutor.agents.a00_orchestrator import orchestrator, tools
@@ -145,8 +145,11 @@ def reply(ro, text_, script=None, s=None):
 def test_reply_same_events_with_mcp(ro, text_, script):
     direct, fake = reply(ro, text_, script)
     direct = list(direct)
-    mcp, fake_mcp = reply(ro, text_, script, client.connect("00", box(ro, text=text_)))
-    assert list(mcp) == direct
+    s = client.connect("00", box(ro, text=text_))
+    mcp, fake_mcp = reply(ro, text_, script, s)
+    mcp = list(mcp)
+    assert mcp == direct
+    assert sum(s.started.values()) == sum(e["state"] == "done" for e in mcp if e["type"] == "tool")  # via the Session
     assert fake_mcp.calls == fake.calls
     assert "tutor/" not in json.dumps(fake_mcp.calls, ensure_ascii=False)  # C-40: _meta never reaches the model
 
@@ -155,15 +158,72 @@ def test_closed_stream_leaves_nothing(ro):
     """Review Focus 1: the tab closes after a tool call; nothing is left running and the next message works."""
     two = [[tool("list_students")], [tool("student_profile", code="HS-01")], [text("HS-01 ổn.")]]
     before = threading.active_count()
-    events, _ = reply(ro, "Ai yếu?", two, client.connect("00", box(ro, text="Ai yếu?")))
+    s = client.connect("00", box(ro, text="Ai yếu?"))
+    events, _ = reply(ro, "Ai yếu?", two, s)
     next(e for e in events if e["type"] == "tool" and e["state"] == "done")
     events.close()
     del events
     gc.collect()
+    assert s.started == {"list_students": 1}  # the first call ran through the server, the second never started
     assert threading.active_count() == before
-    events, _ = reply(ro, "Ai yếu?", two, client.connect("00", box(ro, text="Ai yếu?")))
+    s = client.connect("00", box(ro, text="Ai yếu?"))
+    events, _ = reply(ro, "Ai yếu?", two, s)
     events = list(events)
+    assert s.started == {"list_students": 1, "student_profile": 1}
     assert [(e["name"], e["state"]) for e in events if e["type"] == "tool"] == [
         ("list_students", "start"), ("list_students", "done"), ("student_profile", "start"),
         ("student_profile", "done")]  # fmt: skip
     assert events[-1] == {"type": "done", "stopped": None}
+
+
+def read_catalogs(s):
+    """What api/assistant.message reads for the prompt: the fixed parts and the version of 00."""
+    kcs, codes = json.loads(s.resource(server.KCS)), json.loads(s.resource(server.ERROR_CODES))
+    fixed = fixed_parts(kcs, codes)
+    return kcs, codes, fixed, orchestrator.version(fixed, s.tools())
+
+
+def kind_enum(s):
+    return next(t for t in s.tools() if t["name"] == "student_mistakes")["input_schema"]["properties"]["kind"]["enum"]
+
+
+def test_catalog_resources_keep_prompt_version(ro):
+    c = ro[0]
+    kcs, codes, fixed_r, version_r = read_catalogs(client.connect("00", box(ro)))
+    active = repo.error_codes(c, active_only=True)
+    fixed_db = fixed_parts(repo.list_kc(c), active)
+    assert fixed_r == fixed_db
+    assert version_r == orchestrator.version(fixed_db, tool_defs([x["code"] for x in active]))
+    assert all(set(x) == {"code", "category", "description", "example"} for x in codes) and len(codes) > 1
+    assert all(set(x) == {"id", "name", "lop"} for x in kcs) and len(kcs) > 1
+
+
+def test_catalog_change_moves_both(conn, ro):
+    """Review Focus 5: a code the tutor turns off leaves the prompt's list and the tool `kind` enum together."""
+    _, codes, _, v1 = read_catalogs(s1 := client.connect("00", box(ro)))
+    assert SWAP in [x["code"] for x in codes] and SWAP in kind_enum(s1)
+    repo.update_error_code(conn, SWAP, active=False)  # its own writing connection, between two messages
+    _, codes, _, v2 = read_catalogs(s2 := client.connect("00", box(ro)))
+    assert SWAP not in [x["code"] for x in codes] and SWAP not in kind_enum(s2)
+    assert [x["code"] for x in codes] == kind_enum(s2)
+    assert v2 != v1
+
+
+def test_catalog_one_read_per_message(conn, ro):
+    """The prompt's codes and the `kind` enum come from one read: a change mid-message shows in neither."""
+    s = client.connect("00", box(ro))
+    read = s.resource(server.ERROR_CODES)
+    repo.update_error_code(conn, SWAP, active=False)
+    assert kind_enum(s) == [x["code"] for x in json.loads(read)] and SWAP in kind_enum(s)
+    assert s.resource(server.ERROR_CODES) == read
+
+
+def test_role_00_resources(ro):
+    async def go():
+        async with Client(server.build("00", box(ro))) as c:
+            return await c.list_resources()
+
+    assert server.RESOURCES == {"00": (server.ERROR_CODES, server.KCS)}
+    assert [str(r.uri) for r in anyio.run(go).resources] == [server.ERROR_CODES, server.KCS]
+    with pytest.raises(MCPError, match="Không có tài nguyên"):  # outside the role: an error, nothing is read
+        client.connect("00", box(ro)).resource("tutor://catalog/students")

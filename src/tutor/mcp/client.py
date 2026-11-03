@@ -67,6 +67,10 @@ class Session:
         meta = {k: v for k, v in (r.meta or {}).items() if k.startswith("tutor/")}
         return r.content[0].text, r.is_error, meta
 
+    def resource(self, uri: str) -> str:
+        """JSON text of a catalog in the role (T8); the server refuses any other URI."""
+        return self._run(lambda c: c.read_resource(uri)).contents[0].text
+
 
 def connect(role: str, box: Toolbox) -> Session:
     return Session(server.build(role, box))
