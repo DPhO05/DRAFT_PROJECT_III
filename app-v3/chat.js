@@ -96,8 +96,11 @@
 
   // ---- messages ----
   function userHTML(t) {
-    var html = U.esc(t.text || '').replace(/@(HS-\d{2,})\b/gi, function (x, c) { return '<span class="mention">' + U.esc(U.names(c)) + '</span>'; });
-    return (t.attachment ? '<span class="file-chip"><span>📄 ' + U.esc(t.attachment.path) + '</span></span>' : '') + (html ? '<p>' + U.names(html) + '</p>' : '');
+    var html = U.esc(t.text || '').replace(/(@?)\b(HS-\d{2,})\b/gi, function (x, at, c) {  // a name is escaped on its own: U.names runs after U.esc
+      var name = U.esc(U.names(c));
+      return at ? '<span class="mention">' + name + '</span>' : name;
+    });
+    return (t.attachment ? '<span class="file-chip"><span>📄 ' + U.esc(t.attachment.path) + '</span></span>' : '') + (html ? '<p>' + html + '</p>' : '');
   }
   function addUser(t) {
     var el = document.createElement('div');
