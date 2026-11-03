@@ -28,13 +28,9 @@ def build(role: str, box: Toolbox) -> Server:
     def codes() -> list[dict]:
         return repo.error_codes(box.conn, active_only=True)
 
-    @cache
-    def kcs() -> list[dict]:
-        return repo.list_kc(box.conn)
-
     catalogs = {
         ERROR_CODES: lambda: [{k: c[k] for k in ("code", "category", "description", "example")} for c in codes()],
-        KCS: lambda: [{k: c[k] for k in ("id", "name", "lop")} for c in kcs()],
+        KCS: lambda: [{k: c[k] for k in ("id", "name", "lop")} for c in repo.list_kc(box.conn)],
     }
 
     async def list_tools(ctx, params) -> types.ListToolsResult:
