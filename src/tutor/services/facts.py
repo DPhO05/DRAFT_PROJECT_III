@@ -67,8 +67,8 @@ def _sessions(conn, sid: int, lo: date, hi: date) -> list[dict]:
     )
 
 
-def _previous(conn, sid: int, kind: str, lo: date) -> tuple[date, date] | None:
-    """The latest earlier period of the same kind with a committed session (for a day: the session just before)."""
+def _latest(conn, sid: int, kind: str, lo: date) -> tuple[date, date] | None:
+    """The latest period of `kind` before `lo` that has a committed session."""
     last = conn.execute(
         "SELECT held_on FROM session WHERE student_id = ? AND status = 'committed' AND held_on < ?"
         " ORDER BY held_on DESC LIMIT 1",
@@ -103,10 +103,10 @@ def _points(t: dict) -> str:
 def report_facts(conn, student_id: int, kind: str, start: str, *, today: date, low_pass_rate: float) -> dict:
     """Facts F01… (R10), up to 3 insights (R11) and `low` (pass rate below `low_pass_rate`) of committed sessions."""
     lo, hi = period(kind, start, today)
-    prev = _previous(conn, student_id, kind, lo)
     rows = _sessions(conn, student_id, lo, hi)
     if not rows:
-        raise NotReady({"reason": "no_committed_session", "previous_start": prev[0].isoformat() if prev else None})
+        last = _latest(conn, student_id, kind, lo)  # may skip empty periods: "Làm báo cáo kỳ trước" must find one
+        raise NotReady({"reason": "no_committed_session", "previous_start": last[0].isoformat() if last else None})
     args = {"sid": student_id, "lo": lo.isoformat(), "hi": hi.isoformat()}
     out: list[dict] = []
 
@@ -176,8 +176,9 @@ def report_facts(conn, student_id: int, kind: str, start: str, *, today: date, l
         add("resolved", {"kind": r["kind"], "kc": r["kc"]}, f"Đã hết lỗi “{r['kind']}” ở “{r['kc']}”.")
 
     insights = []
-    if prev:
-        p_rows = _sessions(conn, student_id, *prev)
+    # H2: a day compares with the last day that has a session; a week or month with the one just before only
+    prev = _latest(conn, student_id, kind, lo) if kind == "day" else _bounds(kind, lo - timedelta(days=1))
+    if prev and (p_rows := _sessions(conn, student_id, *prev)):
         p_total = _total(p_rows)
         span = _dm(prev[0]) if prev[0] == prev[1] else f"{_dm(prev[0])}–{_dm(prev[1])}"
         prev_id = add(
