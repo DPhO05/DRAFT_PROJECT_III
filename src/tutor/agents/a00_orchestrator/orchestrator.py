@@ -3,12 +3,12 @@
 import json
 import re
 import unicodedata
-from collections.abc import Generator, Iterator
+from collections.abc import Callable, Generator, Iterator
 from dataclasses import dataclass, field
 from datetime import date
 
 from tutor import llm
-from tutor.agents.a00_orchestrator.tools import LABELS, Outcome, Starters, Toolbox
+from tutor.agents.a00_orchestrator.tools import LABELS, Starters, Toolbox, meta
 from tutor.config import guess_submission, student_code
 from tutor.llm import LLMUnavailable as LLMUnavailable  # api catches it from here (S14)
 from tutor.services import audit
@@ -41,6 +41,8 @@ CONFIRM = {
 _REF = r"\d[A-Z]{2}-[A-Z0-9]+-\d{3}"
 _REFS_ONLY = re.compile(rf"^\s*{_REF}(\s*,\s*{_REF})*\s*$", re.IGNORECASE)
 _DAYS = ("thứ Hai", "thứ Ba", "thứ Tư", "thứ Năm", "thứ Sáu", "thứ Bảy", "Chủ nhật")
+Result = tuple[str, bool, dict]  # (content for the model, is_error, `tutor/` _meta for the UI)
+Call = Callable[[str, dict], Result]
 
 
 @dataclass
@@ -94,24 +96,35 @@ def _confirm_only(text: str) -> bool:
     return any(parts) and all(p in CONFIRM for p in parts if p)
 
 
-def _tool_event(name: str, out: Outcome | None) -> dict:
+def _tool_event(name: str, r: Result | None) -> dict:
     """`tool` event; the summary is for the chat log, the API drops it before streaming (S10)."""
-    if out is None:
-        return {"type": "tool", "name": name, "label": LABELS.get(name, ""), "state": "start"}
-    if out.is_error:
-        return {"type": "tool", "name": name, "label": out.label, "state": "error"}
-    return {"type": "tool", "name": name, "label": out.label, "state": "done", "summary": out.summary}
+    label = LABELS.get(name, "")
+    if r is None:
+        return {"type": "tool", "name": name, "label": label, "state": "start"}
+    if r[1]:
+        return {"type": "tool", "name": name, "label": label, "state": "error"}
+    return {"type": "tool", "name": name, "label": label, "state": "done", "summary": r[2].get("tutor/summary", "")}
 
 
-def _by_code(box: Toolbox, name: str, args: dict, *, card: bool = True) -> Iterator[dict]:
+def _direct(box: Toolbox) -> Call:
+    """Toolbox.run without MCP (R10), as the same triple the MCP server returns."""
+
+    def call(name: str, args: dict) -> Result:
+        out = box.run(name, args)
+        return out.content, out.is_error, meta(out)
+
+    return call
+
+
+def _by_code(call: Call, name: str, args: dict, *, card: bool = True) -> Iterator[dict]:
     """One tool run without the model; its error message becomes the reply text."""
     yield _tool_event(name, None)
-    out = box.run(name, args)
-    yield _tool_event(name, out)
-    if out.is_error:
-        yield {"type": "text", "delta": json.loads(out.content)["error"]}
-    elif card and out.card:
-        yield {"type": "card", "card": out.card}
+    content, is_error, m = r = call(name, args)
+    yield _tool_event(name, r)
+    if is_error:
+        yield {"type": "text", "delta": json.loads(content)["error"]}
+    elif card and "tutor/card" in m:
+        yield {"type": "card", "card": m["tutor/card"]}
 
 
 def _ask_grading(turn: Turn, students: dict[int, dict]) -> dict:
@@ -123,15 +136,15 @@ def _ask_grading(turn: Turn, students: dict[int, dict]) -> dict:
 
 
 def _chat(
-    turn: Turn, box: Toolbox, *, history, today, redact, conversation_id, fixed, tools, settings
+    turn: Turn, call: Call, done: list[Result], *, history, today, redact, conversation_id, fixed, tools, settings
 ) -> Generator[dict, None, tuple[str | None, list[dict]]]:
-    """The model loop; returns (stopped, warnings) to `reply`."""
+    """The model loop; `call` appends each result to `done`; returns (stopped, warnings) to `reply`."""
     today_line = f"Hôm nay: {today.isoformat()} ({_DAYS[today.weekday()]})."
     messages = [*history, {"role": "user", "content": f"{today_line}\n\n{turn.text}"}]
 
     def run_tool(name: str, args: dict) -> tuple[str, bool]:
-        out = box.run(name, args)
-        return out.content, out.is_error
+        content, is_error, _ = call(name, args)  # _meta stays here: never in the messages (C-40)
+        return content, is_error
 
     end = {}
     for ev in llm.chat(
@@ -146,15 +159,15 @@ def _chat(
         if ev["type"] == "text":
             yield ev
         elif ev["type"] == "tool":
-            out = None if ev["state"] == "start" else box.outcomes[-1][1]
-            yield _tool_event(ev["name"], out)
-            if out and out.card:
-                yield {"type": "card", "card": out.card}
+            r = None if ev["state"] == "start" else done[-1]
+            yield _tool_event(ev["name"], r)
+            if r and "tutor/card" in r[2]:
+                yield {"type": "card", "card": r[2]["tutor/card"]}
         else:
             end = ev
     warnings = []
-    if box.outcomes:  # R16; known = this turn's tool results + the date line code wrote (S7, S27)
-        known = audit.known_numbers([o.content for _, o in box.outcomes] + [today_line])
+    if done:  # R16; known = this turn's tool results, failed ones too, + the date line code wrote (S7, S27)
+        known = audit.known_numbers([content for content, _, _ in done] + [today_line])
         warnings = [{"type": "warning", "kind": "unverified_number", **w} for w in audit.unverified(end["text"], known)]
     return ("max_tool_turns" if end["stopped"] == "max_tool_turns" else None), warnings  # S9
 
@@ -172,19 +185,27 @@ def reply(
     conversation_id: str,
     fixed: list[str],
     tools: list[dict],
+    call: Call | None = None,
 ) -> Iterator[dict]:
     """Events of api-v3 §3.1 for one tutor message, without `start` / `error` (the API adds them).
 
     Confirm words, problem codes and attachments are answered by code with 0 API calls; the rest goes to the model.
+    call: a `tutor.mcp` Session's `call`; None runs a new Toolbox directly (R10).
     """
-    box = Toolbox(conn, settings=settings, today=today, text=turn.text, starters=starters)
+    call = call or _direct(Toolbox(conn, settings=settings, today=today, text=turn.text, starters=starters))
+    done: list[Result] = []  # every tool call of this message, in order
+
+    def run(name: str, args: dict) -> Result:
+        done.append(r := call(name, args))
+        return r
+
     stopped, warnings = None, []
     if _confirm_only(turn.text):
         yield {"type": "text", "delta": SAVED_NOTHING}
     elif _REFS_ONLY.match(turn.text):
         refs = [r.upper() for r in re.findall(_REF, turn.text, re.IGNORECASE)]  # every bank ref is uppercase
-        yield from _by_code(box, "find_problems", {"refs": refs}, card=not turn.worksheet_thread_id)
-        if turn.worksheet_thread_id and not box.outcomes[-1][1].is_error:
+        yield from _by_code(run, "find_problems", {"refs": refs}, card=not turn.worksheet_thread_id)
+        if turn.worksheet_thread_id and not done[-1][1]:
             try:
                 w = starters.add_to_worksheet(turn.worksheet_thread_id, refs)
             except ValueError as e:
@@ -195,13 +216,14 @@ def reply(
     elif turn.attachment:
         if len(turn.mentions) == 1 and turn.held_on:
             args = {"code": student_code(turn.mentions[0]), "file": turn.attachment, "held_on": turn.held_on}
-            yield from _by_code(box, "start_grading", args)
+            yield from _by_code(run, "start_grading", args)
         else:
             yield {"type": "card", "card": _ask_grading(turn, students)}
     else:
         stopped, warnings = yield from _chat(
             turn,
-            box,
+            run,
+            done,
             history=history,
             today=today,
             redact=_names(redact),
@@ -211,6 +233,6 @@ def reply(
             settings=settings,
         )
     yield from warnings
-    items = list(dict.fromkeys(o.source for _, o in box.outcomes if o.source))
+    items = list(dict.fromkeys(m["tutor/source"] for _, _, m in done if "tutor/source" in m))
     yield {"type": "source", "items": items} if items else {"type": "source", "no_student_data": True}
     yield {"type": "done", "stopped": stopped}

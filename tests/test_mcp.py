@@ -1,5 +1,6 @@
 """MCP server and client for role 00 (design T7): same tools as Toolbox, H3 allowlist, H5 start limits."""
 
+import gc
 import json
 import re
 import threading
@@ -10,9 +11,13 @@ import anyio
 import pytest
 from mcp import Client
 
+from tests.agents.test_orchestrator import text, tool
 from tests.agents.test_tools import CALLS, box, recorder
 from tests.assistant_fix import world
-from tutor.agents.a00_orchestrator import tools
+from tests.fakes import FakeLLM
+from tutor import config, llm
+from tutor.agents.a00_orchestrator import orchestrator, tools
+from tutor.agents.a00_orchestrator.orchestrator import Turn, fixed_parts
 from tutor.agents.a00_orchestrator.tools import Toolbox, tool_defs
 from tutor.db import repo
 from tutor.mcp import client, server
@@ -98,3 +103,67 @@ def test_no_thread_left(ro):
     for _ in range(20):
         s.call("list_students", {})
     assert threading.active_count() == before
+
+
+CHATS = [  # the FakeLLM scripts of tests/agents/test_orchestrator.py
+    ("Tháng này @HS-01 yếu gì?", [[tool("student_profile", code="HS-01")], [text("HS-01 có 2 buổi.")]]),
+    ("@HS-01 sai dấu mấy lần?", [[tool("student_mistakes", code="HS-01")], [text(
+        "HS-01 sai 5 lần nhầm dấu. Hôm nay 21/10, lần gần nhất là 14/10.\n1. Bài 9DS-BPT-001: $x^2 = 4$ còn sai.")]]),
+    ("@HS-01 thế nào?", [[tool("student_mistakes", code="HS-01"), tool("student_profile", code="HS-01")],
+                         [tool("student_mistakes", code="HS-01")], [text("HS-01 còn 1 lỗi lặp.")]]),
+    ("Học sinh nào yếu nhất?", [[tool("list_students"), tool("student_profile", code="HS-99")],
+                                [text("Thầy chọn học sinh nhé.")]]),
+    ("8DS-PT1-004, 8ds-pt1-005", None),
+    (" 8ds-xxx-999 ", None),
+]  # fmt: skip
+
+
+def reply(ro, text_, script=None, s=None):
+    """orchestrator.reply as test_orchestrator's `say` runs it, unread; s = a Session, None = the direct path."""
+    c, w = ro
+    everyone = repo.list_students(c, include_archived=True)
+    codes = repo.error_codes(c, active_only=True)
+    llm.set_backend(fake := FakeLLM({} if script is None else {"00": script}))
+    events = orchestrator.reply(
+        Turn(text_),
+        history=[],
+        conn=c,
+        starters=None,
+        settings=config.defaults(),
+        today=w["today"],
+        redact={x["name"]: x["code"] for x in everyone},
+        students={x["id"]: x for x in everyone},
+        conversation_id="2026-10-21-1",
+        fixed=fixed_parts(repo.list_kc(c), codes),
+        tools=s.tools() if s else tool_defs([x["code"] for x in codes]),
+        call=s.call if s else None,
+    )
+    return events, fake
+
+
+@pytest.mark.parametrize(("text_", "script"), CHATS)
+def test_reply_same_events_with_mcp(ro, text_, script):
+    direct, fake = reply(ro, text_, script)
+    direct = list(direct)
+    mcp, fake_mcp = reply(ro, text_, script, client.connect("00", box(ro, text=text_)))
+    assert list(mcp) == direct
+    assert fake_mcp.calls == fake.calls
+    assert "tutor/" not in json.dumps(fake_mcp.calls, ensure_ascii=False)  # C-40: _meta never reaches the model
+
+
+def test_closed_stream_leaves_nothing(ro):
+    """Review Focus 1: the tab closes after a tool call; nothing is left running and the next message works."""
+    two = [[tool("list_students")], [tool("student_profile", code="HS-01")], [text("HS-01 ổn.")]]
+    before = threading.active_count()
+    events, _ = reply(ro, "Ai yếu?", two, client.connect("00", box(ro, text="Ai yếu?")))
+    next(e for e in events if e["type"] == "tool" and e["state"] == "done")
+    events.close()
+    del events
+    gc.collect()
+    assert threading.active_count() == before
+    events, _ = reply(ro, "Ai yếu?", two, client.connect("00", box(ro, text="Ai yếu?")))
+    events = list(events)
+    assert [(e["name"], e["state"]) for e in events if e["type"] == "tool"] == [
+        ("list_students", "start"), ("list_students", "done"), ("student_profile", "start"),
+        ("student_profile", "done")]  # fmt: skip
+    assert events[-1] == {"type": "done", "stopped": None}

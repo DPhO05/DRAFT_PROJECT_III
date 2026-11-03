@@ -19,12 +19,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from tutor.agents.a00_orchestrator import orchestrator
-from tutor.agents.a00_orchestrator.tools import Starters, tool_defs
+from tutor.agents.a00_orchestrator.tools import Starters, Toolbox
 from tutor.api import errors
 from tutor.config import DataPaths, student_code
 from tutor.db import repo
 from tutor.graphs import bank, session, threads, worksheet
 from tutor.graphs.runner import Runner, ThreadBusy, ThreadNotFound
+from tutor.mcp import client
 
 router = APIRouter(prefix="/api/assistant")
 log = logging.getLogger("tutor")
@@ -197,7 +198,7 @@ def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn) -> Iterat
 @router.post("/messages")
 def message(body: Message, request: Request):
     """One tutor message → NDJSON events (C-51). Errors before the stream are plain JSON: 422, 404, 409."""
-    paths = request.app.state.paths
+    paths, settings, today = request.app.state.paths, request.app.state.settings, date.today()
     conn = repo.connect(paths.tutor_db, readonly=True)  # the reply's only tutor.db connection (C-39)
     try:
         everyone = {s["id"]: s for s in repo.list_students(conn, include_archived=True)}
@@ -205,7 +206,10 @@ def message(body: Message, request: Request):
         text = orchestrator.mask(body.text, redact)
         _check(text, body, everyone)
         codes = repo.error_codes(conn, active_only=True)
-        fixed, tools = orchestrator.fixed_parts(repo.list_kc(conn), codes), tool_defs([c["code"] for c in codes])
+        starters = make_starters(paths, request.app.state.runner)
+        # this sync route runs in a worker thread, so the Session's anyio.run is safe here (design §11 M8, M10)
+        s = client.connect("00", Toolbox(conn, settings=settings, today=today, text=text, starters=starters))
+        fixed, tools = orchestrator.fixed_parts(repo.list_kc(conn), codes), s.tools()
         attachment = body.attachment.model_dump() if body.attachment else None
         user = {"role": "user", "ts": repo.now(), "text": text, "mentions": body.mentions, "attachment": attachment}
         opened = _open(paths, body.conversation_id, user)
@@ -227,14 +231,15 @@ def message(body: Message, request: Request):
         turn,
         history=orchestrator.history_messages(rows),
         conn=conn,
-        starters=make_starters(paths, request.app.state.runner),
-        settings=request.app.state.settings,
-        today=date.today(),
+        starters=starters,
+        settings=settings,
+        today=today,
         redact=redact,
         students=everyone,
         conversation_id=cid,
         fixed=fixed,
         tools=tools,
+        call=s.call,
     )
     lines = _stream(f, cid, f"m{len(rows) + 2}", events, conn)
     first = next(lines)  # inside its try now: a response never read still runs `finally` when dropped
