@@ -183,6 +183,7 @@ JS_REPLIED = """n => document.querySelectorAll('#chat-msgs .msg').length > n
 JS_LAST_BOT = """() => { const b = [...document.querySelectorAll('#chat-msgs .msg-bot .bubble')];
   return b.length ? b.at(-1).innerText : ''; }"""
 JS_LIST_HAS = "() => document.querySelectorAll('#conv-list .conv-item').length > 0"
+JS_IDLE = "() => !document.querySelector('.asst.is-busy')"
 JS_RETRY = "() => !!document.querySelector('#chat-msgs .bubble-err [data-act=\"c-retry\"]')"
 JS_SOL_OPEN = "() => !document.querySelector('#chat-msgs .pcard .sol').hidden"
 JS_TWO_TEX = "() => document.querySelectorAll('#chat-msgs .pcard mjx-container').length >= 2"
@@ -284,7 +285,7 @@ def chat_basics(page, rep: dict, phone: bool, data_dir: str | None, root: str) -
 
 
 def chat_cut_code(page, rep: dict, phone: bool) -> None:
-    """Codes cut between two deltas and the code of an archived student show as names only (Review Focus 1).
+    """A code cut between deltas or by a lost stream, and an archived code, never show raw (Review Focus 1).
 
     The stream is fed by hand, so Gửi and Enter can also be checked while the answer is still coming."""
     page.evaluate(JS_FEED)
@@ -313,6 +314,17 @@ def chat_cut_code(page, rep: dict, phone: bool) -> None:
         rep["missing"].append(f"chat: cut codes did not end as names: {final!r}")
     if STOPPED not in final:
         rep["missing"].append("chat: done.stopped max_tool_turns has no message")
+    expect(page, rep, JS_IDLE, "chat: the fed answer left the tab busy")
+    page.fill("#chat-input", "lại")  # a stream that dies right after a half code, with no `done`
+    page.press("#chat-input", "Enter")
+    emit({"type": "start", "conversation_id": "2026-01-01-1", "message_id": "m4"})
+    emit({"type": "text", "delta": "Hồ sơ HS-0"})
+    page.evaluate("window.__end()")
+    expect(page, rep, JS_RETRY, "chat: a stream cut before done shows no red bubble with Gửi lại")
+    if ERR_BUBBLE not in last_bot(page) or "HS-" in last_bot(page):
+        rep["missing"].append(
+            f"chat: a stream cut after 'HS-0' should be a red bubble with no code: {last_bot(page)!r}"
+        )
     page.evaluate(JS_UNFEED)
     see_chat(page, rep, "chat cut code", phone)
     new_chat(page, rep, phone)

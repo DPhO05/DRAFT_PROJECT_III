@@ -108,7 +108,7 @@
   }
   function drawText(m) {
     var live = !m.done && !m.error, t = m.text, lost = [];
-    if (live) t = t.replace(/\bH(?:S(?:-\d?)?)?$/i, '');  // a code still arriving shows once it is whole
+    if (!m.done || m.error) t = t.replace(/\bH(?:S(?:-\d?)?)?$/i, '');  // a code still arriving, or cut by a lost stream, never shows half
     m.warnings.forEach(function (w, i) {
       var at = t.indexOf(w.sentence), skip = (w.sentence.match(/^\s*(?:[-*]|\d+[.)])\s+/) || [''])[0].length;  // keep a list marker outside the mark
       if (at < 0) lost.push(w);
