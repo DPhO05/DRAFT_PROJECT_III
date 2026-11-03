@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 OPEN = "<<<BÀI LÀM HỌC SINH (UNTRUSTED INPUT)>>>"
 CLOSE = "<<<HẾT BÀI LÀM HỌC SINH>>>"
@@ -155,7 +155,84 @@ class AnthropicBackend:
         yield {"type": "message", "content": content, "stop_reason": r.stop_reason, "usage": _usage(r.usage)}
 
 
-PROVIDERS: dict[str, Callable[[], Backend]] = {"anthropic": AnthropicBackend}
+def openai_usage(u) -> dict:
+    """Responses usage -> shared usage; cached and cache-write tokens are counted inside input_tokens."""
+    if u is None:
+        return dict.fromkeys(("input", "output", "cache_read", "cache_write"), 0)
+    d = u.input_tokens_details
+    cached, written = d.cached_tokens or 0, d.cache_write_tokens or 0
+    return {
+        "input": u.input_tokens - cached - written,
+        "output": u.output_tokens,  # reasoning tokens are in here
+        "cache_read": cached,
+        "cache_write": written,
+    }
+
+
+_OPENAI_RETRY_CODES = {"server_error", "rate_limit_exceeded"}
+
+
+def _openai_retryable(e: Exception) -> bool:
+    """Network / timeout / 408 / 409 / 429 / 5xx, or an SSE error event carrying a transient code."""
+    import httpx2
+    import openai as o
+
+    if isinstance(e, o.APIConnectionError | o.RateLimitError | o.InternalServerError | httpx2.TransportError):
+        return True
+    if isinstance(e, o.APIStatusError):
+        return e.status_code in (408, 409)
+    return isinstance(e, o.APIError) and isinstance(e.body, dict) and e.body.get("code") in _OPENAI_RETRY_CODES
+
+
+def responses_request(model: str, system: list[str], user: str, schema: type[BaseModel]) -> dict:
+    """kwargs for client.responses.create: one call, strict json_schema output, nothing stored server-side."""
+    from openai.lib._pydantic import to_strict_json_schema  # private: openai is pinned <4 for it
+
+    return {
+        "model": model,
+        "store": False,
+        "instructions": "\n\n".join(system),
+        "input": [{"role": "user", "content": user}],
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": schema.__name__,
+                "strict": True,
+                "schema": to_strict_json_schema(schema),
+            }
+        },
+        "max_output_tokens": 32000,  # reasoning tokens count against it
+        "reasoning": {"effort": "medium"},
+    }
+
+
+class OpenAIBackend:
+    def __init__(self, client=None) -> None:
+        import openai
+
+        try:
+            self.client = client or openai.OpenAI(max_retries=0)  # retries are counted here (§8.4), not twice
+        except openai.OpenAIError:
+            raise LLMUnavailable("Thiếu OPENAI_API_KEY (.env)") from None
+
+    def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply:
+        with _net_errors(_openai_retryable):
+            r = self.client.responses.create(**responses_request(model, system, user, schema))
+        refusal = next(
+            (c.refusal for m in r.output if m.type == "message" for c in m.content if c.type == "refusal"), None
+        )
+        filtered = r.incomplete_details is not None and r.incomplete_details.reason == "content_filter"
+        if refusal is not None or filtered:
+            raise LLMUnavailable(f"GPT từ chối: {refusal or 'content_filter'}")
+        raw = r.output_text
+        try:
+            parsed = schema.model_validate_json(raw)  # not responses.parse: that raises and loses raw + usage
+        except ValidationError:
+            parsed = None
+        return Reply(parsed, raw, openai_usage(r.usage))
+
+
+PROVIDERS: dict[str, Callable[[], Backend]] = {"anthropic": AnthropicBackend, "openai": OpenAIBackend}
 _backend: Backend | None = None  # test / --fake-llm override: wins over every provider
 _live: dict[str, Backend] = {}  # real backends, built on first use, one per provider
 _log_path: Path | None = None
@@ -187,6 +264,7 @@ def split_model(setting: str) -> tuple[str, str]:
 
 def _route(agent: str) -> tuple[Backend, str, str]:
     """(backend, model name sent to the API, models setting as logged) for one agent."""
+    global _last_result
     setting = _models.get(agent, "claude-opus-5-5")
     try:
         provider, name = split_model(setting)
@@ -195,7 +273,11 @@ def _route(agent: str) -> tuple[Backend, str, str]:
     if _backend is not None:
         return _backend, name, setting
     if provider not in _live:
-        _live[provider] = PROVIDERS[provider]()
+        try:
+            _live.setdefault(provider, PROVIDERS[provider]())  # two first calls may both build; one wins
+        except LLMUnavailable:
+            _last_result = "error"  # raised before call / chat reach their own marking
+            raise
     return _live[provider], name, setting
 
 

@@ -1,9 +1,13 @@
 """FakeLLM: same backend interface as llm.AnthropicBackend, no network (C-34)."""
 
 import copy
+import json
 import re
 from collections import Counter
 from collections.abc import Callable, Iterator
+
+import httpx2
+import openai
 
 from tutor import llm
 
@@ -62,6 +66,27 @@ class FakeLLM:
             content.append(copy.deepcopy(b))
         stop = "tool_use" if any(b["type"] == "tool_use" for b in content) else "end_turn"
         yield {"type": "message", "content": content, "stop_reason": stop, "usage": dict(USAGE)}
+
+
+def openai_client(*replies: dict | list[dict] | int) -> tuple[openai.OpenAI, list[dict]]:
+    """openai.OpenAI over httpx2.MockTransport (C-34): one reply per request, in order; bodies = each request's JSON.
+
+    dict -> 200 JSON; list of dicts -> SSE events (event name = their `type`); int -> that status with an error body.
+    """
+    bodies, queue = [], list(replies)
+
+    def handler(req: httpx2.Request) -> httpx2.Response:
+        bodies.append(json.loads(req.content))
+        r = queue.pop(0)
+        if isinstance(r, int):
+            return httpx2.Response(r, json={"error": {"message": "x", "type": "x", "code": "x"}})
+        if isinstance(r, list):
+            sse = "".join(f"event: {e['type']}\ndata: {json.dumps(e)}\n\n" for e in r)
+            return httpx2.Response(200, headers={"content-type": "text/event-stream"}, content=sse.encode())
+        return httpx2.Response(200, json=r)
+
+    http = httpx2.Client(transport=httpx2.MockTransport(handler))
+    return openai.OpenAI(api_key="test", max_retries=0, http_client=http), bodies
 
 
 def lane_handlers(*, mistakes: int = 1, fail_03: object = None) -> dict:
