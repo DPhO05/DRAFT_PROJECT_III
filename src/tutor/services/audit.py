@@ -16,8 +16,9 @@ _CODE = re.compile(_CODE_PAT)
 _SENTENCE = re.compile(r"\S[^\n]*?(?:[.!?…]+(?=\s)|$)", re.M)
 # a digit run after a letter or digit belongs to a name (kc2), except "_10" (score_10) and the hour of 2026-10-07T14
 _PLAIN = re.compile(r"(?:(?<![^\W_.])|(?<=\dT))\d+(?:\.\d+)?")
-# m/yyyy or d/m[/yyyy]; not glued to a digit, "," or "." so "8,5/10" and "10/2026" keep their numbers
-_DATE = re.compile(r"(?<![\d,.])(?:(?P<m>\d{1,2})/(?P<y>\d{4})|(?P<d>\d{1,2})/(?P<mo>\d{1,2})(?:/\d{4})?)(?!\d)")
+# m/yyyy or dd/mm[/yyyy]: zero-padded as facts write dates, so a score like 7/10 is never a date;
+# not glued to a digit, "," or ".", so "8,05/10" and "10/2026" keep their numbers
+_DATE = re.compile(r"(?<![\d,.])(?:(?P<m>\d{1,2})/(?P<y>\d{4})|(?P<d>\d\d)/(?P<mo>\d\d)(?:/\d{4})?)(?!\d)")
 PRAISE = ("xuất sắc", "tuyệt vời", "hoàn hảo", "rất tốt", "rất giỏi")
 
 
@@ -69,7 +70,7 @@ def unverified(text: str, known: set[float]) -> list[dict]:
 
 
 def _drop_dates(text: str, dates: Iterable[date]) -> str:
-    """Blank out d/m[/yyyy] naming a day of `dates` and m/yyyy naming one of their months (d/m ignores the year)."""
+    """Blank out dd/mm[/yyyy] naming a day of `dates` and m/yyyy naming one of their months (dd/mm ignores the year)."""
     days = {(d.day, d.month) for d in dates}
     months = {(d.month, d.year) for d in dates}
 

@@ -99,6 +99,15 @@ def test_invented_fractions_are_flagged():
         assert out and out["flag"] == "number", text
 
 
+def test_only_padded_dates_are_dates():
+    day7 = [*DATES, date(2026, 10, 7)]
+    assert check("Buổi 07/10 em làm 6 bài.", [F02], dates=day7) is None
+    assert check("Em đạt 7/10 điểm.", [F03], dates=day7)["flag"] == "number"  # looks like 7 Oct, is a score
+    assert check("Buổi 7/10 em làm 6 bài.", [F02], dates=day7)["flag"] == "number"  # unpadded: a warning, not a pass
+    sep7 = [*DATES, date(2026, 9, 7)]
+    assert check("Buổi 07/9 em làm 6 bài.", [F02], dates=sep7)["flag"] == "number"  # the month is padded too
+
+
 def test_real_fraction_passes():
     assert check("Em đạt 4/6 ý.", [F03]) is None  # both parts are in F03
 
@@ -118,7 +127,9 @@ def test_month_and_year():
 def test_date_pattern_does_not_cut_into_numbers():
     dec = {"fact_id": "F04", "kind": "score", "value": {"score_10": 8.5}, "text": "Điểm 8,5 trên 10."}
     day5 = [*DATES, date(2026, 10, 5)]
-    assert check("Em đạt 8,5/10 điểm.", [dec], dates=day5) is None  # "5/10" is a day but belongs to 8,5
+    assert check("Em đạt 8,5/10 điểm.", [dec], dates=day5) is None
+    zero5 = {"fact_id": "F06", "kind": "score", "value": {"score_10": 8.05}, "text": "Điểm 8,05 trên 10."}
+    assert check("Em đạt 8,05/10 điểm.", [zero5], dates=day5) is None  # "05/10" is a day but belongs to 8,05
     big = {"fact_id": "F05", "kind": "x", "value": [20, 105], "text": "20 105"}
     assert check("Em đạt 20/105 điểm.", [big]) is None  # "20/10" is a day but "105" is one number
 
