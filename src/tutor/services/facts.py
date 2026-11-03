@@ -16,7 +16,7 @@ class NotReady(Exception):
     """The period has no committed session; `detail` = {reason, previous_start}."""
 
     def __init__(self, detail: dict):
-        super().__init__(detail["reason"])
+        super().__init__("Kỳ này chưa có buổi nào đã duyệt")
         self.detail = detail
 
 

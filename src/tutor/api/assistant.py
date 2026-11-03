@@ -23,7 +23,7 @@ from tutor.agents.a00_orchestrator.tools import Starters, Toolbox
 from tutor.api import errors
 from tutor.config import DataPaths, student_code
 from tutor.db import repo
-from tutor.graphs import bank, session, threads, worksheet
+from tutor.graphs import bank, report, session, threads, worksheet
 from tutor.graphs.runner import Runner, ThreadBusy, ThreadNotFound
 from tutor.mcp import client, server
 
@@ -270,7 +270,7 @@ def conversation(conversation_id: str, request: Request) -> dict:
 
 @router.get("/pending")
 def pending(request: Request) -> dict:
-    """G1 / G2 / G4 threads at a gate or failed (C-05); a running G1 is no work for the tutor yet."""
+    """G1 / G2 / G4 / G5 threads at a gate or failed (C-05); a running G1 is no work for the tutor yet."""
     paths, r = request.app.state.paths, request.app.state.runner
     items = []
     for row in threads.annotate(r.list_threads()):
@@ -282,5 +282,7 @@ def pending(request: Request) -> dict:
             items.append(bank.reminder(paths, row, r.state(row["thread_id"])))
         elif row["graph"] == worksheet.GRAPH:
             items.append(worksheet.reminder(row, r.state(row["thread_id"])))
+        elif row["graph"] == report.GRAPH:
+            items.append(report.reminder(row, r.state(row["thread_id"])))
     assistant = sum(i["kind"] in ("grading", "worksheet") for i in items)
-    return {"counts": {"assistant": assistant, "reports": 0}, "items": items}  # reports = G5, from P7
+    return {"counts": {"assistant": assistant, "reports": sum(i["kind"] == "report" for i in items)}, "items": items}

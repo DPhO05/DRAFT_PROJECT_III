@@ -5,7 +5,7 @@ from contextlib import closing
 from fastapi import APIRouter, Body, Request
 
 from tutor.db import repo
-from tutor.graphs import bank, session, threads, worksheet
+from tutor.graphs import bank, report, session, threads, worksheet
 from tutor.graphs.runner import ThreadNotFound
 
 router = APIRouter(prefix="/api/threads")
@@ -42,6 +42,8 @@ def get_thread(thread_id: str, request: Request, include: str | None = None, vie
         elif row["graph"] == worksheet.GRAPH:
             with closing(repo.connect(request.app.state.paths.tutor_db, readonly=True)) as conn:
                 card = worksheet.card(row, r.state(thread_id), conn)
+        elif row["graph"] == report.GRAPH:
+            card = report.card(row, r.state(thread_id))
         return {k: row[k] for k in ("thread_id", "graph", "status", "updated_at")} | {"card": card}
     if include == "state" or row["status"] == "committed":
         state = r.state(thread_id)
@@ -54,6 +56,9 @@ def get_thread(thread_id: str, request: Request, include: str | None = None, vie
 @router.put("/{thread_id}/decisions")
 def save_decisions(thread_id: str, request: Request, decisions: dict = Body(...)) -> dict:  # noqa: B008
     """Store the teacher's answers without resuming (Tạm dừng, duyệt sau)."""
+    r = request.app.state.runner
+    if r.get(thread_id)["graph"] == report.GRAPH:
+        return report.save(r, thread_id, decisions)
     return {"saved": True, "pending": request.app.state.runner.save_decisions(thread_id, decisions)}
 
 

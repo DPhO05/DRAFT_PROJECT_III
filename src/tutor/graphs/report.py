@@ -2,6 +2,7 @@
 
 Row first, file second: a rerun after a file error finds the row with the same text and only writes the file."""
 
+import json
 import re
 import threading
 from collections.abc import Callable
@@ -18,7 +19,7 @@ from tutor.agents.a09_reporter import reporter
 from tutor.config import DataPaths, student_code
 from tutor.db import repo
 from tutor.graphs import session
-from tutor.graphs.runner import Runner
+from tutor.graphs.runner import NotResumable, Runner
 from tutor.graphs.state import ReportState
 from tutor.mcp import client
 from tutor.services import facts
@@ -28,6 +29,7 @@ GRAPH = "G5"
 WORDS = {"day": "ngày", "week": "tuần", "month": "tháng"}
 _START = threading.Lock()  # find the period's draft + start a new one must not interleave: one draft per period
 _UNSAVED = ("running", "awaiting_review", "failed")
+_STAGE = {"awaiting_review": "draft", "committed": "saved"}
 
 
 def base_id(code: str, kind: str, start: str) -> str:
@@ -105,6 +107,71 @@ def sentences(state: dict, decisions: object) -> list[dict]:
         flag = check_sentence(text, cited, low=draft["low"], need_fact=False, dates=dates) or {}
         out.append({"text": text, "facts": ids, "flag": flag.get("flag"), "why": flag.get("why")})
     return out
+
+
+def lines(text_md: str) -> list[str]:
+    """The sentences of an approved report: R17's lines with the fact ids off (C-44)."""
+    return [x for line in text_md.splitlines() if (x := reporter._ID_MARK.sub("", line).strip())]
+
+
+def _stage(row: dict, state: dict) -> str:
+    """api-v3 §5.3 (R2): `writing` until 09 has a draft; a running thread with one is committing."""
+    if row["status"] == "running":
+        return "saving" if "draft" in state else "writing"
+    return _STAGE.get(row["status"], "failed")
+
+
+def _shown(row: dict, state: dict) -> list[dict]:
+    """The sentences as saved at the gate, else 09's; [] while there is no draft."""
+    if "draft" not in state:
+        return []
+    return sentences(state, json.loads(row["decisions_json"]) if row.get("decisions_json") else None)
+
+
+def card(row: dict, state: dict) -> dict:
+    """The teacher's view of a G5 thread (api-v3 §5.3): words only; `facts` are ids to send back, never shown."""
+    stage = _stage(row, state)
+    shown = _shown(row, state) if stage == "draft" else []
+    rc = state.get("receipt")
+    return {
+        "kind": "report",
+        "stage": stage,
+        "student_id": row["student_id"],
+        "period_kind": state["period_kind"],
+        "period_start": state["period_start"],
+        "n_flagged": sum(s["flag"] is not None for s in shown),
+        "report_id": rc["report_id"] if stage == "saved" and rc else None,
+        "sentences": [{k: s[k] for k in ("text", "flag", "why", "facts")} for s in shown],
+    }
+
+
+def reminder(row: dict, state: dict) -> dict:
+    """One line of GET /api/assistant/pending (api-v3 §3.3) for a G5 thread."""
+    return {"kind": "report", "thread_id": row["thread_id"], "student_id": row["student_id"],
+            "period_kind": state["period_kind"], "period_start": state["period_start"],
+            "words": "nháp" if row["status"] == "awaiting_review" else "chưa làm xong"}  # fmt: skip
+
+
+def drafts(runner: Runner, student_id: int | None = None) -> list[dict]:
+    """GET /api/reports `drafts` (R21): G5 threads at the gate or failed; `n_flagged` follows the saved answers."""
+    out = []
+    for row in runner.list_threads(graph=GRAPH, student_id=student_id):
+        if row["status"] in ("awaiting_review", "failed"):
+            state = runner.state(row["thread_id"])
+            out.append({"thread_id": row["thread_id"], "student_id": row["student_id"],
+                        "period_kind": state["period_kind"], "period_start": state["period_start"],
+                        "created_at": row["created_at"],
+                        "n_flagged": sum(s["flag"] is not None for s in _shown(row, state))})  # fmt: skip
+    return out
+
+
+def save(runner: Runner, thread_id: str, decisions: dict) -> dict:
+    """PUT decisions (api-v3 §5.3): re-audit first, so a malformed answer (ValueError → 422) is never stored."""
+    if runner.get(thread_id)["status"] != "awaiting_review":
+        raise NotResumable("Bản nháp không còn sửa được")
+    audit = [{"i": i, "flag": s["flag"], "why": s["why"]}
+             for i, s in enumerate(sentences(runner.state(thread_id), decisions))]  # fmt: skip
+    return {"saved": True, "pending": runner.save_decisions(thread_id, decisions), "audit": audit}
 
 
 def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
