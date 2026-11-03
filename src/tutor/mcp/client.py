@@ -13,7 +13,7 @@ from tutor.mcp import server
 
 LIMITS: dict[str, int] = {"start_grading": 1, "start_bank_import": 1, "propose_worksheet": 2}  # H5, per message
 _ONCE = "Mỗi tin chỉ bắt đầu việc này một lần. Thầy/cô nhắn tin mới nếu cần làm thêm."
-_REFUSED = {  # no digits: H8 checks the numbers in every tool result
+_REFUSED = {  # no digits: H8 checks the numbers in every tool result; a LIMITS entry without one gets _ONCE
     "start_grading": _ONCE,
     "start_bank_import": _ONCE,
     "propose_worksheet": "Mỗi tin chỉ soạn phiếu nháp tối đa hai lần.",
@@ -61,7 +61,7 @@ class Session:
         if name not in {t["name"] for t in self.tools()}:
             return server.error(f"Không có công cụ {name}"), True, {}
         if name in LIMITS and self.started[name] >= LIMITS[name]:
-            return server.error(_REFUSED[name]), True, {}
+            return server.error(_REFUSED.get(name, _ONCE)), True, {}
         r = self._run(lambda c: c.call_tool(name, args))
         self.started[name] += not r.is_error
         meta = {k: v for k, v in (r.meta or {}).items() if k.startswith("tutor/")}

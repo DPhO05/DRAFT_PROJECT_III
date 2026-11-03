@@ -84,6 +84,16 @@ def test_start_limits(ro):
     assert all(re.search(r"\d", c) is None and m == {} for c, _, m in refused)
 
 
+def test_limit_without_refusal_text_is_worded(ro, monkeypatch):
+    """A tool given a LIMITS entry alone (P7's start_report) is refused in words, not by a KeyError."""
+    monkeypatch.setitem(client.LIMITS, "list_students", 1)
+    s = client.connect("00", box(ro))
+    assert s.call("list_students", {})[1] is False
+    content, is_error, meta = s.call("list_students", {})
+    assert is_error and meta == {} and json.loads(content)["error"]
+    assert re.search(r"\d", content) is None
+
+
 @pytest.mark.parametrize("cause", [None, KeyError("k")])
 def test_crash_keeps_original_error(ro, monkeypatch, cause):
     def boom(self, a):
