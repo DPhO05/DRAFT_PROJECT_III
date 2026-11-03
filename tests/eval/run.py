@@ -167,11 +167,12 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     if a.backend == "real":
         n = sum(len(lab["problems"]) for lab in load_labels(a.files).values())
-        print(f"CẢNH BÁO: gọi Anthropic API thật, tốn tiền: {a.runs} lần × {n} bài toán × ≥ 3 lượt gọi "
-              "(02 · 03 · 04 mỗi lỗi; 01 khi thiếu mã bài).")  # fmt: skip
+        print(f"CẢNH BÁO: gọi API thật (Anthropic / OpenAI theo settings), tốn tiền: {a.runs} lần × {n} bài toán "
+              "× ≥ 3 lượt gọi (02 · 03 · 04 mỗi lỗi; 01 khi thiếu mã bài).")  # fmt: skip
         if not a.yes:
             print("Thêm --yes để chạy.")
             return 2
+        config.load_env(config.ENV_FILE)  # no cli callback here; GPT settings need OPENAI_API_KEY
     with tempfile.TemporaryDirectory(prefix="tutor-eval-") as tmp:
         res = {"backend": a.backend} | evaluate(_backend(a.backend), work=Path(tmp), files=a.files, runs=a.runs)
     for k, s in enumerate(res["metrics"]["per_run"], 1):
