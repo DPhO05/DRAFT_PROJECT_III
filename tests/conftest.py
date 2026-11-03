@@ -6,8 +6,9 @@ from tutor.db import repo
 
 
 @pytest.fixture(autouse=True)
-def no_real_llm(monkeypatch):
+def no_real_llm(monkeypatch, tmp_path):
     """C-34: tests never reach the Anthropic API; an agent call no test expected fails with KeyError."""
+    monkeypatch.setattr(config, "ENV_FILE", tmp_path / "absent.env")  # nor read the repo .env
     llm.set_backend(FakeLLM({}))
     monkeypatch.setattr(llm, "_last_result", "unknown")
     monkeypatch.setattr(llm, "_sleep", lambda s: None)

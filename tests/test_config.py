@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 
@@ -42,6 +43,27 @@ def test_defaults_match_appendix_c():
     assert s["backup"] == {"keep_recent": 30, "keep_monthly": True}
     assert s["app"]["port"] == 8000
     assert (config.K, config.THETA0, config.RESOLVE_STREAK) == (0.3, 0, 2)
+    assert s["price_by_model"]["openai:gpt-5.6-sol"] == {
+        "input_per_mtok": 4,
+        "output_per_mtok": 20,
+        "cache_read_per_mtok": 0.4,
+        "cache_write_per_mtok": 5,
+    }
+
+
+def test_load_env(tmp_path, monkeypatch, capsys):
+    for k in ("OPENAI_API_KEY", "X_ONE"):
+        monkeypatch.setenv(k, "")  # records the original so what load_env sets is undone
+        monkeypatch.delenv(k)
+    monkeypatch.setenv("X_KEEP", "old")
+    f = tmp_path / ".env"
+    f.write_text('# c\n\nOPENAI_API_KEY="sk-test"\nexport X_ONE=1\nX_KEEP=new\n', encoding="utf-8")
+    assert config.load_env(f) is None
+    assert os.environ["OPENAI_API_KEY"] == "sk-test"
+    assert os.environ["X_ONE"] == "1"
+    assert os.environ["X_KEEP"] == "old"
+    config.load_env(tmp_path / "absent.env")
+    assert capsys.readouterr() == ("", "")
 
 
 def test_student_code():

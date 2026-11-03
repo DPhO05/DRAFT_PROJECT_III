@@ -18,7 +18,7 @@ from typer.testing import CliRunner
 
 from tests.assistant_fix import world
 from tests.db.test_profile_repo import D1, D2, WRONG, bank, commit, mk, skill_rows, start  # noqa: F401
-from tutor import cli
+from tutor import cli, config
 from tutor.db import repo
 from tutor.graphs.runner import Runner
 from tutor.services import elo
@@ -103,6 +103,15 @@ FIX = Path(__file__).resolve().parent / "fixtures" / "submissions"
 def test_seed_needs_dev_flag(tmp_path):
     r = run("seed-dummy", "--data-dir", str(tmp_path / "d"))
     assert r.returncode == 1 and "--dev" in r.stdout
+
+
+def test_env_file_read_by_cli(tmp_path, monkeypatch):
+    (tmp_path / ".env").write_text("OPENAI_API_KEY=sk-test\n", encoding="utf-8")
+    monkeypatch.setattr(config, "ENV_FILE", tmp_path / ".env")
+    monkeypatch.setenv("OPENAI_API_KEY", "")  # records the original so the key set below is undone
+    monkeypatch.delenv("OPENAI_API_KEY")
+    out = CliRunner().invoke(cli.cli, ["seed-dummy", "--data-dir", str(tmp_path / "d")])
+    assert os.environ["OPENAI_API_KEY"] == "sk-test" and "sk-test" not in out.output
 
 
 def test_ingest_runs_g1_in_process(tmp_path):

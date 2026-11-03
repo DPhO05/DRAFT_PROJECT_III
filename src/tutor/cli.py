@@ -33,6 +33,7 @@ cli.add_typer(bank_cli, name="bank")
 @cli.callback()
 def _root() -> None:
     """Trợ lý gia sư Toán."""
+    config.load_env(config.ENV_FILE)
 
 
 def _alive(url: str) -> bool:

@@ -1,5 +1,6 @@
 """P2-T08 / MONO-P2-02: /api/logs calls and cost from llm.jsonl."""
 
+import json
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,6 +22,19 @@ def test_cost_equals_hand_computation(logged, client):
     assert c["budget_usd"] == 30 and c["pct"] == pytest.approx(0.059 / 30)
     assert c["assumption"] is True and c["prices"]["cache_write_per_mtok"] == 6.25
     assert set(c["by_agent"]) == {"01", "02", "03"} and len(c["by_session"]) == 2
+
+
+def test_cost_by_model(paths, client):
+    tok = {"input_tokens": 1000, "output_tokens": 200, "cache_read_tokens": 2000}
+    rows = [
+        {"model": m, "ts": f"2026-11-0{i}T08:00:00Z", **tok}
+        for i, m in enumerate(["claude-opus-5-5", "openai:gpt-5.6-sol"], 1)
+    ]
+    (paths.logs / "llm.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    c = client.get("/api/logs/cost?month=2026-11").json()
+    assert c["total_usd"] == 0.0198 and "openai:gpt-5.6-sol" in c["price_by_model"]
+    items = client.get("/api/logs/calls").json()["items"]
+    assert [i["cost_usd"] for i in items] == [0.0088, 0.011]
 
 
 def test_filter_by_thread_returns_exactly_its_calls_newest_first(logged, client):

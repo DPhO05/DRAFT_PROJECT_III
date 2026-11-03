@@ -32,12 +32,43 @@ _DEFAULTS = {
         "cache_read_per_mtok": 0.5,
         "cache_write_per_mtok": 6.25,
     },
+    # Keyed by the exact model string in settings["models"]; wins over price_assumption.
+    # shortcut: Standard ≤ 272K input tokens only; longer calls bill higher, add a long-context price
+    # if 00 ever sends that much.
+    "price_by_model": {
+        "openai:gpt-5.6-sol": {
+            "input_per_mtok": 4,
+            "output_per_mtok": 20,
+            "cache_read_per_mtok": 0.4,
+            "cache_write_per_mtok": 5,
+        },
+    },
     "privacy": {"send_code_only": True},
     "backup": {"keep_recent": 30, "keep_monthly": True},
     "app": {"port": 8000},
     "runner": {"max_workers": 2},
     "assistant": {"max_tool_turns": 8},
 }
+
+
+ENV_FILE = Path(".env")  # cwd, like the default ./data
+
+
+def load_env(path: Path) -> None:
+    """Put KEY=VALUE lines of a .env file into os.environ; a variable already set wins. Never prints values."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for line in lines:
+        line = line.strip().removeprefix("export ")
+        key, eq, val = line.partition("=")
+        key, val = key.strip(), val.strip()
+        if not eq or not key or key.startswith("#"):
+            continue
+        if len(val) > 1 and val[0] == val[-1] and val[0] in "\"'":
+            val = val[1:-1]
+        os.environ.setdefault(key, val)
 
 
 class SettingsError(Exception):

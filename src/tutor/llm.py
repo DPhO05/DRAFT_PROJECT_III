@@ -656,11 +656,19 @@ _TOKENS = {"input_tokens": "input_per_mtok", "output_tokens": "output_per_mtok",
            "cache_read_tokens": "cache_read_per_mtok", "cache_write_tokens": "cache_write_per_mtok"}  # fmt: skip
 
 
-def iter_log(path: Path, prices: dict | None = None, *, month: str | None = None, **filters: str | None):
+def iter_log(
+    path: Path,
+    prices: dict | None = None,
+    *,
+    by_model: dict | None = None,
+    month: str | None = None,
+    **filters: str | None,
+):
     """llm.jsonl rows with `id` = 1-based line number, unreadable lines skipped.
 
     filters: agent, graph, student (student_code), thread (thread_id); month 'YYYY-MM' on ts.
-    prices (settings price_assumption) adds cost_usd, computed now rather than stored.
+    prices (settings price_assumption) adds cost_usd, computed now rather than stored; by_model
+    (settings price_by_model) overrides prices for rows whose model string it lists.
     """
     want = {_FILTERS[k]: v for k, v in filters.items() if v}
     if not path.exists():
@@ -676,15 +684,16 @@ def iter_log(path: Path, prices: dict | None = None, *, month: str | None = None
             if month and str(row.get("ts", ""))[:7] != month:
                 continue
             if prices is not None:
-                usd = sum((row.get(t) or 0) * prices.get(p, 0) for t, p in _TOKENS.items()) / 1e6
+                price = (by_model or {}).get(row.get("model"), prices)
+                usd = sum((row.get(t) or 0) * price.get(p, 0) for t, p in _TOKENS.items()) / 1e6
                 row["cost_usd"] = round(usd, 6)
             yield {"id": i} | row
 
 
-def cost(path: Path, prices: dict, *, month: str) -> dict:
+def cost(path: Path, prices: dict, *, month: str, by_model: dict | None = None) -> dict:
     """Month total, by agent, by session (thread), from tokens x assumed prices."""
     total, by_agent, by_session, n = 0.0, {}, {}, 0
-    for r in iter_log(path, prices, month=month):
+    for r in iter_log(path, prices, by_model=by_model, month=month):
         n += 1
         total += r["cost_usd"]
         a = by_agent.setdefault(r.get("agent"), {"calls": 0, "usd": 0.0})
