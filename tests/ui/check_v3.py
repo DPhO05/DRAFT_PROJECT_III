@@ -356,8 +356,9 @@ def counted(commit: tuple = (), may: dict | None = None):
 
 def see_chat(page, rep: dict, where: str, phone: bool) -> None:
     see(page, rep, where, phone)
-    rep["forbidden"] += [f"{where}: {m.group(0)}" for m in HS_CODE.finditer(page.inner_text("#panel-tro-ly"))]
-    boxes = page.eval_on_selector_all("#panel-tro-ly textarea, #panel-tro-ly input", JS_BOXES)  # inner_text skips them
+    # the whole page: toasts and the modal sit outside the panel
+    rep["forbidden"] += [f"{where}: {m.group(0)}" for m in HS_CODE.finditer(page.inner_text("body"))]
+    boxes = page.eval_on_selector_all("textarea, input", JS_BOXES)  # inner_text skips them
     rep["forbidden"] += [f"{where} (box): {m.group(0)}" for v in boxes for m in HS_CODE.finditer(v)]
 
 
@@ -1705,6 +1706,8 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
            "overflow": [], "shots": []}  # fmt: skip
     phone = vp is PHONE
     page = browser.new_context(viewport=vp, color_scheme="light").new_page()
+    reqs: list = []
+    page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
     page.on(
         "console",
         lambda m: m.type == "error" and not m.text.startswith(NET_NOISE) and rep["console_errors"].append(m.text[:300]),
@@ -1725,6 +1728,7 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
     walk_gear(page, rep, phone)
     walk_theme(page, rep, base)
     page.wait_for_timeout(500)  # late errors
+    rep["missing"] += [f"{x}: the request body holds a student name (C-40)" for x in named_bodies(reqs)]
     with step(rep, "walk end"):  # catches rows changed since the last step
         pass
     page.context.close()
@@ -1762,6 +1766,15 @@ def finish(data_dir: str) -> dict:
     if lost := MOVES_ROWS - {e["step"] for e in LEDGER["log"] if e["changed"]}:
         rep["missing"].append(f"db: steps {sorted(lost)} changed no rows, so the row counts see nothing")
     return rep
+
+
+def named_bodies(reqs: list) -> list:
+    """POST and PUT requests whose body holds a student's full name (C-40)."""
+    return [
+        f"{m} {u.split('/api', 1)[-1]}"
+        for m, u, b in reqs
+        if m in ("POST", "PUT") and b and any(n in fold(b) for n in NAMES)
+    ]
 
 
 def check(url: str, args: argparse.Namespace) -> int:
