@@ -99,6 +99,18 @@ def test_number_in_words():
     assert check("Em làm 6 bài.", [F02]) is None
 
 
+def test_number_word_in_a_cited_fact_is_known():
+    """H18: a skill name such as "Căn bậc hai" is no number claim, but only when a cited fact holds that word."""
+    skill = {"fact_id": "F04", "kind": "skill", "value": {"kc": "Căn bậc hai"},
+             "text": "Kỹ năng “Căn bậc hai”: từ vững thành chưa vững."}  # fmt: skip
+    said = "Em nên ôn lại kỹ năng “Căn bậc hai”."
+    assert check(said, [skill]) is None
+    assert check("Em nên ôn lại kỹ năng “CĂN BẬC HAI”.", [skill]) is None  # case does not matter
+    assert check(unicodedata.normalize("NFD", said), [skill]) is None
+    assert check(said, [F01])["flag"] == "number"  # cited fact with other text
+    assert check("Em học hai buổi.", [F01])["flag"] == "number"  # "Số buổi học: 2." has no "hai"
+
+
 def test_everyday_words_are_not_numbers():
     for text in ("Em làm một bài.", "Em làm ba bước.", "Năm nay em học chăm.", "Em đọc haiku.", "Em có chai nước."):
         assert check(text, [F02]) is None, text

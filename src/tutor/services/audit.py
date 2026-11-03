@@ -87,7 +87,8 @@ def _drop_dates(text: str, dates: Iterable[date]) -> str:
 def check_sentence(text: str, cited: list[dict], *, low: bool, need_fact: bool, dates: Iterable[date]) -> dict | None:
     """Report sentence vs cited facts (C-41): None = pass, else the first flag of percent, no_fact, number, tone.
 
-    A number written in words (hai, sáu, bảy…) is flagged `number`: it cannot be checked against the facts.
+    A number written in words (hai, sáu, bảy…) is flagged `number`: it cannot be checked against the facts,
+    unless a cited fact's text holds the same word (a skill name).
 
     `dates` = the report's real days (period bounds, session days, previous span); only those are exempt from the check.
     """
@@ -109,7 +110,10 @@ def check_sentence(text: str, cited: list[dict], *, low: bool, need_fact: bool, 
             "why": f"Số {', '.join(f'“{n}”' for n in bad)} không có trong dữ liệu đã duyệt.",
             "detail": f"số {', '.join(bad)} không khớp {shown}",
         }
-    if words := list(dict.fromkeys(_WORDS.findall(text))):
+    # shortcut: a word in a cited fact's text (a skill name like "bậc hai") is known for the whole sentence, so a
+    # real "hai" beside it passes; upgrade by masking the fact's names out of the sentence first
+    known_words = {w.lower() for f in cited for w in _WORDS.findall(unicodedata.normalize("NFC", f["text"]))}
+    if words := [w for w in dict.fromkeys(_WORDS.findall(text)) if w.lower() not in known_words]:
         shown = ", ".join(f"“{w}”" for w in words)
         return {
             "flag": "number",
