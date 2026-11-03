@@ -58,6 +58,7 @@ class ReportState(TypedDict, total=False):
     student_id: int
     period_kind: str  # day / week / month (C-44)
     period_start: str
+    today: str  # H7: start's day; write's Toolbox uses it, never the wall clock
     draft: dict  # reporter.run: facts, insights, low, dates, sentences, audit (the writer's rows)
     decisions: dict | None  # answers at gate_report: {sentences: [{text, facts}]}; None = 09's sentences as they are
     receipt: dict  # commit: {report_id, approved_at}

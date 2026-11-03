@@ -39,6 +39,11 @@ def report_file(paths: DataPaths, student_id: int, kind: str, start: str) -> Pat
     return paths.out / f"baocao-{student_code(student_id)}-{kind}-{start}.md"
 
 
+def _approved(conn, student_id: int, kind: str, start: str) -> None:
+    if done := repo.report_for(conn, student_id, kind, start):
+        raise repo.ReportApproved(done["id"], done["approved_at"])
+
+
 def start(paths: DataPaths, runner: Runner, *, student_id: int, period_kind: str, period_start: str,
           today: date) -> dict:  # fmt: skip
     """Start the period's draft, or hand back the one it has (R16). Nothing is written to tutor.db (C-39).
@@ -47,13 +52,13 @@ def start(paths: DataPaths, runner: Runner, *, student_id: int, period_kind: str
     lo, hi = facts.period(period_kind, period_start, today)
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         code = repo.get_student(conn, student_id)["code"]
-        if done := repo.report_for(conn, student_id, period_kind, period_start):
-            raise repo.ReportApproved(done["id"], done["approved_at"])
+        _approved(conn, student_id, period_kind, period_start)
         base = base_id(code, period_kind, period_start)
         with _START:
             for t in runner.list_threads(graph=GRAPH, student_id=student_id):
                 if t["status"] in _UNSAVED and re.fullmatch(rf"{base}(-\d+)?", t["thread_id"]):
                     return {"thread_id": t["thread_id"], "status": t["status"], "existing": True}
+            _approved(conn, student_id, period_kind, period_start)  # a draft may have committed since the read above
             try:
                 facts.report_facts(conn, student_id, period_kind, period_start, today=today,
                                    low_pass_rate=_settings(paths)["report"]["low_pass_rate"])  # fmt: skip
@@ -68,7 +73,7 @@ def start(paths: DataPaths, runner: Runner, *, student_id: int, period_kind: str
                 tid = f"{base}-{k}"
             meta = {"subject": f"{code} · báo cáo {WORDS[period_kind]} {lo:%d/%m/%Y}", "student_id": student_id}
             runner.start(GRAPH, tid, {"student_id": student_id, "period_kind": period_kind,
-                                      "period_start": period_start}, meta)  # fmt: skip
+                                      "period_start": period_start, "today": today.isoformat()}, meta)  # fmt: skip
     return {"thread_id": tid, "status": "running", "existing": False}
 
 
@@ -82,7 +87,7 @@ def sentences(state: dict, decisions: object) -> list[dict]:
     if decisions is not None:
         given = decisions.get("sentences") if isinstance(decisions, dict) else None
         ok = isinstance(given, list) and all(
-            isinstance(s, dict) and isinstance(s.get("text"), str) and s["text"].strip()
+            isinstance(s, dict) and isinstance(s.get("text"), str)
             and isinstance(s.get("facts", []), list) and all(isinstance(f, str) for f in s.get("facts", []))
             for s in given
         )  # fmt: skip
@@ -92,7 +97,9 @@ def sentences(state: dict, decisions: object) -> list[dict]:
     dates = [date.fromisoformat(d) for d in draft["dates"]]
     out = []
     for s in given:
-        text = " ".join(s["text"].split())  # one line each in text_md
+        text = " ".join(reporter._ID_MARK.sub("", s["text"]).split())  # H9: no typed [Fxx]; one line in text_md
+        if not any(c.isalnum() for c in text):
+            raise ValueError("Câu báo cáo không có chữ")
         ids = [f for f in dict.fromkeys(s.get("facts", [])) if f in by_id]
         cited = [by_id[f] for f in ids] or draft["facts"]
         flag = check_sentence(text, cited, low=draft["low"], need_fact=False, dates=dates) or {}
@@ -110,6 +117,16 @@ def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
             return 1
 
     return count
+
+
+def check(paths: DataPaths) -> Callable[[dict, object], None]:
+    """Runner resume check: ReportApproved (409) when another thread approved the period first."""
+
+    def run(state: dict, decisions: object) -> None:
+        with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+            _approved(conn, state["student_id"], state["period_kind"], state["period_start"])
+
+    return run
 
 
 def text_md(sentences: list[dict]) -> str:
@@ -130,7 +147,8 @@ def build(paths: DataPaths) -> StateGraph:
         sid = state["student_id"]
         ctx = session.call_context(paths, sid, None, config, graph=GRAPH)  # C-40: every full name masked
         with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
-            box = Toolbox(conn, settings=_settings(paths), today=date.today(), text="", starters=None)
+            today = date.fromisoformat(state["today"])  # H7: the day start was given
+            box = Toolbox(conn, settings=_settings(paths), today=today, text="", starters=None)
             period = {"period_kind": state["period_kind"], "period_start": state["period_start"]}
             draft = reporter.run(client.connect("09", box).call, code=ctx.student_code, **period, ctx=ctx)
         return {"draft": draft}

@@ -127,6 +127,39 @@ def test_second_approval_blocked(g5, paths):
         r.resume(tid)
 
 
+def test_second_thread_of_approved_period(g5, paths, conn, monkeypatch):
+    """Important 1: a start that read "not approved" just before thread A committed, then found no draft."""
+    r, _, _, sid = g5
+    a = draft(paths, r, sid)["thread_id"]
+    approve(r, a)
+    real, reads = repo.report_for, []
+
+    def stale(*args):  # the first read happened before A committed its row
+        reads.append(args)
+        return None if len(reads) == 1 else real(*args)
+
+    monkeypatch.setattr(repo, "report_for", stale)
+    with pytest.raises(repo.ReportApproved):  # read again under the start lock
+        report.start(paths, r, student_id=sid, **WEEK, today=TODAY)
+    assert [t["thread_id"] for t in r.list_threads(graph="G5")] == [a]
+    monkeypatch.setattr(repo, "report_for", lambda *args: None)  # both reads missed: B gets to its gate
+    b = draft(paths, r, sid)["thread_id"]
+    assert (b, r.get(b)["status"]) == (f"{a}-2", "awaiting_review")
+    monkeypatch.setattr(repo, "report_for", real)
+    with pytest.raises(repo.ReportApproved):  # 409 at resume, not a failed thread
+        r.resume(b)
+    assert r.get(b)["status"] == "awaiting_review" and len(rows(conn)) == 1
+
+
+def test_write_uses_start_today(g5, paths, monkeypatch):
+    """H7: write's Toolbox (report_facts, rank_problems) uses the day start was given, not the wall clock."""
+    r, _, _, sid = g5
+    seen, real = [], report.Toolbox
+    monkeypatch.setattr(report, "Toolbox", lambda conn, **k: seen.append(k["today"]) or real(conn, **k))
+    tid = draft(paths, r, sid)["thread_id"]
+    assert r.get(tid)["status"] == "awaiting_review" and seen == [TODAY]
+
+
 def test_not_ready_lists_pending(g5, paths, conn):
     """An's week of 19/10 has only a G1 still waiting for review: 409 not_ready names it and the week before."""
     r, _, fake, sid = g5
@@ -174,6 +207,10 @@ def test_edits_reaudited(g5, paths, conn):
     assert one == [{"text": "Em làm 1 bài.", "facts": [], "flag": None, "why": None}]  # F99 cites nothing: every fact
     day = report.sentences(state, {"sentences": [{"text": "Buổi 14/10 em làm 1 bài.", "facts": []}]})
     assert day[0]["flag"] is None  # H3/H4: a session day of the period is no number
+    typed = {"sentences": [{"text": "Em làm 1 bài [F07].", "facts": []}]}
+    assert report.sentences(state, typed)[0]["text"] == "Em làm 1 bài."  # H9: C-44, no id on screen
+    assert report.text_md(report.sentences(state, typed)) == "Em làm 1 bài.\n"
+    assert report.pending(paths)(state, {"sentences": [{"text": " [F07] ", "facts": []}]}, "gate_report") == 1
     row = approve(r, tid)
     assert row["status"] == "committed", row["error"]
     audit = json.loads(rows(conn)[0][4])

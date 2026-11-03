@@ -19,4 +19,5 @@ def make_runner(paths: DataPaths, max_workers: int = 2) -> Runner:
     runner.pending_fn(worksheet.GRAPH, worksheet.pending(paths))
     runner.resume_check(worksheet.GRAPH, worksheet.check(paths))
     runner.pending_fn(report.GRAPH, report.pending(paths))
+    runner.resume_check(report.GRAPH, report.check(paths))
     return runner
