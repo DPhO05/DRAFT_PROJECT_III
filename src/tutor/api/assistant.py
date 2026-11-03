@@ -177,7 +177,8 @@ def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn) -> Iterat
                         tools.append({"name": ev["name"], "summary": ev.pop("summary")})
                     kept.append(ev)
                 yield _line(ev)
-        except orchestrator.LLMUnavailable:
+        except orchestrator.LLMUnavailable as e:
+            log.warning("assistant %s: %s", cid, e)
             err = {"type": "error", "code": "llm_unavailable", "message": UNAVAILABLE}
         except Exception:
             log.exception("assistant %s", cid)

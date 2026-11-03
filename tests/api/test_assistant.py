@@ -1,6 +1,7 @@
 """P6-T09: POST /api/assistant/messages (NDJSON), conversations, pending (api-v3 §3.1-§3.3, R25, C-39)."""
 
 import json
+import logging
 import threading
 from contextlib import closing
 from datetime import date
@@ -14,7 +15,7 @@ from tests.api.test_review_api import submit
 from tests.api.test_sessions import W, add_student, poll
 from tests.assistant_fix import world
 from tests.bankfix import P1
-from tests.fakes import FakeLLM
+from tests.fakes import FakeLLM, openai_client
 from tutor import llm
 from tutor.api import assistant
 from tutor.db import repo
@@ -132,6 +133,34 @@ def test_busy_released_after_error(paths, client, w):
     assert [(r["role"], r["text"]) for r in got[:2]] == [("user", "Hỏi"), ("assistant", "Đang tra")]
     assert got[1]["events"] == [{"type": "error", "code": "llm_unavailable", "message": "Chưa trả lời được, thử lại"}]
     assert [r["id"] for r in got] == ["m1", "m2", "m3", "m4", "m5", "m6"]
+
+
+def real_llm(monkeypatch, paths, models, client=None):
+    """Route agent 00 through the real llm.py, with the provider (if any) over a mock transport."""
+    if client:
+        monkeypatch.setitem(llm.PROVIDERS, "openai", lambda: llm.OpenAIBackend(client))
+    monkeypatch.setattr(llm, "_live", {})
+    llm.set_backend(None)
+    llm.configure(paths.logs / "llm.jsonl", models)
+
+
+def test_bad_model_setting_reaches_health_and_log(paths, client, w, caplog, monkeypatch):
+    real_llm(monkeypatch, paths, {"00": "gpt:x"})
+    monkeypatch.setattr(llm, "_last_result", "ok")
+    caplog.set_level(logging.WARNING, logger="tutor")
+    assert lines(send(client, "Hỏi"))[-1]["code"] == "llm_unavailable"
+    assert client.get("/api/health").json()["llm"] == "error"
+    assert "models.00: không biết provider gpt" in caplog.text
+
+
+def test_unavailable_is_logged_without_key(paths, client, w, caplog, monkeypatch):
+    echo = "Incorrect API key provided: sk-proj-abcd1234wxyz."
+    oc, _ = openai_client([{"type": "error", "code": "invalid_prompt", "message": echo}])
+    real_llm(monkeypatch, paths, {"00": "openai:gpt-x"}, oc)
+    caplog.set_level(logging.WARNING, logger="tutor")
+    assert lines(send(client, "Hỏi"))[-1]["code"] == "llm_unavailable"
+    assert "Incorrect API key" in caplog.text
+    assert not any(s in caplog.text for s in ("sk-proj", "wxyz"))
 
 
 def test_unread_stream_frees_conversation(paths, client, w):

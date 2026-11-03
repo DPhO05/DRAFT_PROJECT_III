@@ -83,12 +83,14 @@ def test_one_backend_per_provider(setup, monkeypatch):
     assert made == [1] and [c["model"] for c in fo.calls] == ["a", "b"]
 
 
-def test_unknown_provider_is_unavailable(setup):
+def test_unknown_provider_is_unavailable(setup, monkeypatch):
     setup({"01": "gpt:x", "00": "gpt:x"})
+    monkeypatch.setattr(llm, "_last_result", "ok")
     with pytest.raises(llm.LLMUnavailable, match="không biết provider gpt"):
         llm.call("01", ["cố định"], Out, student_work="bài", context=ctx())
     with pytest.raises(llm.LLMUnavailable, match="không biết provider gpt"):
         chat()
+    assert llm.status() == "error"
 
 
 def test_override_wins(setup):
