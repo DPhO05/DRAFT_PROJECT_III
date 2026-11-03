@@ -49,7 +49,7 @@
       el.className = 'draft-main';
       el.innerHTML = '<div class="ws draft-body"><p class="tool-line">Đang mở phiếu nháp…</p></div>';
       a.replaceChild(el, a.querySelector('.draft-main'));  // the old draft's poll stops with it
-      var s = W = { tid: tid, el: el, card: null, json: '', extra: [], pending: null, timer: 0, putSeq: 0, saving: 0, fresh: 0, busy: false };
+      var s = W = { tid: tid, el: el, card: null, json: '', extra: [], pending: null, timer: 0, putSeq: 0, saving: 0, fresh: 0, busy: false, waits: 0 };
       a.querySelector('h2').textContent = ''; a.querySelector('.eyebrow').textContent = 'Phiếu nháp';
       C.poll(tid, function (row) { return onRow(s, row); }, el);
     } else if (how && W.card) {  // add_refs saved them before the card came, but a panel PUT may still carry the old list
@@ -62,6 +62,7 @@
   // ---- server card in: adopt it unless this screen has a change the server has not seen ----
   function onRow(s, row) {
     s.fresh++;
+    if (s.busy && row.card.stage === 'failed' && ++s.waits >= 2) { s.busy = false; draw(s); }  // Thử lại failed again before a poll saw it run
     apply(s, row, false);
     return row.card.stage !== 'saved';
   }
@@ -219,7 +220,7 @@
   ACT['ws-create'] = function () { create(W); };
   ACT['ws-retry'] = function () {
     var s = W;
-    s.busy = true; draw(s);
+    s.busy = true; s.waits = 0; draw(s);
     resume(s).catch(function (e) { s.busy = false; draw(s); U.toast(ERR[e.code] || 'Chưa tạo được phiếu, thử lại sau.', 'warn'); });
   };
   ACT['ws-pdf'] = function () {

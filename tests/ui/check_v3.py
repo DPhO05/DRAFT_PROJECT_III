@@ -910,6 +910,9 @@ def grade_routes(page, rep: dict, reqs: list) -> None:
     page.wait_for_timeout(500)
     if (n := sum(m == "POST" and again.search(u) is not None for m, u, _ in reqs[seen:])) != 1:
         rep["missing"].append(f"grading failed: Chấm lại sent {n} resumes, want 1")
+    # the poll still says failed, as if the retry failed again before any poll saw it run
+    retry = f'{h} [data-act="g-retry"]'
+    expect(page, rep, JS_ON, "grading failed: Chấm lại stayed off after the retry failed again", retry)
     page.unroute(poll)
     page.unroute(again)
     new_chat(page, rep, False)  # the old card goes first, so only the reopened one can show the 404
@@ -1124,6 +1127,32 @@ def ws_switch(page, rep: dict, phone: bool) -> None:
         rep["missing"].append(f"worksheet: the panel head says {head!r} over the draft of {PEOPLE[0]}")
 
 
+@counted()
+def ws_retry(page, rep: dict) -> None:
+    """Thử lại on a failed draft whose poll still says failed (it failed again at once) comes back."""
+    if not (tid := page.evaluate(JS_WS_TID)):
+        rep["missing"].append("worksheet retry: no draft on screen")
+        return
+    poll, again = re.compile(rf"/api/threads/{tid}\?view=teacher$"), re.compile(rf"/api/threads/{tid}/resume$")
+
+    def failed(route) -> None:
+        r = route.fetch()
+        j = r.json()
+        j["status"] = "failed"
+        j["card"]["stage"] = "failed"
+        route.fulfill(response=r, json=j)
+
+    page.route(poll, failed)
+    page.route(again, lambda r: r.fulfill(status=202, json={"thread_id": tid, "status": "running"}))
+    retry = '#draft [data-act="ws-retry"]'
+    if expect(page, rep, JS_ON, "worksheet retry: a failed draft has no Thử lại", retry):
+        press(page, rep, retry, "worksheet Thử lại")
+        expect(page, rep, JS_ON, "worksheet retry: Thử lại stayed off after the retry failed again", retry)
+    page.unroute(poll)
+    page.unroute(again)
+    expect(page, rep, JS_ON, "worksheet retry: the draft did not come back", CREATE)
+
+
 def walk_worksheet(page, rep: dict, phone: bool, data_dir: str) -> None:
     """The G4 draft panel beside the chat; a sheet at 390 px. Each desktop step stands on the one before."""
     reqs: list = []
@@ -1157,6 +1186,8 @@ def walk_worksheet(page, rep: dict, phone: bool, data_dir: str) -> None:
         ws_replace(page, rep, phone, data_dir, reqs)
     if ok():
         ws_switch(page, rep, phone)
+    if ok():
+        ws_retry(page, rep)
 
 
 BANK_LABELS = ("Tìm", "Chủ đề", "Lớp", "Kỹ năng", "Mức", "Xoá lọc")

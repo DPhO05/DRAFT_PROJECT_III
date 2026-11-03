@@ -48,7 +48,7 @@
   // ---- card state: the server card + this screen's choices; redrawn whole, focus kept ----
   C.cards.grading = function (host, card) {
     var s = host.gstate = { host: host, tid: card.thread_id, card: null, json: '', dec: {}, seeded: false, answers: {}, pick: {}, typed: {}, rubric: null,
-      editing: null, add: null, work: {}, left: null, dirty: false, putErr: false, putSeq: 0, timer: 0, chain: null, busy: false, secs: 0, mark: 0 };
+      editing: null, add: null, work: {}, left: null, dirty: false, putErr: false, putSeq: 0, timer: 0, chain: null, busy: false, waits: 0, secs: 0, mark: 0 };
     host.innerHTML = '<div class="gcard"><div class="gcard-body"><p class="tool-line">Đang mở bài chấm…</p></div></div>';
     loadCodes().then(function () { if (s.card) draw(s); }, noop);
     C.poll(s.tid, function (row) { return onRow(s, row); }, host);
@@ -57,8 +57,9 @@
     var c = row.card, j = JSON.stringify(Object.assign({}, c, { saved: null })), back = bounced(s, row);  // `saved` only echoes this screen's PUTs
     tick(s);
     if (back) { s.chain = null; U.toast(CHANGED, 'info'); }
-    if (j !== s.json || back) {
-      if (!s.card || s.card.stage !== c.stage) s.busy = false;
+    var stuck = s.busy && c.stage === 'failed' && ++s.waits >= 2;  // Chấm lại failed again before a poll saw it run: the stage never moved
+    if (j !== s.json || back || stuck) {
+      if (stuck || !s.card || s.card.stage !== c.stage) s.busy = false;
       s.json = j; s.card = c;
       if (!s.seeded && /^(review|preview|saved)$/.test(c.stage)) seed(s, c.saved);
       if (s.chain) chainStep(s);
@@ -300,7 +301,7 @@
   };
   ACT['g-retry'] = function (el) {
     var s = stateOf(el);
-    s.busy = true; draw(s);
+    s.busy = true; s.waits = 0; draw(s);
     resume(s).catch(function () { free(s); });
   };
   ACT['g-open'] = function (el) { C.openThread(el.dataset.tid, 'grading'); };
