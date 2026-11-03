@@ -3,7 +3,7 @@
 
 Run: .venv/bin/python tests/ui/check_v3.py [--url http://127.0.0.1:8000/] [--data] [--shots]
 Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Trợ lý chat tab (reminders, @, stream, cards, 📎, retry,
-the G1 grading card), the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu, light/dark.
+the G1 grading card, the G4 worksheet panel), the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu, light/dark.
 Exit 1 on any page error, app console error, dead button, horizontal overflow at 390 px or forbidden text on screen.
 Without --url it starts `tutor app` on a free port with a temp data dir; --data seeds dummy bank and students and
 checks the chat and bank tabs against that tutor.db and imports tests/fixtures/bank/import-mix.tex (needs no --url).
@@ -807,6 +807,178 @@ def walk_grading(page, rep: dict, phone: bool, data_dir: str) -> None:
     grade_routes(page, rep, reqs)
 
 
+WS_ASK = "Gợi ý 6 bài cho "
+NEED_ONE = "Phiếu cần ít nhất 1 bài"
+SELF_ADDED = "Thầy/cô tự thêm"
+WS_MADE = "Đã tạo phiếu"
+REPLACE = "Ngày này đã có phiếu 2 bài. Phiếu cũ vẫn giữ để tra cứu."
+CREATE = '#draft [data-act="ws-create"]'
+WS_CODE = "#draft .ws-code"
+JS_WS_REFS = "() => [...document.querySelectorAll('#draft .draft-item .ref')].map(e => e.innerText.trim())"
+JS_WS_REFS_ARE = """want => JSON.stringify([...document.querySelectorAll('#draft .draft-item .ref')]
+  .map(e => e.innerText.trim())) === JSON.stringify(want)"""
+JS_WS_N = "n => document.querySelectorAll('#draft .draft-item').length === n"
+JS_WS_HAS = "t => !!document.getElementById('draft') && document.getElementById('draft').innerText.includes(t)"
+JS_WS_TEX = "() => document.querySelectorAll('#draft .draft-item mjx-container').length > 0"
+JS_WS_TID = "() => CHAT.worksheetThread ? CHAT.worksheetThread() : null"
+JS_WS_OPEN = "() => (document.getElementById('draft')?.getBoundingClientRect().height || 0) > 0"
+JS_WS_SHUT = "() => document.getElementById('draft')?.getBoundingClientRect().height === 0"
+JS_STATUS = "u => fetch(u).then(r => r.status)"
+JS_NO_PRINT = "() => { window.__printed = 0; window.print = () => { window.__printed++; }; }"
+
+
+def recs(data_dir: str, where: str = "1", *args) -> int:
+    return scalar(data_dir, f"SELECT count(*) FROM recommendation WHERE {where}", *args)
+
+
+def sheet(data_dir: str, sid: int) -> list:
+    """(ref, position) of the student's live sheet rows, in position order."""
+    with closing(sqlite3.connect(f"{Path(data_dir, 'tutor.db').as_uri()}?mode=ro", uri=True)) as con:
+        return con.execute(
+            "SELECT p.ref, r.position FROM recommendation r JOIN problem p ON p.id = r.problem_id"
+            " WHERE r.student_id = ? AND r.status <> 'rejected' ORDER BY r.position",
+            (sid,),
+        ).fetchall()
+
+
+def ws_propose(page, rep: dict, phone: bool) -> str | None:
+    """'Gợi ý 6 bài cho @Trần Thị Bình buổi thứ Bảy' opens the draft panel with 6 problems; returns its thread."""
+    new_chat(page, rep, phone)
+    pick_mention(page, rep, WS_ASK, "Trần", PEOPLE[1])
+    page.keyboard.type("buổi thứ Bảy")
+    n = msgs(page)
+    page.press("#chat-input", "Enter")
+    expect(page, rep, JS_REPLIED, "worksheet: no answer to the suggestion", n)
+    if not expect(page, rep, JS_WS_N, "worksheet: the draft panel did not show 6 problems", 6):
+        return None
+    return page.evaluate(JS_WS_TID)
+
+
+def ws_edit(page, rep: dict, data_dir: str, reqs: list, tid: str) -> list:
+    """↑ ↓ × and Thêm theo mã redraw from the server card; nothing reaches tutor.db; Enter in the code box adds."""
+    r = page.evaluate(JS_WS_REFS)
+    counts = page.inner_text("#draft .ws-counts")
+    if sum(map(int, re.findall(r"\d+", counts))) != 6 or not all(
+        w in counts for w in ("ôn lại", "vừa sức", "thử thách", "thầy/cô thêm")
+    ):
+        rep["missing"].append(f"worksheet: the count line {counts!r} should name 4 groups adding up to 6")
+    whys = page.locator("#draft .draft-item .why").all_inner_texts()
+    if len(whys) != 6 or not all(w.strip() for w in whys):
+        rep["missing"].append(f"worksheet: every problem needs a reason in words: {whys}")
+    expect(page, rep, JS_WS_TEX, "worksheet: the statements are not typeset")
+    up = '#draft [data-act="ws-move"][data-i="1"][data-d="-1"]'
+    press(page, rep, up, "worksheet ↑ bài 2", JS_WS_REFS_ARE, [r[1], r[0], *r[2:]])
+    drop = '#draft [data-act="ws-del"][data-i="2"]'
+    press(page, rep, drop, "worksheet × bài 3", JS_WS_REFS_ARE, [r[1], r[0], *r[3:]])
+    if not page.locator(WS_CODE).count():
+        rep["missing"].append("worksheet: the draft has no Thêm theo mã box")
+        return []
+    page.fill(WS_CODE, "9DS-PT2-001")
+    page.press(WS_CODE, "Enter")
+    want = [r[1], r[0], *r[3:], "9DS-PT2-001"]
+    expect(page, rep, JS_WS_REFS_ARE, "worksheet: Enter in Thêm theo mã did not add 9DS-PT2-001 last", want)
+    if SELF_ADDED not in " ".join(page.locator("#draft .draft-item").all_inner_texts()[-1:]):
+        rep["missing"].append(f"worksheet: the added problem does not say '{SELF_ADDED}'")
+    if recs(data_dir) or resumes(reqs, tid):
+        rep["missing"].append("worksheet: an edit or Enter in Thêm theo mã wrote recommendation rows or resumed")
+    return want
+
+
+def ws_chat_enter(page, rep: dict, data_dir: str, reqs: list, tid: str, want: list) -> None:
+    """Review Focus 2: Enter in the chat box, empty or 'ok', makes no sheet; a code typed there joins the draft."""
+    page.fill("#chat-input", "")
+    seen = len(posts(reqs))
+    page.press("#chat-input", "Enter")
+    page.wait_for_timeout(300)
+    if len(posts(reqs)) != seen:
+        rep["missing"].append("worksheet: Enter in an empty chat box sent a message")
+    if SAVED_NOTHING not in say(page, rep, "ok"):
+        rep["missing"].append(f"worksheet: 'ok' should answer '{SAVED_NOTHING}'")
+    page.wait_for_timeout(500)
+    if recs(data_dir) or resumes(reqs, tid) or page.locator(CREATE).count() != 1:
+        rep["missing"].append("worksheet: Enter in the chat box made a sheet (Review Focus 2)")
+    say(page, rep, "8DS-PT1-001")
+    expect(page, rep, JS_WS_REFS_ARE, "worksheet: a code typed in the chat did not join (C-43)", [*want, "8DS-PT1-001"])
+    if posts(reqs)[-1]["context"]["worksheet_thread_id"] != tid:
+        rep["missing"].append(f"worksheet: the chat sent context {posts(reqs)[-1]['context']}, want the draft {tid}")
+    if recs(data_dir):
+        rep["missing"].append("worksheet: a code typed in the chat wrote recommendation rows")
+
+
+def ws_create(page, rep: dict, data_dir: str, reqs: list, tid: str) -> None:
+    """× hết turns Tạo phiếu off; 2 codes back, one ↑, Enter in the date box makes the sheet in screen order."""
+    while (n := page.locator("#draft .draft-item").count()) and len(rep["missing"]) < 50:
+        press(page, rep, '#draft [data-act="ws-del"] >> nth=0', f"worksheet × ({n} left)", JS_WS_N, n - 1)
+    if not page.locator(CREATE).is_disabled() or NEED_ONE not in page.inner_text("#draft"):
+        rep["missing"].append(f"worksheet: an empty sheet should turn Tạo phiếu off with '{NEED_ONE}'")
+    for k, ref in enumerate(("8DS-PT1-001", "9DS-PT2-001"), 1):
+        page.fill(WS_CODE, ref)
+        press(page, rep, '#draft [data-act="ws-add"]', f"worksheet Thêm {ref}", JS_WS_N, k)
+    up = '#draft [data-act="ws-move"][data-i="1"][data-d="-1"]'
+    press(page, rep, up, "worksheet ↑ again", JS_WS_REFS_ARE, ["9DS-PT2-001", "8DS-PT1-001"])
+    expect(page, rep, JS_ON, "worksheet: Tạo phiếu did not turn on with 2 problems", CREATE)
+    page.press("#draft .ws-date", "Enter")
+    expect(page, rep, JS_WS_HAS, "worksheet: Enter in the date box did not make the sheet", WS_MADE)
+    if (n := resumes(reqs, tid)) != 1:
+        rep["missing"].append(f"worksheet: Tạo phiếu sent {n} resumes, want 1")
+    if (got := sheet(data_dir, 2)) != [("9DS-PT2-001", 1), ("8DS-PT1-001", 2)]:
+        rep["missing"].append(f"worksheet: recommendation rows are {got}, want the panel order")
+    href = page.get_attribute("#draft .ws-tex", "href") if page.locator("#draft .ws-tex").count() else None
+    if not href or page.evaluate(JS_STATUS, href) != 200:
+        rep["missing"].append(f"worksheet: Tải .tex ({href}) does not answer 200")
+    page.evaluate(JS_NO_PRINT)
+    press(page, rep, '#draft [data-act="ws-pdf"]', "worksheet In PDF", "() => window.__printed === 1")
+    if page.locator("#print-root li").count() != 2 or page.locator("#print-root li .tex-block").count() != 2:
+        rep["missing"].append("worksheet: In PDF did not put the 2 statements in #print-root")
+
+
+def ws_replace(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
+    """A second sheet the same day asks to replace; Tạo phiếu mới marks the old rows rejected."""
+    if not (tid := ws_propose(page, rep, phone)):
+        return
+    press(page, rep, CREATE, "worksheet Tạo phiếu lần 2", JS_MODAL)
+    if REPLACE not in page.inner_text("#modal-root") or "Tạo phiếu mới thay thế?" not in page.inner_text("#modal-root"):
+        rep["missing"].append(f"worksheet: the replace question does not say '{REPLACE}'")
+    press(page, rep, '#modal-root [data-act="confirm-ok"]', "worksheet Tạo phiếu mới", JS_WS_HAS, WS_MADE)
+    live = len(sheet(data_dir, 2))
+    if (n := recs(data_dir, "student_id = 2 AND status = 'rejected'")) != 2 or live != 6:
+        rep["missing"].append(f"worksheet: replace left {n} rejected rows and {live} live, want 2 and 6")
+    if resumes(reqs, tid) != 1:
+        rep["missing"].append(f"worksheet: the replace sent {resumes(reqs, tid)} resumes, want 1")
+
+
+def walk_worksheet(page, rep: dict, phone: bool, data_dir: str) -> None:
+    """The G4 draft panel beside the chat; a sheet at 390 px. Each desktop step stands on the one before."""
+    reqs: list = []
+    page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
+    if phone:
+        if ws_propose(page, rep, phone):
+            see_chat(page, rep, "worksheet phone open", phone)
+            press(page, rep, '#draft [data-act="ws-close"]', "worksheet đóng tấm trượt", JS_WS_SHUT)
+            toggle = page.locator("#draft-toggle")
+            if not toggle.is_visible() or toggle.inner_text().strip() != "Phiếu nháp (6)":
+                rep["missing"].append("worksheet phone: no 'Phiếu nháp (6)' button once the sheet is closed")
+            press(page, rep, "#draft-toggle", "worksheet Phiếu nháp (6)", JS_WS_OPEN)
+            see_chat(page, rep, "worksheet phone sheet", phone)
+        return
+    if recs(data_dir):
+        rep["missing"].append("worksheet: recommendation has rows before the walk")
+    start = len(rep["missing"])
+    if not (tid := ws_propose(page, rep, phone)):
+        return
+    see_chat(page, rep, "worksheet draft", phone)
+    ok = lambda: len(rep["missing"]) == start  # noqa: E731
+    want = ws_edit(page, rep, data_dir, reqs, tid)
+    if ok():
+        ws_chat_enter(page, rep, data_dir, reqs, tid, want)
+        see_chat(page, rep, "worksheet edited", phone)
+    if ok():
+        ws_create(page, rep, data_dir, reqs, tid)
+        see_chat(page, rep, "worksheet saved", phone)
+    if ok():
+        ws_replace(page, rep, phone, data_dir, reqs)
+
+
 BANK_LABELS = ("Tìm", "Chủ đề", "Lớp", "Kỹ năng", "Mức", "Xoá lọc")
 BANK_LEVELS = ("Tất cả", "dễ", "vừa", "khó", "chưa có mức")
 NO_MATCH = "Không có bài nào khớp bộ lọc"
@@ -1307,6 +1479,7 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
     walk_chat(page, rep, phone, data_dir, base.removesuffix("v3/"))
     if data_dir:
         walk_grading(page, rep, phone, data_dir)
+        walk_worksheet(page, rep, phone, data_dir)
     walk_bank(page, rep, phone, data_dir, files)
     walk_gear(page, rep, phone)
     walk_theme(page, rep, base)
