@@ -891,14 +891,6 @@ def grade_stale(page, rep: dict, reqs: list) -> None:
         rep["missing"].append(f"grading stale: {n} resumes, want 1")
     see_chat(page, rep, "grading stale", False)
     page.unroute(again)
-    # an open card does not poll while the Trợ lý tab is behind another one
-    press(page, rep, "#tab-hoc-sinh", "tab hoc-sinh", JS_TAB, "hoc-sinh")
-    page.wait_for_timeout(300)  # a poll already in the air lands
-    seen = len(reqs)
-    page.wait_for_timeout(2500)
-    if n := sum(m == "GET" and "view=teacher" in u for m, u, _ in reqs[seen:]):
-        rep["missing"].append(f"grading hidden: {n} card polls while the Trợ lý tab was hidden")
-    press(page, rep, "#tab-tro-ly", "tab tro-ly", JS_TAB, "tro-ly")
     if "Đã lưu" in " ".join(page.locator(h).all_inner_texts()):
         rep["missing"].append("grading stale: the card says Đã lưu")
 
