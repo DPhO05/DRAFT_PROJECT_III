@@ -70,8 +70,11 @@
 
   // ---- polling a thread card (grading.js, worksheet.js) ----
   C.poll = function (tid, onRow, holder) {
+    var asked = false;  // the first GET always goes: the worksheet panel opens after the poll starts
     (function tick() {
       if (!holder.isConnected) return;
+      if (asked && (!holder.offsetParent || document.hidden)) { setTimeout(tick, 1000); return; }  // nobody sees the card: no GET
+      asked = true;
       U.api.get('/threads/' + encodeURIComponent(tid) + '?view=teacher').then(function (row) {
         if (!holder.isConnected) return;
         var more = true;
