@@ -73,7 +73,10 @@
     (function tick() {
       if (!holder.isConnected) return;
       U.api.get('/threads/' + encodeURIComponent(tid) + '?view=teacher').then(function (row) {
-        if (holder.isConnected && onRow(row) !== false) setTimeout(tick, 1000);
+        if (!holder.isConnected) return;
+        var more = true;
+        try { more = onRow(row) !== false; } catch (e) { console.error(e); }  // a card bug shows, the card keeps polling
+        if (more) setTimeout(tick, 1000);
       }, function (e) {
         if (!holder.isConnected) return;
         if (e.status === 404) holder.innerHTML = '<div class="empty"><p>Việc này đã xong.</p>' + btn('c-tab', 'Sang tab Học sinh', 'data-tab="hoc-sinh"') + '</div>';

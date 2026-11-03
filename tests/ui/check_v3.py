@@ -2,8 +2,8 @@
 """Robot UI check for the 4-tab app at /v3/ (P5-T05).
 
 Run: .venv/bin/python tests/ui/check_v3.py [--url http://127.0.0.1:8000/] [--data] [--shots]
-Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Trợ lý chat tab (reminders, @, stream, cards, 📎, retry),
-the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu, light/dark.
+Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Trợ lý chat tab (reminders, @, stream, cards, 📎, retry,
+the G1 grading card), the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu, light/dark.
 Exit 1 on any page error, app console error, dead button, horizontal overflow at 390 px or forbidden text on screen.
 Without --url it starts `tutor app` on a free port with a temp data dir; --data seeds dummy bank and students and
 checks the chat and bank tabs against that tutor.db and imports tests/fixtures/bank/import-mix.tex (needs no --url).
@@ -202,6 +202,21 @@ JS_ASK_GRADE = """() => { const c = document.querySelector('.ask-grade'); if (!c
   return [s.options[s.selectedIndex].text, c.querySelector('input[type=date]').value,
     c.querySelector('[data-act="c-grade"]').disabled]; }"""
 NOT_FOUND = {"error": {"code": "not_ready", "message": "x", "detail": {"reason": "x"}}}
+# G1 threads of the seeded sessions (check.add_students) and of the file 📎 grades for real on the desktop
+G_S01, G_S06, G_S04, G_NEW = "g1-hs01-20261020", "g1-hs01-20261022", "g1-hs02-20261023", "g1-hs01-20261025"
+LOCKED = f"Duyệt buổi 20/10 của {PEOPLE[0]} trước (tiến bộ tính theo thứ tự ngày)"
+LEFT_5 = "Còn 5 lỗi chưa chọn Đúng / Sửa / Bỏ"
+SIG_CHANGED = "Kết quả xem trước vừa thay đổi, xem lại rồi bấm Lưu kết quả"
+FAILED_WORDS = "Mất kết nối khi đang chấm bài 3. Bài làm vẫn còn nguyên, chưa có gì được lưu."
+GONE = "Việc này đã xong"
+NEW_CODE, NEW_KIND = "computational.copy_error", "Chép sai số hoặc biểu thức từ đề / dòng trước"
+ADDED = "robot: quên đổi dấu khi chuyển vế"
+JS_HOST_SEL = """([t, s]) => !!document.querySelector(`.card-host[data-thread="${t}"] ${s}`)"""
+JS_HOST_HAS = """([t, w]) => { const h = document.querySelector(`.card-host[data-thread="${t}"]`);
+  return !!h && h.innerText.includes(w); }"""
+JS_HOST_NO = """([t, s]) => !document.querySelector(`.card-host[data-thread="${t}"] ${s}`)"""
+JS_ON = "s => { const b = document.querySelector(s); return !!b && !b.disabled; }"
+JS_TOAST_HAS = "t => document.getElementById('toasts').innerText.includes(t)"
 
 
 def last_bot(page) -> str:
@@ -448,10 +463,20 @@ def chat_reload(page, rep: dict, phone: bool) -> None:
     see_chat(page, rep, "chat reopened", phone)
 
 
-def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
-    """📎 lists data/inbox/; the chosen file rides with the message; ask_grading pre-fills the guess."""
+def llm_lines(data_dir: str, agent: str) -> int:
+    """Lines of llm.jsonl from one agent; the seeded log ends in a cut line, so no JSON parse."""
+    text = Path(data_dir, "logs", "llm.jsonl").read_text(encoding="utf-8")
+    return len(re.findall(rf'^\{{"agent": "{agent}"', text, re.M))
+
+
+def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list, before: tuple) -> None:
+    """📎 lists data/inbox/; the chosen file rides with the message; ask_grading pre-fills the guess.
+
+    The desktop then grades the file for real (the grading walk uses its card); the phone has its own file and day."""
+    day = 26 if phone else 25
+    fname = f"hs01-2026-10-{day}.tex"
     inbox = Path(data_dir, "inbox")
-    (inbox / "hs01-2026-10-25.tex").write_bytes((FIX / "s01.tex").read_bytes() + b"\n% robot\n")  # new sha: not graded
+    (inbox / fname).write_bytes((FIX / "s01.tex").read_bytes() + f"\n% robot {day}\n".encode())  # new sha: not graded
     (inbox / "bai-scan.pdf").write_bytes(b"%PDF-1.4\n")
     new_chat(page, rep, phone)
     press(page, rep, '[data-act="c-attach"]', "chat 📎", JS_MODAL)
@@ -459,7 +484,7 @@ def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None
     modal = page.inner_text("#modal-body")
     rep["missing"] += [
         f"chat 📎: no '{w}'"
-        for w in (f"Bài của {PEOPLE[0]} · 25/10/2026", "Chưa rõ học sinh, ngày học")
+        for w in (f"Bài của {PEOPLE[0]} · {day}/10/2026", "Chưa rõ học sinh, ngày học")
         if w not in modal
     ]
     for name, label in (("s01.tex", "đã chấm"), ("bai-scan.pdf", "chưa nhận PDF")):
@@ -467,29 +492,38 @@ def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None
         if b.inner_text().strip() != label or not b.is_disabled():
             rep["missing"].append(f"chat 📎: {name} should be a disabled '{label}'")
     see_chat(page, rep, "chat 📎", phone)
-    press(page, rep, '#modal-body .file-row:has-text("hs01-2026-10-25.tex") button', "chat Chọn bài", JS_NO_MODAL)
-    if "hs01-2026-10-25.tex" not in page.inner_text("#attach-row") or page.locator(SEND).is_disabled():
+    press(page, rep, f'#modal-body .file-row:has-text("{fname}") button', "chat Chọn bài", JS_NO_MODAL)
+    if fname not in page.inner_text("#attach-row") or page.locator(SEND).is_disabled():
         rep["missing"].append("chat 📎: the chosen file is not a chip on the box, or Gửi is off")
     seen, n = len(posts(reqs)), msgs(page)
     page.press("#chat-input", "Enter")
     expect(page, rep, JS_REPLIED, "chat 📎: no answer to the file", n)
     sent = posts(reqs)[seen:]
-    if len(sent) != 1 or sent[0]["attachment"] != {"path": "hs01-2026-10-25.tex"} or sent[0]["held_on"] != "2026-10-25":
-        rep["missing"].append(f"chat 📎: sent {sent}, want attachment hs01-2026-10-25.tex + held_on 2026-10-25")
+    if len(sent) != 1 or sent[0]["attachment"] != {"path": fname} or sent[0]["held_on"] != f"2026-10-{day}":
+        rep["missing"].append(f"chat 📎: sent {sent}, want attachment {fname} + held_on 2026-10-{day}")
     if page.locator("#attach-row .file-chip").count():
         rep["missing"].append("chat 📎: the chip stayed after sending")
-    if (form := page.evaluate(JS_ASK_GRADE)) != [PEOPLE[0], "2026-10-25", False]:
-        rep["missing"].append(f"chat ask_grading: form is {form}, want {PEOPLE[0]}, 2026-10-25, button on")
+    if (form := page.evaluate(JS_ASK_GRADE)) != [PEOPLE[0], f"2026-10-{day}", False]:
+        rep["missing"].append(f"chat ask_grading: form is {form}, want {PEOPLE[0]}, 2026-10-{day}, button on")
     see_chat(page, rep, "chat ask_grading", phone)
-    page.route(MSGS, lambda r: r.abort())  # only the message is read: grading would start a thread
-    seen = len(posts(reqs))
+    if db_state(data_dir) != before:
+        rep["missing"].append("chat: the walk changed tutor.db or the saved decisions")
+    if phone:
+        page.route(MSGS, lambda r: r.abort())  # only the message is read: grading would start a thread
+    seen, n, routers = len(posts(reqs)), msgs(page), llm_lines(data_dir, "00")
     page.click('.ask-grade [data-act="c-grade"]')
-    page.wait_for_timeout(300)
-    page.unroute(MSGS)
+    if phone:
+        page.wait_for_timeout(300)
+        page.unroute(MSGS)
+    else:
+        expect(page, rep, JS_REPLIED, "chat ask_grading: no answer to Chấm bài này", n)
+        expect(page, rep, JS_HOST_SEL, "chat ask_grading: Chấm bài này shows no grading card", [G_NEW, ".gcard-head"])
+        if llm_lines(data_dir, "00") != routers:
+            rep["missing"].append("chat ask_grading: Chấm bài này called the assistant model (agent 00 in llm.jsonl)")
     sent = posts(reqs)[seen:]
     if len(sent) != 1 or sent[0]["mentions"] != [1] or "@HS-01" not in sent[0]["text"]:
         rep["missing"].append(f"chat ask_grading: Chấm bài này sent {sent}, want @HS-01 and mentions [1]")
-    elif sent[0]["held_on"] != "2026-10-25" or sent[0]["attachment"] != {"path": "hs01-2026-10-25.tex"}:
+    elif sent[0]["held_on"] != f"2026-10-{day}" or sent[0]["attachment"] != {"path": fname}:
         rep["missing"].append(f"chat ask_grading: Chấm bài này sent {sent}, want the file and held_on")
 
 
@@ -514,9 +548,185 @@ def walk_chat(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> 
     chat_retry(page, rep, phone)
     if data_dir:
         chat_reload(page, rep, phone)
-        chat_attach(page, rep, phone, data_dir, reqs)
-        if db_state(data_dir) != before:
-            rep["missing"].append("chat: the walk changed tutor.db or the saved decisions")
+        chat_attach(page, rep, phone, data_dir, reqs, before)
+
+
+def host(tid: str) -> str:
+    return f'.card-host[data-thread="{tid}"]'
+
+
+def decisions(data_dir: str, tid: str) -> dict:
+    with closing(sqlite3.connect(f"{Path(data_dir, 'checkpoints.db').as_uri()}?mode=ro", uri=True)) as con:
+        row = con.execute("SELECT decisions_json FROM tutor_thread WHERE thread_id = ?", (tid,)).fetchone()
+    return json.loads(row[0]) if row and row[0] else {}
+
+
+def mistakes(data_dir: str, tid: str) -> list:
+    """(attempt seq, status, code, description) of the committed mistakes of one G1 thread."""
+    with closing(sqlite3.connect(f"{Path(data_dir, 'tutor.db').as_uri()}?mode=ro", uri=True)) as con:
+        return con.execute(
+            "SELECT a.seq, m.status, m.code, m.description FROM mistake m JOIN attempt a ON a.id = m.attempt_id"
+            " JOIN session s ON s.id = a.session_id WHERE s.thread_id = ? ORDER BY 1, 2",
+            (tid,),
+        ).fetchall()
+
+
+def open_card(page, rep: dict, phone: bool, tid: str, label: str, js: str, arg) -> None:
+    """Mở on the reminder of thread `tid` (folded on the phone after a reload)."""
+    if not page.locator(".remind-cards").count():
+        press(page, rep, '[data-act="c-remind"]', "chat Xem việc chờ", JS_CARDS_OPEN)
+    press(page, rep, f'#remind [data-act="c-open"][data-tid="{tid}"]', label, js, arg)
+
+
+def grade_confirm(page, rep: dict, data_dir: str) -> None:
+    """s04 has a problem with no ref: the candidates are formulas; Bỏ bài này sends skip and grading goes on."""
+    open_card(page, rep, False, G_S04, "grading Mở bài cần xác nhận", JS_HOST_SEL, [G_S04, ".match-opt mjx-container"])
+    see_chat(page, rep, "grading confirm", False)
+    skip, saved = f'{host(G_S04)} [data-act="g-skip"]', [G_S04, "[data-act=g-save]"]
+    press(page, rep, skip, "grading Bỏ bài này", JS_HOST_SEL, saved)
+    if not any(isinstance(d, dict) and d.get("skip") is True for d in decisions(data_dir, G_S04).values()):
+        rep["missing"].append(f"grading confirm: decisions_json of s04 is {decisions(data_dir, G_S04)}, want a skip")
+
+
+def grade_review(page, rep: dict, data_dir: str) -> bool:
+    """s06 waits for s01 (date lock); in s01 each choice is a PUT and tutor.db stays as it is until Lưu kết quả.
+
+    False when a step failed: the later ones stand on it."""
+    start = len(rep["missing"])
+    ok = lambda: len(rep["missing"]) == start  # noqa: E731
+    open_card(page, rep, False, G_S06, "grading Mở buổi bị khoá", JS_HOST_HAS, [G_S06, LOCKED])
+    see_chat(page, rep, "grading locked", False)
+    press(page, rep, f'{host(G_S06)} [data-act="g-open"]', "grading Mở buổi 20/10", JS_HOST_SEL, [G_S01, ".mistake"])
+    h, save = host(G_S01), f'{host(G_S01)} [data-act="g-save"]'
+    if not ok() or not page.locator(save).count():
+        rep["missing"].append("grading review: the s01 card has no Lưu kết quả")
+        return False
+    if page.locator(save).is_enabled() or LEFT_5 not in page.inner_text(h):
+        rep["missing"].append(f"grading review: Lưu kết quả should be off with '{LEFT_5}'")
+    rows = db_state(data_dir)[0]
+    dec = lambda pid, v: f'{h} [data-act="g-dec"][data-pid="{pid}"][data-v="{v}"]'  # noqa: E731
+    pressed = "s => document.querySelector(s)?.getAttribute('aria-pressed') === 'true'"
+    press(page, rep, dec("p1", "accept"), "grading Đúng", pressed, dec("p1", "accept"))
+    press(page, rep, dec("p2", "edit"), "grading Sửa", JS_HOST_SEL, [G_S01, ".edit-form select[data-f=code]"])
+    if not ok():
+        return False
+    page.select_option(f"{h} .edit-form select[data-f=code]", NEW_CODE)
+    press(page, rep, f'{h} [data-act="g-edit-done"]', "grading Sửa xong", JS_HOST_NO, [G_S01, ".edit-form"])
+    if NEW_KIND not in " ".join(page.locator(f'{h} .mistake[data-pid="p2"]').all_inner_texts()):
+        rep["missing"].append(f"grading review: the edited mistake does not say '{NEW_KIND}'")
+    for pid in ("p3", "p4", "p5"):
+        press(page, rep, dec(pid, "reject"), f"grading Bỏ {pid}", pressed, dec(pid, "reject"))
+    press(page, rep, f'{h} [data-act="g-add"][data-seq="1"]', "grading + Thêm lỗi", JS_HOST_SEL, [G_S01, ".add-form"])
+    if not ok():
+        return False
+    page.fill(f"{h} .add-form textarea", ADDED)
+    press(page, rep, f'{h} [data-act="g-add-ok"]', "grading Thêm lỗi", JS_HOST_HAS, [G_S01, "Thầy/cô thêm"])
+    expect(page, rep, JS_ON, "grading review: Lưu kết quả did not turn on after every choice", save)
+    expect(page, rep, JS_HOST_SEL, "grading review: no preview table", [G_S01, ".preview-tbl"])
+    if db_state(data_dir)[0] != rows:
+        rep["missing"].append("grading review: a choice changed tutor.db before Lưu kết quả")
+    see_chat(page, rep, "grading review", False)
+    return ok()
+
+
+def grade_save(page, rep: dict, data_dir: str, reqs: list) -> None:
+    """Lưu kết quả: the preview changes under it (one resume, a toast), then a double click commits (Review Focus 4)."""
+    h, save = host(G_S01), f'{host(G_S01)} [data-act="g-save"]'
+    poll = re.compile(rf"/api/threads/{G_S01}\?view=teacher$")
+    resumes = lambda: sum(m == "POST" and u.endswith(f"/threads/{G_S01}/resume") for m, u, _ in reqs)  # noqa: E731
+
+    def other_sig(route) -> None:  # another session of the student was saved meanwhile
+        r = route.fetch()
+        j = r.json()
+        if j["card"]["stage"] == "preview":
+            j["card"]["preview_sig"] = "robot"
+        route.fulfill(response=r, json=j)
+
+    page.route(poll, other_sig)
+    press(page, rep, save, "grading Lưu kết quả khi xem trước đổi", JS_TOAST_HAS, SIG_CHANGED)
+    page.wait_for_timeout(1500)
+    if resumes() != 1:
+        rep["missing"].append(f"grading save: a changed preview_sig gave {resumes()} resumes, want 1")
+    page.unroute(poll)
+    page.wait_for_timeout(1500)  # the real preview is on screen again before the click
+    if not expect(page, rep, JS_ON, "grading save: Lưu kết quả is off on the new preview", save):
+        return
+    seen = resumes()
+    page.dblclick(save)
+    expect(page, rep, JS_HOST_HAS, "grading save: no 'Đã lưu'", [G_S01, "Đã lưu"])
+    if resumes() - seen != 1:
+        rep["missing"].append(f"grading save: a double click sent {resumes() - seen} resumes, want 1")
+    rep["missing"] += [f"grading saved: no '{w}'" for w in ("Đã sao lưu trước khi lưu", "Xem hồ sơ",
+                       "Soạn phiếu buổi sau") if w not in page.inner_text(h)]  # fmt: skip
+    got = [(seq, st) for seq, st, _, _ in mistakes(data_dir, G_S01)]
+    want = [(1, "added"), (1, "confirmed"), (2, "edited"), (3, "rejected"), (4, "rejected"), (5, "rejected")]
+    if got != want:
+        rep["missing"].append(f"grading saved: mistake rows are {got}, want {want}")
+    rows = {st: (code, text) for _, st, code, text in mistakes(data_dir, G_S01)}
+    if rows.get("edited", ("",))[0] != NEW_CODE or rows.get("added", ("", ""))[1] != ADDED:
+        rep["missing"].append(f"grading saved: edited / added rows are {rows}")
+    if not scalar(data_dir, "SELECT COALESCE(review_seconds, 0) FROM session WHERE thread_id = ?", G_S01):
+        rep["missing"].append("grading saved: session.review_seconds is not > 0")
+    see_chat(page, rep, "grading saved", False)
+    press(page, rep, f'{h} [data-act="g-profile"]', "grading Xem hồ sơ")
+    if not page.evaluate(JS_TAB, "hoc-sinh"):
+        rep["missing"].append("grading saved: Xem hồ sơ did not open Học sinh")
+    press(page, rep, "#tab-tro-ly", "tab tro-ly")
+
+
+def grade_routes(page, rep: dict, reqs: list) -> None:
+    """A failed thread offers Chấm lại (one resume); a thread gone (404) in a reopened conversation stops polling."""
+    h, poll = host(G_NEW), re.compile(rf"/api/threads/{G_NEW}\?view=teacher$")
+    again = re.compile(rf"/api/threads/{G_NEW}/resume$")
+
+    def failed(route) -> None:
+        r = route.fetch()
+        j = r.json()
+        j["status"] = "failed"
+        j["card"] |= {"stage": "failed", "error_words": FAILED_WORDS, "lock": None}
+        route.fulfill(response=r, json=j)
+
+    page.route(poll, failed)
+    page.route(again, lambda r: r.fulfill(status=202, json={"thread_id": G_NEW, "status": "running"}))
+    expect(page, rep, JS_HOST_SEL, "grading failed: no red box", [G_NEW, ".callout-crit"])
+    if FAILED_WORDS not in " ".join(page.locator(h).all_inner_texts()):
+        rep["missing"].append("grading failed: the red box does not show error_words")
+    see_chat(page, rep, "grading failed", False)
+    seen = len(reqs)
+    press(page, rep, f'{h} [data-act="g-retry"]', "grading Chấm lại")
+    page.wait_for_timeout(500)
+    if (n := sum(m == "POST" and again.search(u) is not None for m, u, _ in reqs[seen:])) != 1:
+        rep["missing"].append(f"grading failed: Chấm lại sent {n} resumes, want 1")
+    page.unroute(poll)
+    page.unroute(again)
+    new_chat(page, rep, False)  # the old card goes first, so only the reopened one can show the 404
+    gone = {"error": {"code": "not_found", "message": "x", "detail": None}}
+    page.route(poll, lambda r: r.fulfill(status=404, json=gone))
+    item = '#conv-list .conv-item:has-text("Chấm bài này") >> nth=0'
+    press(page, rep, item, "grading mở lại hội thoại có thẻ chấm", JS_HOST_HAS, [G_NEW, GONE])
+    page.wait_for_timeout(300)
+    seen = len(reqs)
+    page.wait_for_timeout(2500)
+    if any(poll.search(u) for _, u, _ in reqs[seen:]):
+        rep["missing"].append("grading gone: the card kept polling after a 404")
+    see_chat(page, rep, "grading gone", False)
+    page.unroute(poll)
+
+
+def walk_grading(page, rep: dict, phone: bool, data_dir: str) -> None:
+    """The G1 card in the chat. The phone only looks at one (s06, under review once s01 is saved)."""
+    if phone:
+        open_card(page, rep, phone, G_S06, "grading Mở bài chờ duyệt", JS_HOST_SEL, [G_S06, ".mistake"])
+        press(page, rep, f"{host(G_S06)} [data-act=g-work] >> nth=0", "grading Xem đề & bài làm", JS_HOST_SEL,
+              [G_S06, ".wstep.hit"])  # fmt: skip
+        see_chat(page, rep, "grading phone", phone)
+        return
+    reqs: list = []
+    page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
+    grade_confirm(page, rep, data_dir)
+    if grade_review(page, rep, data_dir):
+        grade_save(page, rep, data_dir, reqs)
+    grade_routes(page, rep, reqs)
 
 
 BANK_LABELS = ("Tìm", "Chủ đề", "Lớp", "Kỹ năng", "Mức", "Xoá lọc")
@@ -563,10 +773,12 @@ JS_ROWS_N = "n => document.querySelectorAll('#modal-body .imp-row').length === n
 JS_RACE_RESUME = """() => { window.__send = U.api.send;
   const e = Object.assign(new Error('x'), {status: 409, code: 'undecided_items', detail: {n: 2}});
   U.api.send = (m, p, b) => p.endsWith('/resume') ? Promise.reject(e) : window.__send(m, p, b); }"""
-# the import's poll answers "failed" (a killed app, a commit that broke); `__late` = it got past reading
+# the import's poll answers "failed" (a killed app, a commit that broke); `__late` = it got past reading.
+# Only G2 threads: the chat's grading cards keep polling their own threads meanwhile.
 JS_FAIL_POLL = """() => { window.__get = U.api.get; window.__send = U.api.send;
   window.__resumes = 0; window.__cancels = 0; window.__late = false;
-  U.api.get = p => p.includes('view=teacher') ? Promise.resolve({thread_id: 't', graph: 'G2', status: 'failed',
+  const mine = p => p.startsWith('/threads/g2-') && p.includes('view=teacher');
+  U.api.get = p => mine(p) ? Promise.resolve({thread_id: 't', graph: 'G2', status: 'failed',
     card: {kind: 'bank_import', stage: 'failed', items: window.__late ? [{}] : []}}) : window.__get(p);
   U.api.send = (m, p, b) => p.endsWith('/resume') ? (window.__resumes++, Promise.resolve({}))
     : p.endsWith('/cancel') ? (window.__cancels++, Promise.resolve({})) : window.__send(m, p, b); }"""
@@ -1015,6 +1227,8 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
         rep["missing"].append("U.api.get('/health') is not ok")
     walk_tabs(page, rep, phone, shots)
     walk_chat(page, rep, phone, data_dir, base.removesuffix("v3/"))
+    if data_dir:
+        walk_grading(page, rep, phone, data_dir)
     walk_bank(page, rep, phone, data_dir, files)
     walk_gear(page, rep, phone)
     walk_theme(page, rep, base)
