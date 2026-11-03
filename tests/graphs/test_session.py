@@ -7,7 +7,7 @@ import pytest
 from tests.bankfix import P2, add_bank
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import llm
-from tutor.agents import ingest
+from tutor.agents.a01_ingest import ingest
 from tutor.db import repo
 from tutor.graphs import runner as rmod
 from tutor.graphs import session

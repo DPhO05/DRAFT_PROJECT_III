@@ -10,7 +10,7 @@ import pytest
 from tests.assistant_fix import world
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import config, llm
-from tutor.agents.tools import Toolbox
+from tutor.agents.a00_orchestrator.tools import Toolbox
 from tutor.api.assistant import make_starters
 from tutor.db import repo
 from tutor.graphs import worksheet

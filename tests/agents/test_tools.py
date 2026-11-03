@@ -8,8 +8,8 @@ import pytest
 
 from tests.assistant_fix import world
 from tutor import config
-from tutor.agents import tools
-from tutor.agents.tools import LABELS, TOOLS, Starters, Toolbox
+from tutor.agents.a00_orchestrator import tools
+from tutor.agents.a00_orchestrator.tools import LABELS, TOOLS, Starters, Toolbox
 from tutor.db import repo
 
 REF = "9DS-BPT-001"

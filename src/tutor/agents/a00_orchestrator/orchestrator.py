@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from tutor import llm
-from tutor.agents.tools import LABELS, Outcome, Starters, Toolbox
+from tutor.agents.a00_orchestrator.tools import LABELS, Outcome, Starters, Toolbox
 from tutor.config import guess_submission, student_code
 from tutor.llm import LLMUnavailable as LLMUnavailable  # api catches it from here (S14)
 from tutor.services import audit

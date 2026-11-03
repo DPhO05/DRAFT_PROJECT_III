@@ -97,7 +97,9 @@ def lane_handlers(*, mistakes: int = 1, fail_03: object = None) -> dict:
 
     fail_03(user) -> exception to raise for that call, or None.
     """
-    from tutor.agents import diagnoser, grader, verifier
+    from tutor.agents.a02_grader import grader
+    from tutor.agents.a03_diagnoser import diagnoser
+    from tutor.agents.a04_verifier import verifier
 
     def g02(user, system):
         if "Rubric:" not in user:  # generate_rubric

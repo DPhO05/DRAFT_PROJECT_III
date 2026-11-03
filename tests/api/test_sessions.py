@@ -6,7 +6,7 @@ from contextlib import closing
 from tests.bankfix import P2, add_bank
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import llm
-from tutor.agents import ingest
+from tutor.agents.a01_ingest import ingest
 from tutor.db import repo
 
 W = {"X-Tutor": "1"}

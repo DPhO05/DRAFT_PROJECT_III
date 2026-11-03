@@ -9,8 +9,11 @@ import pytest
 
 from tests.fakes import openai_client
 from tutor import llm
-from tutor.agents import diagnoser, grader, ingest, verifier
-from tutor.agents.tools import tool_defs
+from tutor.agents.a00_orchestrator.tools import tool_defs
+from tutor.agents.a01_ingest import ingest
+from tutor.agents.a02_grader import grader
+from tutor.agents.a03_diagnoser import diagnoser
+from tutor.agents.a04_verifier import verifier
 
 MODEL = "openai:gpt-5.6-sol"
 U = {

@@ -19,7 +19,11 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, Send, interrupt
 
 from tutor import config
-from tutor.agents import CallContext, diagnoser, grader, ingest, verifier
+from tutor.agents import CallContext
+from tutor.agents.a01_ingest import ingest
+from tutor.agents.a02_grader import grader
+from tutor.agents.a03_diagnoser import diagnoser
+from tutor.agents.a04_verifier import verifier
 from tutor.config import DataPaths
 from tutor.db import repo
 from tutor.graphs.runner import Runner

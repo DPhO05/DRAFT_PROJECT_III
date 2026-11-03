@@ -5,7 +5,8 @@ from pathlib import Path
 
 from tests.fakes import FakeLLM
 from tutor import llm
-from tutor.agents import CallContext, ingest
+from tutor.agents import CallContext
+from tutor.agents.a01_ingest import ingest
 from tutor.db import repo, seed_dummy
 from tutor.services import latex
 

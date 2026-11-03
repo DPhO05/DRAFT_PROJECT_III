@@ -7,7 +7,7 @@ from tests.api.test_sessions import W, poll
 from tests.bankfix import P1, add_bank
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import llm
-from tutor.agents import ingest
+from tutor.agents.a01_ingest import ingest
 from tutor.db import repo
 
 NO_ID = "\\begin{problem}\nGiải $4x - 20 = 0$.\n$x = 5$\n\\end{problem}\n"

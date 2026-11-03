@@ -16,13 +16,13 @@ import uvicorn
 from filelock import FileLock, Timeout
 
 from tutor import config, devfake, llm
+from tutor.agents.a08_recommender import select
 from tutor.api.app import create_app
 from tutor.db import repo, seed_dummy
 from tutor.graphs import bank as bank_graph
 from tutor.graphs import session, threads, worksheet
 from tutor.graphs.registry import make_runner
 from tutor.graphs.runner import Runner, ThreadNotFound, UndecidedItems
-from tutor.services import select
 from tutor.services.bank import LEVEL_DELTA
 
 cli = typer.Typer(no_args_is_help=True, add_completion=False)

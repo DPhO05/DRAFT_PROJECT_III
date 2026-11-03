@@ -14,11 +14,12 @@ from pathlib import Path
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
+from tutor.agents.a08_recommender import select
 from tutor.config import DataPaths, student_code
 from tutor.db import repo
 from tutor.graphs.runner import Runner
 from tutor.graphs.state import WorksheetState
-from tutor.services import search, select
+from tutor.services import search
 
 GRAPH = "G4"
 SELF_ADDED = "Thầy/cô tự thêm"

@@ -9,8 +9,8 @@ import pytest
 from tests.assistant_fix import world
 from tests.services.test_student_reads import set_theta
 from tutor import config
+from tutor.agents.a08_recommender import select
 from tutor.db import repo
-from tutor.services import select
 
 RECO = config.defaults()["reco"]
 RATIOS = RECO["ratios"]

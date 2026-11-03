@@ -4,7 +4,9 @@ import pytest
 
 from tests.fakes import FakeLLM
 from tutor import llm
-from tutor.agents import CallContext, diagnoser, verifier
+from tutor.agents import CallContext
+from tutor.agents.a03_diagnoser import diagnoser
+from tutor.agents.a04_verifier import verifier
 
 CTX = CallContext(graph="G1", thread_id="g1-hs01-20261020", session_id=1, student_code="HS-01")
 PROBLEM = {"statement_latex": "Giải $4x - 20 = 0$.", "solution_latex": "$4x = 20$\n\n$x = 5$", "kcs": []}

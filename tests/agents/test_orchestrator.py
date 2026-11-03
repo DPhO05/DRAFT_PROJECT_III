@@ -8,9 +8,9 @@ import pytest
 from tests.assistant_fix import world
 from tests.fakes import FakeLLM
 from tutor import config, llm
-from tutor.agents import orchestrator
-from tutor.agents.orchestrator import Turn, fixed_parts, history_messages, version
-from tutor.agents.tools import Starters, tool_defs
+from tutor.agents.a00_orchestrator import orchestrator
+from tutor.agents.a00_orchestrator.orchestrator import Turn, fixed_parts, history_messages, version
+from tutor.agents.a00_orchestrator.tools import Starters, tool_defs
 from tutor.db import repo
 
 

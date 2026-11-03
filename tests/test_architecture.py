@@ -15,12 +15,18 @@ ALLOWED = {
     "agents": {"llm", "services", "config"},
     "graphs": {"agents", "db", "services", "config"},
     "api": {"graphs", "db", "services", "llm", "config", "devfake", "agents"},  # agents: see API_AGENTS
-    "cli": {"api", "graphs", "db", "services", "llm", "config", "devfake"},  # cli runs create_app() for `tutor app`
+    # cli runs create_app() for `tutor app`; agents: see CLI_AGENTS
+    "cli": {"api", "graphs", "db", "services", "llm", "config", "devfake", "agents"},
 }
 LLM_READ_ONLY = {"iter_log", "cost"}  # what api / cli may take from tutor.llm
-API_AGENTS = {"orchestrator", "tools"}  # what api/assistant.py, the only api file that imports agents, may take
-ORCHESTRATOR = Path("tutor/agents/orchestrator.py")
-ASSISTANT_FILES = {Path("tutor/api/assistant.py"), ORCHESTRATOR, Path("tutor/agents/tools.py")}  # R21: no resume
+API_AGENTS = {"a00_orchestrator"}  # what api/assistant.py, the only api file that imports agents, may take
+CLI_AGENTS = {"a08_recommender"}  # what cli may take: `tutor worksheet` ranks problems with 08
+ORCHESTRATOR = Path("tutor/agents/a00_orchestrator/orchestrator.py")
+ASSISTANT_FILES = {
+    Path("tutor/api/assistant.py"),
+    ORCHESTRATOR,
+    Path("tutor/agents/a00_orchestrator/tools.py"),
+}  # R21: no resume
 
 
 def layer(parts: list[str]) -> str | None:
@@ -57,13 +63,12 @@ def violations(root: Path) -> list[str]:
                 for t in layers:
                     if t != me and t not in ALLOWED[me]:
                         bad(node, f"{me} must not import tutor.{t}")
-                    if me == "api" and t == "agents":
+                    if me in ("api", "cli") and t == "agents":
                         mods = {full[2]} if len(full) > 2 else set(names) if tl else {"agents"}
-                        if rel != Path("tutor/api/assistant.py") or mods - API_AGENTS:
-                            bad(
-                                node,
-                                "api may import only agents.orchestrator / agents.tools, and only in api/assistant.py",
-                            )
+                        if me == "api" and (rel != Path("tutor/api/assistant.py") or mods - API_AGENTS):
+                            bad(node, "api may import only agents.a00_orchestrator, and only in api/assistant.py")
+                        if me == "cli" and mods - CLI_AGENTS:
+                            bad(node, "cli may import only agents.a08_recommender")
                 if tl == "llm" and me in ("api", "cli") and len(full) == 2:
                     for n in set(names) - LLM_READ_ONLY:
                         bad(node, f"{me} may only use llm.iter_log / llm.cost, not {n}")
@@ -76,7 +81,7 @@ def violations(root: Path) -> list[str]:
                 if on_llm and name == "call" and me != "agents":
                     bad(node, "llm.call() only from tutor/agents/")
                 if on_llm and name == "chat" and rel != ORCHESTRATOR:
-                    bad(node, "llm.chat() only from tutor/agents/orchestrator.py")
+                    bad(node, "llm.chat() only from tutor/agents/a00_orchestrator/orchestrator.py")
                 if name == "resume" and rel in ASSISTANT_FILES:
                     bad(node, "resume() never from the assistant (C-39)")
     return out
@@ -120,20 +125,66 @@ def test_assistant_rules(tmp_path):
     write(
         tmp_path,
         "tutor/api/assistant.py",
-        "from tutor.agents.tools import Starters\nfrom tutor.agents import orchestrator\nrunner.resume('t')\n",
+        "from tutor.agents.a00_orchestrator.tools import Starters\n"
+        "from tutor.agents.a00_orchestrator import orchestrator\n"
+        "runner.resume('t')\n",
     )
-    write(tmp_path, "tutor/api/other.py", "from tutor.agents import tools\nimport tutor.agents.orchestrator\n")
-    write(tmp_path, "tutor/api/assistant_extra.py", "from tutor.agents.grader import GradeOut\n")
-    write(tmp_path, "tutor/agents/tools.py", "from tutor.db import repo\nfrom tutor import llm\nllm.chat('00')\n")
-    write(tmp_path, "tutor/agents/orchestrator.py", "from tutor import llm\nllm.chat('00')\nself.resume()\n")
+    write(
+        tmp_path,
+        "tutor/api/other.py",
+        "from tutor.agents.a00_orchestrator import tools\nimport tutor.agents.a00_orchestrator.orchestrator\n",
+    )
+    write(tmp_path, "tutor/api/assistant_extra.py", "from tutor.agents.a02_grader.grader import GradeOut\n")
+    write(
+        tmp_path,
+        "tutor/agents/a00_orchestrator/tools.py",
+        "from tutor.db import repo\nfrom tutor import llm\nllm.chat('00')\n",
+    )
+    write(
+        tmp_path,
+        "tutor/agents/a00_orchestrator/orchestrator.py",
+        "from tutor import llm\nllm.chat('00')\nself.resume()\n",
+    )
     write(tmp_path, "tutor/api/threads.py", "runner.resume('t')\n")
-    msg = "api may import only agents.orchestrator / agents.tools, and only in api/assistant.py"
+    msg = "api may import only agents.a00_orchestrator, and only in api/assistant.py"
     assert violations(tmp_path / "tutor") == [
-        "tutor/agents/orchestrator.py:3: resume() never from the assistant (C-39)",
-        "tutor/agents/tools.py:1: agents must not import tutor.db",
-        "tutor/agents/tools.py:3: llm.chat() only from tutor/agents/orchestrator.py",
+        "tutor/agents/a00_orchestrator/orchestrator.py:3: resume() never from the assistant (C-39)",
+        "tutor/agents/a00_orchestrator/tools.py:1: agents must not import tutor.db",
+        "tutor/agents/a00_orchestrator/tools.py:3: llm.chat() only from tutor/agents/a00_orchestrator/orchestrator.py",
         "tutor/api/assistant.py:3: resume() never from the assistant (C-39)",
         f"tutor/api/assistant_extra.py:1: {msg}",
         f"tutor/api/other.py:1: {msg}",
         f"tutor/api/other.py:2: {msg}",
     ]
+
+
+def test_cli_may_import_only_08(tmp_path):
+    write(
+        tmp_path,
+        "tutor/cli.py",
+        "from tutor.agents.a08_recommender import select\nfrom tutor.agents.a02_grader import grader\n",
+    )
+    assert violations(tmp_path / "tutor") == ["tutor/cli.py:2: cli may import only agents.a08_recommender"]
+
+
+def test_one_folder_per_agent():
+    agents = ROOT / "agents"
+
+    def entries(d: Path) -> list[str]:
+        return sorted(p.name for p in d.iterdir() if p.name != "__pycache__")
+
+    assert [p.name for p in agents.glob("*.py")] == ["__init__.py"]
+    assert [d for d in entries(agents) if d != "__init__.py"] == [
+        "a00_orchestrator",
+        "a01_ingest",
+        "a02_grader",
+        "a03_diagnoser",
+        "a04_verifier",
+        "a05_profiler",
+        "a06_tagger",
+        "a08_recommender",
+        "a09_reporter",
+    ]
+    for pointer_only in ("a05_profiler", "a06_tagger", "a09_reporter"):
+        assert entries(agents / pointer_only) == ["README.md"]
+    assert entries(agents / "a08_recommender") == ["README.md", "__init__.py", "select.py"]

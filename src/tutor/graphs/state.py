@@ -11,7 +11,7 @@ class SessionState(TypedDict, total=False):
     source_path: str  # relative to the data dir: inbox/<file>
     source_kind: str
     transcript: str  # the .tex as submitted (FR1: never corrected)
-    ingest: dict  # agents.ingest.IngestResult; apply_match fills chosen refs and resolves flags
+    ingest: dict  # agents.a01_ingest.ingest.IngestResult; apply_match fills chosen refs and resolves flags
     rubric_drafts: dict  # str(seq) -> 02 draft {items, max_score, alt_methods} | None
     match_decisions: object  # last answers at confirm_match: {str(seq): {problem_ref?, rubric_items?, note?}}
     approved_rubrics: dict  # str(seq) -> {items, max_score}: approved at step 3, written by commit ② (C-16)

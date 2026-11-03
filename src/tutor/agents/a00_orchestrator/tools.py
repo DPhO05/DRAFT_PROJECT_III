@@ -11,8 +11,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
+from tutor.agents.a08_recommender import select
 from tutor.config import student_code
-from tutor.services import search, select, students
+from tutor.services import search, students
 
 log = logging.getLogger("tutor")
 MAX_CONTENT = 6000  # chars of tool result sent to the model

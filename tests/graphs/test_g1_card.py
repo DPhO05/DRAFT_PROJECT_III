@@ -9,7 +9,9 @@ from tests.bankfix import P1, P2, P9
 from tests.fakes import lane_handlers
 from tests.graphs.g1 import THREE, approve, prob
 from tests.graphs.test_review import full, kc_id
-from tutor.agents import diagnoser, ingest, verifier
+from tutor.agents.a01_ingest import ingest
+from tutor.agents.a03_diagnoser import diagnoser
+from tutor.agents.a04_verifier import verifier
 from tutor.db import repo
 from tutor.graphs import session, threads
 

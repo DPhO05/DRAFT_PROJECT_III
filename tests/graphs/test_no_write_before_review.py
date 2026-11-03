@@ -9,7 +9,7 @@ from tests.db.test_profile_repo import skill_rows
 from tests.fakes import lane_handlers
 from tests.graphs.g1 import THREE, approve, prob
 from tests.graphs.test_review import full
-from tutor.agents import ingest
+from tutor.agents.a01_ingest import ingest
 from tutor.db import repo
 from tutor.graphs import runner as rmod
 from tutor.graphs import threads

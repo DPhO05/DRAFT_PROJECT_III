@@ -3,7 +3,8 @@
 import pytest
 
 from tests.eval import run
-from tutor.agents import diagnoser, grader
+from tutor.agents.a02_grader import grader
+from tutor.agents.a03_diagnoser import diagnoser
 
 
 def test_label_oracle_scores_perfect_and_stable(tmp_path):

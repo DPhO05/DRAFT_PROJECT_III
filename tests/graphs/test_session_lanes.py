@@ -5,7 +5,7 @@ import pytest
 from tests.bankfix import P1, P2
 from tests.fakes import lane_handlers
 from tests.graphs.g1 import THREE, prob, status
-from tutor.agents import ingest
+from tutor.agents.a01_ingest import ingest
 from tutor.db import repo
 from tutor.graphs import runner as rmod
 

@@ -6,7 +6,8 @@ import pytest
 
 from tests.fakes import FakeLLM
 from tutor import llm
-from tutor.agents import CallContext, grader
+from tutor.agents import CallContext
+from tutor.agents.a02_grader import grader
 from tutor.services import latex
 
 CTX = CallContext(graph="G1", thread_id="g1-hs01-20261020", session_id=1, student_code="HS-01")

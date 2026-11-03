@@ -12,7 +12,7 @@ from tests.db.test_profile_repo import skill_rows
 from tests.fakes import FakeLLM, lane_handlers
 from tests.graphs.g1 import prob
 from tutor import llm
-from tutor.agents import ingest
+from tutor.agents.a01_ingest import ingest
 from tutor.db import repo
 
 AN, BINH = "Nguyễn Văn An", "Trần Thị Bình"

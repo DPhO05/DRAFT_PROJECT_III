@@ -567,7 +567,7 @@ def chat(
     context: CallContext,
     max_tool_turns: int,
 ) -> Iterator[dict]:
-    """Streaming tool-use loop for one tutor message. Only tutor/agents/orchestrator.py may call this.
+    """Streaming tool-use loop for one tutor message. Only tutor/agents/a00_orchestrator/orchestrator.py may call this.
 
     messages: history + current message. run_tool(name, input) -> (content, is_error). Yields text / tool events,
     then {"type": "end", "text", "stopped": None | "max_tool_turns" | "max_tokens"}.

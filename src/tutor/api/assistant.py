@@ -18,8 +18,8 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from tutor.agents import orchestrator
-from tutor.agents.tools import Starters, tool_defs
+from tutor.agents.a00_orchestrator import orchestrator
+from tutor.agents.a00_orchestrator.tools import Starters, tool_defs
 from tutor.api import errors
 from tutor.config import DataPaths, student_code
 from tutor.db import repo

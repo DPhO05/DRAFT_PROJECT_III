@@ -10,9 +10,10 @@ from tests.api.test_bank import import_mix
 from tests.api.test_sessions import W, poll
 from tests.assistant_fix import world
 from tutor import config
+from tutor.agents.a08_recommender import select
 from tutor.db import repo
 from tutor.graphs import bank, worksheet
-from tutor.services import latex, select
+from tutor.services import latex
 
 DAY = "2026-10-24"
 LATER = "2026-10-31"
