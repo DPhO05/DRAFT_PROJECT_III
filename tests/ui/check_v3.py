@@ -278,10 +278,25 @@ def db_state(data_dir: str) -> tuple:
         return rows, con.execute("SELECT thread_id, decisions_json FROM tutor_thread ORDER BY 1").fetchall()
 
 
-# Row counts of every tutor.db table around each walk step (db_changes); only a commit-button step may change them,
-# bar the tables in its `may` (Chấm bài này starts grading: transaction ① adds the session row, status running).
+# Row counts of every tutor.db table around each walk step (db_changes). A step changes nothing, bar `may` = table ->
+# the exact row delta (Chấm bài này starts grading: transaction ① adds one session row, status running).
+# A commit-button step may change the tables of its `commit` list, all taken from the backend's writes
+# (UPDATEs of existing rows are not row counts).
 # `last` = the counts when the previous step ended, so a change between two steps is caught too.
 LEDGER: dict = {"dir": None, "log": [], "last": None, "depth": 0}
+START_GRADING = {"session": 1}  # repo.commit_session_start, db/repo.py:748
+SAVE_RESULT = ("rubric", "attempt", "mistake", "skill_event", "skill_state", "misconception_log")
+# Lưu kết quả -> repo.commit_session (session.py:545): rubric db/repo.py:922, attempt :928, mistake :803 (via
+# _insert_mistake), _write_profile skill_event :870, skill_state :876, misconception_log :884; session is only
+# UPDATEd :940
+SAVE_SHEET = ("recommendation",)  # Tạo phiếu -> repo.commit_worksheet (worksheet.py:248): UPDATE :976, INSERT :979
+SAVE_LABELS = ("problem_kc", "rubric")
+# bank Lưu thay đổi -> PATCH -> repo.update_problem_labels (api/bank.py:85): problem_kc :612-614, rubric :625;
+# problem is only UPDATEd :620
+SAVE_IMPORT = ("problem", "problem_kc", "rubric")
+# bank Lưu vào ngân hàng -> repo.import_bank (graphs/bank.py:236) -> _insert_problem: problem :479, problem_kc :484,
+# rubric :488
+SEED_LOG = FIX.parent / "llm.jsonl"  # check.seed() copies it to logs/llm.jsonl: the app's own calls come after it
 # steps that must move rows, or the counts are blind (the Sửa save of a bank problem may only update a row)
 MOVES_ROWS = {"chat_attach", "grade_save", "ws_create", "ws_replace", "bank_import"}
 
@@ -296,7 +311,7 @@ def moved(a: dict, b: dict) -> dict:
 
 
 @contextmanager
-def step(rep: dict, name: str, commit: bool = False, may: tuple = ()):
+def step(rep: dict, name: str, commit: tuple = (), may: dict | None = None):
     if not LEDGER["dir"] or LEDGER["depth"]:  # no --data, or a step inside a step: the outer one counts
         yield
         return
@@ -310,13 +325,13 @@ def step(rep: dict, name: str, commit: bool = False, may: tuple = ()):
         LEDGER["depth"] = 0
         LEDGER["last"] = after = counts(LEDGER["dir"])
         changed = moved(before, after)
-        LEDGER["log"].append({"view": rep["viewport"], "step": name, "commit": commit, "changed": changed})
-        extra = {} if commit else {t: v for t, v in changed.items() if t not in may}
+        LEDGER["log"].append({"view": rep["viewport"], "step": name, "commit": bool(commit), "changed": changed})
+        extra = {t: v for t, v in changed.items() if t not in commit and (may or {}).get(t) != v[1] - v[0]}
         if extra:
-            rep["missing"].append(f"db: {name} changed rows with no commit button pressed: {extra}")
+            rep["missing"].append(f"db: {name} changed rows beyond its button ({list(commit)}, {may or {}}): {extra}")
 
 
-def counted(commit: bool = False, may: tuple = ()):
+def counted(commit: tuple = (), may: dict | None = None):
     """Run a walk step (page, rep, ...) inside `step`, named after the function."""
 
     def wrap(fn):
@@ -563,7 +578,7 @@ def llm_lines(data_dir: str, agent: str) -> int:
     return len(re.findall(rf'^\{{"agent": "{agent}"', text, re.M))
 
 
-@counted(may=("session",))
+@counted(may=START_GRADING)
 def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list, before: tuple) -> None:
     """📎 lists data/inbox/; the chosen file rides with the message; ask_grading pre-fills the guess.
 
@@ -785,7 +800,7 @@ def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
     return ok()
 
 
-@counted(commit=True)
+@counted(commit=SAVE_RESULT)
 def grade_save(page, rep: dict, data_dir: str, reqs: list) -> None:
     """Lưu kết quả at review: PUT, resume 1, the same preview, resume 2 on its own; a double click is still 1 chain."""
     h, save = host(G_S01), f'{host(G_S01)} [data-act="g-save"]'
@@ -1013,7 +1028,7 @@ def ws_chat_enter(page, rep: dict, data_dir: str, reqs: list, tid: str, want: li
         rep["missing"].append("worksheet: a code typed in the chat wrote recommendation rows")
 
 
-@counted(commit=True)
+@counted(commit=SAVE_SHEET)
 def ws_create(page, rep: dict, data_dir: str, reqs: list, tid: str) -> None:
     """× hết turns Tạo phiếu off; 2 codes back, one ↑, Enter in the date box makes the sheet in screen order."""
     while (n := page.locator("#draft .draft-item").count()) and len(rep["missing"]) < 50:
@@ -1041,7 +1056,7 @@ def ws_create(page, rep: dict, data_dir: str, reqs: list, tid: str) -> None:
         rep["missing"].append("worksheet: In PDF did not put the 2 statements in #print-root")
 
 
-@counted(commit=True)
+@counted(commit=SAVE_SHEET)
 def ws_replace(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
     """A second sheet the same day asks to replace; Tạo phiếu mới marks the old rows rejected."""
     if not (tid := ws_propose(page, rep, phone)):
@@ -1332,7 +1347,7 @@ def bank_races(page, rep: dict, data_dir: str) -> None:
     late.close()
 
 
-@counted(commit=True)
+@counted(commit=SAVE_LABELS)
 def bank_edit(page, rep: dict, phone: bool, data_dir: str, reqs: list) -> None:
     bank_level(page, rep, data_dir, "dễ", EASY)
     card = page.locator("#b-grid .bcard").first
@@ -1467,7 +1482,7 @@ def import_reopen(page, rep: dict, phone: bool, mix: str, file_row, reqs: list) 
     press(page, rep, read, f"bank đọc lại {mix}", JS_ROOT_HAS, "Còn 1 bài chưa chọn kỹ năng")
 
 
-@counted(commit=True)
+@counted(commit=SAVE_IMPORT)
 def bank_import(page, rep: dict, phone: bool, data_dir: str, reqs: list, files: tuple[str, str]) -> None:
     mix, bad = files
     ref = lambda n: f"8DS-{'NEX' if phone else 'NEW'}-{n:03d}"  # noqa: E731
@@ -1621,28 +1636,30 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
     return rep
 
 
-NAMES = ("nguyen van an", "tran thi binh")  # PEOPLE, lowercase and without diacritics
-
-
 def fold(text: str) -> str:
     """Lowercase, no diacritics; đ has no decomposition, so it is mapped by hand."""
     plain = unicodedata.normalize("NFD", text.lower())
     return "".join(c for c in plain if not unicodedata.combining(c)).replace("đ", "d")
 
 
+NAMES = tuple(fold(n) for n in (*PEOPLE, ARCHIVED))  # every student the walk creates
+
+
 def finish(data_dir: str) -> dict:
     """After both walks: no student name in llm.jsonl or the chat logs (C-40), and the row counts saw the saves.
 
-    A missing or empty log would pass the scan, so it fails it."""
+    A missing, empty or seed-only log would pass the scan, so it fails it."""
     rep = {k: [] for k in ("console_errors", "page_errors", "dead", "missing", "forbidden", "overflow", "shots")}
     logs = Path(data_dir, "logs")
     files = [logs / "llm.jsonl", *sorted(logs.glob("chat/*.jsonl"))]
     texts = {f.name: f.read_text(encoding="utf-8") if f.is_file() else "" for f in files}
     rep |= {"viewport": "end", "scanned": {name: len(text) for name, text in texts.items()}}
-    if [fold(n) for n in PEOPLE] != list(NAMES):
-        rep["missing"].append(f"log scan: NAMES {NAMES} are not the folded {PEOPLE}")
     if len(files) < 2:
         rep["missing"].append("log scan: no chat log in data/logs/chat/")
+    seed = SEED_LOG.read_text(encoding="utf-8")
+    made = texts[files[0].name].removeprefix(seed)
+    if not re.search(r'^\{"agent": "00"', made, re.M):  # the seed has agents 01-03 only
+        rep["missing"].append("log scan: llm.jsonl holds no agent 00 call after the seed, the app logged nothing")
     for name, text in texts.items():
         if not text.strip():
             rep["missing"].append(f"log scan: {name} is missing or empty")
