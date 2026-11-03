@@ -183,6 +183,12 @@ def tool_defs(codes: list[str]) -> list[dict]:
     return defs
 
 
+def meta(out: Outcome) -> dict:
+    """UI fields of an outcome as MCP `_meta` (R6), empty ones left out."""
+    m = {"tutor/source": out.source, "tutor/summary": out.summary, "tutor/card": out.card}
+    return {k: v for k, v in m.items() if v}
+
+
 def _dumps(obj) -> str:
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
 

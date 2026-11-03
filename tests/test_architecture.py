@@ -14,7 +14,8 @@ ALLOWED = {
     "db": {"config", "services"},
     "agents": {"llm", "services", "config"},
     "graphs": {"agents", "db", "services", "config"},
-    "api": {"graphs", "db", "services", "llm", "config", "devfake", "agents"},  # agents: see API_AGENTS
+    "mcp": {"agents", "services", "db", "config"},  # R12
+    "api": {"graphs", "db", "services", "llm", "config", "devfake", "agents", "mcp"},  # agents: see API_AGENTS
     # cli runs create_app() for `tutor app`; agents: see CLI_AGENTS
     "cli": {"api", "graphs", "db", "services", "llm", "config", "devfake", "agents"},
 }
@@ -26,6 +27,8 @@ ASSISTANT_FILES = {
     Path("tutor/api/assistant.py"),
     ORCHESTRATOR,
     Path("tutor/agents/a00_orchestrator/tools.py"),
+    Path("tutor/mcp/server.py"),
+    Path("tutor/mcp/client.py"),
 }  # R21: no resume
 
 
@@ -155,6 +158,23 @@ def test_assistant_rules(tmp_path):
         f"tutor/api/assistant_extra.py:1: {msg}",
         f"tutor/api/other.py:1: {msg}",
         f"tutor/api/other.py:2: {msg}",
+    ]
+
+
+def test_mcp_rules(tmp_path):
+    """R12: mcp sits above agents; api may import it, agents never; no resume in tutor/mcp/ (C-39)."""
+    write(tmp_path, "tutor/agents/x.py", "import tutor.mcp.client\n")
+    write(
+        tmp_path,
+        "tutor/mcp/server.py",
+        "from tutor.agents.a00_orchestrator import tools\nfrom tutor.db import repo\nrunner.resume('t')\n",
+    )
+    write(tmp_path, "tutor/mcp/client.py", "from mcp import Client\nrunner.resume('t')\n")
+    write(tmp_path, "tutor/api/assistant.py", "from tutor.mcp.client import connect\n")
+    assert violations(tmp_path / "tutor") == [
+        "tutor/agents/x.py:1: agents must not import tutor.mcp",
+        "tutor/mcp/client.py:2: resume() never from the assistant (C-39)",
+        "tutor/mcp/server.py:3: resume() never from the assistant (C-39)",
     ]
 
 
