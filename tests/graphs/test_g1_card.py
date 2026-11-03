@@ -282,9 +282,10 @@ def test_prepare_with_open_flag_is_still_reading(env):
 
 def test_card_has_no_tech_text(env):
     go, conn, r = env
+    k = kc_id(conn)  # lanes run in parallel threads; never share `conn` across them
 
     def g03(user, system):
-        m = diagnoser.MistakeOut(step_idx=1, code="other.unclear", kc_id=kc_id(conn), confidence=0.9,
+        m = diagnoser.MistakeOut(step_idx=1, code="other.unclear", kc_id=k, confidence=0.9,
                                  evidence_latex="x", description="Dùng sai other.unclear ở bước này")  # fmt: skip
         return diagnoser.DiagnosisOut(corrected_latex="", mistakes=[m])
 
