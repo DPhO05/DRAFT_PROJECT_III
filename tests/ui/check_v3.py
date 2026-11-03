@@ -3,7 +3,8 @@
 
 Run: .venv/bin/python tests/ui/check_v3.py [--url http://127.0.0.1:8000/] [--data] [--shots]
 Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Trợ lý chat tab (reminders, @, stream, cards, 📎, retry,
-the G1 grading card, the G4 worksheet panel), the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu, light/dark.
+the G1 grading card, the G4 worksheet panel), the Báo cáo tab (draft, edit, approve, PDF), the Ngân hàng bài tab
+(filters, view, edit, import), ⚙ menu, light/dark.
 Exit 1 on any page error, app console error, dead button, horizontal overflow at 390 px or forbidden text on screen.
 Without --url it starts `tutor app` on a free port with a temp data dir; --data seeds dummy bank and students and
 checks the chat and bank tabs against that tutor.db and imports tests/fixtures/bank/import-mix.tex (needs no --url).
@@ -34,6 +35,7 @@ from check import (
     api,
     close_overlay,
     tutor_app,
+    wait_idle,
 )
 from playwright.sync_api import sync_playwright
 
@@ -120,7 +122,7 @@ def walk_tabs(page, rep: dict, phone: bool, shots: bool) -> None:
         press(page, rep, f"#tab-{tab}", f"tab {tab}")
         if not page.evaluate(JS_TAB, tab):
             rep["missing"].append(f"tab {tab} did not open")
-        real = tab in ("tro-ly", "ngan-hang")
+        real = tab in ("tro-ly", "bao-cao", "ngan-hang")
         if (SOON in page.inner_text(f"#panel-{tab}")) == real:
             rep["missing"].append(f"{tab}: '{SOON}' {'still' if real else 'missing'}")
         see(page, rep, tab, phone)
@@ -308,7 +310,7 @@ SAVE_IMPORT = ("problem", "problem_kc", "rubric")
 # rubric :488
 SEED_LOG = FIX.parent / "llm.jsonl"  # check.seed() copies it to logs/llm.jsonl: the app's own calls come after it
 # steps that must move rows, or the counts are blind (the Sửa save of a bank problem may only update a row)
-MOVES_ROWS = {"chat_attach", "grade_save", "ws_create", "ws_replace", "bank_import"}
+MOVES_ROWS = {"chat_attach", "grade_save", "ws_create", "ws_replace", "bank_import", "rep_approve", "rep_resumed"}
 
 
 def counts(data_dir: str) -> dict:
@@ -1225,6 +1227,272 @@ def walk_worksheet(page, rep: dict, phone: bool, data_dir: str) -> None:
         ws_retry(page, rep)
 
 
+REP_DAY, REP_WEEK, REP_MONTH = "2026-10-20", "2026-10-19", "2026-10-01"
+REP_FILE = "baocao-HS-01-day-2026-10-20.md"
+REP_45 = "Số “45” không có trong dữ liệu đã duyệt."
+REP_ADDED = "Em đã cố gắng nhiều."
+REP_CODED = "HS-01 và HS-03 cùng cố gắng nhiều."
+REP_OPEN_BOX = "Lưu hoặc bỏ câu đang sửa trước"
+REP_AGAIN = "Mỗi kỳ chỉ duyệt một lần."
+REP_EMPTY = "Chọn một báo cáo bên trái, hoặc tạo báo cáo mới"
+REP_NOT_READY = "chưa có buổi nào đã duyệt"
+REP_WAITING = "(bài 23/10 còn chờ duyệt)"
+MAKE = '[data-act="rep-make"]'
+APPROVE = '[data-act="rep-approve"]'
+SENT_EDIT = '#rep-doc [data-act="sent-edit"], #rep-doc [data-act="sent-del"], #rep-doc [data-act="sent-add"]'
+JS_REP_HAS = "t => document.getElementById('rep-doc').innerText.includes(t)"
+JS_REP_LEFT_HAS = "t => document.getElementById('panel-bao-cao').innerText.includes(t)"
+JS_REP_FORM = "() => !!document.getElementById('rep-student') && !!document.getElementById('rep-start')"
+JS_REP_OPT = 'v => !!document.querySelector(`#rep-start option[value="${v}"]`)'
+JS_REP_DRAFT = "n => document.querySelectorAll('#rep-doc .rep-doc.is-draft .sent').length >= n"
+JS_REP_DONE = "() => !!document.querySelector('#rep-doc .rep-doc.is-approved')"
+JS_REP_BOX = "i => !!document.getElementById('sent-' + i)"
+JS_NO_BOX = "i => !document.getElementById('sent-' + i)"
+JS_REP_ROWS = (
+    "n => !document.getElementById('sent-' + (n - 1)) && document.querySelectorAll('#rep-doc .sent').length >= n"
+)
+JS_REP_FLAGS = "() => document.querySelectorAll('#rep-doc .sent .uncheck').length"
+JS_REP_COLS = "() => getComputedStyle(document.querySelector('.rep-layout')).gridTemplateColumns.split(' ').length"
+JS_REP_SENTS = "() => [...document.querySelectorAll('#rep-doc .rep-s')].map(e => e.innerText.trim())"
+JS_REP_ITEM = 't => !!document.querySelector(`.rep-item[data-tid="${t}"]`)'
+JS_REP_NO_ITEM = 't => !document.querySelector(`.rep-item[data-tid="${t}"]`)'
+JS_PRINT_HAS = "t => document.getElementById('print-root').textContent.includes(t)"
+JS_PRINTED = "() => window.__printed > 0"
+# POST /api/reports answers "no session in the week, bài 23/10 waits" (the form's weeks slide with today's date)
+REP_WAIT_BODY = {
+    "error": {"code": "not_ready", "message": "x", "detail": {"reason": "no_committed_session",
+              "pending": [{"thread_id": "g1-hs02-20261023", "held_on": "2026-10-23"}] * 2, "previous_start": None}}
+}  # fmt: skip
+
+
+def see_rep(page, rep: dict, where: str, phone: bool) -> None:
+    """see(), plus: no student code on the tab, and one column at 390 px."""
+    see(page, rep, where, phone)
+    if codes := HS_CODE.findall(page.inner_text("#panel-bao-cao")):
+        rep["missing"].append(f"{where}: a student code is on screen {codes}")
+    if phone and (n := page.evaluate(JS_REP_COLS)) != 1:
+        rep["missing"].append(f"{where}: {n} columns at 390 px, want 1")
+
+
+def rep_form(page, rep: dict, kind: str, start: str | None = None) -> bool:
+    """Kỳ `kind`, then the period `start` when given; False when the period is not in the list."""
+    on = f'[data-act="rep-kind"][data-kind="{kind}"]'
+    press(page, rep, on, f"report Kỳ {kind}", JS_PRESSED, on)
+    if start is None:
+        return True
+    if not expect(page, rep, JS_REP_OPT, f"report: no period {start} in the {kind} list", start):
+        return False
+    page.select_option("#rep-start", start)
+    return True
+
+
+def rep_open(page, rep: dict) -> bool:
+    press(page, rep, "#tab-bao-cao", "tab bao-cao")
+    return expect(page, rep, JS_REP_FORM, "report: the form has no student and period boxes")
+
+
+def sent_puts(reqs: list, tid: str) -> list:
+    return [json.loads(b) for m, u, b in reqs if m == "PUT" and u.endswith(f"/threads/{tid}/decisions")]
+
+
+@counted()
+def rep_make(page, rep: dict, phone: bool) -> bool:
+    """Tạo báo cáo ngày 20/10 của An: a yellow draft with sentences; tutor.db stays as it is."""
+    if not rep_open(page, rep):
+        return False
+    if REP_EMPTY not in page.inner_text("#rep-doc"):
+        rep["missing"].append(f"report: nothing is chosen yet, the right side should say '{REP_EMPTY}'")
+    page.select_option("#rep-student", label=PEOPLE[0])
+    if not rep_form(page, rep, "day", REP_DAY):
+        return False
+    press(page, rep, MAKE, "report Tạo báo cáo", JS_REP_DRAFT, 1)
+    for w in ("Bản nháp — chưa duyệt", "+ Thêm câu", "Bỏ bản nháp", "Duyệt báo cáo", "Sửa"):
+        if w not in page.inner_text("#rep-doc"):
+            rep["missing"].append(f"report draft: no '{w}'")
+    see_rep(page, rep, "report draft", phone)
+    return page.locator("#rep-doc .rep-doc.is-draft").count() == 1
+
+
+@counted()
+def rep_edit(page, rep: dict, reqs: list, phone: bool) -> bool:
+    """Sửa câu 1 (a number the data lacks), + Thêm câu (two kinds); an open box holds Duyệt báo cáo back."""
+    tid = page.get_attribute("#rep-doc .rep-doc", "data-thread")
+    sent = "#rep-doc .sent"
+    press(page, rep, '[data-act="sent-edit"][data-i="0"]', "report Sửa câu 1", JS_REP_BOX, 0)
+    page.fill("#sent-0", page.input_value("#sent-0") + " 45 lần")
+    press(page, rep, '[data-act="sent-save"][data-i="0"]', "report Lưu câu 1", JS_REP_HAS, REP_45)
+    if page.locator(f"{sent} >> nth=0").locator(".uncheck").count() != 1:
+        rep["missing"].append("report edit: sentence 1 is not underlined after 45")
+    for text in (REP_ADDED, REP_CODED):
+        n = page.locator(sent).count()
+        press(page, rep, '[data-act="sent-add"]', "report + Thêm câu", JS_REP_BOX, n)
+        page.fill(f"#sent-{n}", text)
+        press(page, rep, f'[data-act="sent-save"][data-i="{n}"]', "report Lưu câu mới", JS_REP_ROWS, n + 1)
+    shown = page.inner_text("#rep-doc")
+    if REP_ADDED not in shown or f"{PEOPLE[0]} và {ARCHIVED} cùng cố gắng nhiều." not in shown:
+        rep["missing"].append("report edit: the added sentences are not on screen, with names for HS-01 and HS-03")
+    if (flags := page.evaluate(JS_REP_FLAGS)) < 1 or REP_ADDED in " ".join(
+        page.locator(f"{sent} .uncheck").all_inner_texts()
+    ):
+        rep["missing"].append(f"report edit: {flags} underlined sentences, want 45 flagged and '{REP_ADDED}' not")
+    put = sent_puts(reqs, tid)
+    if len(put) < 3 or [s["text"] for s in put[-1]["sentences"]][-1] != REP_CODED:
+        rep["missing"].append(f"report edit: the last PUT is {put[-1:]}, want the codes HS-01 and HS-03 as typed")
+    if any(s["text"] != s["text"].strip() or "[F" in s["text"] for b in put for s in b["sentences"]):
+        rep["missing"].append("report edit: a PUT carries a loose or [F sentence")
+    seen = resumes(reqs, tid)
+    press(page, rep, '[data-act="sent-edit"][data-i="1"]', "report Sửa câu 2", JS_REP_BOX, 1)
+    press(page, rep, APPROVE, "report Duyệt khi ô sửa mở", JS_TOAST_HAS, REP_OPEN_BOX)
+    page.wait_for_timeout(500)
+    if (n := resumes(reqs, tid) - seen) != 0:
+        rep["missing"].append(f"report edit: Duyệt báo cáo over an open box sent {n} resumes, want 0")
+    press(page, rep, '[data-act="sent-cancel"][data-i="1"]', "report Thôi", JS_NO_BOX, 1)
+    see_rep(page, rep, "report edited", phone)
+    return True
+
+
+@counted(commit=("report",))
+def rep_approve(page, rep: dict, data_dir: str, reqs: list, phone: bool) -> bool:
+    """Duyệt báo cáo with flags: "Vẫn duyệt?", one `report` row, the .md file, then read-only."""
+    tid = page.get_attribute("#rep-doc .rep-doc", "data-thread")
+    before = scalar(data_dir, "SELECT count(*) FROM report")
+    puts = len(sent_puts(reqs, tid))
+    press(page, rep, APPROVE, "report Duyệt báo cáo", JS_ROOT_HAS, "Vẫn duyệt?")
+    press(page, rep, '[data-act="confirm-ok"]', "report Vẫn duyệt", JS_REP_DONE)
+    if not page.locator("#rep-doc .rep-doc.is-approved").count():
+        return False
+    if (n := scalar(data_dir, "SELECT count(*) FROM report") - before) != 1:
+        rep["missing"].append(f"report approve: {n} new report rows, want 1")
+    if not Path(data_dir, "out", REP_FILE).is_file():
+        rep["missing"].append(f"report approve: no data/out/{REP_FILE}")
+    if not re.search(r"Đã duyệt \d\d/\d\d/\d{4}", page.inner_text("#rep-doc")) or page.locator(SENT_EDIT).count():
+        rep["missing"].append("report approve: want 'Đã duyệt dd/mm/yyyy' and no Sửa / Bỏ / + Thêm câu")
+    if len(sent_puts(reqs, tid)) != puts + 1:
+        rep["missing"].append("report approve: Duyệt should PUT the sentences once, then resume")
+    if "Tải PDF" not in page.inner_text("#rep-doc"):
+        rep["missing"].append("report approve: no Tải PDF")
+    see_rep(page, rep, "report approved", phone)
+    return True
+
+
+@counted()
+def rep_pdf(page, rep: dict, phone: bool) -> None:
+    """Tải PDF: the print page holds the name and the sentences, no [F and no HS-0 (Focus 3)."""
+    page.evaluate(JS_NO_PRINT)
+    sents = page.evaluate(JS_REP_SENTS)
+    press(page, rep, '[data-act="rep-pdf"]', "report Tải PDF", JS_PRINTED)
+    if not sents or PEOPLE[0] not in (text := page.evaluate("document.getElementById('print-root').textContent")):
+        rep["missing"].append(f"report pdf: want '{PEOPLE[0]}' on the print page and sentences on screen")
+        return
+    rep["missing"] += [f"report pdf: the print page lacks '{s}'" for s in sents if s not in text]
+    if "[F" in text or HS_CODE.search(text):
+        rep["missing"].append(f"report pdf: the print page holds [F or a student code: {text[:200]!r}")
+    if "Báo cáo ngày 20/10/2026" not in text or "duyệt ngày" not in text:
+        rep["missing"].append("report pdf: want the period and 'duyệt ngày' on the print page")
+
+
+@counted()
+def rep_again(page, rep: dict, phone: bool) -> None:
+    """A fresh page, Tạo báo cáo for the approved day: the words and the green frame of that report."""
+    page.reload()
+    if not rep_open(page, rep):
+        return
+    page.select_option("#rep-student", label=PEOPLE[0])
+    if not rep_form(page, rep, "day", REP_DAY):
+        return
+    press(page, rep, MAKE, "report Tạo báo cáo đã duyệt", JS_REP_LEFT_HAS, REP_AGAIN)
+    expect(page, rep, JS_REP_DONE, "report again: the approved report did not open")
+    if f"Báo cáo ngày 20/10/2026 của {PEOPLE[0]} đã duyệt ngày" not in page.inner_text("#panel-bao-cao"):
+        rep["missing"].append("report again: the words do not name the period, the student and the day")
+    see_rep(page, rep, "report again", phone)
+
+
+@counted()
+def rep_empty(page, rep: dict, phone: bool) -> None:
+    """Kỳ Tuần "tuần này" has no approved session; a server answer with pending days adds them in brackets."""
+    rep_form(page, rep, "week")
+    press(page, rep, MAKE, "report Tạo báo cáo tuần này", JS_REP_LEFT_HAS, REP_NOT_READY)
+    left = page.inner_text("#panel-bao-cao")
+    if "Chưa làm được báo cáo tuần" not in left or REP_WAITING in left:
+        rep["missing"].append("report empty: want 'Chưa làm được báo cáo tuần …' with no waiting days")
+    see_rep(page, rep, "report empty", phone)
+    page.route(
+        "**/api/reports",
+        lambda r: r.fulfill(status=409, json=REP_WAIT_BODY) if r.request.method == "POST" else r.fallback(),
+    )
+    press(page, rep, MAKE, "report Tạo báo cáo khi bài còn chờ", JS_REP_LEFT_HAS, REP_WAITING)
+    page.unroute("**/api/reports")
+
+
+@counted(commit=("report",))
+def rep_resumed(page, rep: dict, data_dir: str, root: str, reqs: list, sid: int) -> None:
+    """A draft made over the API shows in Bản nháp chờ duyệt; resumed elsewhere, the open draft turns green (Focus 1)"""
+    tid = api(root, "POST", "/reports", {"student_id": sid, "period_kind": "month", "period_start": REP_MONTH})[
+        "thread_id"
+    ]
+    wait_idle(root, tid)
+    press(page, rep, "#tab-tro-ly", "tab tro-ly")
+    rep_open(page, rep)
+    item = f'.rep-item[data-tid="{tid}"]'
+    if not expect(page, rep, JS_REP_ITEM, "report: the API draft is not in Bản nháp chờ duyệt", tid):
+        return
+    if "tháng 10/2026" not in (text := page.inner_text(item)) or "nháp" not in text or PEOPLE[0] not in text:
+        rep["missing"].append(f"report resumed: the list row says {text!r}, want name, 'tháng 10/2026', 'nháp'")
+    press(page, rep, item, "report mở bản nháp tháng", JS_REP_DRAFT, 1)
+    before, puts = scalar(data_dir, "SELECT count(*) FROM report"), len(sent_puts(reqs, tid))
+    api(root, "POST", f"/threads/{tid}/resume")
+    expect(page, rep, JS_REP_DONE, "report resumed: the open draft did not turn green after a resume elsewhere")
+    if scalar(data_dir, "SELECT count(*) FROM report") - before != 1 or page.locator(SENT_EDIT).count():
+        rep["missing"].append("report resumed: want 1 new report row and no Sửa / Bỏ / + Thêm câu")
+    page.wait_for_timeout(1500)
+    if len(sent_puts(reqs, tid)) != puts:
+        rep["missing"].append("report resumed: the screen PUT after the draft was approved")
+    see_rep(page, rep, "report resumed", False)
+
+
+@counted()
+def rep_discard(page, rep: dict, root: str, sid: int, phone: bool) -> None:
+    """A draft of another period (API): Bỏ bản nháp asks, drops it from the list, the thread is gone, tutor.db as is."""
+    tid = api(root, "POST", "/reports", {"student_id": sid, "period_kind": "week", "period_start": REP_WEEK})[
+        "thread_id"
+    ]
+    wait_idle(root, tid)
+    press(page, rep, "#tab-tro-ly", "tab tro-ly")
+    rep_open(page, rep)
+    item = f'.rep-item[data-tid="{tid}"]'
+    if not expect(page, rep, JS_REP_ITEM, "report: the week draft is not in Bản nháp chờ duyệt", tid):
+        return
+    press(page, rep, item, "report mở bản nháp tuần", JS_REP_DRAFT, 1)
+    see_rep(page, rep, "report week draft", phone)
+    press(page, rep, '[data-act="rep-discard"]', "report Bỏ bản nháp", JS_ROOT_HAS, "Bỏ bản nháp")
+    press(page, rep, '[data-act="confirm-ok"]', "report đồng ý bỏ", JS_REP_NO_ITEM, tid)
+    if REP_EMPTY not in page.inner_text("#rep-doc"):
+        rep["missing"].append(f"report discard: the right side should say '{REP_EMPTY}' again")
+    if (status := page.evaluate(JS_STATUS, f"/api/threads/{tid}")) != 404:
+        rep["missing"].append(f"report discard: GET /api/threads/{tid} is {status}, want 404")
+    see_rep(page, rep, "report discarded", phone)
+
+
+def walk_reports(page, rep: dict, phone: bool, data_dir: str, root: str) -> None:
+    """The Báo cáo tab, after An's 20/10 session is saved. The phone walks the approved period and a discard."""
+    reqs: list = []
+    page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
+    sid = {s["name"]: s["id"] for s in api(root, "GET", "/students?archived=true")}[PEOPLE[0]]
+    if phone:
+        rep_again(page, rep, phone)
+        rep_discard(page, rep, root, sid, phone)
+        return
+    if not rep_make(page, rep, phone) or not rep_edit(page, rep, reqs, phone):
+        return
+    if not rep_approve(page, rep, data_dir, reqs, phone):
+        return
+    rep_pdf(page, rep, phone)
+    rep_again(page, rep, phone)
+    rep_empty(page, rep, phone)
+    rep_resumed(page, rep, data_dir, root, reqs, sid)
+    rep_discard(page, rep, root, sid, phone)
+
+
 BANK_LABELS = ("Tìm", "Chủ đề", "Lớp", "Kỹ năng", "Mức", "Xoá lọc")
 BANK_LEVELS = ("Tất cả", "dễ", "vừa", "khó", "chưa có mức")
 NO_MATCH = "Không có bài nào khớp bộ lọc"
@@ -1732,6 +2000,7 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
     if data_dir:
         walk_grading(page, rep, phone, data_dir)
         walk_worksheet(page, rep, phone, data_dir)
+        walk_reports(page, rep, phone, data_dir, base.removesuffix("v3/"))
     walk_bank(page, rep, phone, data_dir, files)
     walk_gear(page, rep, phone)
     walk_theme(page, rep, base)

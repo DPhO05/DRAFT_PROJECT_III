@@ -150,6 +150,26 @@ summary { cursor: pointer; }
 .skill-checks { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); padding: 8px; border-radius: 3px; }
 .skill-checks label { display: flex; gap: 8px; align-items: flex-start; color: var(--ink); }
 
+/* ---------- Báo cáo ---------- */
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.rep-layout { display: grid; gap: 16px; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 900px) { .rep-layout { grid-template-columns: minmax(0, 1fr); } }
+.rep-list { display: flex; flex-direction: column; gap: 4px; }
+.rep-item { text-align: left; border: 1px solid var(--line); background: var(--sheet); border-radius: 3px; padding: 8px 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.rep-item > :first-child { min-width: 0; overflow-wrap: anywhere; }
+.rep-item:hover { border-color: var(--ink-3); }
+.rep-item[aria-current=true] { border-color: var(--accent); background: var(--accent-soft); }
+.rep-doc { background: var(--sheet); border: 1px solid var(--line); border-radius: 3px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-width: 520px) { .rep-doc { padding: 14px; } }
+.rep-doc.is-draft { border: 1.5px dashed var(--warn-line); }
+.rep-doc.is-approved { border: 1.5px solid var(--ok); }
+.sent { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.sent:last-child { border-bottom: 0; }
+.sent .acts { display: flex; gap: 4px; }
+.sent .uncheck-note { grid-column: 1 / -1; }
+.sent-edit { grid-template-columns: minmax(0, 1fr); }
+.rep-text { font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; }
+
 /* ---------- Trợ lý ---------- */
 .eyebrow { font: 600 11.5px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .09em; color: var(--ink-3); }
 .table-wrap { overflow-x: auto; max-width: 100%; border: 1px solid var(--line); border-radius: 3px; background: var(--sheet); }

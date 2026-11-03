@@ -2,8 +2,7 @@
 (function () {
   var NEXT = '<span class="chip chip-info">Sắp có</span>';
   var PAGES = {
-    'hoc-sinh': ['Học sinh', 'Xem từng em tiến bộ ra sao và quản lý danh sách học sinh.'],
-    'bao-cao': ['Báo cáo', 'Làm báo cáo cho phụ huynh theo ngày, tuần hoặc tháng, chỉ từ các buổi đã duyệt.']
+    'hoc-sinh': ['Học sinh', 'Xem từng em tiến bộ ra sao và quản lý danh sách học sinh.']
   };
   var MENU = {
     backup: ['Sao lưu', 'Xem các bản sao lưu, sao lưu ngay và khôi phục khi cần.'],
