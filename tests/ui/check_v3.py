@@ -256,7 +256,191 @@ def backup_restore(page, rep: dict, phone: bool) -> None:
             rep["missing"].append("backup: Khôi phục did not leave a copy of the data it replaced")
 
 
-def walk_gear(page, rep: dict, phone: bool, data: bool) -> None:
+FAKE_KEY = "sk-robot-" + "x" * 30  # only ever typed into the robot's own app, which writes it to <its data>/.env
+KEY_VAR = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
+PROVIDER = {"anthropic": "Anthropic", "openai": "OpenAI"}
+KEY_HINT = {True: "Đã có khoá. Để trống nếu không đổi.", False: "Chưa có khoá: dán khoá người cài gửi."}
+SAVED_SETTINGS = "Đã lưu cài đặt."
+BAD_KEY = "Khoá không đúng dạng"
+JS_SET_FORM = """() => ({
+  nums: ['set-n', 'set-norep', 'set-budget'].map(id => {
+    const i = document.getElementById(id); return [i.type, i.min, i.max, i.value]; }),
+  keys: [...document.querySelectorAll('#modal-body input[type=password]')].map(i => [i.id, i.autocomplete, i.value]),
+})"""
+JS_TEXT_HAS = "([id, t]) => document.getElementById(id).innerText.includes(t)"
+JS_NOKEY_ON = "() => { const n = document.getElementById('nokey'); return !!n && !n.hidden; }"
+JS_PUT_BAD = """p => fetch('/api/settings/key', {
+  method: 'PUT', headers: { 'X-Tutor': '1', 'Content-Type': 'application/json' },
+  body: JSON.stringify({ provider: p, key: 'sk bad' }) }).then(r => r.text())"""
+
+
+def settings_now(page) -> dict:
+    return page.evaluate("U.api.get('/settings')")
+
+
+def save_settings(page, rep: dict, label: str, fields: dict) -> None:
+    """Type into the boxes and press Lưu cài đặt; the toast says it was saved."""
+    page.evaluate("document.getElementById('toasts').innerHTML = ''")
+    for sel, text in fields.items():
+        page.fill(sel, text)
+    press(page, rep, '[data-act="settings-save"]', f"settings {label}", JS_TOAST_HAS, SAVED_SETTINGS)
+
+
+def reopen_settings(page, rep: dict) -> None:
+    close_overlay(page)
+    press(page, rep, "#gear-btn", "gear")
+    press(page, rep, '[data-sys="settings"]', "gear item settings", JS_ROOT_HAS, "Lưu cài đặt")
+
+
+def modal_text(page) -> str:
+    return page.evaluate("document.getElementById('modal-body')?.innerText ?? ''")
+
+
+def leaks(home: str, shown: str) -> list[str]:
+    """Where FAKE_KEY must not be: the page, settings.json, app.log. Names the places that hold it."""
+    places = {"the page": shown}
+    for name in ("settings.json", "logs/app.log", "logs/llm.jsonl"):
+        f = Path(home, name)
+        places[name] = f.read_text(encoding="utf-8") if f.is_file() else ""
+    return [w for w, text in places.items() if FAKE_KEY in text]
+
+
+def walk_settings(page, rep: dict, phone: bool, home: str | None) -> None:
+    """⚙ Cài đặt: three numbers and one password box per provider in use. With `home` (the app the robot started) it
+    also saves: 6 -> 8 -> 6, 13 refused, a key typed in goes to <home>/.env (0600) and nowhere else."""
+    if not expect(page, rep, JS_ROOT_HAS, "gear settings: the form did not open", "Lưu cài đặt"):
+        return
+    now, form, text = settings_now(page), page.evaluate(JS_SET_FORM), page.inner_text("#modal-body")
+    want = [
+        ["number", "3", "12", str(now["reco"]["n_problems"])],
+        ["number", "0", "120", str(now["reco"]["no_repeat_days"])],
+        ["number", "0", "", str(now["budget_usd_month"])],
+    ]
+    if form["nums"] != want:
+        rep["missing"].append(f"gear settings: the three numbers are {form['nums']}, expected {want}")
+    if [k[0] for k in form["keys"]] != [f"set-key-{p}" for p in now["keys"]] or any(
+        k[1:] != ["off", ""] for k in form["keys"]
+    ):
+        rep["missing"].append(f"gear settings: key boxes are {form['keys']}, API has {now['keys']}")
+    for p, has in now["keys"].items():
+        if f"Khoá {PROVIDER[p]}" not in text or KEY_HINT[has] not in text:
+            rep["missing"].append(f"gear settings: no 'Khoá {PROVIDER[p]}' box with '{KEY_HINT[has]}'")
+    if "Giao diện" in text:
+        rep["missing"].append("gear settings: the theme switch is repeated in Cài đặt (it stays in the ⚙ menu)")
+    if not home:
+        return
+    n0, box = now["reco"]["n_problems"], f"#set-key-{next(iter(now['keys']))}"
+    pv = box.removeprefix("#set-key-")
+    with step(rep, "gear_settings"):  # writes settings.json and <data>/.env, never tutor.db
+        save_settings(page, rep, "6 to 8", {"#set-n": "8"})
+        if settings_now(page)["reco"]["n_problems"] != 8:
+            rep["missing"].append("gear settings: Lưu cài đặt did not save 8 (GET /api/settings)")
+        reopen_settings(page, rep)
+        if page.input_value("#set-n") != "8":
+            rep["missing"].append(f"gear settings: reopened with {page.input_value('#set-n')!r}, expected 8")
+        page.fill("#set-n", "13")
+        press(
+            page, rep, '[data-act="settings-save"]', "settings 13", JS_TEXT_HAS, ["set-n-err", "Nhập số từ 3 đến 12."]
+        )
+        if settings_now(page)["reco"]["n_problems"] != 8:
+            rep["missing"].append("gear settings: 13 was saved")
+        see(page, rep, "gear settings error", phone)
+        save_settings(page, rep, "back to the first value", {"#set-n": str(n0)})  # the next walk drafts sheets of n0
+        if settings_now(page)["reco"]["n_problems"] != n0 or page.inner_text("#set-n-err"):
+            rep["missing"].append(f"gear settings: the number is not back to {n0}, or the error stayed")
+        # a bad key: refused under its box, and the 422 body does not hold it
+        page.fill(box, "sk bad")
+        press(page, rep, '[data-act="settings-save"]', "settings bad key", JS_TEXT_HAS, [f"{box[1:]}-err", BAD_KEY])
+        if "sk bad" in page.evaluate(JS_PUT_BAD, pv):
+            rep["missing"].append("gear settings: the 422 for a bad key holds the key")
+        if settings_now(page)["keys"] != now["keys"]:
+            rep["missing"].append("gear settings: a bad key changed the keys")
+        save_settings(page, rep, "key", {box: FAKE_KEY})
+        after = settings_now(page)
+        if after["keys"] != dict.fromkeys(now["keys"], True) or page.input_value(box) != "":
+            rep["missing"].append(
+                f"gear settings: after the key keys are {after['keys']}, box {page.input_value(box)!r}"
+            )
+        if KEY_HINT[True] not in page.inner_text("#modal-body"):
+            rep["missing"].append("gear settings: the box does not say there is a key now")
+        if placed := leaks(home, page.inner_text("body") + page.evaluate("document.documentElement.outerHTML")):
+            rep["missing"].append(f"gear settings: the key is in {placed}")
+        if FAKE_KEY in json.dumps(after):
+            rep["missing"].append("gear settings: GET /api/settings holds the key")
+        env = Path(home, ".env")
+        lines = [ln for ln in env.read_text(encoding="utf-8").splitlines() if ln.startswith(KEY_VAR[pv])]
+        if lines != [f"{KEY_VAR[pv]}={FAKE_KEY}"] or env.stat().st_mode & 0o777 != 0o600:
+            rep["missing"].append(
+                f"gear settings: .env has {len(lines)} key lines, mode {oct(env.stat().st_mode & 0o777)}"
+            )
+        file = Path(home, "settings.json")
+        if not set(json.loads(file.read_text(encoding="utf-8"))) <= {"reco", "budget_usd_month"}:
+            rep["missing"].append("gear settings: settings.json holds more than the tutor changed")
+
+
+def walk_nokey(page, rep: dict, phone: bool) -> None:
+    """R15: 'Trợ lý chưa có khoá API.' tops the Trợ lý tab only when a provider has no key and the app is not
+    --fake-llm; Mở Cài đặt opens ⚙ Cài đặt, and Lưu cài đặt draws the line again. health and settings are stubbed."""
+    state = {"fake": False, "keys": {"openai": False}}
+
+    def health(route) -> None:
+        r = route.fetch()
+        route.fulfill(response=r, json=r.json() | {"fake_llm": state["fake"]})
+
+    def settings(route) -> None:
+        if route.request.method != "GET":
+            return route.continue_()
+        r = route.fetch()
+        return route.fulfill(response=r, json=r.json() | {"keys": state["keys"]})
+
+    page.route("**/api/health", health)
+    page.route("**/api/settings", settings)
+    try:
+        for fake, keys, shown in (
+            (False, {"openai": False}, True),
+            (False, {"openai": True}, False),
+            (True, {"openai": False}, False),
+            (False, {"anthropic": True, "openai": False}, True),
+            (False, {"openai": False}, True),
+        ):
+            state.update(fake=fake, keys=keys)
+            page.evaluate("location.hash = '#tro-ly'")
+            try:
+                with page.expect_response(lambda r: r.url.endswith("/api/settings"), timeout=3000):
+                    page.reload()
+            except Exception:  # noqa: BLE001
+                rep["missing"].append("nokey: the Trợ lý tab did not ask for /api/settings")
+            page.wait_for_timeout(150)
+            if page.evaluate(JS_NOKEY_ON) != shown:
+                rep["missing"].append(
+                    f"nokey: fake_llm {fake}, keys {keys}: the line should be {'shown' if shown else 'hidden'}"
+                )
+        # the last state shows the line: it is the tab's first child, and its button opens Cài đặt
+        if page.evaluate("document.querySelector('.chat').firstElementChild.id") != "nokey":
+            rep["missing"].append("nokey: the line is not the first thing in the tab")
+        line = page.evaluate("document.getElementById('nokey')?.innerText ?? ''")
+        if "Trợ lý chưa có khoá API." not in line:
+            rep["missing"].append(f"nokey: the line says {line!r}")
+        see(page, rep, "nokey", phone)
+        press(page, rep, '#nokey [data-act="c-keys"]', "nokey Mở Cài đặt", JS_ROOT_HAS, "Lưu cài đặt")
+        if "Khoá OpenAI" not in modal_text(page) or KEY_HINT[False] not in modal_text(page):
+            rep["missing"].append("nokey: Mở Cài đặt did not open the form with a 'Khoá OpenAI' box")
+        state["keys"] = {"openai": True}  # the key is there now: Lưu cài đặt draws the line again
+        press(page, rep, '[data-act="settings-save"]', "nokey Lưu cài đặt", JS_TOAST_HAS, SAVED_SETTINGS)
+        expect(
+            page,
+            rep,
+            "() => !document.getElementById('nokey') || document.getElementById('nokey').hidden",
+            "nokey: the line stayed after Lưu cài đặt",
+        )
+    finally:
+        page.unroute("**/api/health")
+        page.unroute("**/api/settings")
+    close_overlay(page)
+    page.reload()
+
+
+def walk_gear(page, rep: dict, phone: bool, data: bool, home: str | None) -> None:
     keys = page.evaluate("[...document.querySelectorAll('[data-sys]')].map(b => b.dataset.sys)")
     if len(keys) != 4:
         rep["missing"].append(f"gear menu has {len(keys)} items, expected 4")
@@ -267,13 +451,17 @@ def walk_gear(page, rep: dict, phone: bool, data: bool) -> None:
             rep["missing"].append(f"gear menu did not show {key}")
             continue
         press(page, rep, f'[data-sys="{key}"]', f"gear item {key}")
-        if key in ("catalog", "backup"):
+        if key in ("catalog", "backup", "settings"):
             if SOON in page.inner_text("#modal-root"):
                 rep["missing"].append(f"gear {key}: still '{SOON}'")
+            elif how == "Esc" and key == "settings":
+                walk_settings(page, rep, phone, home)
             elif how == "Esc":
                 (walk_catalog if key == "catalog" else walk_backup)(page, rep, phone, data)
             elif key == "backup":
                 expect(page, rep, JS_ROOT_HAS, "gear backup: the list did not open", "Thư mục dữ liệu:")
+            elif key == "settings":
+                expect(page, rep, JS_ROOT_HAS, "gear settings: the form did not open", "Lưu cài đặt")
         elif SOON not in page.inner_text("#modal-root"):
             rep["missing"].append(f"gear {key}: no '{SOON}'")
         see(page, rep, f"gear {key}", phone)
@@ -2991,7 +3179,7 @@ def walk_bank(page, rep: dict, phone: bool, data_dir: str | None, files: tuple[s
         expect(page, rep, JS_NO_MODAL, "bank import: Esc did not close")
 
 
-def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str | None) -> dict:
+def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str | None, home: str | None) -> dict:
     rep = {"viewport": vp_name, "console_errors": [], "page_errors": [], "dead": [], "missing": [], "forbidden": [],
            "overflow": [], "shots": []}  # fmt: skip
     phone = vp is PHONE
@@ -3019,7 +3207,8 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
             walk_chat_report(page, rep, data_dir, base.removesuffix("v3/"))
         walk_students(page, rep, phone, data_dir, base.removesuffix("v3/"), shots)
     walk_bank(page, rep, phone, data_dir, files)
-    walk_gear(page, rep, phone, bool(data_dir))
+    walk_gear(page, rep, phone, bool(data_dir), home)
+    walk_nokey(page, rep, phone)
     walk_theme(page, rep, base)
     page.wait_for_timeout(500)  # late errors
     rep["missing"] += [f"{x}: the request body holds a student name (C-40)" for x in named_bodies(reqs)]
@@ -3161,7 +3350,10 @@ def check(url: str, args: argparse.Namespace) -> int:
         LEDGER.update(dir=data_dir, last=counts(data_dir))
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome")
-        views = [walk(browser, base, n, vp, args.shots, data_dir) for n, vp in (("desktop", DESK), ("phone", PHONE))]
+        home = getattr(url, "data_dir", None)  # set only when the robot started the app: only then may it save settings
+        views = [
+            walk(browser, base, n, vp, args.shots, data_dir, home) for n, vp in (("desktop", DESK), ("phone", PHONE))
+        ]
         if data_dir:
             views.append(walk_restore(browser, base, data_dir))
         browser.close()

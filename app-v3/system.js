@@ -3,7 +3,6 @@
   var NEXT = '<span class="chip chip-info">Sắp có</span>';
   var CLOSE = '<button type="button" class="btn" data-act="modal-close">Đóng</button>';
   var MENU = {
-    settings: ['Cài đặt', 'Chỉnh số bài mỗi phiếu, số ngày không lặp lại bài và ngân sách mỗi tháng.'],
     cost: ['Chi phí tháng', 'Xem chi phí trợ lý trong tháng, chia theo từng việc.']
   };
   var SYS = window.SYS = {};
@@ -100,6 +99,79 @@
         return U.api.send('POST', '/threads/' + encodeURIComponent(id) + '/cancel').catch(function (e) { if (e.status !== 404) throw e; });
       });
     }, Promise.resolve()).then(restore).catch(function () { U.toast('Chưa bỏ được các việc này. Thử lại sau.', 'warn'); });
+  };
+
+  // ---- Cài đặt: three numbers and one box per provider in use. A key goes to the server and no further: no answer holds it ----
+  var PROVIDER = { anthropic: 'Anthropic', openai: 'OpenAI' };
+  var FIELDS = [
+    { id: 'set-n', label: 'Số bài mỗi phiếu (mặc định)', min: 3, max: 12, whole: true,
+      hint: 'Trợ lý chia phiếu thành bài ôn lại, bài vừa sức và một bài thử thách.',
+      read: function (s) { return s.reco.n_problems; }, put: function (c, v) { (c.reco = c.reco || {}).n_problems = v; } },
+    { id: 'set-norep', label: 'Không lặp lại bài em đã làm trong (ngày)', min: 0, max: 120, whole: true,
+      read: function (s) { return s.reco.no_repeat_days; }, put: function (c, v) { (c.reco = c.reco || {}).no_repeat_days = v; } },
+    { id: 'set-budget', label: 'Ngân sách mỗi tháng (USD) — chỉ nhắc, không chặn', min: 0,
+      read: function (s) { return s.budget_usd_month; }, put: function (c, v) { c.budget_usd_month = v; } }
+  ];
+  var cfg = null;  // the last GET / PATCH answer; keys in it are true / false only
+
+  function settingsModal() {
+    var nums = FIELDS.map(function (f) {
+      return '<label class="field"><span>' + f.label + '</span><input type="number" id="' + f.id + '" min="' + f.min + '"' + (f.max != null ? ' max="' + f.max + '"' : '') +
+        ' value="' + U.esc(f.read(cfg)) + '"><span class="small err" id="' + f.id + '-err" role="alert"></span></label>' + (f.hint ? '<p class="small muted">' + f.hint + '</p>' : '');
+    }).join('');
+    var keys = Object.keys(cfg.keys).map(function (p) {
+      var id = 'set-key-' + p;
+      return '<label class="field"><span>Khoá ' + U.esc(PROVIDER[p] || p) + '</span><input type="password" autocomplete="off" spellcheck="false" id="' + id + '">' +
+        '<span class="small muted">' + (cfg.keys[p] ? 'Đã có khoá. Để trống nếu không đổi.' : 'Chưa có khoá: dán khoá người cài gửi.') + '</span>' +
+        '<span class="small err" id="' + id + '-err" role="alert"></span></label>';
+    }).join('');
+    show({ title: 'Cài đặt', body: nums + keys,
+      foot: '<button type="button" class="btn" data-act="modal-close">Thôi</button><button type="button" class="btn btn-primary" data-act="settings-save">Lưu cài đặt</button>' });
+  }
+
+  SYS.settings = function () {
+    U.api.get('/settings').then(function (s) { cfg = s; settingsModal(); })
+      .catch(function () { U.toast('Chưa mở được cài đặt. Thử lại sau.', 'warn'); });
+  };
+
+  function fault(id, text) { document.getElementById(id + '-err').textContent = text; }
+
+  ACT['settings-save'] = function (el) {
+    var changes = {}, bad = false, keys = [];
+    FIELDS.forEach(function (f) {
+      var raw = document.getElementById(f.id).value.trim(), v = Number(raw);
+      fault(f.id, '');
+      if (raw === '' || !isFinite(v) || v < f.min || (f.max != null && v > f.max) || (f.whole && Math.floor(v) !== v)) {
+        fault(f.id, 'Nhập số từ ' + f.min + (f.max != null ? ' đến ' + f.max : ' trở lên') + '.');
+        bad = true;
+      } else if (v !== f.read(cfg)) f.put(changes, v);  // only what changed reaches settings.json
+    });
+    Object.keys(cfg.keys).forEach(function (p) {
+      var v = document.getElementById('set-key-' + p).value.trim();
+      fault('set-key-' + p, '');
+      if (v) keys.push([p, v]);
+    });
+    if (bad) return;
+    el.disabled = true;
+    (Object.keys(changes).length ? U.api.send('PATCH', '/settings', changes).then(function (s) { cfg = s; }) : Promise.resolve()).then(function () {
+      return keys.reduce(function (done, k) {
+        return done.then(function () {
+          return U.api.send('PUT', '/settings/key', { provider: k[0], key: k[1] }).then(function (r) { cfg.keys = r.keys; }, function (e) {
+            e.box = 'set-key-' + k[0];
+            throw e;
+          });
+        });
+      }, Promise.resolve());
+    }).then(function () {
+      U.toast('Đã lưu cài đặt.');
+      settingsModal();  // the key boxes come back empty
+      if (window.CHAT) CHAT.keyNotice();
+    }).catch(function (e) {
+      el.disabled = false;
+      if (e.status === 409) U.toast('File cài đặt bị hỏng, nhờ người cài sửa.', 'warn');
+      else if (e.status === 422 && e.box) fault(e.box, 'Khoá không đúng dạng');
+      else U.toast('Chưa lưu được. Thử lại sau.', 'warn');
+    });
   };
 
   ACT.sys = function (el) {

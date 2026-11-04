@@ -429,13 +429,23 @@
     });
   };
 
+  // ---- no key (R15): without one the assistant only says "Chưa trả lời được"; say why, and where the key goes ----
+  C.keyNotice = function () {
+    return Promise.all([U.api.get('/health'), U.api.get('/settings')]).then(function (r) {
+      var n = $('#nokey');
+      if (n) n.hidden = r[0].fake_llm || !Object.keys(r[1].keys).some(function (p) { return r[1].keys[p] === false; });
+    }, noop);
+  };
+  ACT['c-keys'] = function () { SYS.settings(); };
+
   // ---- tab ----
   TABS['tro-ly'] = {
     render: function (p) {
       panel = p;
       p.innerHTML = '<div class="asst">' +
         '<nav class="convs" aria-label="Các cuộc trò chuyện"><button type="button" class="btn btn-primary" data-act="c-new">+ Mới</button><div class="eyebrow">Đã trò chuyện</div><div class="conv-list" id="conv-list"></div></nav>' +
-        '<div class="chat"><div class="chat-head"><button type="button" class="btn btn-sm" id="conv-toggle" data-act="c-conv-toggle" aria-expanded="false">☰ Hội thoại</button></div>' +
+        '<div class="chat"><div class="nokey" id="nokey" role="status" hidden><span>Trợ lý chưa có khoá API.</span>' + btn('c-keys', 'Mở Cài đặt') + '</div>' +
+        '<div class="chat-head"><button type="button" class="btn btn-sm" id="conv-toggle" data-act="c-conv-toggle" aria-expanded="false">☰ Hội thoại</button></div>' +
         '<div class="chat-scroll"><div class="chat-inner"><div class="remind" id="remind"></div><div class="chat-msgs" id="chat-msgs" aria-live="polite"></div></div></div>' +
         '<div class="composer"><div class="mention-pop" id="mention-pop" role="listbox" aria-label="Chọn học sinh" hidden></div><div class="composer-inner"><div class="row" id="attach-row" hidden></div>' +
         '<div class="composer-row"><button type="button" class="icon-btn" data-act="c-attach" aria-label="Đính kèm bài làm của học sinh" title="Đính kèm bài làm">📎</button>' +
@@ -460,7 +470,7 @@
         var box = ev.target.closest('.ask-grade');
         if (box) box.querySelector('[data-act="c-grade"]').disabled = !box.querySelector('select').value || !box.querySelector('input').value;
       });
-      welcome(); drawRemind(); drawConvs(); loadConvs();
+      welcome(); drawRemind(); drawConvs(); loadConvs(); C.keyNotice();
     },
     onShow: function () { C.refreshPending(); loadConvs(); }
   };

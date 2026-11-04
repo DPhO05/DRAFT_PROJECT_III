@@ -71,6 +71,29 @@ def load_env(path: Path) -> None:
         os.environ.setdefault(key, val)
 
 
+def save_env(path: Path, name: str, value: str) -> None:
+    """Set NAME=value in a .env file, keep every other line; the file is 0600 from its first byte.
+
+    The value never goes into an exception message."""
+    if "\n" in value or "\r" in value:
+        raise ValueError("giá trị không được xuống dòng")
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        lines = []
+    keep = [ln for ln in lines if ln.strip().removeprefix("export ").partition("=")[0].strip() != name]
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            os.fchmod(f.fileno(), 0o600)  # a leftover temp file keeps the mode it was made with
+            f.write("".join(f"{ln}\n" for ln in [*keep, f"{name}={value}"]))
+        os.replace(tmp, path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
 class SettingsError(Exception):
     """settings.json exists but cannot be read."""
 
@@ -106,6 +129,18 @@ def save(path: Path, settings: dict) -> None:
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(tmp, path)
+
+
+def patch(path: Path, changes: dict) -> dict:
+    """Write `changes` over the file's own JSON, not over the defaults (later default changes still apply)."""
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except (OSError, ValueError) as e:
+        raise SettingsError(f"{path}: {e}") from e
+    if not isinstance(raw, dict):
+        raise SettingsError(f"{path}: không phải object JSON")
+    save(path, _merge(raw, changes))
+    return load(path)
 
 
 @dataclass(frozen=True)

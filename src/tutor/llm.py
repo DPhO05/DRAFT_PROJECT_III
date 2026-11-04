@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import re
 import threading
 import time
@@ -14,8 +15,6 @@ from pathlib import Path
 from typing import Protocol
 
 from pydantic import BaseModel, ValidationError
-
-from tutor import config
 
 OPEN = "<<<BÀI LÀM HỌC SINH (UNTRUSTED INPUT)>>>"
 CLOSE = "<<<HẾT BÀI LÀM HỌC SINH>>>"
@@ -314,7 +313,7 @@ class OpenAIBackend:
         try:
             self.client = client or openai.OpenAI(max_retries=0)  # retries are counted here (§8.4), not twice
         except openai.OpenAIError:
-            raise LLMUnavailable(f"Thiếu OPENAI_API_KEY: thêm vào {config.ENV_FILE.resolve()} rồi mở lại app") from None
+            raise LLMUnavailable("Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại") from None
 
     def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply:
         with _openai_errors():
@@ -356,6 +355,7 @@ class OpenAIBackend:
 
 
 PROVIDERS: dict[str, Callable[[], Backend]] = {"anthropic": AnthropicBackend, "openai": OpenAIBackend}
+KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
 _backend: Backend | None = None  # test / --fake-llm override: wins over every provider
 _live: dict[str, Backend] = {}  # real backends, built on first use, one per provider
 _log_path: Path | None = None
@@ -367,6 +367,23 @@ _last_result = "unknown"
 def configure(log_path: Path, models: dict[str, str]) -> None:
     global _log_path, _models
     _log_path, _models = log_path, dict(models)
+
+
+def providers(models: dict[str, str]) -> list[str]:
+    """Providers the models setting uses, sorted; a value with an unknown prefix is skipped."""
+    out = set()
+    for setting in models.values():
+        try:
+            out.add(split_model(setting)[0])
+        except ValueError:
+            pass
+    return sorted(out)
+
+
+def use_key(provider: str, key: str) -> None:
+    """Take effect now: the next call builds a new backend with `key` (a test's fake backend stays)."""
+    os.environ[KEY_ENV[provider]] = key
+    _live.pop(provider, None)
 
 
 def set_backend(backend: Backend | None) -> None:

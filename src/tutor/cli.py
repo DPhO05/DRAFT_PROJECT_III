@@ -66,6 +66,7 @@ def app_cmd(
 ) -> None:
     """Mở app ở http://127.0.0.1:<cổng>."""
     paths = config.paths(data_dir)
+    config.load_env(paths.root / ".env")  # after the cwd .env (_root): a variable already set wins
     paths.root.mkdir(parents=True, exist_ok=True)
     try:
         port = port or config.load(paths.settings)["app"]["port"]
@@ -124,6 +125,7 @@ def _hold_lock(paths: config.DataPaths, init: bool = True) -> FileLock:
 
 def _runner(paths: config.DataPaths, fake_llm: bool) -> Runner:
     """The same graphs and hooks the app's runner has, inside this command's process."""
+    config.load_env(paths.root / ".env")
     try:
         settings = config.load(paths.settings)
     except config.SettingsError:

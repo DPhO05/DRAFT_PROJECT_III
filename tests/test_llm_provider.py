@@ -1,6 +1,7 @@
 """Model string picks the provider: "openai:<name>" -> OpenAI, no prefix -> Anthropic."""
 
 import json
+import os
 
 import pytest
 from pydantic import BaseModel
@@ -100,3 +101,28 @@ def test_override_wins(setup):
     llm.call("01", ["cố định"], Out, student_work="bài", context=ctx())
     assert [c["model"] for c in fk.calls] == ["gpt-y"]
     assert fa.calls == [] and fo.calls == [] and llm._live == {}
+
+
+def test_providers_from_models():
+    models = {"00": "openai:gpt-5.6-sol", "02": "claude-opus-5-5", "03": "x:y"}
+    assert llm.providers(models) == ["anthropic", "openai"]
+    assert llm.providers({"00": "openai:a", "01": "openai:b"}) == ["openai"]
+
+
+def test_use_key_resets_real_backend_only(setup, monkeypatch):
+    fa, fo, _ = setup({"01": "openai:gpt-y"})
+    monkeypatch.setenv("OPENAI_API_KEY", "")  # records the original so the key set below is undone
+    monkeypatch.delenv("OPENAI_API_KEY")
+    llm._live.update(anthropic=fa, openai=fo)
+    llm.use_key("openai", "sk-test-" + "a" * 30)
+    assert llm._live == {"anthropic": fa} and os.environ["OPENAI_API_KEY"] == "sk-test-" + "a" * 30
+    fk = fake()
+    llm.set_backend(fk)
+    llm.use_key("openai", "sk-test-" + "b" * 30)
+    assert llm._backend is fk and os.environ["OPENAI_API_KEY"] == "sk-test-" + "b" * 30
+
+
+def test_missing_openai_key_points_to_settings():
+    with pytest.raises(llm.LLMUnavailable) as e:
+        llm.OpenAIBackend()
+    assert str(e.value) == "Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại"

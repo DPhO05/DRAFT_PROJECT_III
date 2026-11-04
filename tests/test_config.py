@@ -1,5 +1,6 @@
 import json
 import os
+import stat
 
 import pytest
 
@@ -64,6 +65,51 @@ def test_load_env(tmp_path, monkeypatch, capsys):
     assert os.environ["X_KEEP"] == "old"
     config.load_env(tmp_path / "absent.env")
     assert capsys.readouterr() == ("", "")
+
+
+def test_patch_writes_only_changed_keys(tmp_path):
+    p = tmp_path / "settings.json"
+    got = config.patch(p, {"reco": {"n_problems": 8}})
+    assert json.loads(p.read_text(encoding="utf-8")) == {"reco": {"n_problems": 8}}  # not the merged defaults
+    assert got["reco"]["n_problems"] == 8 and got["models"] == config.defaults()["models"]
+    config.patch(p, {"budget_usd_month": 12})
+    assert json.loads(p.read_text(encoding="utf-8")) == {"reco": {"n_problems": 8}, "budget_usd_month": 12}
+
+
+def test_patch_corrupt_file_raises(tmp_path):
+    p = tmp_path / "settings.json"
+    p.write_text("{oops", encoding="utf-8")
+    with pytest.raises(config.SettingsError):
+        config.patch(p, {"budget_usd_month": 1})
+    assert p.read_text(encoding="utf-8") == "{oops"
+
+
+def test_save_env_keeps_other_lines_and_0600(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "")  # records the original so what load_env sets is undone
+    monkeypatch.delenv("OPENAI_API_KEY")
+    f = tmp_path / ".env"
+    f.write_text("A=1\nexport OPENAI_API_KEY=old\n# OPENAI_API_KEY=note\nOPENAI_API_KEY = older\nB=2", encoding="utf-8")
+    f.chmod(0o644)
+    config.save_env(f, "OPENAI_API_KEY", "sk-test-new")
+    assert f.read_text(encoding="utf-8").splitlines() == [
+        "A=1",
+        "# OPENAI_API_KEY=note",
+        "B=2",
+        "OPENAI_API_KEY=sk-test-new",
+    ]
+    assert stat.S_IMODE(f.stat().st_mode) == 0o600
+    assert not list(tmp_path.glob(".env.*"))  # no temp file left
+    config.load_env(f)
+    assert os.environ["OPENAI_API_KEY"] == "sk-test-new"
+
+
+def test_save_env_creates_file_0600_and_refuses_a_line_break(tmp_path):
+    f = tmp_path / ".env"
+    config.save_env(f, "ANTHROPIC_API_KEY", "sk-test-1")
+    assert f.read_text(encoding="utf-8") == "ANTHROPIC_API_KEY=sk-test-1\n" and stat.S_IMODE(f.stat().st_mode) == 0o600
+    with pytest.raises(ValueError) as e:
+        config.save_env(f, "ANTHROPIC_API_KEY", "sk-test-2\nX=1")
+    assert "sk-test-2" not in str(e.value) and f.read_text(encoding="utf-8") == "ANTHROPIC_API_KEY=sk-test-1\n"
 
 
 def test_student_code():

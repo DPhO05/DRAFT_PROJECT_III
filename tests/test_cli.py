@@ -131,6 +131,39 @@ def test_env_file_read_by_cli(tmp_path, monkeypatch):
     assert os.environ["OPENAI_API_KEY"] == "sk-test" and "sk-test" not in out.output
 
 
+# What `tutor app` and every graph command do at start, run for real in a child: the child then lists which API-key
+# variables it holds (names only, never values), like tests/ui/check.py KEY_PROBE.
+DATA_PROBE = (
+    "import os, sys, uvicorn; from pathlib import Path; from tutor import cli, config; "
+    "uvicorn.run = lambda *a, **k: None; "  # app_cmd builds the app and returns, nothing listens
+    "data = Path(sys.argv[2]); "
+    "{call}; "
+    "print('KEYS', *[k for k in os.environ if k.startswith(('ANTHROPIC', 'OPENAI'))])"
+)
+CALLS = {
+    "app": "cli.app_cmd(port=1, data_dir=data, no_browser=True, fake_llm=True)",
+    "runner": "cli._runner(config.paths(data), True)",
+}
+
+
+@pytest.mark.parametrize("call", CALLS)
+def test_app_reads_data_env(tmp_path, call):
+    data = config.paths(tmp_path / "data").ensure()
+    repo.init_db(data.tutor_db, data.backup)
+
+    def names() -> list[str]:
+        r = subprocess.run([sys.executable, "-c", DATA_PROBE.format(call=CALLS[call]), "-", str(data.root)],
+                           capture_output=True, text=True, timeout=60, **CHILD)  # fmt: skip
+        assert r.returncode == 0, r.stderr[-500:]
+        assert "sk-test-" not in r.stdout + r.stderr
+        return r.stdout.splitlines()[-1].split()[1:]  # app_cmd prints its own line first
+
+    assert names() == []  # control: the child's cwd is empty and its env has no key
+    (data.root / ".env").write_text("OPENAI_API_KEY=sk-test-" + "c" * 30 + "\n", encoding="utf-8")
+    assert names() == ["OPENAI_API_KEY"]
+    assert not (Path(CHILD["cwd"]) / ".env").exists()
+
+
 PROBE = "import os; from tutor import config; config.load_env(config.ENV_FILE); print('OPENAI_API_KEY' in os.environ)"
 
 

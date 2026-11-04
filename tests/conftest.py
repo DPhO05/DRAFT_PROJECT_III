@@ -9,6 +9,9 @@ from tutor.db import repo
 def no_real_llm(monkeypatch, tmp_path):
     """C-34: tests never reach the Anthropic API; an agent call no test expected fails with KeyError."""
     monkeypatch.setattr(config, "ENV_FILE", tmp_path / "absent.env")  # nor read the repo .env
+    for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY"):  # nor the developer's shell
+        monkeypatch.setenv(k, "")  # records the original, so a key a test sets is undone too
+        monkeypatch.delenv(k)
     llm.set_backend(FakeLLM({}))
     monkeypatch.setattr(llm, "_last_result", "unknown")
     monkeypatch.setattr(llm, "_sleep", lambda s: None)
