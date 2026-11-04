@@ -407,7 +407,7 @@
     var body = st === 'writing' ? '<p class="tool-line">Đang viết bản nháp báo cáo…</p>'
       : st === 'saving' ? '<p class="tool-line">Đang lưu…</p>'
       : st === 'saved' ? '<div class="callout callout-ok"><p><b>Đã duyệt</b> báo cáo ' + when + '.</p></div>'
-      : st === 'failed' ? '<div class="callout callout-crit"><p><b>Chưa làm xong bản nháp.</b> Chưa có gì được lưu.</p></div>'
+      : st === 'failed' ? '<div class="callout callout-crit"><p><b>Chưa làm xong bản nháp.</b> Mở tab Báo cáo để thử lại.</p></div>'
       : '<div class="callout callout-warn"><p><b>Bản nháp báo cáo ' + when + ' sẵn sàng</b>' + (c.n_flagged ? ' · ' + U.esc(c.n_flagged) + ' câu cần xem lại' : '') + '</p></div>';
     return '<div class="rcard stack"><p class="small muted">' + U.esc(U.who(c.student_id)) + '</p>' + body +
       '<div class="row">' + btn('c-open', 'Mở trong Báo cáo', 'data-kind="report" data-tid="' + U.esc(tid) + '"') + '</div></div>';
@@ -424,7 +424,9 @@
         was = st;
       }
       return !/^(saved|failed)$/.test(st);
-    }, host);
+    }, host, function () {  // dropped in the Báo cáo tab, or cleaned up elsewhere
+      host.innerHTML = '<div class="empty"><p>Bản nháp này không còn nữa.</p>' + btn('c-tab', 'Sang tab Báo cáo', 'data-tab="bao-cao"') + '</div>';
+    });
   };
 
   // ---- tab ----

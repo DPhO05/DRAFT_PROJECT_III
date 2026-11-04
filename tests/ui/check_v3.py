@@ -1706,7 +1706,18 @@ CHAT_REP_WRITING = "Đang viết bản nháp báo cáo"
 CHAT_REP_GROUP = "Báo cáo nháp"
 CHAT_REP_ROW = f"{PEOPLE[0]} · {REP_WEEK_LABEL} · nháp"
 CHAT_REP_FLAGS = "2 câu cần xem lại"
-CHAT_REP_SAVED, CHAT_REP_FAILED = "Đã duyệt", "Chưa làm xong bản nháp"
+CHAT_REP_SAVED, CHAT_REP_SAVING = "Đã duyệt", "Đang lưu…"
+CHAT_REP_FAILED = "Chưa làm xong bản nháp. Mở tab Báo cáo để thử lại."
+CHAT_REP_GONE, CHAT_REP_TAB = "Bản nháp này không còn nữa.", "Sang tab Báo cáo"
+CHAT_REP_ORDER = ["Bài chờ duyệt", CHAT_REP_GROUP]  # IA-app §2: waiting grading first
+PENDING = "**/api/assistant/pending"
+GRADING_ROW = {
+    "kind": "grading",
+    "thread_id": "g1-hs01-20261022",
+    "student_id": 1,
+    "date": "2026-10-22",
+    "words": "chờ",
+}
 CHAT_REP_OPEN = '.rcard [data-act="c-open"]'
 JS_RC_ANY = "w => [...document.querySelectorAll('#chat-msgs .rcard')].some(c => c.innerText.includes(w))"
 JS_RC_HAS = """([t, w]) => { const c = document.querySelector(`#chat-msgs .card-host[data-thread="${t}"] .rcard`);
@@ -1717,9 +1728,23 @@ JS_RC_MORE = """tid => { const h = document.createElement('div'); h.className = 
 JS_RC_EXTRA = "w => !!document.querySelector('#rc-extra .rcard')?.innerText.includes(w)"
 JS_REMIND_REP = """([g, w]) => [...document.querySelectorAll('#remind .remind-card')]
   .some(c => c.querySelector('h3').innerText.startsWith(g) && c.innerText.includes(w))"""
+JS_REMIND_ORDER = (
+    "() => [...document.querySelectorAll('#remind .remind-card h3')].map(h => h.firstChild.textContent.trim())"
+)
+JS_RC_GONE = """([w, b]) => { const h = document.getElementById('rc-extra');
+  return !!h && h.innerText.includes(w) && !!h.querySelector(`[data-act="c-tab"][data-tab="${b}"]`); }"""
 JS_REMIND_NO = "g => ![...document.querySelectorAll('#remind .remind-card h3')].some(h => h.innerText.startsWith(g))"
 JS_BADGE = """n => { const b = document.getElementById('badge-bao-cao');
   return n === '0' ? b.hidden : !b.hidden && b.textContent === n; }"""
+
+
+def with_grading(route) -> None:
+    """GET /api/assistant/pending with one grading reminder, so both groups show."""
+    r = route.fetch()
+    j = r.json()
+    if not any(i["kind"] == "grading" for i in j["items"]):
+        j["items"].append(GRADING_ROW)
+    route.fulfill(response=r, json=j)
 
 
 @counted()
@@ -1741,6 +1766,12 @@ def chat_rep_make(page, rep: dict, root: str) -> str | None:
         f"chat report: no '{CHAT_REP_GROUP}' reminder '{CHAT_REP_ROW}'",
         [CHAT_REP_GROUP, CHAT_REP_ROW],
     )
+    page.route(PENDING, with_grading)
+    page.evaluate("CHAT.refreshPending()")
+    if (order := [g for g in page.evaluate(JS_REMIND_ORDER) if g in CHAT_REP_ORDER]) != CHAT_REP_ORDER:
+        rep["missing"].append(f"chat report: the reminder groups come as {order}, want {CHAT_REP_ORDER}")
+    page.unroute(PENDING)
+    page.evaluate("CHAT.refreshPending()")
     want = str(api(root, "GET", "/assistant/pending")["counts"]["reports"])
     if want == "0":
         rep["missing"].append("chat report: pending.counts.reports is 0 with a draft waiting")
@@ -1774,9 +1805,9 @@ def chat_rep_open(page, rep: dict, data_dir: str, tid: str) -> None:
 
 @counted()
 def chat_rep_stages(page, rep: dict, reqs: list, tid: str) -> None:
-    """writing, 2 flagged, saved and failed are the card's words; saved and failed end its poll, all keep Mở."""
+    """writing, 2 flagged, saving, saved and failed are the card's words; saved and failed end its poll, all keep Mở."""
     poll = re.compile(rf"/api/threads/{tid}\?view=teacher$")
-    now = {"stage": "writing", "n_flagged": 0}
+    now = {"stage": "saving", "n_flagged": 0}
 
     def serve(route) -> None:
         r = route.fetch()
@@ -1790,6 +1821,16 @@ def chat_rep_stages(page, rep: dict, reqs: list, tid: str) -> None:
 
     page.wait_for_timeout(1600)  # the hidden Báo cáo tab's last poll ends before a 'saved' is served
     page.route(poll, serve)
+    page.evaluate(JS_RC_MORE, tid)  # a card whose first poll is `saving`: no draft was seen yet, so it is still writing
+    expect(page, rep, JS_RC_EXTRA, f"chat report: a first poll at saving lacks '{CHAT_REP_WRITING}'", CHAT_REP_WRITING)
+    now |= {"stage": "draft", "n_flagged": 2}
+    expect(page, rep, JS_RC_EXTRA, f"chat report: stage draft lacks '{CHAT_REP_READY}'", CHAT_REP_READY)
+    now["stage"] = "saving"
+    expect(
+        page, rep, JS_RC_EXTRA, f"chat report: stage saving after a draft lacks '{CHAT_REP_SAVING}'", CHAT_REP_SAVING
+    )
+    page.evaluate("document.getElementById('rc-extra').remove()")
+    now |= {"stage": "writing", "n_flagged": 0}
     card = f'.card-host[data-thread="{tid}"]'
     expect(page, rep, JS_RC_HAS, f"chat report: stage writing lacks '{CHAT_REP_WRITING}'", [tid, CHAT_REP_WRITING])
     keeps_open(card)
@@ -1817,7 +1858,10 @@ def chat_rep_stages(page, rep: dict, reqs: list, tid: str) -> None:
 
 @counted()
 def chat_rep_drop(page, rep: dict, tid: str) -> None:
-    """The reminder's Mở shows the draft; Bỏ bản nháp there takes the reminder row and the badge away."""
+    """The reminder's Mở shows the draft; Bỏ bản nháp there takes the reminder row and the badge away, and a card
+    still following the draft says it is gone and points to the Báo cáo tab."""
+    page.evaluate(JS_RC_MORE, tid)
+    expect(page, rep, JS_RC_EXTRA, f"chat report: the second card lacks '{CHAT_REP_READY}'", CHAT_REP_READY)
     press(
         page,
         rep,
@@ -1837,6 +1881,13 @@ def chat_rep_drop(page, rep: dict, tid: str) -> None:
         CHAT_REP_GROUP,
     )
     expect(page, rep, JS_BADGE, "chat report: the Báo cáo badge stayed after Bỏ bản nháp", "0")
+    gone = [CHAT_REP_GONE, "bao-cao"]
+    if expect(page, rep, JS_RC_GONE, f"chat report: the card lacks '{CHAT_REP_GONE}' and a Báo cáo tab button", gone):
+        if CHAT_REP_TAB not in page.inner_text("#rc-extra"):
+            rep["missing"].append(f"chat report: the button is not called '{CHAT_REP_TAB}'")
+        press(page, rep, '#rc-extra [data-act="c-tab"]', "chat report Sang tab Báo cáo", JS_TAB, "bao-cao")
+        press(page, rep, "#tab-tro-ly", "tab tro-ly")
+    page.evaluate("document.getElementById('rc-extra').remove()")
 
 
 def walk_chat_report(page, rep: dict, data_dir: str, root: str) -> None:
