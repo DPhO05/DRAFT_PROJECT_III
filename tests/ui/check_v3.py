@@ -465,6 +465,73 @@ def walk_nokey(page, rep: dict, phone: bool) -> None:
     page.reload()
 
 
+GEAR_OPENS = {"backup": "Sao lưu ngay", "catalog": "Loại lỗi", "settings": "Lưu cài đặt", "cost": "USD"}
+COST_API = "**/api/logs/cost*"
+COST_LABELS = ["Chấm bài", "Trợ lý", "Báo cáo", "Khác"]
+COST_LINE = re.compile(r"Khoảng (\d+),(\d+) USD trên (\S+) USD \(giả định\)")
+COST_ROW = re.compile(r"(\d+),(\d+) USD")
+NEAR = "Đã dùng hơn 80 % ngân sách tháng."
+OVER = "Đã vượt ngân sách tháng. App vẫn chạy bình thường."
+JS_BAR = """() => { const b = document.querySelector('#modal-body [role=progressbar]');
+  return b && [Number(b.getAttribute('aria-valuenow')), b.firstElementChild.style.width]; }"""
+JS_TOAST_N = "t => [...document.querySelectorAll('#toasts .toast')].filter(x => x.innerText.includes(t)).length"
+JS_SOON_IN_SCRIPTS = """s => Promise.all([...document.scripts].filter(x => x.src.startsWith(location.origin)).map(
+  x => fetch(x.src).then(r => r.text()).then(t => t.includes(s) ? x.src : null))).then(r => r.filter(Boolean))"""
+
+
+def walk_cost(page, rep: dict, phone: bool) -> None:
+    """⚙ Chi phí tháng: the sentence with the USD total and budget, a % bar, one row per task; no per-call figures."""
+    c = page.evaluate("U.api.get('/logs/cost')")
+    text, rows = modal_text(page), page.evaluate(JS_BK_ROWS)
+    m = COST_LINE.search(text)
+    if not m or m[3] != str(c["budget_usd"]).replace(".", ",") or abs(float(f"{m[1]}.{m[2]}") - c["total_usd"]) > 0.05:
+        rep["missing"].append(
+            f"gear cost: no 'Khoảng … USD trên {c['budget_usd']} USD (giả định)' for {c['total_usd']}"
+        )
+    got = [(r[0], COST_ROW.fullmatch(r[1])) for r in rows]
+    if [g[0] for g in got] != COST_LABELS or not all(g[1] for g in got):
+        rep["missing"].append(f"gear cost: the table shows {rows}, expected {COST_LABELS} with USD")
+    elif any(abs(float(f"{g[1][1]}.{g[1][2]}") - p["usd"]) > 0.05 for g, p in zip(got, c["parts"], strict=True)):
+        rep["missing"].append(f"gear cost: the table {rows} does not match the API {c['parts']}")
+    pct = min(100, round(c["pct"] * 100))
+    if page.evaluate(JS_BAR) != [pct, f"{pct}%"]:
+        rep["missing"].append(f"gear cost: the bar is {page.evaluate(JS_BAR)}, expected {pct} %")
+    if (NEAR in text or OVER in text) != bool(c["warning"]):
+        rep["missing"].append(f"gear cost: a warning on screen does not match warning {c['warning']!r}")
+    if re.search(r"lời gọi|calls|phiên|session", text, re.I):
+        rep["missing"].append("gear cost: per-call or per-session wording on screen")
+
+
+def walk_cost_warning(page, rep: dict, phone: bool) -> None:
+    """R14: /api/logs/cost is stubbed with each warning: ⚙ Chi phí says it, and one toast says it when the app opens.
+    A real answer (warning null) opens the app with no toast."""
+    state = {"warn": None}
+
+    def stub(route) -> None:
+        r = route.fetch()
+        route.fulfill(response=r, json=r.json() | {"warning": state["warn"]})
+
+    for warn, words in (("near", NEAR), ("over", OVER)):
+        state["warn"] = warn
+        page.route(COST_API, stub)
+        try:
+            page.reload()
+            if expect(page, rep, JS_TOAST_HAS, f"cost {warn}: no toast when the app opened", words):
+                page.wait_for_timeout(300)
+                if (n := page.evaluate(JS_TOAST_N, words)) != 1:
+                    rep["missing"].append(f"cost {warn}: {n} toasts say it, expected 1")
+            press(page, rep, "#gear-btn", "gear")
+            press(page, rep, '[data-sys="cost"]', f"gear item cost ({warn})", JS_ROOT_HAS, words)
+            see(page, rep, f"gear cost {warn}", phone)
+            close_overlay(page)
+        finally:
+            page.unroute(COST_API)
+    page.reload()
+    page.wait_for_timeout(600)
+    if shown := page.evaluate("document.getElementById('toasts').innerText.trim()"):
+        rep["missing"].append(f"cost: the app opened with a toast {shown!r} and no warning")
+
+
 def walk_gear(page, rep: dict, phone: bool, data: bool, home: str | None) -> None:
     keys = page.evaluate("[...document.querySelectorAll('[data-sys]')].map(b => b.dataset.sys)")
     if len(keys) != 4:
@@ -475,20 +542,15 @@ def walk_gear(page, rep: dict, phone: bool, data: bool, home: str | None) -> Non
         if not page.is_visible(f'[data-sys="{key}"]'):
             rep["missing"].append(f"gear menu did not show {key}")
             continue
-        press(page, rep, f'[data-sys="{key}"]', f"gear item {key}")
-        if key in ("catalog", "backup", "settings"):
-            if SOON in page.inner_text("#modal-root"):
-                rep["missing"].append(f"gear {key}: still '{SOON}'")
-            elif how == "Esc" and key == "settings":
-                walk_settings(page, rep, phone, home)
-            elif how == "Esc":
-                (walk_catalog if key == "catalog" else walk_backup)(page, rep, phone, data)
-            elif key == "backup":
-                expect(page, rep, JS_ROOT_HAS, "gear backup: the list did not open", "Thư mục dữ liệu:")
-            elif key == "settings":
-                expect(page, rep, JS_ROOT_HAS, "gear settings: the form did not open", "Lưu cài đặt")
-        elif SOON not in page.inner_text("#modal-root"):
-            rep["missing"].append(f"gear {key}: no '{SOON}'")
+        press(page, rep, f'[data-sys="{key}"]', f"gear item {key}", JS_ROOT_HAS, GEAR_OPENS[key])
+        if SOON in page.inner_text("#modal-root"):
+            rep["missing"].append(f"gear {key}: still '{SOON}'")
+        elif how == "Esc" and key == "settings":
+            walk_settings(page, rep, phone, home)
+        elif how == "Esc" and key == "cost":
+            walk_cost(page, rep, phone)
+        elif how == "Esc":
+            (walk_catalog if key == "catalog" else walk_backup)(page, rep, phone, data)
         see(page, rep, f"gear {key}", phone)
         if how == "Esc":
             closed = close_overlay(page)
@@ -499,6 +561,9 @@ def walk_gear(page, rep: dict, phone: bool, data: bool, home: str | None) -> Non
             rep["missing"].append(f"{label}: modal did not close")
         elif (focus := page.evaluate("document.activeElement.id")) != "gear-btn":
             rep["missing"].append(f"{label}: focus is on {focus or 'the page'}, not the ⚙ button")
+    if left := page.evaluate(JS_SOON_IN_SCRIPTS, SOON):
+        rep["missing"].append(f"gear: '{SOON}' is still in {left}")
+    walk_cost_warning(page, rep, phone)
     if not data:
         backup_restore(page, rep, phone)
 

@@ -1,10 +1,6 @@
-/* ⚙ menu: SYS[name]() opens each item's modal. Items without a real version yet keep their "Sắp có" placeholder in MENU. */
+/* ⚙ menu: SYS[name]() opens each item's modal. */
 (function () {
-  var NEXT = '<span class="chip chip-info">Sắp có</span>';
   var CLOSE = '<button type="button" class="btn" data-act="modal-close">Đóng</button>';
-  var MENU = {
-    cost: ['Chi phí tháng', 'Xem chi phí trợ lý trong tháng, chia theo từng việc.']
-  };
   var SYS = window.SYS = {};
 
   // the modal returns focus to whatever had it when it opened: always the ⚙ button, even after a slow fetch
@@ -181,10 +177,30 @@
     });
   };
 
+  // ---- Chi phí tháng: total on budget, a bar, four tasks. The server groups the agents; no call, session or code reaches the page ----
+  var WARN = { near: 'Đã dùng hơn 80 % ngân sách tháng.', over: 'Đã vượt ngân sách tháng. App vẫn chạy bình thường.' };
+
+  function usd(n) { return n.toFixed(n && n < 1 ? 2 : 1).replace('.', ','); }
+
+  SYS.cost = function () {
+    U.api.get('/logs/cost').then(function (c) {
+      var m = c.month.split('-'), pct = Math.min(100, Math.round((c.pct || 0) * 100));
+      show({ title: 'Chi phí tháng ' + m[1] + '/' + m[0], body:
+        '<p>Khoảng <b>' + usd(c.total_usd) + ' USD</b>' + (c.budget_usd ? ' trên ' + String(c.budget_usd).replace('.', ',') + ' USD (giả định).' : ' (giả định). Chưa đặt ngân sách tháng.') + '</p>' +
+        (c.budget_usd ? '<div class="cost-bar" role="progressbar" aria-label="Đã dùng của ngân sách tháng" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><div style="width:' + pct + '%"></div></div>' : '') +
+        (WARN[c.warning] ? '<p class="cost-warn" role="status">' + WARN[c.warning] + '</p>' : '') +
+        '<div class="table-wrap"><table class="tbl"><thead><tr><th>Việc</th><th class="al-right">Khoảng</th></tr></thead><tbody>' +
+        c.parts.map(function (p) { return '<tr><td>' + U.esc(p.label) + '</td><td class="al-right">' + usd(p.usd) + ' USD</td></tr>'; }).join('') + '</tbody></table></div>',
+        foot: CLOSE });
+    }).catch(function () { U.toast('Chưa mở được chi phí. Thử lại sau.', 'warn'); });
+  };
+
+  // R14: one reminder when the app opens; a failed read says nothing
+  U.api.get('/logs/cost').then(function (c) { if (WARN[c.warning]) U.toast(WARN[c.warning], 'warn'); }, function () {});
+
   ACT.sys = function (el) {
-    var k = el.dataset.sys, m = MENU[k];
     U.closeGear();
     document.getElementById('gear-btn').focus();
-    if (SYS[k]) SYS[k](); else show({ title: m[0], body: NEXT + '<p>' + m[1] + '</p>', foot: CLOSE });
+    SYS[el.dataset.sys]();
   };
 })();

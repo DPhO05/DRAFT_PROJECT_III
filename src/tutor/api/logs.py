@@ -9,6 +9,7 @@ from tutor.llm import cost, iter_log
 
 router = APIRouter(prefix="/api/logs")
 Month = Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}$")]
+PARTS = (("Chấm bài", {"01", "02", "03", "04"}), ("Trợ lý", {"00"}), ("Báo cáo", {"09"}))
 
 
 def _src(request: Request):
@@ -50,11 +51,18 @@ def month_cost(request: Request, month: Month = None) -> dict:
     month = month or datetime.now(UTC).strftime("%Y-%m")  # ts in llm.jsonl is UTC
     c = cost(path, s["price_assumption"], month=month, by_model=s["price_by_model"])
     budget = s["budget_usd_month"]
+    pct = c["total_usd"] / budget if budget else None
+    parts = dict.fromkeys([*(label for label, _ in PARTS), "Khác"], 0.0)
+    for agent, a in c["by_agent"].items():
+        label = next((lb for lb, codes in PARTS if agent in codes), "Khác")
+        parts[label] += a["usd"]
     return {
         "month": month,
         **c,
         "budget_usd": budget,
-        "pct": c["total_usd"] / budget if budget else None,
+        "pct": pct,
+        "warning": None if pct is None or pct < 0.8 else "over" if pct >= 1 else "near",
+        "parts": [{"label": label, "usd": round(usd, 6)} for label, usd in parts.items()],
         "prices": s["price_assumption"],
         "price_by_model": s["price_by_model"],
         "assumption": True,

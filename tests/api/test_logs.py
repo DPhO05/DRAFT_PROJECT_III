@@ -24,6 +24,40 @@ def test_cost_equals_hand_computation(logged, client):
     assert set(c["by_agent"]) == {"01", "02", "03"} and len(c["by_session"]) == 2
 
 
+LABELS = ["Chấm bài", "Trợ lý", "Báo cáo", "Khác"]
+
+
+def test_cost_parts_sum_to_total(logged, client):
+    c = client.get("/api/logs/cost?month=2026-10").json()
+    assert [p["label"] for p in c["parts"]] == LABELS
+    assert sum(p["usd"] for p in c["parts"]) == pytest.approx(c["total_usd"], abs=1e-6)
+    assert c["parts"][0]["usd"] == c["total_usd"]  # fixture holds only agents 01-03
+
+
+def test_cost_parts_group_agents(paths, client):
+    rows = [{"agent": a, "ts": "2026-11-01T08:00:00Z", "input_tokens": 10**6} for a in ("04", "00", "09", "05", None)]
+    (paths.logs / "llm.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    c = client.get("/api/logs/cost?month=2026-11").json()
+    assert [(p["label"], p["usd"]) for p in c["parts"]] == [
+        ("Chấm bài", 5),
+        ("Trợ lý", 5),
+        ("Báo cáo", 5),
+        ("Khác", 10),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("usd", "budget", "warning"),
+    [(23.99, 30, None), (24, 30, "near"), (30, 30, "over"), (5, 0, None)],
+)
+def test_cost_warning_thresholds(paths, app, client, usd, budget, warning):
+    app.state.settings["budget_usd_month"] = budget
+    row = {"ts": "2026-11-01T08:00:00Z", "input_tokens": round(usd / 5 * 1e6)}  # input price is 5 USD per Mtok
+    (paths.logs / "llm.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    c = client.get("/api/logs/cost?month=2026-11").json()
+    assert c["total_usd"] == usd and c["warning"] == warning
+
+
 def test_cost_by_model(paths, client):
     tok = {"input_tokens": 1000, "output_tokens": 200, "cache_read_tokens": 2000}
     rows = [
