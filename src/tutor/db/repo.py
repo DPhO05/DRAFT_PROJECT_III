@@ -41,6 +41,13 @@ class BackupCorrupt(ValueError):
         super().__init__("Bản sao lưu này bị hỏng, không khôi phục được.")
 
 
+class BackupTooNew(ValueError):
+    """The backup was written by a newer app than this one (422): restoring it would leave a DB this app cannot read."""
+
+    def __init__(self):
+        super().__init__("Bản sao lưu này của bản app mới hơn, cập nhật app trước.")
+
+
 class RestoreFailed(Exception):
     """Restore failed after tutor.db was touched; `safety` holds the data from before it (500 restore_failed)."""
 
@@ -225,7 +232,7 @@ def _prune(backup_dir: Path, keep_recent: int, keep_monthly: bool) -> None:
 
 
 def read_backup(backup_dir: Path, name: str) -> sqlite3.Connection:
-    """Backup `name` loaded into memory (caller closes it). NotFound for a bad name, BackupCorrupt if unreadable."""
+    """Backup `name` loaded into memory (caller closes it). NotFound, BackupCorrupt or BackupTooNew when unusable."""
     src = backup_dir / name
     if not _BACKUP_RE.fullmatch(name) or not src.is_file():
         raise NotFound(f"Bản sao lưu {name}")
@@ -239,6 +246,9 @@ def read_backup(backup_dir: Path, name: str) -> sqlite3.Connection:
     except (sqlite3.DatabaseError, BackupCorrupt) as e:
         mem.close()
         raise BackupCorrupt from e
+    if schema_version(mem) > latest_version():
+        mem.close()
+        raise BackupTooNew
     return mem
 
 

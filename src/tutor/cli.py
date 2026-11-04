@@ -693,7 +693,7 @@ def restore_cmd(
         except repo.NotFound:
             typer.echo(f"Không có bản sao lưu {name} trong {paths.backup}")
             raise typer.Exit(1) from None
-        except (repo.BackupCorrupt, repo.RestoreFailed) as e:
+        except (repo.BackupCorrupt, repo.BackupTooNew, repo.RestoreFailed) as e:
             typer.echo(str(e))
             raise typer.Exit(1) from None
         except threads.Unfinished as e:

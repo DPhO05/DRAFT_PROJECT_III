@@ -510,3 +510,14 @@ def test_restore_cli_failure_names_the_safety_file(paths, conn, monkeypatch):
     safety = next(p.name for p in paths.backup.iterdir() if p != b)
     assert r.exit_code == 1 and safety in r.output and "Traceback" not in r.output
     assert repo.row_counts(conn)["student"] == 2
+
+
+def test_restore_cli_refuses_a_backup_of_a_newer_app(paths, conn):
+    repo.add_student(conn, name="An", grade=8)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    with closing(sqlite3.connect(b)) as c:
+        c.execute(f"PRAGMA user_version = {repo.latest_version() + 1}")
+    db_bytes = paths.tutor_db.read_bytes()
+    r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and r.output.strip() == "Bản sao lưu này của bản app mới hơn, cập nhật app trước."
+    assert paths.tutor_db.read_bytes() == db_bytes and list(paths.backup.iterdir()) == [b]

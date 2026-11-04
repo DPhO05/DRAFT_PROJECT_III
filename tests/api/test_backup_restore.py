@@ -79,3 +79,16 @@ def test_failure_after_the_copy_is_500_naming_the_safety_file(paths, client, mon
     assert r.status_code == 500 and r.json()["error"]["code"] == "restore_failed"
     assert safety in r.json()["error"]["message"]
     assert len(client.get("/api/students").json()) == 2  # the data is back as it was
+
+
+def test_backup_of_a_newer_app_is_422_and_nothing_moves(paths, client):
+    student(client, "Lê An")
+    made = client.post("/api/backup", headers=W).json()
+    with closing(sqlite3.connect(paths.backup / made["path"])) as c:
+        c.execute(f"PRAGMA user_version = {repo.latest_version() + 1}")
+    db_bytes = paths.tutor_db.read_bytes()
+    r = client.post("/api/backup/restore", json={"name": made["path"]}, headers=W)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "validation_error"
+    assert r.json()["error"]["message"] == "Bản sao lưu này của bản app mới hơn, cập nhật app trước."
+    assert paths.tutor_db.read_bytes() == db_bytes
+    assert [p.name for p in paths.backup.iterdir()] == [made["path"]]

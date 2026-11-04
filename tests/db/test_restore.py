@@ -151,3 +151,20 @@ def test_failure_after_the_copy_puts_the_data_back(paths, conn, monkeypatch):
     assert safety.name in str(e.value) and e.value.safety == safety.name
     assert repo.row_counts(conn) == before == counts_of(safety)
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+
+
+def bump_version(path):
+    with closing(sqlite3.connect(path)) as c:
+        c.execute(f"PRAGMA user_version = {repo.latest_version() + 1}")
+
+
+def test_backup_of_a_newer_app_is_refused_before_anything_moves(paths, conn):
+    students(conn, 1)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    bump_version(b)
+    students(conn, 1)
+    before, db_bytes = repo.row_counts(conn), paths.tutor_db.read_bytes()
+    with pytest.raises(repo.BackupTooNew, match="Bản sao lưu này của bản app mới hơn, cập nhật app trước."):
+        repo.restore(paths.tutor_db, paths.backup, b.name)
+    assert paths.tutor_db.read_bytes() == db_bytes and repo.row_counts(conn) == before
+    assert list(paths.backup.iterdir()) == [b]  # no safety backup
