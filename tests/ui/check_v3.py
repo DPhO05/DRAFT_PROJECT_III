@@ -2184,12 +2184,15 @@ def stu_progress(page, rep: dict, data_dir: str, phone: bool, sid: int, name: st
     if not page.evaluate(JS_STU_FIT):
         rep["missing"].append("students chart: the drawing is wider than its box")
     press(page, rep, '[data-act="st-table"]', "students Xem dạng bảng", JS_STU_TABLE)
-    if first[8:] + "/" + first[5:7] + "/" + first[:4] not in page.inner_text(
-        "#st-chart"
-    ) or "Xem biểu đồ" not in page.inner_text("#panel-hoc-sinh"):
-        rep["missing"].append("students chart: the table lacks the date, or the button did not turn into Xem biểu đồ")
+    toggle = page.locator('[data-act="st-table"]')
+    if first[8:] + "/" + first[5:7] + "/" + first[:4] not in page.inner_text("#st-chart"):
+        rep["missing"].append("students chart: the table lacks the first date")
+    if toggle.inner_text().strip() != "Xem dạng bảng" or toggle.get_attribute("aria-pressed") != "true":
+        rep["missing"].append(f"students chart: the toggle says {toggle.inner_text()!r}, want 'Xem dạng bảng' pressed")
     see_stu(page, rep, "students table", phone)
-    press(page, rep, '[data-act="st-table"]', "students Xem biểu đồ", JS_STU_SVG)
+    press(page, rep, '[data-act="st-table"]', "students Xem dạng bảng tắt", JS_STU_SVG)
+    if toggle.inner_text().strip() != "Xem dạng bảng" or toggle.get_attribute("aria-pressed") != "false":
+        rep["missing"].append("students chart: the toggle did not stay 'Xem dạng bảng', not pressed")
     names = page.eval_on_selector_all("#st-chart-skill option", "os => os.map(o => o.textContent)")
     if len(names) < 2 or names[1] not in thetas:
         rep["missing"].append(f"students chart: the skill box lists {names[:3]}, want 'Mức chung' then skill names")

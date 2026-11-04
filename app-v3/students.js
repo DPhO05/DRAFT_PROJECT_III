@@ -92,7 +92,7 @@
       }).join('');
     return sec('Tiến bộ theo thời gian', null, '<label class="field"><span>Xem theo</span><select id="st-chart-skill">' + opts + '</select></label>' +
       '<div class="chart-box" id="st-chart"></div><p class="chart-tip" id="st-tip" aria-live="polite">Rê chuột hoặc Tab vào một điểm để xem mức ở buổi đó.</p>',
-      '<button type="button" class="btn btn-ghost btn-sm" data-act="st-table" aria-pressed="' + asTable + '">' + (asTable ? 'Xem biểu đồ' : 'Xem dạng bảng') + '</button>');
+      '<button type="button" class="btn btn-ghost btn-sm" data-act="st-table" aria-pressed="' + asTable + '">Xem dạng bảng</button>');
   }
   function skillsSec(skills) {
     return sec('Kỹ năng', null, '<div class="lv-groups">' + LEVELS.map(function (l) {
