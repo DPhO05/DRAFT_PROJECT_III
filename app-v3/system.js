@@ -74,6 +74,7 @@
       var d = e.detail || {};
       if (e.status === 409 && d.reason === 'unfinished') return unfinished(d.threads || []);
       if (e.status === 404) { U.toast('Bản sao lưu này không còn nữa.', 'warn'); return SYS.backup(); }
+      if (e.status === 422 || e.code === 'restore_failed') return U.toast(e.message, 'warn');  // the server's own words
       U.toast('Chưa khôi phục được. Thử lại sau.', 'warn');
     });
   }

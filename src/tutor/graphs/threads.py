@@ -104,6 +104,9 @@ def cleanup(runner: Runner) -> dict:
 
 def restore(runner: Runner, paths: DataPaths, name: str) -> dict:
     """Restore backup `name` unless a thread is unfinished (R7, R19), then drop the committed threads' checkpoints."""
+    repo.read_backup(paths.backup, name).close()  # a bad file is refused before the teacher is asked to drop work
+    # shortcut: no lock between this check and the copy (one teacher, one app); a grading started in between loses
+    # its session row. Add a restore lock if the app is ever shared.
     open_ = [{k: t[k] for k in ("thread_id", "graph", "status", "running")} for t in runner.list_threads()
              if t["running"] or t["status"] in ("running", "awaiting_review", "failed")]  # fmt: skip
     if open_:

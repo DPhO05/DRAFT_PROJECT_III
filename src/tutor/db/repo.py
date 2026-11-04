@@ -6,7 +6,7 @@ import json
 import re
 import sqlite3
 from collections.abc import Iterator
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -32,6 +32,21 @@ class MigrationError(Exception):
 
 class NotFound(Exception):
     pass
+
+
+class BackupCorrupt(ValueError):
+    """The chosen backup file cannot be read as a tutor.db (422)."""
+
+    def __init__(self):
+        super().__init__("Bản sao lưu này bị hỏng, không khôi phục được.")
+
+
+class RestoreFailed(Exception):
+    """Restore failed after tutor.db was touched; `safety` holds the data from before it (500 restore_failed)."""
+
+    def __init__(self, safety: str):
+        super().__init__(f"Chưa khôi phục được. Dữ liệu trước khi khôi phục nằm ở {safety}.")
+        self.safety = safety
 
 
 class DuplicateSubmission(Exception):
@@ -179,9 +194,13 @@ def backup(db_path: Path, backup_dir: Path, keep_recent: int = 30, keep_monthly:
     while dst.exists():
         n += 1
         dst = backup_dir / f"{stem}-{n}.db"
-    with closing(connect(db_path)) as src, closing(sqlite3.connect(dst)) as out:
-        src.backup(out)
-        out.execute("PRAGMA journal_mode = DELETE")  # backup = 1 self-contained file
+    try:
+        with closing(connect(db_path)) as src, closing(sqlite3.connect(dst)) as out:
+            src.backup(out)
+            out.execute("PRAGMA journal_mode = DELETE")  # backup = 1 self-contained file
+    except BaseException:
+        dst.unlink(missing_ok=True)  # a failed copy must not stay in the list as a backup
+        raise
     _prune(backup_dir, keep_recent, keep_monthly)
     return dst
 
@@ -205,29 +224,77 @@ def _prune(backup_dir: Path, keep_recent: int, keep_monthly: bool) -> None:
             p.unlink()
 
 
-def restore(db_path: Path, backup_dir: Path, name: str) -> dict:
-    """Put backup `name` back as tutor.db. Caller holds runner.lock and has checked no thread is unfinished (R7).
-
-    The chosen file is read into memory first: the safety backup below runs `_prune`, which may delete that very file.
-    """
+def read_backup(backup_dir: Path, name: str) -> sqlite3.Connection:
+    """Backup `name` loaded into memory (caller closes it). NotFound for a bad name, BackupCorrupt if unreadable."""
     src = backup_dir / name
     if not _BACKUP_RE.fullmatch(name) or not src.is_file():
         raise NotFound(f"Bản sao lưu {name}")
-    with closing(sqlite3.connect(":memory:")) as mem:
+    mem = sqlite3.connect(":memory:")
+    try:
         with closing(connect(src, readonly=True)) as f:
             f.backup(mem)
-        safety = backup(db_path, backup_dir)
-        with closing(connect(db_path)) as dst:
-            mem.backup(dst)
-            dst.execute("PRAGMA journal_mode = WAL")  # the copy carries the backup's single-file mode
-    migrate(db_path, backup_dir, backup_first=False)
-    with closing(connect(db_path)) as conn:
-        with write_tx(conn):  # attempts are written only at commit ②, so a session without one has saved nothing
-            dropped = conn.execute(
-                "DELETE FROM session WHERE status <> 'committed'"
-                " AND NOT EXISTS (SELECT 1 FROM attempt WHERE session_id = session.id)"
-            ).rowcount  # fmt: skip
-        rows = sum(row_counts(conn).values())
+        ok = mem.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+        if not ok or mem.execute("SELECT 1 FROM sqlite_master WHERE name = 'student'").fetchone() is None:
+            raise BackupCorrupt
+    except (sqlite3.DatabaseError, BackupCorrupt) as e:
+        mem.close()
+        raise BackupCorrupt from e
+    return mem
+
+
+def _set_aside(db_path: Path, companions: dict[str, bytes]) -> str:
+    """Move an unreadable tutor.db and its -wal / -shm to tutor.db.broken-<time>, a name no prune pattern matches."""
+    stamp, n = f"{datetime.now():%Y%m%d-%H%M%S}", 1
+    kept = db_path.with_name(f"{db_path.name}.broken-{stamp}")
+    while kept.exists():
+        n += 1
+        kept = db_path.with_name(f"{db_path.name}.broken-{stamp}-{n}")
+    if db_path.exists():
+        db_path.rename(kept)
+    for suffix in ("-wal", "-shm"):
+        db_path.with_name(db_path.name + suffix).unlink(missing_ok=True)
+        if suffix in companions:
+            kept.with_name(kept.name + suffix).write_bytes(companions[suffix])
+    return kept.name
+
+
+def _into(dst_path: Path, src: sqlite3.Connection) -> None:
+    with closing(connect(dst_path)) as dst:
+        src.backup(dst)
+        dst.execute("PRAGMA journal_mode = WAL")  # a destination already in WAL keeps it; a new file does not
+
+
+def restore(db_path: Path, backup_dir: Path, name: str) -> dict:
+    """Put backup `name` back as tutor.db. Caller holds runner.lock and has checked no thread is unfinished (R7).
+
+    The chosen file is read into memory first: the safety backup below runs `_prune`, which may delete that very file,
+    and a bad file must fail before anything moves. An unreadable tutor.db cannot be backed up, so it is set aside.
+    """
+    with closing(read_backup(backup_dir, name)) as mem:
+        # closing a connection to an unreadable file deletes its -wal / -shm, so hold their bytes for _set_aside
+        companions = {
+            x: p.read_bytes() for x in ("-wal", "-shm") if (p := db_path.with_name(db_path.name + x)).exists()
+        }
+        try:
+            safety = backup(db_path, backup_dir)
+        except sqlite3.DatabaseError:
+            safety = db_path.with_name(_set_aside(db_path, companions))
+        try:
+            _into(db_path, mem)
+            migrate(db_path, backup_dir, backup_first=False)
+            with closing(connect(db_path)) as conn:
+                with write_tx(conn):  # attempts are written only at commit ②: a session without one saved nothing
+                    dropped = conn.execute(
+                        "DELETE FROM session WHERE status <> 'committed'"
+                        " AND NOT EXISTS (SELECT 1 FROM attempt WHERE session_id = session.id)"
+                    ).rowcount  # fmt: skip
+                rows = sum(row_counts(conn).values())
+        except Exception as e:
+            # shortcut: a set-aside file is not copied back (it was unreadable); the restored copy stays
+            if safety.parent == backup_dir:
+                with suppress(sqlite3.Error), closing(connect(safety, readonly=True)) as f:
+                    _into(db_path, f)
+            raise RestoreFailed(safety.name) from e
     return {"restored": name, "safety_backup": safety.name, "rows": rows, "sessions_dropped": dropped}
 
 

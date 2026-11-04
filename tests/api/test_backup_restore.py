@@ -53,3 +53,29 @@ def test_unfinished_thread_is_409_and_nothing_changes(paths, app, client):
 def test_restore_needs_x_tutor_header(client):
     r = client.post("/api/backup/restore", json={"name": "x.db"})
     assert r.status_code == 403
+
+
+def test_corrupt_backup_is_422_with_words_even_while_work_is_unfinished(paths, app, client):
+    bad = paths.backup / "tutor-2026-10-20-120000.db"
+    bad.write_bytes(b"not a database " * 200)
+    app.state.runner._set("g1-hs01-20261020", create=True, graph="G1", status="awaiting_review", student_id=1)
+    r = client.post("/api/backup/restore", json={"name": bad.name}, headers=W)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "validation_error"
+    assert r.json()["error"]["message"] == "Bản sao lưu này bị hỏng, không khôi phục được."
+    assert list(paths.backup.iterdir()) == [bad]  # asking the teacher to drop work would be for nothing
+
+
+def test_failure_after_the_copy_is_500_naming_the_safety_file(paths, client, monkeypatch):
+    student(client, "Lê An")
+    made = client.post("/api/backup", headers=W).json()
+    student(client, "Võ Bình")
+
+    def boom(*a, **kw):
+        raise repo.MigrationError("004.sql: gài lỗi")
+
+    monkeypatch.setattr(repo, "migrate", boom)
+    r = client.post("/api/backup/restore", json={"name": made["path"]}, headers=W)
+    safety = next(p.name for p in paths.backup.iterdir() if p.name != made["path"])
+    assert r.status_code == 500 and r.json()["error"]["code"] == "restore_failed"
+    assert safety in r.json()["error"]["message"]
+    assert len(client.get("/api/students").json()) == 2  # the data is back as it was

@@ -47,6 +47,7 @@ def install(app: FastAPI) -> None:
         repo.ReportApproved: lambda e: (409, "already_committed", {"report_id": e.report_id,
                                                                     "approved_at": e.approved_at}),
         facts.NotReady: lambda e: (409, "not_ready", e.detail),
+        repo.RestoreFailed: lambda e: (500, "restore_failed", {"safety_backup": e.safety}),
         repo.CatalogError: lambda e: (422, "validation_error", {"cycle": e.cycle} if e.cycle else None),
         ValueError: lambda e: (422, "validation_error", None),
     }  # fmt: skip

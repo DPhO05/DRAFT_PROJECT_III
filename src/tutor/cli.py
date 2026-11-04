@@ -103,8 +103,10 @@ def app_cmd(
 DataDir = Annotated[Path | None, typer.Option(help="Thư mục dữ liệu (mặc định TUTOR_DATA hoặc ./data)")]
 
 
-def _hold_lock(paths: config.DataPaths) -> FileLock:
-    """Graph-running commands need runner.lock; exit 2 when the app (or another command) holds it."""
+def _hold_lock(paths: config.DataPaths, init: bool = True) -> FileLock:
+    """Graph-running commands need runner.lock; exit 2 when the app (or another command) holds it.
+
+    `init=False` leaves tutor.db alone: `tutor restore` must work when it cannot be opened or migrated."""
     paths.root.mkdir(parents=True, exist_ok=True)
     lock = FileLock(paths.runner_lock)
     try:
@@ -115,7 +117,8 @@ def _hold_lock(paths: config.DataPaths) -> FileLock:
         )
         raise typer.Exit(2) from None
     paths.ensure()
-    repo.init_db(paths.tutor_db, paths.backup)
+    if init:
+        repo.init_db(paths.tutor_db, paths.backup)
     return lock
 
 
@@ -682,13 +685,16 @@ def restore_cmd(
 ) -> None:
     """Khôi phục tutor.db từ một bản sao lưu (= ⚙ Sao lưu › Khôi phục). Bản hiện tại được sao lưu trước."""
     paths = config.paths(data_dir)
-    lock = _hold_lock(paths)
+    lock = _hold_lock(paths, init=False)
     try:
         runner = make_runner(paths)
         try:
             out = threads.restore(runner, paths, name)
         except repo.NotFound:
             typer.echo(f"Không có bản sao lưu {name} trong {paths.backup}")
+            raise typer.Exit(1) from None
+        except (repo.BackupCorrupt, repo.RestoreFailed) as e:
+            typer.echo(str(e))
             raise typer.Exit(1) from None
         except threads.Unfinished as e:
             for t in e.threads:

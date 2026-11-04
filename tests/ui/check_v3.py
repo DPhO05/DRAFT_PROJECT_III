@@ -184,6 +184,9 @@ JS_NO_RUNNING = "() => U.api.get('/threads').then(r => !r.some(t => t.running ||
 BK_WHEN = re.compile(r"\d\d/\d\d/\d{4} \d\d:\d\d")
 BK_SIZE = re.compile(r"\d+,\d MB")
 NO_BACKUPS = "Chưa có bản sao lưu."
+RESTORE_API = "**/api/backup/restore"
+CORRUPT = "Bản sao lưu này bị hỏng, không khôi phục được."
+REFUSED = json.dumps({"error": {"code": "validation_error", "message": CORRUPT, "detail": None}})
 UNFINISHED = ("G1", "bài chấm"), ("G4", "phiếu nháp"), ("G2", "lần nạp bài"), ("G5", "báo cáo nháp")
 OPEN_STATES = ("running", "awaiting_review", "failed")
 
@@ -226,14 +229,15 @@ def backup_restore(page, rep: dict, phone: bool) -> None:
             rep["missing"].append(f"backup: Sao lưu ngay added {new}, expected one file")
             return
         see(page, rep, "gear backup", phone)
-        press(
-            page,
-            rep,
-            f'[data-act="backup-restore"][data-name="{new[0]}"]',
-            "backup Khôi phục",
-            JS_ROOT_HAS,
-            "Khôi phục bản sao lưu?",
-        )
+        ask = f'[data-act="backup-restore"][data-name="{new[0]}"]'
+        # a damaged file: the page shows the server's own words and stays where it is
+        page.route(RESTORE_API, lambda r: r.fulfill(status=422, content_type="application/json", body=REFUSED))
+        press(page, rep, ask, "backup Khôi phục (hỏng)", JS_ROOT_HAS, "Khôi phục bản sao lưu?")
+        press(page, rep, '[data-act="confirm-ok"]', "backup Khôi phục (hỏng, hỏi lại)", JS_TOAST_HAS, CORRUPT)
+        page.unroute(RESTORE_API)
+        press(page, rep, "#gear-btn", "gear")
+        press(page, rep, '[data-sys="backup"]', "gear item backup", JS_ROOT_HAS, "Sao lưu ngay")
+        press(page, rep, ask, "backup Khôi phục", JS_ROOT_HAS, "Khôi phục bản sao lưu?")
         if f"Dữ liệu sẽ quay về lúc {backup_when(new[0])}." not in page.inner_text("#modal-body"):
             rep["missing"].append("backup: the question does not name the backup's time")
         page.evaluate("window.__robotLoaded = 1")

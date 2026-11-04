@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import shutil
 import socket
 import sqlite3
 import subprocess
@@ -11,6 +12,7 @@ import tempfile
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -440,3 +442,71 @@ def test_restore_cli_refusals(paths, conn):
     r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
     assert r.exit_code == 1 and "g1-hs01-20261020" in r.output and "Duyệt hoặc huỷ trong app trước" in r.output
     assert list(paths.backup.iterdir()) == [b]  # refused before any safety backup
+
+
+def garbage_over_tutor_db(paths):
+    """A backup with 1 student and 1 unsaved session, then tutor.db, tutor.db-wal and tutor.db-shm overwritten."""
+    repo.init_db(paths.tutor_db, paths.backup)
+    with closing(repo.connect(paths.tutor_db)) as c:
+        repo.add_student(c, name="An", grade=8)
+        sid = repo.commit_session_start(c, student_id=1, held_on="2026-10-20", source_path="s01.tex",
+                                        source_kind="tex", sha256="a" * 64, thread_id="g1-hs01-20261020")  # fmt: skip
+        repo.commit_session_status(c, sid, "awaiting_review")
+    b = repo.backup(paths.tutor_db, paths.backup)
+    for suffix, data in (("", b"not a database " * 2000), ("-wal", b"wal"), ("-shm", b"shm")):
+        paths.tutor_db.with_name(f"tutor.db{suffix}").write_bytes(data)
+    return b
+
+
+def test_restore_cli_recovers_an_unreadable_tutor_db(paths):
+    b = garbage_over_tutor_db(paths)
+    r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
+    assert r.exit_code == 0, r.output
+    kept = next(p for p in paths.root.iterdir() if re.fullmatch(r"tutor\.db\.broken-\d{8}-\d{6}", p.name))
+    assert r.output.strip() == f"Đã khôi phục {b.name} (bản hiện tại: {kept.name})"
+    assert kept.read_bytes() == b"not a database " * 2000
+    assert (kept.with_name(kept.name + "-wal").read_bytes(), kept.with_name(kept.name + "-shm").read_bytes()) == (
+        b"wal", b"shm")  # fmt: skip
+    with closing(repo.connect(paths.tutor_db)) as c:
+        with closing(sqlite3.connect(b)) as src:
+            assert repo.row_counts(c) == repo.row_counts(src) | {"session": 0}
+
+
+def test_restore_cli_old_schema_keeps_the_chosen_backup(tmp_path, paths):
+    old = tmp_path / "old"
+    old.mkdir()
+    for n in ("001", "002"):
+        shutil.copy(repo.MIGRATIONS / f"{n}.sql", old / f"{n}.sql")
+    repo.init_db(paths.tutor_db, paths.backup, old)  # pending migrations: init_db would back up and prune first
+    with closing(repo.connect(paths.tutor_db)) as c:
+        repo.add_student(c, name="An", grade=8)
+    oldest = repo.backup(paths.tutor_db, paths.backup).rename(paths.backup / "tutor-2020-01-01-000000.db")
+    for day in range(2, 32):
+        shutil.copy(oldest, paths.backup / f"tutor-2020-01-{day:02d}-000000.db")
+    r = CliRunner().invoke(cli.cli, ["restore", oldest.name, "--data-dir", str(paths.root)])
+    assert r.exit_code == 0, r.output
+    with closing(repo.connect(paths.tutor_db)) as c:
+        assert repo.schema_version(c) == repo.latest_version() and repo.row_counts(c)["student"] == 1
+
+
+def test_restore_cli_corrupt_backup_says_so(paths, conn):
+    bad = paths.backup / "tutor-2026-10-20-120000.db"
+    bad.write_bytes(b"not a database " * 200)
+    r = CliRunner().invoke(cli.cli, ["restore", bad.name, "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and "Bản sao lưu này bị hỏng, không khôi phục được." in r.output
+    assert "Traceback" not in r.output and list(paths.backup.iterdir()) == [bad]
+
+
+def test_restore_cli_failure_names_the_safety_file(paths, conn, monkeypatch):
+    repo.add_student(conn, name="An", grade=8)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    repo.add_student(conn, name="Bình", grade=8)
+
+    def boom(*a, **kw):
+        raise repo.MigrationError("004.sql: gài lỗi")
+
+    monkeypatch.setattr(repo, "migrate", boom)
+    r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
+    safety = next(p.name for p in paths.backup.iterdir() if p != b)
+    assert r.exit_code == 1 and safety in r.output and "Traceback" not in r.output
+    assert repo.row_counts(conn)["student"] == 2

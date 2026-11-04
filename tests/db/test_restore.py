@@ -1,5 +1,6 @@
 """P8-T02: repo.restore puts a chosen backup back into tutor.db (R7)."""
 
+import re
 import shutil
 import sqlite3
 from contextlib import closing
@@ -49,8 +50,10 @@ def test_bad_name_is_not_found(paths, conn, name):
 def test_chosen_backup_survives_prune(paths, conn):
     students(conn, 1)
     oldest = repo.backup(paths.tutor_db, paths.backup).rename(paths.backup / "tutor-2020-01-01-000000.db")
-    for day in range(2, 32):  # 31 backups in one month: the 30 newest + the month's newest stay
-        shutil.copy(oldest, paths.backup / f"tutor-2020-01-{day:02d}-000000.db")
+    students(conn, 1)  # the 30 newer copies hold 2 students, the oldest only 1
+    newer = repo.backup(paths.tutor_db, paths.backup).rename(paths.backup / "tutor-2020-01-02-000000.db")
+    for day in range(3, 32):  # 31 backups in one month: the 30 newest + the month's newest stay
+        shutil.copy(newer, paths.backup / f"tutor-2020-01-{day:02d}-000000.db")
     students(conn, 2)
     repo.restore(paths.tutor_db, paths.backup, oldest.name)
     assert not oldest.exists()  # the safety backup's prune took the file we restored from
@@ -94,3 +97,57 @@ def test_wal_kept(paths, conn):
     repo.restore(paths.tutor_db, paths.backup, b.name)
     with closing(repo.connect(paths.tutor_db)) as c:
         assert c.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+
+
+def garbage(path, size=2000):
+    path.write_bytes(b"not a database " * size)
+
+
+@pytest.mark.parametrize("content", [b"not a database " * 200, b""])
+def test_corrupt_backup_fails_before_anything_moves(paths, conn, content):
+    students(conn, 1)
+    bad = paths.backup / "tutor-2026-10-20-120000.db"
+    bad.write_bytes(content)
+    before = repo.row_counts(conn)
+    with pytest.raises(repo.BackupCorrupt, match="Bản sao lưu này bị hỏng, không khôi phục được."):
+        repo.restore(paths.tutor_db, paths.backup, bad.name)
+    assert repo.row_counts(conn) == before and list(paths.backup.iterdir()) == [bad]
+
+
+def test_unreadable_tutor_db_is_set_aside_and_restore_goes_on(paths):
+    repo.init_db(paths.tutor_db, paths.backup)
+    with closing(repo.connect(paths.tutor_db)) as c:
+        students(c, 1)
+        start(c)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    garbage(paths.tutor_db)
+    paths.tutor_db.with_name("tutor.db-wal").write_bytes(b"wal bytes")
+    paths.tutor_db.with_name("tutor.db-shm").write_bytes(b"shm bytes")
+    out = repo.restore(paths.tutor_db, paths.backup, b.name)
+    kept = out["safety_backup"]
+    assert re.fullmatch(r"tutor\.db\.broken-\d{8}-\d{6}", kept) and not repo._BACKUP_RE.match(kept)
+    assert (paths.root / kept).read_bytes() == b"not a database " * 2000
+    assert (paths.root / f"{kept}-wal").read_bytes() == b"wal bytes"
+    assert (paths.root / f"{kept}-shm").read_bytes() == b"shm bytes"
+    assert out["sessions_dropped"] == 1 and list(paths.backup.iterdir()) == [b]  # no half-written "backup" either
+    with closing(repo.connect(paths.tutor_db)) as c:
+        assert repo.row_counts(c) == counts_of(b) | {"session": 0}
+        assert c.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+
+
+def test_failure_after_the_copy_puts_the_data_back(paths, conn, monkeypatch):
+    students(conn, 1)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    students(conn, 2)
+    before = repo.row_counts(conn)
+
+    def boom(*a, **kw):
+        raise repo.MigrationError("004.sql: gài lỗi")
+
+    monkeypatch.setattr(repo, "migrate", boom)
+    with pytest.raises(repo.RestoreFailed) as e:
+        repo.restore(paths.tutor_db, paths.backup, b.name)
+    safety = next(p for p in paths.backup.iterdir() if p != b)
+    assert safety.name in str(e.value) and e.value.safety == safety.name
+    assert repo.row_counts(conn) == before == counts_of(safety)
+    assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
