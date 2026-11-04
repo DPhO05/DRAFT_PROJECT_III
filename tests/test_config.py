@@ -84,9 +84,7 @@ def test_patch_corrupt_file_raises(tmp_path):
     assert p.read_text(encoding="utf-8") == "{oops"
 
 
-def test_save_env_keeps_other_lines_and_0600(tmp_path, monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "")  # records the original so what load_env sets is undone
-    monkeypatch.delenv("OPENAI_API_KEY")
+def test_save_env_keeps_other_lines_and_0600(tmp_path):
     f = tmp_path / ".env"
     f.write_text("A=1\nexport OPENAI_API_KEY=old\n# OPENAI_API_KEY=note\nOPENAI_API_KEY = older\nB=2", encoding="utf-8")
     f.chmod(0o644)
@@ -110,6 +108,42 @@ def test_save_env_creates_file_0600_and_refuses_a_line_break(tmp_path):
     with pytest.raises(ValueError) as e:
         config.save_env(f, "ANTHROPIC_API_KEY", "sk-test-2\nX=1")
     assert "sk-test-2" not in str(e.value) and f.read_text(encoding="utf-8") == "ANTHROPIC_API_KEY=sk-test-1\n"
+
+
+def test_save_env_does_not_follow_a_planted_temp_symlink(tmp_path):
+    victim = tmp_path / "victim"
+    victim.write_text("keep", encoding="utf-8")
+    (tmp_path / ".env.tmp").symlink_to(victim)  # the name an attacker would guess
+    f = tmp_path / ".env"
+    config.save_env(f, "ANTHROPIC_API_KEY", "sk-test-1")
+    assert victim.read_text(encoding="utf-8") == "keep" and (tmp_path / ".env.tmp").is_symlink()
+    assert f.read_text(encoding="utf-8") == "ANTHROPIC_API_KEY=sk-test-1\n" and not f.is_symlink()
+
+
+def test_save_env_removes_its_temp_file_when_the_write_fails(tmp_path, monkeypatch):
+    f = tmp_path / ".env"
+    f.write_text("A=1\n", encoding="utf-8")
+
+    def boom(src, dst):
+        raise OSError("disk full")
+
+    with monkeypatch.context() as m:
+        m.setattr(config.os, "replace", boom)
+        with pytest.raises(OSError, match="disk full"):
+            config.save_env(f, "ANTHROPIC_API_KEY", "sk-test-1")
+    assert f.read_text(encoding="utf-8") == "A=1\n" and not list(tmp_path.glob(".env.*"))
+
+
+def test_save_env_non_utf8_file_is_an_oserror_that_quotes_nothing(tmp_path):
+    f = tmp_path / ".env"
+    f.write_bytes(b"A=\xff\xfe\nOPENAI_API_KEY=old\n")
+    with pytest.raises(OSError) as e:  # a ValueError would reach the teacher as a 422 about the key
+        config.save_env(f, "OPENAI_API_KEY", "sk-test-new")
+    assert not isinstance(e.value, ValueError)
+    assert "sk-test-new" not in str(e.value) and "0xff" not in str(e.value) and "=old" not in str(e.value)
+    # no decode error behind it: Starlette re-raises an exception's __context__ and the log would name the bad byte
+    assert e.value.__cause__ is None and e.value.__context__ is None
+    assert f.read_bytes() == b"A=\xff\xfe\nOPENAI_API_KEY=old\n" and not list(tmp_path.glob(".env.*"))
 
 
 def test_student_code():

@@ -109,10 +109,8 @@ def test_providers_from_models():
     assert llm.providers({"00": "openai:a", "01": "openai:b"}) == ["openai"]
 
 
-def test_use_key_resets_real_backend_only(setup, monkeypatch):
+def test_use_key_resets_real_backend_only(setup):
     fa, fo, _ = setup({"01": "openai:gpt-y"})
-    monkeypatch.setenv("OPENAI_API_KEY", "")  # records the original so the key set below is undone
-    monkeypatch.delenv("OPENAI_API_KEY")
     llm._live.update(anthropic=fa, openai=fo)
     llm.use_key("openai", "sk-test-" + "a" * 30)
     assert llm._live == {"anthropic": fa} and os.environ["OPENAI_API_KEY"] == "sk-test-" + "a" * 30

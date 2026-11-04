@@ -257,6 +257,9 @@ def backup_restore(page, rep: dict, phone: bool) -> None:
 
 
 FAKE_KEY = "sk-robot-" + "x" * 30  # only ever typed into the robot's own app, which writes it to <its data>/.env
+FAKE_KEY2 = "sk-robot-" + "y" * 30  # the key typed while settings.json is broken
+BAD_SETTINGS = "File cài đặt bị hỏng, nhờ người cài sửa."
+KEY_SAVED = "Đã lưu khoá."
 KEY_VAR = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
 PROVIDER = {"anthropic": "Anthropic", "openai": "OpenAI"}
 KEY_HINT = {True: "Đã có khoá. Để trống nếu không đổi.", False: "Chưa có khoá: dán khoá người cài gửi."}
@@ -296,13 +299,13 @@ def modal_text(page) -> str:
     return page.evaluate("document.getElementById('modal-body')?.innerText ?? ''")
 
 
-def leaks(home: str, shown: str) -> list[str]:
-    """Where FAKE_KEY must not be: the page, settings.json, app.log. Names the places that hold it."""
+def leaks(home: str, shown: str, key: str = FAKE_KEY) -> list[str]:
+    """Where `key` must not be: the page, settings.json, app.log. Names the places that hold it."""
     places = {"the page": shown}
     for name in ("settings.json", "logs/app.log", "logs/llm.jsonl"):
         f = Path(home, name)
         places[name] = f.read_text(encoding="utf-8") if f.is_file() else ""
-    return [w for w, text in places.items() if FAKE_KEY in text]
+    return [w for w, text in places.items() if key in text]
 
 
 def walk_settings(page, rep: dict, phone: bool, home: str | None) -> None:
@@ -376,6 +379,28 @@ def walk_settings(page, rep: dict, phone: bool, home: str | None) -> None:
         file = Path(home, "settings.json")
         if not set(json.loads(file.read_text(encoding="utf-8"))) <= {"reco", "budget_usd_month"}:
             rep["missing"].append("gear settings: settings.json holds more than the tutor changed")
+        # settings.json breaks while the app runs: the numbers are refused, the key (it lives in .env) still saves
+        good = file.read_bytes()
+        file.write_bytes(b"{oops")
+        try:
+            reopen_settings(page, rep)
+            page.evaluate("document.getElementById('toasts').innerHTML = ''")
+            page.fill("#set-n", "7")
+            page.fill(box, FAKE_KEY2)
+            press(page, rep, '[data-act="settings-save"]', "settings broken file and key", JS_TOAST_HAS, KEY_SAVED)
+            if not page.evaluate(JS_TOAST_HAS, BAD_SETTINGS):
+                rep["missing"].append("gear settings: no word about the broken file next to the saved key")
+            lines = [ln for ln in env.read_text(encoding="utf-8").splitlines() if ln.startswith(KEY_VAR[pv])]
+            if lines != [f"{KEY_VAR[pv]}={FAKE_KEY2}"] or page.input_value(box) != "":
+                rep["missing"].append(f"gear settings: broken file: the key did not save ({len(lines)} lines in .env)")
+            if file.read_bytes() != b"{oops" or settings_now(page)["reco"]["n_problems"] != n0:
+                rep["missing"].append("gear settings: broken file: the number or the file changed")
+            if placed := leaks(
+                home, page.inner_text("body") + page.evaluate("document.documentElement.outerHTML"), FAKE_KEY2
+            ):
+                rep["missing"].append(f"gear settings: the second key is in {placed}")
+        finally:
+            file.write_bytes(good)
 
 
 def walk_nokey(page, rep: dict, phone: bool) -> None:

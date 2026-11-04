@@ -112,6 +112,7 @@
     { id: 'set-budget', label: 'Ngân sách mỗi tháng (USD) — chỉ nhắc, không chặn', min: 0,
       read: function (s) { return s.budget_usd_month; }, put: function (c, v) { c.budget_usd_month = v; } }
   ];
+  var BROKEN = 'File cài đặt bị hỏng, nhờ người cài sửa.';
   var cfg = null;  // the last GET / PATCH answer; keys in it are true / false only
 
   function settingsModal() {
@@ -153,7 +154,11 @@
     });
     if (bad) return;
     el.disabled = true;
-    (Object.keys(changes).length ? U.api.send('PATCH', '/settings', changes).then(function (s) { cfg = s; }) : Promise.resolve()).then(function () {
+    var broken = false;  // settings.json is corrupt: the numbers are refused, but a key lives in .env and still saves
+    (Object.keys(changes).length ? U.api.send('PATCH', '/settings', changes).then(function (s) { cfg = s; }, function (e) {
+      if (e.status !== 409) throw e;
+      broken = true;
+    }) : Promise.resolve()).then(function () {
       return keys.reduce(function (done, k) {
         return done.then(function () {
           return U.api.send('PUT', '/settings/key', { provider: k[0], key: k[1] }).then(function (r) { cfg.keys = r.keys; }, function (e) {
@@ -163,13 +168,15 @@
         });
       }, Promise.resolve());
     }).then(function () {
-      U.toast('Đã lưu cài đặt.');
+      if (broken) U.toast(BROKEN, 'warn');
+      if (broken && !keys.length) { el.disabled = false; return; }
+      U.toast(broken ? 'Đã lưu khoá.' : 'Đã lưu cài đặt.');
       settingsModal();  // the key boxes come back empty
       if (window.CHAT) CHAT.keyNotice();
     }).catch(function (e) {
       el.disabled = false;
-      if (e.status === 409) U.toast('File cài đặt bị hỏng, nhờ người cài sửa.', 'warn');
-      else if (e.status === 422 && e.box) fault(e.box, 'Khoá không đúng dạng');
+      if (broken) U.toast(BROKEN, 'warn');
+      if (e.status === 422 && e.box) fault(e.box, 'Khoá không đúng dạng');
       else U.toast('Chưa lưu được. Thử lại sau.', 'warn');
     });
   };

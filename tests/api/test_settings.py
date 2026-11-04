@@ -21,11 +21,7 @@ JSON = W | {"Content-Type": "application/json"}
 
 
 @pytest.fixture(autouse=True)
-def undo_env(monkeypatch):
-    """What use_key puts in os.environ goes away with the test."""
-    for k in llm.KEY_ENV.values():
-        monkeypatch.setenv(k, "")
-        monkeypatch.delenv(k)
+def no_live_backend(monkeypatch):
     monkeypatch.setattr(llm, "_live", {})
 
 
@@ -159,6 +155,29 @@ def test_key_write_failure_leaks_nothing(paths, app):
         r = put(c, {"provider": "anthropic", "key": KEY})
     assert r.status_code == 500 and KEY not in r.text
     assert KEY not in app_log(paths) and not os.environ.get("ANTHROPIC_API_KEY")
+
+
+@pytest.mark.parametrize(
+    ("method", "url", "body"),
+    [("PUT", PUT, {"provider": "anthropic", "key": KEY}), ("PATCH", URL, {"budget_usd_month": 5})],
+)
+def test_writes_need_the_x_tutor_header(paths, client, method, url, body):
+    r = client.request(method, url, json=body)
+    assert r.status_code == 403 and r.json()["error"]["code"] == "forbidden" and KEY not in r.text
+    assert not (paths.root / ".env").exists() and not paths.settings.exists()
+    assert not os.environ.get("ANTHROPIC_API_KEY")
+
+
+def test_unreadable_env_file_is_a_500_that_quotes_nothing(paths, app):
+    env = paths.root / ".env"
+    env.write_bytes(b"A=\xff\xfe\n")  # not UTF-8: a ValueError here would read as "Khoá không đúng dạng"
+    with TestClient(app, base_url=f"http://127.0.0.1:{PORT}", raise_server_exceptions=False) as c:
+        r = put(c, {"provider": "anthropic", "key": KEY})
+    assert r.status_code == 500 and r.json()["error"]["code"] == "internal"
+    assert KEY not in r.text and "0xff" not in r.text and "Khoá không đúng dạng" not in r.text
+    log = app_log(paths)
+    assert KEY not in log and "UnicodeDecodeError" not in log and "0xff" not in log
+    assert env.read_bytes() == b"A=\xff\xfe\n" and not os.environ.get("ANTHROPIC_API_KEY")
 
 
 def test_second_key_takes_effect(paths, client, monkeypatch):

@@ -4,6 +4,7 @@ import copy
 import json
 import os
 import re
+import tempfile
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -74,23 +75,28 @@ def load_env(path: Path) -> None:
 def save_env(path: Path, name: str, value: str) -> None:
     """Set NAME=value in a .env file, keep every other line; the file is 0600 from its first byte.
 
-    The value never goes into an exception message."""
+    The value, and what the file holds, never go into an exception message."""
     if "\n" in value or "\r" in value:
         raise ValueError("giá trị không được xuống dòng")
+    lines = None
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except FileNotFoundError:
         lines = []
+    except UnicodeDecodeError:
+        pass
+    if lines is None:  # raised outside the except: the decode error names a byte of the file, and Starlette re-raises
+        raise OSError(f"{path}: không đọc được (không phải UTF-8)")  # an exception's __context__ into app.log
     keep = [ln for ln in lines if ln.strip().removeprefix("export ").partition("=")[0].strip() != name]
-    tmp = path.with_name(path.name + ".tmp")
+    # mkstemp: a name nobody can guess, created O_EXCL (never follows a planted link), 0600
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".env.")
     try:
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            os.fchmod(f.fileno(), 0o600)  # a leftover temp file keeps the mode it was made with
+            os.fchmod(f.fileno(), 0o600)
             f.write("".join(f"{ln}\n" for ln in [*keep, f"{name}={value}"]))
         os.replace(tmp, path)
-    except OSError:
-        tmp.unlink(missing_ok=True)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
         raise
 
 
