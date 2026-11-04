@@ -1,0 +1,137 @@
+# Hướng dẫn Trợ lý gia sư Toán
+
+Có hai thư mục, đừng nhầm:
+
+- `GiaSuToan-app` là thư mục chương trình, lấy từ file zip.
+- `GiaSuToan` là thư mục dữ liệu, nằm trong thư mục cá nhân của thầy/cô. App tự tạo thư mục này lần đầu.
+- Trong Finder, bấm ⇧⌘H để mở thư mục cá nhân.
+
+## 1. Cài đặt lần đầu
+
+1. Giải nén `GiaSuToan-app.zip`. Kéo thư mục `GiaSuToan-app` vào Tài liệu (Documents).
+2. Bấm đúp file `Mo-tro-ly.command` trong thư mục đó. Cửa sổ Terminal mở ra.
+3. Lần đầu máy cần mạng và chờ vài phút. Đừng đóng cửa sổ Terminal.
+4. Trình duyệt tự mở app. Nếu không, gõ `http://127.0.0.1:8000/` vào thanh địa chỉ.
+5. Bấm chuột phải vào `Mo-tro-ly.command`, chọn **Tạo bí danh** (Make Alias). Kéo bí danh ra Desktop hoặc Dock để lần sau bấm đúp ở đó.
+6. Bấm ⚙ ở góc trên bên phải, chọn **Cài đặt**. Dán khoá người cài gửi vào ô **Khoá Anthropic**, rồi bấm **Lưu cài đặt**. Nếu app ghi tên nhà cung cấp khác, dán vào ô đó.
+7. Hỏi trợ lý một câu để thử. Nếu thấy "Trợ lý chưa có khoá API", bấm **Mở Cài đặt** và làm lại bước 6.
+
+Nếu macOS chặn file lần đầu với chữ "không xác minh được nhà phát triển", làm một trong hai cách:
+
+- Bấm chuột phải vào `Mo-tro-ly.command`, chọn **Mở**, rồi bấm **Mở** lần nữa.
+- Mở Cài đặt hệ thống › Quyền riêng tư & Bảo mật, kéo xuống, bấm **Vẫn mở**. Nhập mật khẩu máy nếu được hỏi.
+
+Nếu Terminal hiện lỗi, chụp màn hình gửi người cài.
+
+## 2. Chấm bài
+
+1. Chép file bài làm vào `GiaSuToan/inbox`. Trợ lý chỉ chấm file LaTeX đánh máy, đuôi `.tex`.
+2. Nên đặt tên file `hsNN-yyyy-mm-dd.tex`, ví dụ `hs01-2026-11-03.tex`. `NN` là số thứ tự của em: em thêm đầu tiên là `01`, em thứ hai là `02`.
+3. Tên khác cũng được. Trợ lý sẽ hỏi em nào, ngày nào.
+4. Mở tab **Trợ lý**, bấm 📎, bấm **Chọn** cạnh file, rồi bấm **Gửi**.
+   Cửa sổ ghi `data/inbox/`. Trên máy này đó là `GiaSuToan/inbox`.
+5. Nếu trợ lý hỏi em và ngày học, chọn xong bấm **Chấm bài này**.
+6. Nếu bài làm không ghi mã bài, chọn bài đúng rồi bấm **Đúng bài này**. Muốn bỏ bài đó, bấm **Bỏ bài này, không chấm**.
+7. Với mỗi lỗi trợ lý tìm ra, bấm **Đúng**, **Sửa** hoặc **Bỏ**.
+8. Đọc phần **Xem trước tiến bộ**, rồi bấm **Lưu kết quả**. Chưa bấm thì chưa có gì được lưu. App tự sao lưu trước khi lưu.
+9. Nộp nhầm file: bấm **Huỷ buổi chấm** trên thẻ chấm bài, trước khi bấm **Lưu kết quả**. Bài làm và các lỗi đã duyệt bị bỏ. Nộp lại file đó được.
+
+## 3. Soạn phiếu
+
+1. Trong tab **Trợ lý**, gõ yêu cầu. Ví dụ: `Gợi ý 6 bài cho @tên em buổi thứ Bảy`. Gõ `@` để chọn em.
+2. Khung **Phiếu nháp** hiện ra. Đổi **Buổi học** nếu cần.
+3. Dùng ↑ và ↓ để đổi thứ tự bài. Dùng × để bỏ bài. Gõ mã bài vào ô rồi bấm **Thêm** để thêm bài.
+4. Bấm **Tạo phiếu**. Chưa bấm thì chưa lưu gì.
+5. Bấm **Tải .tex** hoặc **In PDF**.
+6. Không dùng bản nháp nữa thì bấm **Bỏ phiếu nháp**.
+7. Sau khi lưu kết quả chấm, bấm **Soạn phiếu buổi sau** để soạn phiếu tiếp.
+
+## 4. Báo cáo theo kỳ
+
+1. Mở tab **Báo cáo**.
+2. Chọn em, chọn kỳ **Ngày**, **Tuần** hoặc **Tháng**, rồi chọn buổi, tuần hoặc tháng cụ thể.
+3. Bấm **Tạo báo cáo**. Chờ bản nháp hiện ở mục **Bản nháp chờ duyệt**.
+4. Câu gạch chân vàng cần xem lại. Bấm **Sửa** hoặc **Bỏ** ở câu đó. Bấm **+ Thêm câu** để thêm.
+5. Bấm **Duyệt báo cáo**. Chưa bấm thì chưa lưu vào hồ sơ. Mỗi kỳ của một em chỉ duyệt một lần.
+6. Sau khi duyệt, bấm **Tải PDF** để lấy bản PDF.
+7. Không dùng bản nháp nữa thì bấm **Bỏ bản nháp**.
+
+## 5. Nạp ngân hàng bài
+
+1. Soạn bài trong file `.tex`. Mỗi bài có dạng sau:
+
+   ```
+   % Hằng đẳng thức đáng nhớ, lớp 8
+   \begin{problem}[8DS-HDT-001]
+   % lop: 8
+   % kc_du_kien: 8DS-HDT-01, 8DS-HDT-02
+   % do_kho_du_kien: 1
+   Khai triển $(x + 3)^2$.
+
+   \begin{solution}
+   Áp dụng bình phương của một tổng: $(x + 3)^2 = x^2 + 6x + 9$.
+
+   Đáp số: $\boxed{x^2 + 6x + 9}$
+   \end{solution}
+   \end{problem}
+   ```
+
+2. Dòng đầu file bắt đầu bằng `%` là tên bộ bài, hiện trong danh sách.
+3. Mã bài (`8DS-HDT-001`) không dấu, không trùng, không đổi và không dùng lại.
+4. Mỗi bước lời giải là một đoạn. Các bước cách nhau một dòng trống. Dòng cuối ghi `Đáp số:`.
+5. `kc_du_kien` là mã kỹ năng. Tra mã trong file `GiaSuToan-app/data/dummy/bank/kc.csv`. Cột đầu là mã, cột hai là tên kỹ năng.
+6. `do_kho_du_kien` là số từ 1 đến 5.
+7. Bài thiếu mã bài hoặc thiếu lời giải bị bỏ qua.
+8. Chép file vào `GiaSuToan/inbox/bank`.
+   Cửa sổ trong app ghi `data/inbox/bank/`. Trên máy này đó là thư mục trên.
+9. Mở tab **Ngân hàng bài**, bấm **Nạp bài mới**, rồi bấm **Đọc file**.
+10. Bài có nhãn kỹ năng và mức thì đã sẵn sàng. Bài không nhãn thì chọn kỹ năng, và mức nếu thiếu, ở bước xem trước. Để trống mức thì tính là mức vừa.
+11. Khi hết bài cần chọn, bấm **Lưu vào ngân hàng**.
+
+## 6. Sao lưu và khôi phục
+
+1. App tự sao lưu trước mỗi lần bấm **Lưu kết quả**.
+2. Muốn sao lưu thêm: bấm ⚙, chọn **Sao lưu**, rồi bấm **Sao lưu ngay**.
+3. Muốn quay về một bản: bấm ⚙, chọn **Sao lưu**, bấm **Khôi phục** ở dòng đó, rồi bấm **Khôi phục** để xác nhận. Dữ liệu quay về đúng lúc của bản đó. Bản hiện tại được sao lưu trước.
+4. Nếu app báo còn việc chưa xong, bấm **Bỏ các việc này rồi khôi phục**. Phần đã làm dở trong các việc đó sẽ mất.
+5. Muốn có bản sao đủ ra ổ khác: tắt app, rồi chép cả thư mục `GiaSuToan`.
+6. Thư mục `GiaSuToan` có file khoá `.env` chứa khoá API. Hãy giữ bản chép ở nơi riêng tư và đừng gửi cho ai.
+
+## 7. Tắt app
+
+- Đóng cửa sổ Terminal. Nếu Terminal hỏi có kết thúc không, chọn đồng ý.
+- Đóng cửa sổ trình duyệt thì app vẫn chạy.
+
+## 8. Cập nhật
+
+1. Ở đầu tab **Trợ lý**, mục **Việc đang chờ thầy/cô** không được còn việc nào. Duyệt hoặc bỏ hết các việc đang chờ.
+2. Đóng cửa sổ Terminal để tắt app.
+3. Thay thư mục `GiaSuToan-app` bằng bản mới, cùng tên, cùng chỗ.
+4. Giữ nguyên thư mục `GiaSuToan`. Dữ liệu và khoá nằm ở đó.
+5. Bấm đúp lại `Mo-tro-ly.command`. Nếu macOS chặn, làm lại cách ở mục 1.
+6. App tự nâng cấp dữ liệu và sao lưu trước.
+
+## 9. Dành cho người cài
+
+Tạo gói zip từ thư mục dự án, sau khi đã commit:
+
+```
+git archive --format=zip --prefix=GiaSuToan-app/ -o ~/Desktop/GiaSuToan-app.zip HEAD \
+  Mo-tro-ly.command HUONG-DAN.md pyproject.toml uv.lock .python-version src app \
+  data/dummy/bank/kc.csv data/dummy/bank/kc_prereq.csv
+unzip -l ~/Desktop/GiaSuToan-app.zip
+```
+
+- Lần đầu launcher cài `uv`, Python 3.12 và thư viện, nên máy cần mạng.
+- Launcher đặt dữ liệu ở `~/GiaSuToan`. Biến `TUTOR_DATA` đổi được chỗ này.
+- Khoá lấy theo thứ tự: biến môi trường của shell, rồi file `.env` trong thư mục đang chạy app, rồi file `.env` trong thư mục dữ liệu.
+- Với launcher, thư mục đang chạy app là `GiaSuToan-app`.
+- Hai nguồn đầu thắng khoá lưu trong **Cài đặt**. Trên máy gia sư sạch, hai nguồn đó không có.
+- Khi app không mở được, đóng app rồi khôi phục bằng lệnh. Tên bản sao lưu xem trong `~/GiaSuToan/backup`:
+
+```
+cd ~/Documents/GiaSuToan-app
+TUTOR_DATA="$HOME/GiaSuToan" uv run --frozen --no-dev tutor restore tutor-2026-10-20-093000.db
+```
+
+- Thêm `--drop-unfinished` để bỏ các việc chưa xong. Phần làm dở trong đó sẽ mất.
