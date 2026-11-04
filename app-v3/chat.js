@@ -69,7 +69,7 @@
   ACT['c-tab'] = function (el) { U.tab(el.dataset.tab); };
 
   // ---- polling a thread card (grading.js, worksheet.js) ----
-  C.poll = function (tid, onRow, holder) {
+  C.poll = function (tid, onRow, holder, onGone) {  // onGone: what to do when the thread is not there any more (404); default is the "Việc này đã xong" card
     (function tick() {
       if (!holder.isConnected) return;
       U.api.get('/threads/' + encodeURIComponent(tid) + '?view=teacher').then(function (row) {
@@ -79,8 +79,9 @@
         if (more) setTimeout(tick, 1000);
       }, function (e) {
         if (!holder.isConnected) return;
-        if (e.status === 404) holder.innerHTML = '<div class="empty"><p>Việc này đã xong.</p>' + btn('c-tab', 'Sang tab Học sinh', 'data-tab="hoc-sinh"') + '</div>';
-        else setTimeout(tick, 1000);
+        if (e.status !== 404) setTimeout(tick, 1000);
+        else if (onGone) onGone();
+        else holder.innerHTML = '<div class="empty"><p>Việc này đã xong.</p>' + btn('c-tab', 'Sang tab Học sinh', 'data-tab="hoc-sinh"') + '</div>';
       });
     })();
   };

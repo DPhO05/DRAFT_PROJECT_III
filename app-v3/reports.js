@@ -194,12 +194,7 @@
     if (matchMedia('(max-width: 900px)').matches) box.scrollIntoView({ block: 'start' });
   }
   function path(s, tail) { return '/threads/' + encodeURIComponent(s.tid) + tail; }
-  function poll(s) {  // C.poll writes its "Việc này đã xong" card into the holder on a 404; this holder drops the report instead, so chat.js stays as it is
-    C.poll(s.tid, function (row) { return onRow(s, row); }, {
-      get isConnected() { return s.holder.isConnected; },
-      set innerHTML(v) { gone(s); }
-    });
-  }
+  function poll(s) { C.poll(s.tid, function (row) { return onRow(s, row); }, s.holder, function () { gone(s); }); }
   function gone(s) {  // the thread is not there any more: dropped or cleaned up elsewhere
     if (cur !== s) return;
     cur = null; $('rep-doc').innerHTML = EMPTY;
