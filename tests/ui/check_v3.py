@@ -1615,9 +1615,12 @@ def walk_reports(page, rep: dict, phone: bool, data_dir: str, root: str) -> None
     rep_discard(page, rep, root, reqs, sid, phone)
 
 
-STU_NEW = {"desktop": "Phạm Thu Trang", "phone": "Vũ Quốc Bảo"}  # one student per walk; both walks share one tutor.db
+STU_NEW = {"desktop": "Đặng Thu Trang", "phone": "Vũ Quốc Bảo"}  # one student per walk; both walks share one tutor.db
+STU_FIND = {"desktop": "dang", "phone": "bao"}  # what the tutor types for them: no accents, đ as d
 STU_ONE, STU_ONE_MSG = "Minh", "Nhập đủ họ và tên (ít nhất 2 chữ)"
-STU_NOTE, STU_NOTE2 = "Mới vào lớp", "Học thêm thứ Bảy"
+STU_NOTE, STU_NOTE2 = "Mới vào lớp", "Học <b>thêm</b>"  # the second one is markup the tab must show as text
+XSS_DATE, XSS_LEVEL = "2026-10-<u>20", 'vững"<i>x</i>'  # strings of the API that the tab prints
+TAINT_URL = re.compile(r"/api/(students/\d+/(progress|profile)|sessions\?student=\d+&status=committed)")
 STU_EMPTY = (
     "Chưa có buổi nào đã chấm, chưa vẽ được tiến bộ",
     "Chưa có lỗi nào lặp lại",
@@ -1650,6 +1653,9 @@ JS_STU_FIT = """() => { const b = document.getElementById('st-chart'), s = b.que
   return !s || s.getBoundingClientRect().width <= b.clientWidth + 1; }"""
 JS_MJX = "() => !!document.querySelector('#modal-root mjx-container')"
 JS_ACT = "() => document.activeElement?.dataset?.act || ''"
+JS_FOCUS_ID = "i => document.activeElement?.id === i"
+JS_FOCUS_CARD = """n => !!document.activeElement?.classList.contains('st-name')
+  && document.activeElement.closest('.st-card').innerText.includes(n)"""
 JS_WS_DRAFT = "() => !!(CHAT.worksheetThread && CHAT.worksheetThread())"
 SKILL_THETA = "SELECT k.name, t.theta FROM skill_state t JOIN kc k ON k.id = t.kc_id WHERE t.student_id = ?"
 SHEET_DATES = (
@@ -1759,20 +1765,39 @@ def stu_add(page, rep: dict, data_dir: str, phone: bool, name: str) -> bool:
         rep["missing"].append(f"students add: want 1 new row for {name}, lớp 9, with the note")
     if "Lớp 9" not in page.locator("#st-cards .st-card", has_text=name).inner_text():
         rep["missing"].append("students add: the new card lacks 'Lớp 9'")
+    find = STU_FIND[rep["viewport"]]
+    page.fill("#st-q", find)
+    if page.locator("#st-cards .st-card").count() != 1 or name not in page.inner_text("#st-cards"):
+        rep["missing"].append(f"students add: searching {find!r} should find only {name}")
+    page.fill("#st-q", "")
     see_stu(page, rep, "students added", phone)
-    return True
+    press(page, rep, "#tab-tro-ly", "tab tro-ly")  # the @ list holds the new name once, found without accents
+    page.fill("#chat-input", f"@{find}")
+    expect(page, rep, JS_POP, f"students add: @{find} lists nobody in the chat")
+    if (names := page.locator("#mention-pop .mention-opt b").all_inner_texts()) != [name]:
+        rep["missing"].append(f"students add: chat @{find} lists {names}, want [{name!r}]")
+    page.fill("#chat-input", "")
+    return stu_list(page, rep)
 
 
 @counted(commit=("student",))
-def stu_edit(page, rep: dict, data_dir: str, phone: bool, name: str) -> None:
-    """Sửa: the box holds the name, a new note shows on the card and in the table."""
+def stu_edit(page, rep: dict, data_dir: str, root: str, phone: bool, name: str) -> None:
+    """Sửa keeps a grade the box does not list; the box holds the name; markup in a note stays text on the card."""
+    sid = scalar(data_dir, "SELECT id FROM student WHERE name = ?", name)
+    api(root, "PATCH", f"/students/{sid}", {"grade": 3})  # the server takes 1 to 12, the box lists 6 to 12
+    press(page, rep, "#tab-hoc-sinh", "tab hoc-sinh")
+    expect(page, rep, JS_STU_CARD_HAS, "students edit: the card does not show Lớp 3", [name, "Lớp 3"])
     press(page, rep, f'#st-cards .st-card:has-text("{name}") [data-act="st-edit"]', "students Sửa", JS_MODAL)
-    if page.input_value("#sf-name") != name:
-        rep["missing"].append(f"students edit: the name box holds {page.input_value('#sf-name')!r}, want {name!r}")
+    if page.input_value("#sf-name") != name or page.input_value("#sf-grade") != "3":
+        rep["missing"].append(
+            f"students edit: the box holds {page.input_value('#sf-name')!r}, lớp {page.input_value('#sf-grade')!r}"
+        )
     page.fill("#sf-note", STU_NOTE2)
     press(page, rep, '[data-act="st-save"]', "students Lưu thay đổi", JS_STU_CARD_HAS, [name, STU_NOTE2])
-    if not scalar(data_dir, "SELECT count(*) FROM student WHERE name = ? AND note = ?", name, STU_NOTE2):
-        rep["missing"].append("students edit: the new note is not in tutor.db")
+    if not scalar(data_dir, "SELECT count(*) FROM student WHERE name = ? AND note = ? AND grade = 3", name, STU_NOTE2):
+        rep["missing"].append("students edit: tutor.db lacks the new note, or the grade 3 changed")
+    if page.locator("#st-cards .st-card", has_text=name).locator("b").count():  # no session, so a <b> is the note's
+        rep["missing"].append("students edit: the note became markup on the card")
     see_stu(page, rep, "students edited", phone)
 
 
@@ -1810,6 +1835,7 @@ def stu_archive(page, rep: dict, data_dir: str, root: str, phone: bool, name: st
     press(page, rep, '[data-act="confirm-ok"]', "students đồng ý lưu trữ", JS_STU_ARCH, name)
     if page.locator(card).count() or not scalar(data_dir, gone, name):
         rep["missing"].append("students archive: the card is still in the list, or tutor.db is not archived")
+    expect(page, rep, JS_FOCUS_ID, "students archive: the focus did not go to the search box", "st-q")
     see_stu(page, rep, "students archived", phone)
     press(
         page,
@@ -1821,6 +1847,7 @@ def stu_archive(page, rep: dict, data_dir: str, root: str, phone: bool, name: st
     )
     if scalar(data_dir, gone, name):
         rep["missing"].append("students unarchive: tutor.db still has the student archived")
+    expect(page, rep, JS_FOCUS_CARD, "students unarchive: the focus is not on the name of the restored card", name)
     # the chat's @ list and the next walk want only PEOPLE live
     api(root, "POST", f"/students/{scalar(data_dir, 'SELECT id FROM student WHERE name = ?', name)}/archive")
 
@@ -1891,6 +1918,49 @@ def stu_progress(page, rep: dict, data_dir: str, phone: bool, sid: int, name: st
             f"students chart: {names[1]} says {page.inner_text('#st-tip')!r}, want {level_of(thetas[names[1]])}"
         )
     see_stu(page, rep, "students chart skill", phone)
+
+
+def taint(route) -> None:
+    """Fetch the real answer, then put markup into the dates and a level: strings the tab prints."""
+    body, url = route.fetch().json(), route.request.url
+    if url.endswith("/progress"):
+        body["dates"][0], body["all"][0]["level"] = XSS_DATE, XSS_LEVEL
+    elif url.endswith("/profile"):
+        body["student"]["since"] = XSS_DATE
+    else:
+        body[0]["held_on"] = XSS_DATE
+    route.fulfill(json=body)
+
+
+@counted()
+def stu_xss(page, rep: dict, phone: bool, name: str) -> None:
+    """Dates and a level with markup show as text, never as elements: header, chart point, tip, table, sessions."""
+    page.route(TAINT_URL, taint)
+    try:
+        if not stu_open(page, rep, name):
+            return
+        page_head = page.inner_text("#panel-hoc-sinh .page-head")
+        if "Học từ <u>20/10/2026" not in page_head or page.locator("#panel-hoc-sinh .page-head u").count():
+            rep["missing"].append(f"students xss: the header shows {page_head!r}, want the date as text")
+        sessions = page.inner_text("#panel-hoc-sinh table")
+        if "<u>20/10/2026" not in sessions or page.locator("#panel-hoc-sinh table u").count():
+            rep["missing"].append(f"students xss: the sessions table shows {sessions!r}, want the date as text")
+        titles = page.locator("#st-chart circle > title")
+        title = titles.first.text_content() if titles.count() else ""
+        if page.locator("#st-chart i, #st-chart u").count() or XSS_LEVEL not in title:
+            rep["missing"].append("students xss: the chart point's title is not the level as text")
+        page.focus("#st-chart-skill")
+        page.keyboard.press("Tab")
+        expect(page, rep, JS_STU_DOT, "students xss: Tab from the skill box did not reach a point")
+        if (tip := page.inner_text("#st-tip").strip()) != f"<u/10: {XSS_LEVEL}":
+            rep["missing"].append(f"students xss: the tip says {tip!r}, want the date and level as text")
+        press(page, rep, '[data-act="st-table"]', "students xss Xem dạng bảng", JS_STU_TABLE)
+        table = page.inner_text("#st-chart")
+        if XSS_LEVEL not in table or "<u>20/10/2026" not in table or page.locator("#st-chart i, #st-chart u").count():
+            rep["missing"].append(f"students xss: the chart table shows {table!r}, want text")
+    finally:
+        page.unroute(TAINT_URL, taint)
+    stu_open(page, rep, name)  # a clean load for the next steps
 
 
 @counted()
@@ -1989,12 +2059,13 @@ def walk_students(page, rep: dict, phone: bool, data_dir: str, root: str, shots:
     an, binh, new = ids[PEOPLE[0]], ids[PEOPLE[1]], STU_NEW[rep["viewport"]]
     stu_view(page, rep, data_dir, root, phone)
     if stu_add(page, rep, data_dir, phone, new):
-        stu_edit(page, rep, data_dir, phone, new)
+        stu_edit(page, rep, data_dir, root, phone, new)
         stu_empty(page, rep, phone, new)
         stu_archive(page, rep, data_dir, root, phone, new)
     stu_progress(page, rep, data_dir, phone, an, PEOPLE[0])
     if shots:
         shoot(page, rep, f"students-profile-{'phone' if phone else 'desktop'}")
+    stu_xss(page, rep, phone, PEOPLE[0])
     stu_session(page, rep, data_dir, phone, an)
     stu_report(page, rep, phone, PEOPLE[0])
     stu_sheet(page, rep, data_dir, phone, binh, PEOPLE[1])
@@ -2528,7 +2599,9 @@ def fold(text: str) -> str:
     return "".join(c for c in plain if not unicodedata.combining(c)).replace("đ", "d")
 
 
-NAMES = tuple(fold(n) for n in (*PEOPLE, ARCHIVED))  # every student the walk creates
+# names that must never reach a model or a POST body. The two students the Học sinh walk adds are not here on
+# purpose: their own POST /students body holds the name, and they are never asked about.
+NAMES = tuple(fold(n) for n in (*PEOPLE, ARCHIVED))
 
 
 def finish(data_dir: str) -> dict:

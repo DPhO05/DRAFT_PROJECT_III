@@ -10,7 +10,10 @@
   var view = 0, prof = null, chartKc = 'all', asTable = false, more = {};  // view = the student whose profile is open, 0 = the list
 
   function $(id) { return document.getElementById(id); }
-  function norm(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').toLowerCase(); }
+  function norm(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/đ/g, 'd'); }  // lower first: Đ has no decomposition
+  function D(iso) { return U.esc(U.d(iso)); }  // dates and level words come from the server: escaped like any other text
+  function DM(iso) { return U.esc(U.dm(iso)); }
+  function WD(iso) { return U.esc(U.wd(iso)); }
   function num(n) { return String(n).replace('.', ','); }
   function live(s) { return !s.archived_at; }
   function find(id) { return rows.find(function (s) { return s.id === id; }); }
@@ -50,7 +53,7 @@
       '<div class="spread"><h3><button type="button" class="st-name" data-act="st-open" data-sid="' + s.id + '">' + esc(s.name) + '</button></h3>' +
       (s.pending_grading ? '<span class="chip chip-warn">' + s.pending_grading + ' bài chờ duyệt</span>' : '') + '</div>' +
       (meta ? '<p class="small muted">' + meta + '</p>' : '') +
-      '<p class="small">' + (ls ? 'Buổi gần nhất: <b>' + U.dm(ls.held_on) + '</b> · ' + U.score(ls.score, ls.max_score) : 'Chưa có buổi nào đã chấm') + '</p>' +
+      '<p class="small">' + (ls ? 'Buổi gần nhất: <b>' + DM(ls.held_on) + '</b> · ' + U.score(ls.score, ls.max_score) : 'Chưa có buổi nào đã chấm') + '</p>' +
       '<div class="row">' + LEVELS.map(function (l) { return '<span class="chip lv-' + CLS[l] + '">' + (n[l] || 0) + ' ' + l + '</span>'; }).join('') + '</div>' +
       '<div class="row">' + btn('st-edit', 'Sửa', 'data-sid="' + s.id + '"') + btn('st-archive', 'Lưu trữ', 'data-sid="' + s.id + '"') + '</div></article>';
   }
@@ -77,7 +80,7 @@
   // ---- profile ----
   function pendingHTML(list) {
     if (!list.length) return '';
-    var days = list.map(function (x) { return x.held_on ? U.dm(x.held_on) : ''; }).filter(Boolean).join(', ');
+    var days = list.map(function (x) { return x.held_on ? DM(x.held_on) : ''; }).filter(Boolean).join(', ');
     return '<div class="callout callout-warn"><div class="spread"><p>Có <b>' + list.length + ' bài</b> chờ thầy/cô duyệt' + (days ? ' (' + days + ')' : '') +
       '. Kết quả các bài này chưa tính vào tiến bộ.</p>' + btn('st-job', 'Duyệt trong Trợ lý', 'data-tid="' + U.esc(list[0].thread_id) + '"') + '</div></div>';
   }
@@ -106,10 +109,10 @@
   function recurSec(rec) {
     var open = rec.filter(function (r) { return !r.resolved_at; }), done = rec.filter(function (r) { return r.resolved_at; });
     return sec('Lỗi hay lặp lại', null, (open.length ? '<ul class="st-list">' + open.map(function (r) {
-      return '<li><b>' + esc(r.kind) + '</b> ở phần “' + esc(r.kc) + '” — ' + r.count + ' lần' + (r.count > 1 ? ', từ ' + U.dm(r.first_seen) : '') + ', lần cuối ' + U.dm(r.last_seen) + '</li>';
+      return '<li><b>' + esc(r.kind) + '</b> ở phần “' + esc(r.kc) + '” — ' + r.count + ' lần' + (r.count > 1 ? ', từ ' + DM(r.first_seen) : '') + ', lần cuối ' + DM(r.last_seen) + '</li>';
     }).join('') + '</ul>' : '<p class="muted">' + (done.length ? 'Không còn lỗi nào lặp lại.' : 'Chưa có lỗi nào lặp lại.') + '</p>') +
       (done.length ? '<details><summary class="small">Đã sửa được (' + done.length + ')</summary><ul class="st-list small muted">' + done.map(function (r) {
-        return '<li>' + esc(r.kind) + ' ở “' + esc(r.kc) + '” — hết từ ' + U.dm(r.resolved_at) + '</li>';
+        return '<li>' + esc(r.kind) + ' ở “' + esc(r.kc) + '” — hết từ ' + DM(r.resolved_at) + '</li>';
       }).join('') + '</ul></details>' : '') +
       (rec.length ? '<p class="small muted">Một lỗi được tính là đã sửa khi em làm đúng hai lần liên tiếp sau lần sai cuối.</p>' : ''));
   }
@@ -117,20 +120,20 @@
     if (!ss) return sec('Các buổi đã chấm', null, FAIL);
     return sec('Các buổi đã chấm', ss.length, ss.length ? '<div class="table-wrap"><table class="tbl"><thead><tr><th>Buổi</th><th class="al-right">Số bài</th><th class="al-right">Điểm</th><th class="al-right">Lỗi</th><th></th></tr></thead><tbody>' +
       ss.map(function (x) {
-        return '<tr><td>' + U.wd(x.held_on) + ' ' + U.d(x.held_on) + '</td><td class="al-right">' + x.n_attempts + '</td><td class="al-right"><b>' + U.score(x.score, x.max_score) + '</b></td>' +
+        return '<tr><td>' + WD(x.held_on) + ' ' + D(x.held_on) + '</td><td class="al-right">' + x.n_attempts + '</td><td class="al-right"><b>' + U.score(x.score, x.max_score) + '</b></td>' +
           '<td class="al-right">' + x.n_mistakes + '</td><td class="al-right">' + btn('st-session', 'Xem bài', 'data-id="' + x.id + '"') + '</td></tr>';
       }).join('') + '</tbody></table></div>' : '<p class="muted">Chưa có buổi nào đã chấm.</p>');
   }
   function sheetsSec(ws) {
     if (!ws) return sec('Phiếu đã giao', null, FAIL);
     return sec('Phiếu đã giao', ws.length, ws.length ? ws.map(function (w, i) {
-      return '<div class="spread st-sheet"><span>Buổi ' + U.d(w.for_date) + ' · ' + w.n_problems + ' bài</span>' + btn('st-ws-view', 'Xem phiếu', 'data-i="' + i + '"') + '</div>';
+      return '<div class="spread st-sheet"><span>Buổi ' + D(w.for_date) + ' · ' + w.n_problems + ' bài</span>' + btn('st-ws-view', 'Xem phiếu', 'data-i="' + i + '"') + '</div>';
     }).join('') : '<p class="muted">Chưa có phiếu nào được giao.</p>');
   }
   function repsSec(rs) {
     if (!rs) return sec('Báo cáo đã duyệt', null, FAIL);
     return sec('Báo cáo đã duyệt', rs.length, rs.length ? rs.map(function (r) {
-      return '<div class="spread st-report"><span>Báo cáo ' + U.esc(REPORTS.label(r.period_kind, r.period_start)) + ' · duyệt ' + U.esc(U.d(REPORTS.local(r.approved_at))) + '</span>' +
+      return '<div class="spread st-report"><span>Báo cáo ' + U.esc(REPORTS.label(r.period_kind, r.period_start)) + ' · duyệt ' + D(REPORTS.local(r.approved_at)) + '</span>' +
         btn('st-rep-open', 'Xem', 'data-id="' + r.id + '"') + '</div>';
     }).join('') : '<p class="muted">Chưa có báo cáo nào được duyệt.</p>');
   }
@@ -140,7 +143,7 @@
     if (prof.gone) return back + '<div class="empty"><p>Chưa mở được hồ sơ này. Thử lại sau.</p></div>';
     var p = prof.profile, s = p.student, id = 'data-sid="' + s.id + '"';
     return back + '<div class="page-head"><div><h1 id="st-h1" tabindex="-1">' + esc(s.name) + (s.archived_at ? ' <span class="chip chip-dim">đã lưu trữ</span>' : '') + '</h1>' +
-      '<p>' + [s.grade ? 'Lớp ' + s.grade : '', esc(s.note), 'Học từ ' + U.d(s.since)].filter(Boolean).join(' · ') + '</p></div><div class="row">' +
+      '<p>' + [s.grade ? 'Lớp ' + s.grade : '', esc(s.note), 'Học từ ' + D(s.since)].filter(Boolean).join(' · ') + '</p></div><div class="row">' +
       (s.archived_at ? '' : '<button type="button" class="btn btn-primary" data-act="st-ws" ' + id + '>Soạn phiếu với Trợ lý</button><button type="button" class="btn" data-act="st-rep" ' + id + '>Làm báo cáo</button>') +
       '<button type="button" class="btn" data-act="st-edit" ' + id + '>Sửa</button></div></div>' + pendingHTML(p.pending) +
       '<div class="profile-grid">' + chartSec(prof.progress, p.skills) + skillsSec(p.skills) + recurSec(p.recurring) + sessionsSec(prof.sessions) + sheetsSec(prof.sheets) + repsSec(prof.reports) + '</div>';
@@ -164,7 +167,7 @@
     var label = chartKc === 'all' ? 'Mức chung' : esc(prof.profile.skills.find(function (s) { return String(s.kc_id) === chartKc; }).kc);
     if (asTable) {
       box.innerHTML = '<div class="table-wrap"><table class="tbl" aria-label="' + label + ' theo buổi"><thead><tr><th>Buổi</th><th>' + label + '</th></tr></thead><tbody>' +
-        dates.map(function (d, i) { return '<tr><td>' + U.d(d) + '</td><td>' + (vals[i] ? vals[i].level : '<span class="muted">chưa làm</span>') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+        dates.map(function (d, i) { return '<tr><td>' + D(d) + '</td><td>' + (vals[i] ? U.esc(vals[i].level) : '<span class="muted">chưa làm</span>') + '</td></tr>'; }).join('') + '</tbody></table></div>';
       return;
     }
     var w = Math.max(280, box.clientWidth), h = 210, L = 104, R = 14, T = 8, B = 26;
@@ -177,14 +180,14 @@
     });
     var path = '', pen = false, step = Math.ceil(dates.length / Math.max(2, Math.floor((w - L - R) / 48)));
     dates.forEach(function (d, i) {
-      if (i % step === 0 || i === dates.length - 1) s += '<text class="tick" x="' + X(i) + '" y="' + (h - 8) + '" text-anchor="middle">' + U.dm(d) + '</text>';
+      if (i % step === 0 || i === dates.length - 1) s += '<text class="tick" x="' + X(i) + '" y="' + (h - 8) + '" text-anchor="middle">' + DM(d) + '</text>';
       if (!vals[i]) { pen = false; return; }
       path += (pen ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(vals[i].pos).toFixed(1); pen = true;
     });
     s += '<path class="cline" d="' + path + '"/>';
     dates.forEach(function (d, i) {
       if (!vals[i]) return;
-      var tip = U.dm(d) + ': ' + vals[i].level;
+      var tip = U.esc(U.dm(d) + ': ' + vals[i].level);
       s += '<circle class="chit" cx="' + X(i) + '" cy="' + Y(vals[i].pos) + '" r="12" tabindex="0" role="img" data-tip="' + tip + '"><title>' + tip + '</title></circle>' +
         '<circle class="cdot" cx="' + X(i) + '" cy="' + Y(vals[i].pos) + '" r="4.5" pointer-events="none"/>';
     });
@@ -208,13 +211,14 @@
               (m.teacher_note ? '<p class="small">Ghi chú của thầy/cô: ' + esc(m.teacher_note) + '</p>' : '') + '</div>';
           }).join('') : '<p class="muted">Không có lỗi.</p>') + '</div></div>';
       }).join('');
-    U.modal({ title: esc(U.who(x.student_id)) + ' · buổi ' + U.d(x.held_on), wide: true, body: body, foot: '<button type="button" class="btn" data-act="modal-close">Đóng</button>' });
+    U.modal({ title: esc(U.who(x.student_id)) + ' · buổi ' + D(x.held_on), wide: true, body: body, foot: '<button type="button" class="btn" data-act="modal-close">Đóng</button>' });
   }
   function studentForm(s) {
-    var g = s ? s.grade : 9;
+    var g = s ? s.grade : 9, grades = [6, 7, 8, 9, 10, 11, 12];
+    if (g && grades.indexOf(g) < 0) grades.unshift(g);  // the server takes 1 to 12: keep a grade the list lacks instead of saving 6
     U.modal({ title: s ? 'Sửa thông tin học sinh' : 'Thêm học sinh', body:
       '<label class="field"><span>Họ và tên</span><input type="text" id="sf-name" value="' + U.esc(s ? s.name : '') + '" autocomplete="off" required autofocus></label>' +
-      '<label class="field"><span>Lớp</span><select id="sf-grade">' + (g ? '' : '<option value="" selected>Chưa ghi</option>') + [6, 7, 8, 9, 10, 11, 12].map(function (x) {
+      '<label class="field"><span>Lớp</span><select id="sf-grade">' + (g ? '' : '<option value="" selected>Chưa ghi</option>') + grades.map(function (x) {
         return '<option' + (g === x ? ' selected' : '') + '>' + x + '</option>';
       }).join('') + '</select></label>' +
       '<label class="field"><span>Ghi chú (không bắt buộc)</span><textarea id="sf-note" rows="2">' + U.esc(s ? s.note : '') + '</textarea></label>' +
@@ -248,13 +252,13 @@
   ACT['st-archive'] = function (el) {
     var s = find(+el.dataset.sid);
     U.confirm('Lưu trữ ' + esc(s.name) + '?', 'Dữ liệu của em vẫn giữ nguyên. Em sẽ không hiện trong danh sách và khi gõ @ ở Trợ lý. Bỏ lưu trữ được bất cứ lúc nào.', 'Lưu trữ', function () {
-      U.api.send('POST', '/students/' + s.id + '/archive').then(function () { U.toast('Đã lưu trữ ' + s.name + '.'); saved(); },
+      U.api.send('POST', '/students/' + s.id + '/archive').then(function () { U.toast('Đã lưu trữ ' + s.name + '.'); want = '#st-q'; saved(); },
         function () { U.toast('Chưa lưu trữ được. Thử lại sau.', 'warn'); });
     });
   };
   ACT['st-unarchive'] = function (el) {
     var s = find(+el.dataset.sid);
-    U.api.send('POST', '/students/' + s.id + '/unarchive').then(function () { U.toast('Đã đưa ' + s.name + ' về danh sách.'); saved(); },
+    U.api.send('POST', '/students/' + s.id + '/unarchive').then(function () { U.toast('Đã đưa ' + s.name + ' về danh sách.'); want = '.st-card[data-sid="' + s.id + '"] .st-name'; saved(); },
       function () { U.toast('Chưa bỏ lưu trữ được. Thử lại sau.', 'warn'); });
   };
   ACT['st-ws'] = function (el) { var id = +el.dataset.sid; U.tab('tro-ly'); C.send('Gợi ý bài cho @' + U.code(id), { mentions: [id] }); };
@@ -268,7 +272,7 @@
   };
   ACT['st-ws-view'] = function (el) {
     var w = prof.sheets[+el.dataset.i];
-    U.modal({ title: 'Phiếu buổi ' + U.d(w.for_date) + ' · ' + esc(U.who(w.student_id)), wide: true, body: '<ol class="stack st-list">' + w.items.map(function (it) {
+    U.modal({ title: 'Phiếu buổi ' + D(w.for_date) + ' · ' + esc(U.who(w.student_id)), wide: true, body: '<ol class="stack st-list">' + w.items.map(function (it) {
       return '<li><div class="row"><span class="ref">' + U.esc(it.ref) + '</span><span class="chip">' + U.esc(it.level || 'chưa có mức') + '</span>' +
         it.kcs.map(function (k) { return '<span class="chip chip-wrap">' + esc(k) + '</span>'; }).join('') + '</div>' +
         (it.reason ? '<p class="small muted">' + esc(it.reason) + '</p>' : '') + U.texHtml(it.statement_latex) + '</li>';

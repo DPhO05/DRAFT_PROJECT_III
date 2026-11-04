@@ -16,7 +16,7 @@
 
   function $(sel) { return panel && panel.querySelector(sel); }
   function noop() { /* a failed refresh keeps what is on screen; the next one tries again */ }
-  function norm(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').toLowerCase(); }
+  function norm(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/đ/g, 'd'); }
   function nameOf(id) { return U.people[code(id)] || code(id); }
   function active() { return students.filter(function (s) { return !s.archived_at; }); }
   function scrollEnd(force) {
