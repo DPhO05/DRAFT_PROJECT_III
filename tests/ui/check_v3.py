@@ -192,6 +192,7 @@ def walk_theme(page, rep: dict, base: str) -> None:
 PEOPLE = ("Nguyễn Văn An", "Trần Thị Bình")
 ARCHIVED = "Lê Văn Cường"  # HS-03, archived: its code still shows as the name
 HS_CODE = re.compile(r"\bHS-\d")
+FACT_ID = re.compile(r"\bF\d\d\b")
 NO_WORK = "Không có việc nào đang chờ thầy/cô."
 SAVED_NOTHING = "Mình chưa lưu gì cả"
 ERR_BUBBLE = "Chưa trả lời được, thử lại"
@@ -1256,6 +1257,9 @@ REP_BUSY = "Báo cáo đang được xử lý. Thử lại sau giây lát."
 REP_STALE = "Có buổi mới được duyệt trong kỳ này. Bỏ bản nháp rồi tạo lại."
 REP_GONE = "Việc này đã xong"
 REP_NEED_ONE = "Cần ít nhất một câu."
+REP_FACTS, REP_FACTS_CLEAN = "Em làm tốt (F01, F03) và F02 rất đều.", "Em làm tốt và rất đều."
+REP_TYPED = "câu gõ dở chưa lưu"
+REP_FAILED_CHIP = "chưa làm xong"
 MAKE = '[data-act="rep-make"]'
 APPROVE = '[data-act="rep-approve"]'
 SENT_EDIT = '#rep-doc [data-act="sent-edit"], #rep-doc [data-act="sent-del"], #rep-doc [data-act="sent-add"]'
@@ -1352,11 +1356,15 @@ def rep_edit(page, rep: dict, reqs: list, phone: bool) -> bool:
     press(page, rep, '[data-act="sent-save"][data-i="0"]', "report Lưu câu 1", JS_REP_HAS, REP_45)
     if page.locator(f"{sent} >> nth=0").locator(".uncheck").count() != 1:
         rep["missing"].append("report edit: sentence 1 is not underlined after 45")
-    for text in (REP_ADDED, REP_CODED):
+    for text in (REP_ADDED, REP_FACTS, REP_CODED):
         n = page.locator(sent).count()
         press(page, rep, '[data-act="sent-add"]', "report + Thêm câu", JS_REP_BOX, n)
         page.fill(f"#sent-{n}", text)
         press(page, rep, f'[data-act="sent-save"][data-i="{n}"]', "report Lưu câu mới", JS_REP_ROWS, n + 1)
+        if text == REP_FACTS and (REP_FACTS_CLEAN not in (now := page.inner_text("#rep-doc")) or FACT_ID.search(now)):
+            rep["missing"].append(
+                f"report edit: typed fact ids are on screen right after Lưu câu (C-44): {now[-90:]!r}"
+            )
     shown = page.inner_text("#rep-doc")
     if REP_ADDED not in shown or f"{PEOPLE[0]} và {ARCHIVED} cùng cố gắng nhiều." not in shown:
         rep["missing"].append("report edit: the added sentences are not on screen, with names for HS-01 and HS-03")
@@ -1376,6 +1384,18 @@ def rep_edit(page, rep: dict, reqs: list, phone: bool) -> bool:
     if (n := resumes(reqs, tid) - seen) != 0:
         rep["missing"].append(f"report edit: Duyệt báo cáo over an open box sent {n} resumes, want 0")
     press(page, rep, '[data-act="sent-cancel"][data-i="1"]', "report Thôi", JS_NO_BOX, 1)
+    press(page, rep, '[data-act="sent-edit"][data-i="0"]', "report Sửa câu 1 lần nữa", JS_REP_BOX, 0)
+    page.fill("#sent-0", REP_TYPED)
+    for act, i in (("sent-edit", 1), ("sent-add", None)):  # another box never replaces the open one
+        page.evaluate(JS_TOASTS_CLEAR)
+        sel = f'[data-act="{act}"]' + (f'[data-i="{i}"]' if i is not None else "")
+        press(page, rep, sel, f"report {act} khi ô sửa mở", JS_TOAST_HAS, REP_OPEN_BOX)
+        if (kept := page.evaluate(JS_REP_BOX_TEXT, 0)) != REP_TYPED or page.locator("#rep-doc textarea").count() != 1:
+            rep["missing"].append(f"report edit: {act} over an open box left {kept!r} in box 1, want {REP_TYPED!r}")
+    press(page, rep, '[data-act="sent-cancel"][data-i="0"]', "report Thôi câu 1", JS_NO_BOX, 0)
+    for _ in range(3):  # a box the bug left open must not hold Duyệt báo cáo back
+        if page.locator("#rep-doc textarea").count():
+            page.click('#rep-doc [data-act="sent-cancel"] >> nth=0')
     see_rep(page, rep, "report edited", phone)
     return True
 
@@ -1609,24 +1629,45 @@ def failed_poll(route) -> None:
     route.fulfill(response=r, json=j)
 
 
+def failed_list(route) -> None:
+    """GET /api/reports with every draft failed (POST goes on to the server)."""
+    if route.request.method != "GET":
+        route.fallback()
+        return
+    r = route.fetch()
+    j = r.json()
+    for d in j["drafts"]:
+        d["status"] = "failed"
+    route.fulfill(response=r, json=j)
+
+
 @counted()
 def rep_retry(page, rep: dict, root: str, sid: int, phone: bool) -> None:
-    """A draft served as failed: Thử lại keeps the focus on the page."""
+    """A draft served as failed: list chip, focus after Thử lại, and a resume refused as approved opens that report."""
+    done = api(root, "GET", "/reports")["approved"][0]["id"]
     resume = re.compile(r"/api/threads/[^/?]+/resume$")
     tid = None
     try:
         if not (tid := rep_week_draft(page, rep, root, sid)):
             return
         page.route(REP_POLL, failed_poll)  # the open draft's next poll says failed
+        page.route(REP_LIST, failed_list)
         page.route(resume, lambda r: r.fulfill(status=202, json={}))
         expect(page, rep, JS_REP_HAS, "report retry: the failed draft has no Thử lại", "Thử lại")
+        want = f"report retry: the list chip does not say '{REP_FAILED_CHIP}'"
+        expect(page, rep, JS_REP_ITEM_HAS, want, [tid, REP_FAILED_CHIP])
         see_rep(page, rep, "report failed draft", phone)
         press(page, rep, '[data-act="rep-retry"]', "report Thử lại", JS_FOCUS_ID, "rep-failed")
         off = "report retry: Thử lại stayed off"  # two more polls say failed, then it is on again
         expect(page, rep, JS_ON, off, '[data-act="rep-retry"]')
         expect(page, rep, JS_FOCUS_ID, "report retry: the focus left the status line on the redraw", "rep-failed")
+        refused = {"error": {"code": "already_committed", "message": "x", "detail": {"report_id": done}}}
+        page.unroute(resume)
+        page.route(resume, lambda r: r.fulfill(status=409, json=refused))
+        press(page, rep, '[data-act="rep-retry"]', "report Thử lại khi đã duyệt", JS_REP_DONE)
+        see_rep(page, rep, "report retry approved", phone)
     finally:
-        for pattern in (REP_POLL, resume):
+        for pattern in (REP_POLL, REP_LIST, resume):
             page.unroute(pattern)
         if tid:
             api(root, "POST", f"/threads/{tid}/cancel")

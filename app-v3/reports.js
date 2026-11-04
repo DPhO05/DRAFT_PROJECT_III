@@ -39,7 +39,9 @@
         return t.replace(new RegExp('(?<![\\p{L}\\p{N}])' + U.people[c].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}])', 'gu'), c);
       }, String(text));
   }
-  function clean(t) { return t.replace(/\s*\[F\d+\]/g, '').replace(/\s+/g, ' ').trim(); }  // the server drops typed fact ids the same way
+  var IDS = 'F\\d\\d(?:\\s*,\\s*F\\d\\d)*', WORD = '[\\p{L}\\p{N}_]';
+  var ID_MARK = new RegExp('\\s*(?:\\[' + IDS + '\\]|\\(' + IDS + '\\)|(?<!' + WORD + ')' + IDS + '(?!' + WORD + '))', 'gu');  // reporter.py _ID_MARK: [F01], (F01, F03), a bare F01
+  function clean(t) { return t.replace(ID_MARK, '').replace(/\s+/g, ' ').trim(); }  // the server drops typed fact ids the same way (C-44)
 
   // ---- lists ----
   function loadStudents() {
@@ -89,7 +91,7 @@
     var on = cur && (draft ? cur.tid === r.thread_id : cur.id === r.id);
     return '<button type="button" class="rep-item" data-act="rep-sel" ' + (draft ? 'data-tid="' + U.esc(r.thread_id) + '"' : 'data-id="' + U.esc(r.id) + '"') + ' aria-current="' + !!on + '">' +
       '<span><b>' + U.esc(U.who(r.student_id)) + '</b> · ' + lab(r.period_kind, r.period_start) + '</span>' +
-      (draft ? '<span class="chip chip-warn">' + (r.n_flagged ? U.esc(r.n_flagged) + ' câu cần xem lại' : 'nháp') + '</span>' : '<span class="small muted">' + U.esc(U.dm(local(r.approved_at))) + '</span>') + '</button>';
+      (draft ? '<span class="chip chip-warn">' + (r.status === 'failed' ? 'chưa làm xong' : r.n_flagged ? U.esc(r.n_flagged) + ' câu cần xem lại' : 'nháp') + '</span>' : '<span class="small muted">' + U.esc(U.dm(local(r.approved_at))) + '</span>') + '</button>';
   }
   function leftHTML() {
     var act = active(), opts = periodOptions(), d = days[form.student];
@@ -255,7 +257,9 @@
     if (e.status === 409) s.edit = null;
     var said = e.status === 422 || e.status === 409 && e.message === STALE;  // other server texts can be a raw thread id
     U.toast(said ? U.names(e.message) : e.status === 409 ? ERR[e.code] || BUSY : 'Chưa làm được. Thử lại sau.', 'warn');
-    drawDoc(s);
+    var id = e.detail && e.detail.report_id;
+    if (cur === s && e.status === 409 && e.code === 'already_committed' && id != null) openDoc(id, true);  // approved elsewhere: show that report (like rep-make)
+    else drawDoc(s);
   }
   function change(s, rows, focusSel, after) {
     s.busy = true;
@@ -266,12 +270,14 @@
   ACT['sent-edit'] = function (el) {
     var s = cur, i = +el.dataset.i;
     if (!s || s.busy) return;
+    if (s.edit) { U.toast(OPEN_BOX, 'warn'); return; }  // a second box would drop the typed text
     s.edit = { i: i, text: U.names(s.card.sentences[i].text) };
     drawDoc(s, '#sent-' + i);
   };
   ACT['sent-add'] = function () {
     var s = cur;
     if (!s || s.busy) return;
+    if (s.edit) { U.toast(OPEN_BOX, 'warn'); return; }
     s.edit = { i: s.card.sentences.length, text: '' };
     drawDoc(s, '#sent-' + s.edit.i);
   };
@@ -356,7 +362,7 @@
         msg = 'Báo cáo ' + lab(kind, start) + ' của ' + U.esc(U.who(sid)) + ' đã duyệt ngày ' + U.esc(U.d(local(d.approved_at))) + '. Mỗi kỳ chỉ duyệt một lần.';
       } else if (e.status === 409 && e.code === 'not_ready') msg = notReady(e, kind, start, sid);
       else msg = e.status === 422 ? esc(e.message) : 'Chưa tạo được báo cáo. Thử lại sau.';
-      drawLeft('[data-act="rep-make"]');
+      drawLeft(MAKE);
     });
   };
 

@@ -174,6 +174,7 @@ def test_lists(env):
                   for d in got["drafts"]) == sorted([(b, w["binh"], "week", "2026-10-12", 1),
                                                      (bad, w["an"], "month", "2026-10-01", 0)])  # fmt: skip
     assert all(d["created_at"] for d in got["drafts"])
+    assert {d["thread_id"]: d["status"] for d in got["drafts"]} == {b: "awaiting_review", bad: "failed"}
     [ok] = got["approved"]
     assert ok == {"id": done["report_id"], "student_id": w["an"], **WEEK, "approved_at": ok["approved_at"]}
     assert client.get(f"/api/reports?student={w['an']}").json() == {"drafts": [drafts[bad]], "approved": [ok]}

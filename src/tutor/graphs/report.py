@@ -164,7 +164,7 @@ def drafts(runner: Runner, student_id: int | None = None) -> list[dict]:
             state = runner.state(row["thread_id"])
             out.append({"thread_id": row["thread_id"], "student_id": row["student_id"],
                         "period_kind": state["period_kind"], "period_start": state["period_start"],
-                        "created_at": row["created_at"],
+                        "created_at": row["created_at"], "status": row["status"],
                         "n_flagged": sum(s["flag"] is not None for s in _shown(row, state))})  # fmt: skip
     return out
 
