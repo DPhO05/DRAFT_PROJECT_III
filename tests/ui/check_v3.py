@@ -1586,10 +1586,11 @@ def rep_gone(page, rep: dict, root: str, sid: int, phone: bool) -> None:
     """A draft dropped elsewhere while it is open: the right side empties and the list drops it, no stale card."""
     if not (tid := rep_week_draft(page, rep, root, sid)):
         return
+    page.focus("#rep-student")  # the tutor is in the form when the draft vanishes: the focus must stay there
     api(root, "POST", f"/threads/{tid}/cancel")
     expect(page, rep, JS_REP_HAS, f"report gone: the right side did not go back to '{REP_EMPTY}'", REP_EMPTY)
     expect(page, rep, JS_REP_NO_ITEM, "report gone: the dropped draft is still in the list", tid)
-    expect(page, rep, JS_FOCUS_ACT, "report gone: the focus is not on Tạo báo cáo after the draft vanished", "rep-make")
+    expect(page, rep, JS_FOCUS_ID, "report gone: the focus left the student box when the draft vanished", "rep-student")
     if REP_GONE in page.inner_text("#panel-bao-cao"):
         rep["missing"].append(f"report gone: '{REP_GONE}' and a stale button are on the tab")
     see_rep(page, rep, "report gone", phone)

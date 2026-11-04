@@ -195,10 +195,14 @@
   }
   function path(s, tail) { return '/threads/' + encodeURIComponent(s.tid) + tail; }
   function poll(s) { C.poll(s.tid, function (row) { return onRow(s, row); }, s.holder, function () { gone(s); }); }
+  function stray() {  // focus was in the right pane (now emptied) or nowhere: land on Tạo; else keep it
+    var a = document.activeElement;
+    return !a || a === document.body || $('rep-doc').contains(a) ? MAKE : undefined;
+  }
   function gone(s) {  // the thread is not there any more: dropped or cleaned up elsewhere
     if (cur !== s) return;
     cur = null; $('rep-doc').innerHTML = EMPTY;
-    C.refreshPending(); refresh(MAKE);
+    C.refreshPending(); refresh(stray());
     U.toast('Bản nháp này không còn nữa.', 'info');
   }
   function onRow(s, row) {
@@ -317,7 +321,7 @@
     if (!s || !s.tid) return;
     U.confirm('Bỏ bản nháp này?', 'Bản nháp sẽ mất; tạo lại lúc nào cũng được.', 'Bỏ bản nháp', function () {
       U.api.send('POST', path(s, '/cancel')).then(null, function (e) { if (e.status !== 404) throw e; }).then(function () {
-        C.refreshPending(); refresh(MAKE);  // the Bỏ button is gone, so the focus goes to the form
+        C.refreshPending(); refresh(stray());  // the Bỏ button is gone, so the focus goes to the form
         if (cur === s) { cur = null; $('rep-doc').innerHTML = EMPTY; }
       }, function () { U.toast('Chưa bỏ được bản nháp. Thử lại sau.', 'warn'); });
     }, true);
