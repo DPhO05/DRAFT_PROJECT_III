@@ -1914,7 +1914,6 @@ STU_EMPTY = (
     "Chưa có phiếu nào được giao",
     "Chưa có báo cáo nào được duyệt",
 )
-STU_TIP = re.compile(r"^(\d\d/\d\d): (vững|đang hình thành|chưa vững)$")
 STU_TRENDS = ("↑ tiến bộ", "→ giữ", "↓ cần ôn")
 BACK = '#panel-hoc-sinh [data-act="st-back"]'
 JS_STU_LIST = "() => !!document.getElementById('st-cards')"
@@ -1967,6 +1966,22 @@ def ten(score: float, top: float) -> str:
 def fetch(data_dir: str, sql: str, *args) -> list:
     with closing(sqlite3.connect(f"{Path(data_dir, 'tutor.db').as_uri()}?mode=ro", uri=True)) as con:
         return con.execute(sql, args).fetchall()
+
+
+SKILL_EVENTS = (
+    "SELECT s.held_on, k.name, e.theta_after FROM skill_event e JOIN attempt a ON a.id = e.attempt_id"
+    " JOIN session s ON s.id = a.session_id JOIN kc k ON k.id = e.kc_id"
+    " WHERE e.student_id = ? AND s.status = 'committed' ORDER BY s.held_on, s.id, e.id"
+)
+
+
+def first_points(data_dir: str, sid: int) -> tuple[str, dict]:
+    """(the first approved day, {skill: (its first day, theta_after of its last event that day)}): the first dots."""
+    firsts: dict = {}
+    for day, name, after in fetch(data_dir, SKILL_EVENTS, sid):
+        if name not in firsts or firsts[name][0] == day:
+            firsts[name] = (day, after)
+    return min(d for d, _ in firsts.values()), firsts
 
 
 def see_stu(page, rep: dict, where: str, phone: bool) -> None:
@@ -2170,7 +2185,7 @@ def stu_progress(page, rep: dict, data_dir: str, phone: bool, sid: int, name: st
             f"students profile: {shown} repeated mistakes shown, tutor.db has {open_n} open and {done_n} fixed"
         )
     see_stu(page, rep, "students profile", phone)
-    first = fetch(data_dir, "SELECT min(held_on) FROM session WHERE student_id = ? AND status = 'committed'", sid)[0][0]
+    first, firsts = first_points(data_dir, sid)
     dm = f"{first[8:]}/{first[5:7]}"
     if not page.locator("#st-chart circle > title").count():
         rep["missing"].append("students chart: no point with a <title>")
@@ -2178,7 +2193,8 @@ def stu_progress(page, rep: dict, data_dir: str, phone: bool, sid: int, name: st
     page.keyboard.press("Tab")
     expect(page, rep, JS_STU_DOT, "students chart: Tab from the skill box did not reach a point")
     expect(page, rep, JS_STU_TIP, "students chart: the focused point wrote no 'dd/mm: mức'")
-    want = f"{dm}: {level_of(sum(thetas.values()) / len(thetas))}"
+    day1 = [t for d, t in firsts.values() if d == first]
+    want = f"{dm}: {level_of(sum(day1) / len(day1))}"
     if page.inner_text("#st-tip").strip() != want:
         rep["missing"].append(f"students chart: the first point says {page.inner_text('#st-tip')!r}, want {want!r}")
     if not page.evaluate(JS_STU_FIT):
@@ -2194,7 +2210,7 @@ def stu_progress(page, rep: dict, data_dir: str, phone: bool, sid: int, name: st
     if toggle.inner_text().strip() != "Xem dạng bảng" or toggle.get_attribute("aria-pressed") != "false":
         rep["missing"].append("students chart: the toggle did not stay 'Xem dạng bảng', not pressed")
     names = page.eval_on_selector_all("#st-chart-skill option", "os => os.map(o => o.textContent)")
-    if len(names) < 2 or names[1] not in thetas:
+    if len(names) < 2 or names[1] not in thetas or names[1] not in firsts:
         rep["missing"].append(f"students chart: the skill box lists {names[:3]}, want 'Mức chung' then skill names")
         return
     page.select_option("#st-chart-skill", index=1)
@@ -2202,10 +2218,10 @@ def stu_progress(page, rep: dict, data_dir: str, phone: bool, sid: int, name: st
     page.focus("#st-chart-skill")
     page.keyboard.press("Tab")
     expect(page, rep, JS_STU_TIP, "students chart: a skill's point wrote no 'dd/mm: mức'")
-    if (m := STU_TIP.match(page.inner_text("#st-tip").strip())) is None or m[2] != level_of(thetas[names[1]]):
-        rep["missing"].append(
-            f"students chart: {names[1]} says {page.inner_text('#st-tip')!r}, want {level_of(thetas[names[1]])}"
-        )
+    day, theta = firsts[names[1]]
+    want = f"{day[8:]}/{day[5:7]}: {level_of(theta)}"
+    if page.inner_text("#st-tip").strip() != want:
+        rep["missing"].append(f"students chart: {names[1]} says {page.inner_text('#st-tip')!r}, want {want!r}")
     see_stu(page, rep, "students chart skill", phone)
 
 
