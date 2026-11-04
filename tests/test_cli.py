@@ -505,6 +505,40 @@ def test_restore_cli_recovers_an_unreadable_tutor_db(paths):
             assert repo.row_counts(c) == repo.row_counts(src) | {"session": 0}
 
 
+def waiting_g1_thread(paths, status="awaiting_review"):
+    rn = Runner(paths, {})
+    rn._set("g1-hs01-20261020", create=True, graph="G1", status=status, student_id=1)
+    rn.close()
+
+
+def test_restore_cli_refusal_points_to_drop_unfinished(paths):
+    b = garbage_over_tutor_db(paths)
+    waiting_g1_thread(paths)
+    r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and "g1-hs01-20261020" in r.output
+    assert r.output.strip().splitlines()[-1] == (
+        "Duyệt hoặc huỷ trong app trước. Nếu app không mở được: chạy lại với --drop-unfinished (các việc này sẽ mất)."
+    )
+    assert paths.tutor_db.read_bytes() == b"not a database " * 2000 and list(paths.backup.iterdir()) == [b]
+
+
+@pytest.mark.parametrize("status", ["awaiting_review", "running"])  # a "running" row is a dead process's leftover
+def test_restore_cli_drop_unfinished_recovers_an_unopenable_app(paths, status):
+    b = garbage_over_tutor_db(paths)
+    waiting_g1_thread(paths, status)
+    r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root), "--drop-unfinished"])
+    assert r.exit_code == 0, r.output
+    kept = next(p for p in paths.root.iterdir() if re.fullmatch(r"tutor\.db\.broken-\d{8}-\d{6}", p.name))
+    assert kept.read_bytes() == b"not a database " * 2000  # the old data is still kept
+    with closing(repo.connect(paths.tutor_db)) as c, closing(sqlite3.connect(b)) as src:
+        assert repo.row_counts(c) == repo.row_counts(src) | {"session": 0}
+    rn = Runner(paths, {})
+    try:
+        assert rn.list_threads() == []
+    finally:
+        rn.close()
+
+
 def test_restore_cli_old_schema_keeps_the_chosen_backup(tmp_path, paths):
     old = tmp_path / "old"
     old.mkdir()

@@ -683,6 +683,9 @@ def replay_cmd(
 @cli.command("restore")
 def restore_cmd(
     name: Annotated[str, typer.Argument(help="Tên file trong data/backup/, ví dụ tutor-2026-10-20-093000.db")],
+    drop_unfinished: Annotated[
+        bool, typer.Option("--drop-unfinished", help="Bỏ các việc chưa xong (mất phần làm dở) thay vì từ chối")
+    ] = False,
     data_dir: DataDir = None,
 ) -> None:
     """Khôi phục tutor.db từ một bản sao lưu (= ⚙ Sao lưu › Khôi phục). Bản hiện tại được sao lưu trước."""
@@ -691,7 +694,7 @@ def restore_cmd(
     try:
         runner = make_runner(paths)
         try:
-            out = threads.restore(runner, paths, name)
+            out = threads.restore(runner, paths, name, drop_unfinished=drop_unfinished)
         except repo.NotFound:
             typer.echo(f"Không có bản sao lưu {name} trong {paths.backup}")
             raise typer.Exit(1) from None
@@ -705,7 +708,10 @@ def restore_cmd(
         except threads.Unfinished as e:
             for t in e.threads:
                 typer.echo(f"  {t['thread_id']} ({t['graph']}, {t['status']})")
-            typer.echo("Duyệt hoặc huỷ trong app trước")
+            typer.echo(
+                "Duyệt hoặc huỷ trong app trước. Nếu app không mở được: chạy lại với --drop-unfinished"
+                " (các việc này sẽ mất)."
+            )
             raise typer.Exit(1) from None
         finally:
             runner.close()
