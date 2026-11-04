@@ -48,3 +48,4 @@ dev = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/ui/check.py" = ["E501"]  # embedded JS snippets
+"tests/ui/check_v3.py" = ["E501"]  # embedded JS snippets

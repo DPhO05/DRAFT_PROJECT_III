@@ -17,32 +17,191 @@ import argparse
 import functools
 import json
 import math
+import os
 import re
+import socket
 import sqlite3
+import subprocess
 import sys
+import tempfile
+import time
 import unicodedata
+import urllib.request
 from collections import Counter
 from contextlib import closing, contextmanager
 from pathlib import Path
 
-# shortcut: generic helpers are imported from check.py; P8-T03 deletes check.py and they move into this file.
-from check import (
-    DESK,
-    FIX,
-    JS_OBSERVE,
-    JS_OVERFLOW,
-    NET_NOISE,
-    PHONE,
-    PREVIEW_TID,
-    SHOTS,
-    api,
-    close_overlay,
-    tutor_app,
-    wait_idle,
-)
 from playwright.sync_api import sync_playwright
 
 from tutor.db.repo import TABLES
+
+SHOTS = Path(__file__).resolve().parent / "shots"
+DESK = {"width": 1440, "height": 900}
+PHONE = {"width": 390, "height": 844}
+
+# Network noise (offline fonts/CDN) is not an app bug.
+NET_NOISE = ("Failed to load resource", "net::ERR_")
+
+# the seeded HS-02 session parked at gate_confirm_commit (add_students)
+PREVIEW_TID = "g1-hs02-20261023-2"
+
+JS_OBSERVE = r"""
+() => {
+  if (window.__robotObs) window.__robotObs.disconnect();
+  window.__robotMut = 0; window.__robotToasts = 0;
+  const inToasts = n => { const e = n && (n.nodeType === 1 ? n : n.parentElement); return !!(e && e.closest('#toasts')); };
+  window.__robotObs = new MutationObserver(list => {
+    for (const m of list) {
+      if (m.type === 'attributes' && m.attributeName === 'data-robot') continue;
+      if (inToasts(m.target) && m.removedNodes.length && !m.addedNodes.length) continue;  // old toasts expiring
+      if (m.target.id === 'toasts' && m.addedNodes.length) window.__robotToasts++;
+      window.__robotMut++;
+    }
+  });
+  window.__robotObs.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
+}
+"""
+
+JS_OVERFLOW = r"""
+() => {
+  const W = document.documentElement.clientWidth, sw = document.documentElement.scrollWidth;
+  const offenders = [];
+  if (sw > W + 1) {
+    const desc = el => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+    document.querySelectorAll('body *').forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.right <= W + 1 || !r.width) return;
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const ox = getComputedStyle(p).overflowX;
+        if (ox === 'auto' || ox === 'scroll' || ox === 'hidden' || ox === 'clip') return;
+      }
+      offenders.push(desc(el) + ' right=' + Math.round(r.right));
+    });
+  }
+  return { width: W, scrollWidth: sw, overflow: sw > W + 1, offenders: offenders.slice(0, 8) };
+}
+"""
+
+
+def close_overlay(page) -> bool:
+    sel = "#modal-root .modal-back:last-child [data-modal-close], #drawer-root [data-modal-close]"
+    if page.locator(sel).count():
+        try:
+            page.locator(sel).first.click(timeout=2000)
+        except Exception:  # noqa: BLE001
+            page.keyboard.press("Escape")
+    else:
+        page.keyboard.press("Escape")
+    page.wait_for_timeout(120)
+    return page.evaluate("!document.querySelector('#modal-root .modal, #drawer-root .drawer')")
+
+
+FIX = Path(__file__).resolve().parents[1] / "fixtures" / "submissions"
+BANK = Path(__file__).resolve().parents[2] / "data" / "dummy" / "bank"
+KEY_VARS = ("ANTHROPIC", "OPENAI")
+# what `tutor` does at start: load ./.env, then see which API-key variables the process holds (names only, never values)
+KEY_PROBE = (
+    "import os; from tutor import config; config.load_env(config.ENV_FILE); "
+    f"print(*[k for k in os.environ if k.startswith({KEY_VARS})])"
+)
+
+
+def keys_seen(env: dict, cwd: str) -> list[str]:
+    """Names of the API-key variables a `tutor` process started with `env` in `cwd` would hold."""
+    run = subprocess.run([sys.executable, "-c", KEY_PROBE], env=env, cwd=cwd, capture_output=True, text=True,
+                         check=True, timeout=30)  # fmt: skip
+    return run.stdout.split()
+
+
+def seed(exe: str, data: str, env: dict) -> None:
+    """Dummy bank + inbox files; students are added over the API once the app is up."""
+    subprocess.run([exe, "seed-dummy", "--dev", "--bank", str(BANK), "--data-dir", data], check=True,
+                   capture_output=True, timeout=120, env=env, cwd=Path(data).parent)  # fmt: skip
+    inbox = Path(data) / "inbox"
+    for name in ("s01.tex", "s04.tex", "s06.tex"):
+        (inbox / name).write_bytes((FIX / name).read_bytes())
+    logs = Path(data) / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    (logs / "llm.jsonl").write_bytes((FIX.parent / "llm.jsonl").read_bytes())
+
+
+def api(url: str, method: str, path: str, body: object = None) -> object:
+    req = urllib.request.Request(f"{url}api{path}", None if body is None else json.dumps(body).encode(), method=method,
+                                 headers={"X-Tutor": "1", "Content-Type": "application/json"})  # fmt: skip
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.loads(r.read())
+
+
+def wait_idle(url: str, tid: str) -> None:
+    for _ in range(300):
+        if api(url, "GET", f"/threads/{tid}")["status"] != "running":
+            return
+        time.sleep(0.1)
+
+
+def add_students(url: str) -> None:
+    """2 students, 4 G1 sessions: HS-01 s01 (review gate) + s06 two days later (date-locked behind s01, C-28);
+    HS-02 s04 (step 3: low_match) + s01 the same day (every card accepted, parked at gate_confirm_commit = step 5 preview).
+    s04 is listed first, so the robot's walk opens step 3, resumes, then sees step 4."""
+    students = ({"name": "Nguyễn Văn An", "grade": 8}, {"name": "Trần Thị Bình", "grade": 9})
+    s1, s2 = [api(url, "POST", "/students", b)["id"] for b in students]
+    tids = [api(url, "POST", "/sessions", {"student_id": sid, "held_on": day, "path": f})["thread_id"]
+            for sid, day, f in ((s1, "2026-10-20", "s01.tex"), (s1, "2026-10-22", "s06.tex"),
+                                (s2, "2026-10-23", "s04.tex"), (s2, "2026-10-23", "s01.tex"))]  # fmt: skip
+    if tids[3] != PREVIEW_TID:
+        raise RuntimeError(f"preview thread is {tids[3]}, robot expects {PREVIEW_TID}")
+    for tid in tids:
+        wait_idle(url, tid)
+    cards = {
+        p["pid"]: {"action": "accept"}
+        for p in api(url, "GET", f"/threads/{PREVIEW_TID}?include=state")["state"]["proposals"]
+    }
+    api(url, "PUT", f"/threads/{PREVIEW_TID}/decisions", {"cards": cards, "review_seconds": 60})
+    api(url, "POST", f"/threads/{PREVIEW_TID}/resume")
+    wait_idle(url, PREVIEW_TID)
+    if api(url, "GET", f"/threads/{PREVIEW_TID}")["node"] != "gate_confirm_commit":
+        raise RuntimeError("preview thread did not stop at gate_confirm_commit")
+
+
+class AppUrl(str):
+    """The app's root URL; `data_dir` is its throwaway data dir."""
+
+    data_dir: str
+
+
+@contextmanager
+def tutor_app(with_data: bool = False):
+    """`tutor app` on a free port with a throwaway data dir; yields its URL (an AppUrl)."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    url = AppUrl(f"http://127.0.0.1:{port}/")
+    with tempfile.TemporaryDirectory() as tmp:
+        url.data_dir = f"{tmp}/data"
+        exe = str(Path(sys.executable).absolute().with_name("tutor"))
+        # --fake-llm, no ANTHROPIC* / OPENAI* env, and a cwd with no .env (the CLI loads ./.env): the robot
+        # never reaches a real API (C-34)
+        env = {k: v for k, v in os.environ.items() if not k.startswith(KEY_VARS)}
+        if leaked := keys_seen(env, tmp):
+            raise RuntimeError(f"the robot's app would hold API keys: {leaked}")
+        if with_data:
+            seed(exe, f"{tmp}/data", env)
+        proc = subprocess.Popen([exe, "app", "--no-browser", "--port", str(port), "--data-dir", f"{tmp}/data",
+                                 "--fake-llm"], env=env, cwd=tmp)  # fmt: skip
+        try:
+            for _ in range(100):
+                try:
+                    with urllib.request.urlopen(f"{url}api/health", timeout=0.5):
+                        break
+                except OSError:
+                    time.sleep(0.1)
+            if with_data:
+                add_students(url)
+            yield url
+        finally:
+            proc.terminate()
+            proc.wait(10)
+
 
 TABS = ("tro-ly", "hoc-sinh", "bao-cao", "ngan-hang")
 # docs/prototype/app-user/build.py FORBIDDEN, plus the word "node" and skill codes like 8DS-HSBN-02
@@ -670,7 +829,7 @@ JS_ASK_GRADE = """() => { const c = document.querySelector('.ask-grade'); if (!c
   return [s.options[s.selectedIndex].text, c.querySelector('input[type=date]').value,
     c.querySelector('[data-act="c-grade"]').disabled]; }"""
 NOT_FOUND = {"error": {"code": "not_ready", "message": "x", "detail": {"reason": "x"}}}
-# G1 threads of the seeded sessions (check.add_students) and of the file 📎 grades for real on the desktop
+# G1 threads of the seeded sessions (add_students) and of the file 📎 grades for real on the desktop
 G_S01, G_S06, G_S04, G_NEW = "g1-hs01-20261020", "g1-hs01-20261022", "g1-hs02-20261023", "g1-hs01-20261025"
 LOCKED = f"Duyệt buổi 20/10 của {PEOPLE[0]} trước (tiến bộ tính theo thứ tự ngày)"
 LEFT_5 = "Còn 5 lỗi chưa chọn Đúng / Sửa / Bỏ"
@@ -758,7 +917,7 @@ SAVE_LABELS = ("problem_kc", "rubric")
 SAVE_IMPORT = ("problem", "problem_kc", "rubric")
 # bank Lưu vào ngân hàng -> repo.import_bank (graphs/bank.py:236) -> _insert_problem: problem :479, problem_kc :484,
 # rubric :488
-SEED_LOG = FIX.parent / "llm.jsonl"  # check.seed() copies it to logs/llm.jsonl: the app's own calls come after it
+SEED_LOG = FIX.parent / "llm.jsonl"  # seed() copies it to logs/llm.jsonl: the app's own calls come after it
 # steps that must move rows, or the counts are blind (the Sửa save of a bank problem may only update a row)
 MOVES_ROWS = {
     "chat_attach",
