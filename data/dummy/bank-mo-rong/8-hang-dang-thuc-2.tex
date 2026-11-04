@@ -1,0 +1,517 @@
+% Ngân hàng bài mở rộng: Hằng đẳng thức đáng nhớ (lớp 8), bài 032 đến 051.
+% Quy ước:
+%   - Mỗi bài: begin{problem}[id] ... end{problem}; lời giải lồng bên trong.
+%   - id: duy nhất, không dấu, không đổi, không dùng lại. Dạng <lớp><phân môn>-<chủ đề>-<số>.
+%   - Mỗi bước lời giải là 1 đoạn, các bước cách nhau 1 dòng trống; mỗi bước có lý do.
+%   - Dòng cuối lời giải: Đáp số: $\boxed{...}$
+%   - Cách giải khác: thêm begin{solution}[cách 2].
+%   - Metadata bằng comment ngay sau begin{problem}: % nguon:, % lop:, % kc_du_kien:, % do_kho_du_kien:
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- viết đa thức thành bình phương
+\begin{problem}[8DS-HDT-032]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-01
+% do_kho_du_kien: 1
+Viết mỗi đa thức sau dưới dạng bình phương của một tổng hoặc một hiệu:
+
+a) $x^2 + 8x + 16$;
+
+b) $9y^2 - 12y + 4$;
+
+c) $25a^2 + 30ab + 9b^2$.
+
+\begin{solution}
+a) Ta có $16 = 4^2$ và $8x = 2 \cdot x \cdot 4$, nên đa thức có dạng $A^2 + 2AB + B^2$ với $A = x$, $B = 4$. Theo hằng đẳng thức bình phương của một tổng: $x^2 + 8x + 16 = (x + 4)^2$.
+
+b) Ta có $9y^2 = (3y)^2$, $4 = 2^2$ và $12y = 2 \cdot 3y \cdot 2$, nên đa thức có dạng $A^2 - 2AB + B^2$ với $A = 3y$, $B = 2$. Theo hằng đẳng thức bình phương của một hiệu: $9y^2 - 12y + 4 = (3y - 2)^2$.
+
+c) Ta có $25a^2 = (5a)^2$, $9b^2 = (3b)^2$ và $30ab = 2 \cdot 5a \cdot 3b$, nên đa thức có dạng $A^2 + 2AB + B^2$ với $A = 5a$, $B = 3b$. Theo hằng đẳng thức bình phương của một tổng: $25a^2 + 30ab + 9b^2 = (5a + 3b)^2$.
+
+Đáp số: a) $\boxed{(x + 4)^2}$; b) $\boxed{(3y - 2)^2}$; c) $\boxed{(5a + 3b)^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- khai triển lập phương
+\begin{problem}[8DS-HDT-033]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-03
+% do_kho_du_kien: 1
+Khai triển các biểu thức sau:
+
+a) $(x + 4)^3$;
+
+b) $(2y - 3)^3$;
+
+c) $(a + 2b)^3$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức lập phương của một tổng $(A + B)^3 = A^3 + 3A^2B + 3AB^2 + B^3$ với $A = x$, $B = 4$: $(x + 4)^3 = x^3 + 3 \cdot x^2 \cdot 4 + 3 \cdot x \cdot 4^2 + 4^3 = x^3 + 12x^2 + 48x + 64$.
+
+b) Áp dụng hằng đẳng thức lập phương của một hiệu $(A - B)^3 = A^3 - 3A^2B + 3AB^2 - B^3$ với $A = 2y$, $B = 3$: $(2y - 3)^3 = (2y)^3 - 3 \cdot (2y)^2 \cdot 3 + 3 \cdot 2y \cdot 3^2 - 3^3 = 8y^3 - 36y^2 + 54y - 27$.
+
+c) Áp dụng hằng đẳng thức lập phương của một tổng với $A = a$, $B = 2b$: $(a + 2b)^3 = a^3 + 3 \cdot a^2 \cdot 2b + 3 \cdot a \cdot (2b)^2 + (2b)^3 = a^3 + 6a^2b + 12ab^2 + 8b^3$.
+
+Đáp số: a) $\boxed{x^3 + 12x^2 + 48x + 64}$; b) $\boxed{8y^3 - 36y^2 + 54y - 27}$; c) $\boxed{a^3 + 6a^2b + 12ab^2 + 8b^3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính nhanh, ba hằng đẳng thức
+\begin{problem}[8DS-HDT-034]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-05, 8DS-HDT-02, 8DS-HDT-01, 8DS-HDT-03
+% do_kho_du_kien: 2
+Tính nhanh:
+
+a) $75^2 - 25^2$;
+
+b) $53^2 + 94 \cdot 53 + 47^2$;
+
+c) $101^3 - 3 \cdot 101^2 + 3 \cdot 101 - 1$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$ với $A = 75$, $B = 25$: $75^2 - 25^2 = (75 - 25)(75 + 25) = 50 \cdot 100 = 5\,000$.
+
+b) Viết $94 = 2 \cdot 47$, khi đó biểu thức là $53^2 + 2 \cdot 53 \cdot 47 + 47^2$, có dạng $A^2 + 2AB + B^2$ với $A = 53$, $B = 47$. Theo hằng đẳng thức bình phương của một tổng: $(53 + 47)^2 = 100^2 = 10\,000$.
+
+c) Biểu thức có dạng $A^3 - 3A^2B + 3AB^2 - B^3$ với $A = 101$, $B = 1$ (vì $3 \cdot 101^2 \cdot 1$ và $3 \cdot 101 \cdot 1^2$). Theo hằng đẳng thức lập phương của một hiệu: $(101 - 1)^3 = 100^3 = 1\,000\,000$.
+
+Đáp số: a) $\boxed{5\,000}$; b) $\boxed{10\,000}$; c) $\boxed{1\,000\,000}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn biểu thức
+\begin{problem}[8DS-HDT-035]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-01, 8DS-HDT-02, 8DS-HDT-04
+% do_kho_du_kien: 2
+Rút gọn các biểu thức sau:
+
+a) $(x + 3)^2 - (x - 3)^2$;
+
+b) $(2a - b)^2 + (2a + b)^2 - 2(4a^2 - b^2)$;
+
+c) $(x + 2)(x^2 - 2x + 4) - (x^3 - 1)$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức bình phương của một tổng và của một hiệu: $(x + 3)^2 = x^2 + 6x + 9$ và $(x - 3)^2 = x^2 - 6x + 9$. Bỏ ngoặc (trước ngoặc có dấu trừ thì đổi dấu các hạng tử) rồi thu gọn: $x^2 + 6x + 9 - x^2 + 6x - 9 = 12x$.
+
+b) Áp dụng các hằng đẳng thức bình phương: $(2a - b)^2 = 4a^2 - 4ab + b^2$ và $(2a + b)^2 = 4a^2 + 4ab + b^2$; nhân đơn thức với đa thức: $2(4a^2 - b^2) = 8a^2 - 2b^2$.
+
+b) Thay vào và thu gọn các hạng tử đồng dạng: $4a^2 - 4ab + b^2 + 4a^2 + 4ab + b^2 - 8a^2 + 2b^2 = (4a^2 + 4a^2 - 8a^2) + (-4ab + 4ab) + (b^2 + b^2 + 2b^2) = 4b^2$.
+
+c) Áp dụng hằng đẳng thức tổng hai lập phương $(A + B)(A^2 - AB + B^2) = A^3 + B^3$ với $A = x$, $B = 2$: $(x + 2)(x^2 - 2x + 4) = x^3 + 8$. Do đó biểu thức bằng $x^3 + 8 - x^3 + 1 = 9$.
+
+Đáp số: a) $\boxed{12x}$; b) $\boxed{4b^2}$; c) $\boxed{9}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: tính nhanh diện tích
+\begin{problem}[8DS-HDT-036]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-05, 8DS-HDT-02, 8DS-HDT-01
+% do_kho_du_kien: 2
+Một thửa ruộng hình chữ nhật có chiều dài $105$ m và chiều rộng $95$ m. Bên cạnh có một sân phơi hình vuông cạnh $97$ m. Không dùng máy tính, hãy tính:
+
+a) Diện tích thửa ruộng;
+
+b) Diện tích sân phơi;
+
+c) Diện tích nào lớn hơn và lớn hơn bao nhiêu mét vuông.
+
+\begin{solution}
+a) Viết $105 = 100 + 5$ và $95 = 100 - 5$, rồi áp dụng hằng đẳng thức hiệu hai bình phương: $105 \cdot 95 = (100 + 5)(100 - 5) = 100^2 - 5^2 = 10\,000 - 25 = 9\,975$ (m$^2$).
+
+b) Viết $97 = 100 - 3$ và áp dụng hằng đẳng thức bình phương của một hiệu: $97^2 = (100 - 3)^2 = 100^2 - 2 \cdot 100 \cdot 3 + 3^2 = 10\,000 - 600 + 9 = 9\,409$ (m$^2$).
+
+c) So sánh hai kết quả: $9\,975 > 9\,409$ nên thửa ruộng có diện tích lớn hơn sân phơi, và chênh lệch là $9\,975 - 9\,409 = 566$ (m$^2$).
+
+Đáp số: a) $\boxed{9\,975 \text{ m}^2}$; b) $\boxed{9\,409 \text{ m}^2}$; c) $\boxed{\text{thửa ruộng lớn hơn } 566 \text{ m}^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh đẳng thức bằng tổng, hiệu hai lập phương
+\begin{problem}[8DS-HDT-037]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-04, 8DS-HDT-06
+% do_kho_du_kien: 2
+Chứng minh đẳng thức $(x + y)(x^2 - xy + y^2) + (x - y)(x^2 + xy + y^2) = 2x^3$ với mọi số $x$, $y$.
+
+\begin{solution}
+Áp dụng hằng đẳng thức tổng hai lập phương $(A + B)(A^2 - AB + B^2) = A^3 + B^3$ với $A = x$, $B = y$: $(x + y)(x^2 - xy + y^2) = x^3 + y^3$.
+
+Áp dụng hằng đẳng thức hiệu hai lập phương $(A - B)(A^2 + AB + B^2) = A^3 - B^3$ với $A = x$, $B = y$: $(x - y)(x^2 + xy + y^2) = x^3 - y^3$.
+
+Cộng hai kết quả và thu gọn: vế trái bằng $x^3 + y^3 + x^3 - y^3 = 2x^3$, đúng bằng vế phải (điều phải chứng minh).
+
+Đáp số: $\boxed{(x + y)(x^2 - xy + y^2) + (x - y)(x^2 + xy + y^2) = 2x^3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính tổng và hiệu khi biết tổng bình phương và tích
+\begin{problem}[8DS-HDT-038]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-05, 8DS-HDT-01
+% do_kho_du_kien: 2
+Cho hai số dương $x$, $y$ thoả mãn $4x^2 + 9y^2 = 25$, $xy = 2$ và $2x > 3y$.
+
+a) Tính $(2x + 3y)^2$ và $(2x - 3y)^2$.
+
+b) Tính $2x + 3y$ và $2x - 3y$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức bình phương của một tổng với $A = 2x$, $B = 3y$: $(2x + 3y)^2 = 4x^2 + 12xy + 9y^2 = (4x^2 + 9y^2) + 12xy = 25 + 12 \cdot 2 = 49$.
+
+a) Áp dụng hằng đẳng thức bình phương của một hiệu: $(2x - 3y)^2 = 4x^2 - 12xy + 9y^2 = (4x^2 + 9y^2) - 12xy = 25 - 12 \cdot 2 = 1$.
+
+b) Vì $x > 0$, $y > 0$ nên $2x + 3y > 0$; số dương có bình phương bằng $49$ là $7$, do đó $2x + 3y = 7$.
+
+b) Vì $2x > 3y$ nên $2x - 3y > 0$; số dương có bình phương bằng $1$ là $1$, do đó $2x - 3y = 1$.
+
+Đáp số: a) $\boxed{(2x + 3y)^2 = 49,\ (2x - 3y)^2 = 1}$; b) $\boxed{2x + 3y = 7,\ 2x - 3y = 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: chu vi và diện tích hình chữ nhật
+\begin{problem}[8DS-HDT-039]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-01, 8DS-HDT-05
+% do_kho_du_kien: 3
+Một mảnh vườn hình chữ nhật có chu vi $28$ m và diện tích $45$ m$^2$. Biết chiều dài lớn hơn chiều rộng.
+
+a) Không tìm riêng từng kích thước, hãy tính hiệu giữa chiều dài và chiều rộng.
+
+b) Tính chiều dài và chiều rộng của mảnh vườn.
+
+\begin{solution}
+a) Gọi chiều dài và chiều rộng lần lượt là $a$ (m) và $b$ (m), điều kiện $a > b > 0$. Chu vi bằng $28$ m nên $2(a + b) = 28$, suy ra $a + b = 14$; diện tích bằng $45$ m$^2$ nên $ab = 45$.
+
+a) Áp dụng hai hằng đẳng thức bình phương: $(a + b)^2 = a^2 + 2ab + b^2$ và $(a - b)^2 = a^2 - 2ab + b^2$. Trừ vế theo vế: $(a + b)^2 - (a - b)^2 = 4ab$, suy ra $(a - b)^2 = (a + b)^2 - 4ab$.
+
+a) Thay số: $(a - b)^2 = 14^2 - 4 \cdot 45 = 196 - 180 = 16$. Vì $a > b$ nên $a - b > 0$; số dương có bình phương bằng $16$ là $4$, do đó $a - b = 4$.
+
+b) Từ $a + b = 14$ và $a - b = 4$, cộng vế theo vế được $2a = 18$, $a = 9$; suy ra $b = 14 - 9 = 5$.
+
+b) Đối chiếu điều kiện: $9 > 5 > 0$ (thoả mãn). Thử lại: chu vi $2(9 + 5) = 28$ m và diện tích $9 \cdot 5 = 45$ m$^2$ (đúng).
+
+Đáp số: a) $\boxed{4 \text{ m}}$; b) $\boxed{9 \text{ m và } 5 \text{ m}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giá trị nhỏ nhất, giá trị lớn nhất của tam thức bậc hai
+\begin{problem}[8DS-HDT-040]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-01
+% do_kho_du_kien: 3
+a) Tìm giá trị nhỏ nhất của biểu thức $A = 4x^2 + 4x + 5$.
+
+b) Tìm giá trị lớn nhất của biểu thức $B = 7 + 6x - 9x^2$.
+
+\begin{solution}
+a) Tách $5 = 1 + 4$ để làm xuất hiện bình phương của một tổng: $A = (4x^2 + 4x + 1) + 4 = (2x)^2 + 2 \cdot 2x \cdot 1 + 1^2 + 4 = (2x + 1)^2 + 4$.
+
+a) Vì $(2x + 1)^2 \geq 0$ với mọi $x$ nên $A \geq 4$. Dấu bằng xảy ra khi và chỉ khi $2x + 1 = 0$, tức là $x = -\dfrac{1}{2}$. Thử lại: $A = 4 \cdot \dfrac{1}{4} - 2 + 5 = 4$ (đúng).
+
+b) Đặt dấu trừ ra ngoài các hạng tử chứa $x$ rồi thêm và bớt $1$: $B = -(9x^2 - 6x) + 7 = -(9x^2 - 6x + 1) + 1 + 7 = -(3x - 1)^2 + 8$.
+
+b) Vì $(3x - 1)^2 \geq 0$ nên $-(3x - 1)^2 \leq 0$, do đó $B \leq 8$. Dấu bằng xảy ra khi và chỉ khi $3x - 1 = 0$, tức là $x = \dfrac{1}{3}$. Thử lại: $B = 7 + 2 - 1 = 8$ (đúng).
+
+Đáp số: a) $\boxed{\min A = 4 \text{ khi } x = -\dfrac{1}{2}}$; b) $\boxed{\max B = 8 \text{ khi } x = \dfrac{1}{3}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính a^3 - b^3, ab, a^2 + b^2 khi biết a - b và a^2 + ab + b^2
+\begin{problem}[8DS-HDT-041]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-04, 8DS-HDT-01, 8DS-HDT-05
+% do_kho_du_kien: 3
+Cho hai số $a$, $b$ thoả mãn $a - b = 2$ và $a^2 + ab + b^2 = 7$. Không tìm $a$, $b$, hãy tính:
+
+a) $a^3 - b^3$;
+
+b) $ab$;
+
+c) $a^2 + b^2$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức hiệu hai lập phương: $a^3 - b^3 = (a - b)(a^2 + ab + b^2) = 2 \cdot 7 = 14$.
+
+b) Theo hằng đẳng thức bình phương của một hiệu, $(a - b)^2 = a^2 - 2ab + b^2$. Viết $a^2 - 2ab + b^2 = (a^2 + ab + b^2) - 3ab = 7 - 3ab$.
+
+b) Vì $(a - b)^2 = 2^2 = 4$ nên $7 - 3ab = 4$, suy ra $3ab = 3$ và $ab = 1$.
+
+c) Từ giả thiết $a^2 + ab + b^2 = 7$ và kết quả câu b): $a^2 + b^2 = 7 - ab = 7 - 1 = 6$.
+
+Đáp số: a) $\boxed{14}$; b) $\boxed{1}$; c) $\boxed{6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh tam thức luôn dương, luôn âm
+\begin{problem}[8DS-HDT-042]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-01
+% do_kho_du_kien: 3
+Chứng minh rằng với mọi số thực $x$:
+
+a) $x^2 - 5x + 7 > 0$;
+
+b) $-x^2 + 3x - 4 < 0$.
+
+\begin{solution}
+a) Tách $-5x = -2 \cdot x \cdot \dfrac{5}{2}$ và $7 = \dfrac{25}{4} + \dfrac{3}{4}$ để làm xuất hiện bình phương của một hiệu: $x^2 - 5x + 7 = \left(x^2 - 2 \cdot x \cdot \dfrac{5}{2} + \dfrac{25}{4}\right) + \dfrac{3}{4} = \left(x - \dfrac{5}{2}\right)^2 + \dfrac{3}{4}$.
+
+a) Vì $\left(x - \dfrac{5}{2}\right)^2 \geq 0$ nên $x^2 - 5x + 7 \geq \dfrac{3}{4} > 0$ với mọi $x$.
+
+b) Đặt dấu trừ ra ngoài các hạng tử chứa $x$ rồi thêm và bớt $\dfrac{9}{4}$: $-x^2 + 3x - 4 = -\left(x^2 - 2 \cdot x \cdot \dfrac{3}{2} + \dfrac{9}{4}\right) + \dfrac{9}{4} - 4 = -\left(x - \dfrac{3}{2}\right)^2 - \dfrac{7}{4}$.
+
+b) Vì $\left(x - \dfrac{3}{2}\right)^2 \geq 0$ nên $-\left(x - \dfrac{3}{2}\right)^2 \leq 0$, do đó $-x^2 + 3x - 4 \leq -\dfrac{7}{4} < 0$ với mọi $x$.
+
+Đáp số: a) $\boxed{x^2 - 5x + 7 = \left(x - \dfrac{5}{2}\right)^2 + \dfrac{3}{4} > 0}$; b) $\boxed{-x^2 + 3x - 4 = -\left(x - \dfrac{3}{2}\right)^2 - \dfrac{7}{4} < 0}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh chia hết bằng hiệu hai bình phương
+\begin{problem}[8DS-HDT-043]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-02, 8DS-HDT-06
+% do_kho_du_kien: 3
+Chứng minh rằng với mọi số nguyên $n$:
+
+a) $(n + 7)^2 - (n - 5)^2$ chia hết cho $24$;
+
+b) $(5n + 3)^2 - (5n - 3)^2$ chia hết cho $60$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$ với $A = n + 7$, $B = n - 5$: $(n + 7)^2 - (n - 5)^2 = \left[(n + 7) - (n - 5)\right]\left[(n + 7) + (n - 5)\right]$.
+
+a) Bỏ ngoặc và thu gọn trong mỗi thừa số: $(n + 7) - (n - 5) = 12$ và $(n + 7) + (n - 5) = 2n + 2$. Do đó biểu thức bằng $12(2n + 2) = 24(n + 1)$.
+
+a) Vì $n$ là số nguyên nên $n + 1$ là số nguyên, suy ra $24(n + 1)$ chia hết cho $24$.
+
+b) Áp dụng hằng đẳng thức hiệu hai bình phương với $A = 5n + 3$, $B = 5n - 3$: $(5n + 3)^2 - (5n - 3)^2 = \left[(5n + 3) - (5n - 3)\right]\left[(5n + 3) + (5n - 3)\right] = 6 \cdot 10n = 60n$.
+
+b) Vì $n$ là số nguyên nên $60n$ chia hết cho $60$.
+
+Đáp số: a) $\boxed{(n + 7)^2 - (n - 5)^2 = 24(n + 1) \text{ chia hết cho } 24}$; b) $\boxed{(5n + 3)^2 - (5n - 3)^2 = 60n \text{ chia hết cho } 60}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn rồi tính giá trị với hiệu hai lập phương
+\begin{problem}[8DS-HDT-044]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-03, 8DS-HDT-05
+% do_kho_du_kien: 3
+Cho biểu thức $M = (x + 3)^3 - (x - 3)^3 - 18x^2 - 2x$.
+
+a) Rút gọn $M$.
+
+b) Tính giá trị của $M$ tại $x = -27$.
+
+\begin{solution}
+a) Áp dụng hằng đẳng thức lập phương của một tổng: $(x + 3)^3 = x^3 + 9x^2 + 27x + 27$; áp dụng hằng đẳng thức lập phương của một hiệu: $(x - 3)^3 = x^3 - 9x^2 + 27x - 27$.
+
+a) Thay vào $M$ và bỏ ngoặc (trước ngoặc có dấu trừ thì đổi dấu các hạng tử trong ngoặc): $M = x^3 + 9x^2 + 27x + 27 - x^3 + 9x^2 - 27x + 27 - 18x^2 - 2x$.
+
+a) Thu gọn các hạng tử đồng dạng: $M = (x^3 - x^3) + (9x^2 + 9x^2 - 18x^2) + (27x - 27x - 2x) + (27 + 27) = 54 - 2x$.
+
+b) Thay $x = -27$ vào biểu thức đã rút gọn: $M = 54 - 2 \cdot (-27) = 54 + 54 = 108$.
+
+Đáp số: a) $\boxed{M = 54 - 2x}$; b) $\boxed{M = 108}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tích bốn số tự nhiên liên tiếp cộng 1
+\begin{problem}[8DS-HDT-045]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-01
+% do_kho_du_kien: 4
+Chứng minh rằng tích của bốn số tự nhiên liên tiếp cộng với $1$ luôn là bình phương của một số tự nhiên.
+
+\begin{solution}
+Gọi bốn số tự nhiên liên tiếp là $n$, $n + 1$, $n + 2$, $n + 3$ với $n$ là số tự nhiên. Ghép thừa số đầu với thừa số cuối và hai thừa số giữa: $n(n + 1)(n + 2)(n + 3) = \left[n(n + 3)\right]\left[(n + 1)(n + 2)\right]$.
+
+Nhân đa thức với đa thức: $n(n + 3) = n^2 + 3n$ và $(n + 1)(n + 2) = n^2 + 3n + 2$.
+
+Đặt $t = n^2 + 3n$, khi đó $n(n + 1)(n + 2)(n + 3) + 1 = t(t + 2) + 1 = t^2 + 2t + 1$.
+
+Áp dụng hằng đẳng thức bình phương của một tổng: $t^2 + 2t + 1 = (t + 1)^2 = (n^2 + 3n + 1)^2$.
+
+Vì $n$ là số tự nhiên nên $n^2 + 3n + 1$ cũng là số tự nhiên. Vậy tích của bốn số tự nhiên liên tiếp cộng với $1$ là bình phương của một số tự nhiên (điều phải chứng minh).
+
+Đáp số: $\boxed{n(n + 1)(n + 2)(n + 3) + 1 = (n^2 + 3n + 1)^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tổng đan dấu các bình phương liên tiếp
+\begin{problem}[8DS-HDT-046]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-02, 8DS-HDT-05
+% do_kho_du_kien: 4
+Tính giá trị của $A = 100^2 - 99^2 + 98^2 - 97^2 + \dots + 4^2 - 3^2 + 2^2 - 1^2$.
+
+\begin{solution}
+Nhóm hai số hạng liền nhau thành từng cặp: $A = (100^2 - 99^2) + (98^2 - 97^2) + \dots + (4^2 - 3^2) + (2^2 - 1^2)$. Mỗi cặp có dạng $k^2 - (k - 1)^2$ với $k = 100, 98, \dots, 4, 2$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương: $k^2 - (k - 1)^2 = \left[k - (k - 1)\right]\left[k + (k - 1)\right] = 1 \cdot (2k - 1) = k + (k - 1)$.
+
+Do đó $A = (100 + 99) + (98 + 97) + \dots + (4 + 3) + (2 + 1)$, tức là $A$ bằng tổng của tất cả các số nguyên từ $1$ đến $100$: $A = 1 + 2 + 3 + \dots + 100$.
+
+Tổng của $100$ số hạng đầu của dãy số nguyên dương liên tiếp là $\dfrac{100 \cdot (100 + 1)}{2} = 5\,050$.
+
+Đáp số: $\boxed{A = 5\,050}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- biết x - y và x^3 - y^3, tìm xy và x, y
+\begin{problem}[8DS-HDT-047]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-03, 8DS-HDT-05, 8DS-HDT-01, 8DS-PTNT-05
+% do_kho_du_kien: 4
+Cho hai số $x$, $y$ thoả mãn $x - y = 3$ và $x^3 - y^3 = 63$.
+
+a) Tính $xy$.
+
+b) Tính $x^2 + y^2$.
+
+c) Tìm $x$ và $y$.
+
+\begin{solution}
+a) Từ hằng đẳng thức lập phương của một hiệu: $(x - y)^3 = x^3 - 3x^2y + 3xy^2 - y^3 = x^3 - y^3 - 3xy(x - y)$, suy ra $x^3 - y^3 = (x - y)^3 + 3xy(x - y)$.
+
+a) Thay $x - y = 3$ và $x^3 - y^3 = 63$: $63 = 3^3 + 3xy \cdot 3 = 27 + 9xy$, suy ra $9xy = 36$ và $xy = 4$.
+
+b) Áp dụng hằng đẳng thức bình phương của một hiệu: $x^2 + y^2 = (x - y)^2 + 2xy = 3^2 + 2 \cdot 4 = 17$.
+
+c) Từ $x - y = 3$ suy ra $x = y + 3$. Thay vào $xy = 4$: $y(y + 3) = 4$, tức là $y^2 + 3y - 4 = 0$.
+
+c) Tách $3y = 4y - y$ rồi nhóm hạng tử: $y^2 + 4y - y - 4 = y(y + 4) - (y + 4) = (y + 4)(y - 1) = 0$. Do đó $y = -4$ hoặc $y = 1$, suy ra $x = y + 3 = -1$ hoặc $x = 4$.
+
+c) Thử lại: với $(x; y) = (4; 1)$ có $4 - 1 = 3$ và $4^3 - 1^3 = 63$; với $(x; y) = (-1; -4)$ có $-1 + 4 = 3$ và $(-1)^3 - (-4)^3 = -1 + 64 = 63$ (đều đúng).
+
+Đáp số: a) $\boxed{xy = 4}$; b) $\boxed{x^2 + y^2 = 17}$; c) $\boxed{(x; y) \in \{(4; 1), (-1; -4)\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- cực trị và bất đẳng thức khi biết a + b = 1
+\begin{problem}[8DS-HDT-048]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-01, 8DS-HDT-04
+% do_kho_du_kien: 4
+Cho hai số $a$, $b$ thoả mãn $a + b = 1$.
+
+a) Tìm giá trị nhỏ nhất của $a^2 + b^2$.
+
+b) Chứng minh rằng $a^3 + b^3 = 1 - 3ab$, rồi suy ra $a^3 + b^3 \geq \dfrac{1}{4}$.
+
+\begin{solution}
+a) Từ $a + b = 1$ suy ra $b = 1 - a$, do đó $a^2 + b^2 = a^2 + (1 - a)^2 = 2a^2 - 2a + 1$.
+
+a) Tách để làm xuất hiện bình phương của một hiệu: $2a^2 - 2a + 1 = 2\left(a^2 - a + \dfrac{1}{4}\right) + \dfrac{1}{2} = 2\left(a - \dfrac{1}{2}\right)^2 + \dfrac{1}{2}$.
+
+a) Vì $\left(a - \dfrac{1}{2}\right)^2 \geq 0$ nên $a^2 + b^2 \geq \dfrac{1}{2}$. Dấu bằng xảy ra khi và chỉ khi $a = \dfrac{1}{2}$, khi đó $b = \dfrac{1}{2}$. Thử lại: $\dfrac{1}{4} + \dfrac{1}{4} = \dfrac{1}{2}$ (đúng).
+
+b) Áp dụng hằng đẳng thức tổng hai lập phương: $a^3 + b^3 = (a + b)(a^2 - ab + b^2) = a^2 - ab + b^2$. Theo hằng đẳng thức bình phương của một tổng, $a^2 + b^2 = (a + b)^2 - 2ab = 1 - 2ab$, nên $a^3 + b^3 = 1 - 2ab - ab = 1 - 3ab$.
+
+b) Từ hai hằng đẳng thức bình phương của một tổng và của một hiệu: $(a + b)^2 - (a - b)^2 = 4ab$, suy ra $4ab = 1 - (a - b)^2 \leq 1$ (vì $(a - b)^2 \geq 0$), tức là $ab \leq \dfrac{1}{4}$.
+
+b) Do đó $a^3 + b^3 = 1 - 3ab \geq 1 - \dfrac{3}{4} = \dfrac{1}{4}$ (điều phải chứng minh); dấu bằng xảy ra khi $a = b = \dfrac{1}{2}$.
+
+Đáp số: a) $\boxed{\min (a^2 + b^2) = \dfrac{1}{2} \text{ khi } a = b = \dfrac{1}{2}}$; b) $\boxed{a^3 + b^3 = 1 - 3ab \geq \dfrac{1}{4}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nghiệm nguyên dương của hiệu hai bình phương
+\begin{problem}[8DS-HDT-049]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-02
+% do_kho_du_kien: 4
+Tìm tất cả các cặp số nguyên dương $(x; y)$ thoả mãn $x^2 - y^2 = 45$.
+
+\begin{solution}
+Áp dụng hằng đẳng thức hiệu hai bình phương: $x^2 - y^2 = (x - y)(x + y)$. Phương trình trở thành $(x - y)(x + y) = 45$.
+
+Vì $x$, $y$ nguyên dương nên $x + y$ là số nguyên dương; tích bằng $45 > 0$ nên $x - y$ cũng là số nguyên dương. Ngoài ra $x + y > x - y$ vì $y > 0$.
+
+Ta có $45 = 1 \cdot 45 = 3 \cdot 15 = 5 \cdot 9$, nên với số nhỏ đứng trước có ba trường hợp: $(x - y; x + y) = (1; 45)$, $(3; 15)$ hoặc $(5; 9)$.
+
+Cộng hai phương trình của từng trường hợp: $2x = 46$, $2x = 18$, $2x = 14$, suy ra $x = 23$, $x = 9$, $x = 7$; từ $x + y$ suy ra $y = 22$, $y = 6$, $y = 2$ (đều là số nguyên dương).
+
+Thử lại: $23^2 - 22^2 = 529 - 484 = 45$; $9^2 - 6^2 = 81 - 36 = 45$; $7^2 - 2^2 = 49 - 4 = 45$ (đều đúng).
+
+Đáp số: $\boxed{(x; y) \in \{(23; 22), (9; 6), (7; 2)\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giá trị nhỏ nhất của tích bốn nhân tử
+\begin{problem}[8DS-HDT-050]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-06, 8DS-HDT-01, 8DS-PTNT-03
+% do_kho_du_kien: 5
+Tìm giá trị nhỏ nhất của biểu thức $P = x(x + 3)(x + 4)(x + 7)$ và các giá trị của $x$ để $P$ đạt giá trị nhỏ nhất đó.
+
+\begin{solution}
+Ghép thừa số đầu với thừa số cuối và hai thừa số giữa (hai cặp có cùng tổng các hạng tử tự do $0 + 7 = 3 + 4$): $P = \left[x(x + 7)\right]\left[(x + 3)(x + 4)\right]$.
+
+Nhân đa thức với đa thức: $x(x + 7) = x^2 + 7x$ và $(x + 3)(x + 4) = x^2 + 7x + 12$. Đặt $t = x^2 + 7x$, khi đó $P = t(t + 12) = t^2 + 12t$.
+
+Thêm và bớt $36$ để làm xuất hiện bình phương của một tổng: $P = (t^2 + 2 \cdot t \cdot 6 + 6^2) - 36 = (t + 6)^2 - 36$.
+
+Vì $(t + 6)^2 \geq 0$ nên $P \geq -36$ với mọi $x$. Dấu bằng xảy ra khi và chỉ khi $t + 6 = 0$, tức là $x^2 + 7x + 6 = 0$.
+
+Nhóm hạng tử: $x^2 + 7x + 6 = x^2 + x + 6x + 6 = x(x + 1) + 6(x + 1) = (x + 1)(x + 6)$. Do đó $x = -1$ hoặc $x = -6$.
+
+Thử lại: tại $x = -1$ có $P = (-1) \cdot 2 \cdot 3 \cdot 6 = -36$; tại $x = -6$ có $P = (-6) \cdot (-3) \cdot (-2) \cdot 1 = -36$. Vậy giá trị nhỏ nhất của $P$ là $-36$.
+
+Đáp số: $\boxed{\min P = -36 \text{ khi } x = -1 \text{ hoặc } x = -6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- n^4 + 4 là hợp số
+\begin{problem}[8DS-HDT-051]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HDT-01, 8DS-HDT-02, 8DS-HDT-06
+% do_kho_du_kien: 5
+Chứng minh rằng với mọi số tự nhiên $n \geq 2$, số $n^4 + 4$ là hợp số.
+
+\begin{solution}
+Thêm và bớt $4n^2$ để làm xuất hiện bình phương của một tổng: $n^4 + 4 = (n^4 + 4n^2 + 4) - 4n^2 = (n^2 + 2)^2 - (2n)^2$.
+
+Áp dụng hằng đẳng thức hiệu hai bình phương $A^2 - B^2 = (A - B)(A + B)$ với $A = n^2 + 2$, $B = 2n$: $n^4 + 4 = (n^2 - 2n + 2)(n^2 + 2n + 2)$.
+
+Hai thừa số trên đều là số nguyên dương. Viết thừa số thứ nhất $n^2 - 2n + 2 = (n - 1)^2 + 1$; vì $n \geq 2$ nên $n - 1 \geq 1$, do đó $(n - 1)^2 + 1 \geq 2$.
+
+Thừa số thứ hai lớn hơn thừa số thứ nhất: $(n^2 + 2n + 2) - (n^2 - 2n + 2) = 4n > 0$. Do đó thừa số thứ hai cũng lớn hơn $2$.
+
+Vậy $n^4 + 4$ là tích của hai số tự nhiên đều lớn hơn $1$ nên là hợp số. Kiểm tra: $n = 2$ cho $20 = 2 \cdot 10$; $n = 3$ cho $85 = 5 \cdot 17$.
+
+Đáp số: $\boxed{n^4 + 4 = (n^2 - 2n + 2)(n^2 + 2n + 2) \text{ là hợp số khi } n \geq 2}$
+\end{solution}
+\end{problem}
+
+\end{document}

@@ -1,0 +1,559 @@
+% Ngân hàng bài mở rộng: Căn bậc hai và căn bậc ba (lớp 9), bài 032 đến 051.
+% Quy ước:
+%   - Mỗi bài: \begin{problem}[id] ... \end{problem}; lời giải lồng bên trong.
+%   - id: duy nhất, không dấu, không đổi, không dùng lại. Dạng <lớp><phân môn>-<chủ đề>-<số>.
+%   - Mỗi bước lời giải là 1 đoạn, các bước cách nhau 1 dòng trống; mỗi bước có lý do.
+%   - Dòng cuối lời giải: Đáp số: $\boxed{...}$
+%   - Cách giải khác: thêm \begin{solution}[cách 2].
+%   - Metadata bằng comment ngay sau \begin{problem}: % nguon:, % lop:, % kc_du_kien:, % do_kho_du_kien:
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- tính căn bậc hai, so sánh
+\begin{problem}[9DS-CAN-032]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-01
+% do_kho_du_kien: 1
+Thực hiện các yêu cầu sau:
+
+a) Tính $\sqrt{121} - 3\sqrt{\dfrac{4}{9}}$;
+
+b) Tính $\sqrt{(-9)^2} + \left(\sqrt{5}\right)^2$;
+
+c) So sánh $7$ và $\sqrt{47}$.
+
+\begin{solution}
+a) Vì $11 \geq 0$ và $11^2 = 121$ nên $\sqrt{121} = 11$; vì $\dfrac{2}{3} \geq 0$ và $\left(\dfrac{2}{3}\right)^2 = \dfrac{4}{9}$ nên $\sqrt{\dfrac{4}{9}} = \dfrac{2}{3}$. Do đó $11 - 3 \cdot \dfrac{2}{3} = 11 - 2 = 9$.
+
+b) Áp dụng $\sqrt{A^2} = |A|$: $\sqrt{(-9)^2} = |-9| = 9$; theo định nghĩa căn bậc hai số học, $\left(\sqrt{5}\right)^2 = 5$. Do đó tổng bằng $9 + 5 = 14$.
+
+c) Viết $7 = \sqrt{49}$ (vì $7 \geq 0$ và $7^2 = 49$). Với hai số không âm, số lớn hơn có căn bậc hai lớn hơn; vì $49 > 47$ nên $\sqrt{49} > \sqrt{47}$, tức là $7 > \sqrt{47}$.
+
+Đáp số: a) $\boxed{9}$; b) $\boxed{14}$; c) $\boxed{7 > \sqrt{47}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- điều kiện xác định, căn của biểu thức luôn dương
+\begin{problem}[9DS-CAN-033]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-01, 9DS-BPT-02
+% do_kho_du_kien: 1
+Tìm điều kiện của $x$ để mỗi căn thức sau xác định:
+
+a) $\sqrt{x - 7}$;
+
+b) $\sqrt{9 - 3x}$;
+
+c) $\sqrt{x^2 + 4}$.
+
+\begin{solution}
+a) Căn thức $\sqrt{x - 7}$ xác định khi và chỉ khi $x - 7 \geq 0$, tức là $x \geq 7$.
+
+b) Căn thức $\sqrt{9 - 3x}$ xác định khi và chỉ khi $9 - 3x \geq 0$. Chuyển vế: $-3x \geq -9$; chia hai vế cho $-3 < 0$ nên đổi chiều bất phương trình: $x \leq 3$.
+
+c) Vì $x^2 \geq 0$ với mọi $x$ nên $x^2 + 4 \geq 4 > 0$. Biểu thức dưới dấu căn luôn dương, do đó $\sqrt{x^2 + 4}$ xác định với mọi giá trị của $x$.
+
+Đáp số: a) $\boxed{x \geq 7}$; b) $\boxed{x \leq 3}$; c) $\boxed{\text{với mọi } x}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- khai phương một tích, nhân hai căn
+\begin{problem}[9DS-CAN-034]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-02, 8DS-HDT-02
+% do_kho_du_kien: 2
+Tính:
+
+a) $\sqrt{18} \cdot \sqrt{32}$;
+
+b) $\sqrt{2{,}5} \cdot \sqrt{40}$;
+
+c) $\sqrt{17^2 - 8^2}$.
+
+\begin{solution}
+a) Áp dụng quy tắc nhân các căn bậc hai $\sqrt{A} \cdot \sqrt{B} = \sqrt{AB}$ (với $A \geq 0$, $B \geq 0$): $\sqrt{18} \cdot \sqrt{32} = \sqrt{18 \cdot 32} = \sqrt{576}$. Vì $24 \geq 0$ và $24^2 = 576$ nên $\sqrt{576} = 24$.
+
+b) Áp dụng cùng quy tắc: $\sqrt{2{,}5} \cdot \sqrt{40} = \sqrt{2{,}5 \cdot 40} = \sqrt{100} = 10$.
+
+c) Áp dụng hằng đẳng thức hiệu hai bình phương: $17^2 - 8^2 = (17 - 8)(17 + 8) = 9 \cdot 25$.
+
+c) Áp dụng quy tắc khai phương một tích: $\sqrt{9 \cdot 25} = \sqrt{9} \cdot \sqrt{25} = 3 \cdot 5 = 15$.
+
+Đáp số: a) $\boxed{24}$; b) $\boxed{10}$; c) $\boxed{15}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- so sánh bằng cách đưa thừa số vào trong dấu căn
+\begin{problem}[9DS-CAN-035]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-03
+% do_kho_du_kien: 2
+Không dùng máy tính, hãy so sánh:
+
+a) $3\sqrt{5}$ và $2\sqrt{11}$;
+
+b) $-4\sqrt{3}$ và $-3\sqrt{5}$.
+
+\begin{solution}
+a) Đưa thừa số vào trong dấu căn theo công thức $A\sqrt{B} = \sqrt{A^2 B}$ (với $A \geq 0$, $B \geq 0$): $3\sqrt{5} = \sqrt{9 \cdot 5} = \sqrt{45}$ và $2\sqrt{11} = \sqrt{4 \cdot 11} = \sqrt{44}$.
+
+a) Với hai số không âm, số lớn hơn có căn bậc hai lớn hơn; vì $45 > 44$ nên $\sqrt{45} > \sqrt{44}$, tức là $3\sqrt{5} > 2\sqrt{11}$.
+
+b) Tương tự câu a): $4\sqrt{3} = \sqrt{16 \cdot 3} = \sqrt{48}$ và $3\sqrt{5} = \sqrt{45}$. Vì $48 > 45$ nên $\sqrt{48} > \sqrt{45}$, tức là $4\sqrt{3} > 3\sqrt{5}$.
+
+b) Nhân hai vế của bất đẳng thức $4\sqrt{3} > 3\sqrt{5}$ với $-1 < 0$ thì đổi chiều: $-4\sqrt{3} < -3\sqrt{5}$.
+
+Đáp số: a) $\boxed{3\sqrt{5} > 2\sqrt{11}}$; b) $\boxed{-4\sqrt{3} < -3\sqrt{5}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- căn bậc ba: rút gọn và tính
+\begin{problem}[9DS-CAN-036]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-06
+% do_kho_du_kien: 2
+a) Rút gọn $A = \sqrt[3]{24} - \sqrt[3]{81} + \sqrt[3]{375}$.
+
+b) Tính $B = \sqrt[3]{-\dfrac{8}{125}} + \sqrt[3]{0{,}008}$.
+
+\begin{solution}
+a) Đưa thừa số ra ngoài dấu căn bậc ba theo công thức $\sqrt[3]{a^3 b} = a\sqrt[3]{b}$: $\sqrt[3]{24} = \sqrt[3]{2^3 \cdot 3} = 2\sqrt[3]{3}$, $\sqrt[3]{81} = \sqrt[3]{3^3 \cdot 3} = 3\sqrt[3]{3}$, $\sqrt[3]{375} = \sqrt[3]{5^3 \cdot 3} = 5\sqrt[3]{3}$.
+
+a) Thay vào rồi cộng các căn thức đồng dạng: $A = 2\sqrt[3]{3} - 3\sqrt[3]{3} + 5\sqrt[3]{3} = (2 - 3 + 5)\sqrt[3]{3} = 4\sqrt[3]{3}$.
+
+b) Áp dụng $\sqrt[3]{a^3} = a$ với mọi số thực $a$: $\sqrt[3]{-\dfrac{8}{125}} = \sqrt[3]{\left(-\dfrac{2}{5}\right)^3} = -\dfrac{2}{5}$ và $\sqrt[3]{0{,}008} = \sqrt[3]{(0{,}2)^3} = 0{,}2 = \dfrac{1}{5}$.
+
+b) Do đó $B = -\dfrac{2}{5} + \dfrac{1}{5} = -\dfrac{1}{5}$.
+
+Đáp số: a) $\boxed{A = 4\sqrt[3]{3}}$; b) $\boxed{B = -\dfrac{1}{5}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- trục căn thức ở mẫu, ba dạng mẫu
+\begin{problem}[9DS-CAN-037]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-04, 8DS-HDT-02
+% do_kho_du_kien: 2
+Trục căn thức ở mẫu:
+
+a) $\dfrac{10}{\sqrt{5}}$;
+
+b) $\dfrac{6}{\sqrt{7} - 1}$;
+
+c) $\dfrac{\sqrt{2}}{\sqrt{6} + \sqrt{2}}$.
+
+\begin{solution}
+a) Nhân cả tử và mẫu với $\sqrt{5}$: $\dfrac{10}{\sqrt{5}} = \dfrac{10\sqrt{5}}{5} = 2\sqrt{5}$.
+
+b) Nhân cả tử và mẫu với biểu thức liên hợp $\sqrt{7} + 1$, dùng hằng đẳng thức hiệu hai bình phương ở mẫu: $\dfrac{6}{\sqrt{7} - 1} = \dfrac{6(\sqrt{7} + 1)}{(\sqrt{7} - 1)(\sqrt{7} + 1)} = \dfrac{6(\sqrt{7} + 1)}{7 - 1} = \sqrt{7} + 1$.
+
+c) Nhân cả tử và mẫu với biểu thức liên hợp $\sqrt{6} - \sqrt{2}$: $\dfrac{\sqrt{2}}{\sqrt{6} + \sqrt{2}} = \dfrac{\sqrt{2}(\sqrt{6} - \sqrt{2})}{(\sqrt{6} + \sqrt{2})(\sqrt{6} - \sqrt{2})} = \dfrac{\sqrt{12} - 2}{6 - 2}$.
+
+c) Đưa thừa số ra ngoài dấu căn $\sqrt{12} = 2\sqrt{3}$ rồi rút gọn: $\dfrac{2\sqrt{3} - 2}{4} = \dfrac{\sqrt{3} - 1}{2}$.
+
+Đáp số: a) $\boxed{2\sqrt{5}}$; b) $\boxed{\sqrt{7} + 1}$; c) $\boxed{\dfrac{\sqrt{3} - 1}{2}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: mảnh vườn hình chữ nhật
+\begin{problem}[9DS-CAN-038]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-03, 9DS-CAN-02
+% do_kho_du_kien: 2
+Một mảnh vườn hình chữ nhật có chiều dài $\sqrt{80}$ m và chiều rộng $\sqrt{45}$ m.
+
+a) Tính chu vi mảnh vườn, viết kết quả dưới dạng $a\sqrt{5}$ (m).
+
+b) Tính diện tích mảnh vườn.
+
+c) Tính độ dài đường chéo của mảnh vườn.
+
+\begin{solution}
+a) Đưa thừa số ra ngoài dấu căn: $\sqrt{80} = \sqrt{4^2 \cdot 5} = 4\sqrt{5}$ và $\sqrt{45} = \sqrt{3^2 \cdot 5} = 3\sqrt{5}$. Chu vi là $2(4\sqrt{5} + 3\sqrt{5}) = 2 \cdot 7\sqrt{5} = 14\sqrt{5}$ (m).
+
+b) Diện tích là tích hai kích thước: $4\sqrt{5} \cdot 3\sqrt{5} = 12 \cdot (\sqrt{5})^2 = 12 \cdot 5 = 60$ (m$^2$). Kiểm tra bằng quy tắc nhân hai căn: $\sqrt{80} \cdot \sqrt{45} = \sqrt{3\,600} = 60$.
+
+c) Đường chéo chia hình chữ nhật thành hai tam giác vuông, nên theo định lí Pythagore, bình phương đường chéo là $80 + 45 = 125$. Do đó đường chéo dài $\sqrt{125} = \sqrt{5^2 \cdot 5} = 5\sqrt{5}$ (m).
+
+Đáp số: a) $\boxed{14\sqrt{5} \text{ m}}$; b) $\boxed{60 \text{ m}^2}$; c) $\boxed{5\sqrt{5} \text{ m}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phương trình chứa căn, hai dạng
+\begin{problem}[9DS-CAN-039]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-07, 9DS-CAN-01, 8DS-HDT-01
+% do_kho_du_kien: 3
+Giải các phương trình sau:
+
+a) $\sqrt{5 - x} = \sqrt{2x - 1}$;
+
+b) $\sqrt{4x^2 - 4x + 1} = 5$.
+
+\begin{solution}
+a) Điều kiện xác định: $5 - x \geq 0$ và $2x - 1 \geq 0$, tức là $\dfrac{1}{2} \leq x \leq 5$.
+
+a) Hai vế đều không âm nên bình phương hai vế được phương trình tương đương: $5 - x = 2x - 1$. Chuyển vế: $3x = 6$, suy ra $x = 2$.
+
+a) Đối chiếu điều kiện: $\dfrac{1}{2} \leq 2 \leq 5$ (thoả mãn). Thử lại: $\sqrt{5 - 2} = \sqrt{3} = \sqrt{2 \cdot 2 - 1}$ (đúng).
+
+b) Theo hằng đẳng thức bình phương của một hiệu, $4x^2 - 4x + 1 = (2x - 1)^2 \geq 0$ với mọi $x$, nên căn luôn xác định và $\sqrt{(2x - 1)^2} = |2x - 1|$. Phương trình trở thành $|2x - 1| = 5$.
+
+b) Hai số có giá trị tuyệt đối bằng $5$ là $5$ và $-5$, nên $2x - 1 = 5$ hoặc $2x - 1 = -5$. Giải ra $x = 3$ hoặc $x = -2$.
+
+b) Thử lại: với $x = 3$ có $\sqrt{36 - 12 + 1} = \sqrt{25} = 5$; với $x = -2$ có $\sqrt{16 + 8 + 1} = \sqrt{25} = 5$ (đều đúng).
+
+Đáp số: a) $\boxed{x = 2}$; b) $\boxed{x \in \{-2; 3\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh giá trị biểu thức không phụ thuộc biến
+\begin{problem}[9DS-CAN-040]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-05, 8DS-HDT-02
+% do_kho_du_kien: 3
+Chứng minh rằng biểu thức $A = \dfrac{x - 9}{\sqrt{x} - 3} - \dfrac{x + 2\sqrt{x}}{\sqrt{x} + 2}$ với $x \geq 0$, $x \neq 9$ có giá trị không phụ thuộc vào $x$.
+
+\begin{solution}
+Với $x \geq 0$ thì $x = (\sqrt{x})^2$, nên theo hằng đẳng thức hiệu hai bình phương, $x - 9 = (\sqrt{x})^2 - 3^2 = (\sqrt{x} - 3)(\sqrt{x} + 3)$.
+
+Vì $x \neq 9$ nên $\sqrt{x} - 3 \neq 0$, rút gọn được phân thức thứ nhất: $\dfrac{x - 9}{\sqrt{x} - 3} = \dfrac{(\sqrt{x} - 3)(\sqrt{x} + 3)}{\sqrt{x} - 3} = \sqrt{x} + 3$.
+
+Đặt nhân tử chung ở tử của phân thức thứ hai: $x + 2\sqrt{x} = \sqrt{x}(\sqrt{x} + 2)$. Vì $\sqrt{x} + 2 \geq 2 > 0$ nên rút gọn được $\dfrac{x + 2\sqrt{x}}{\sqrt{x} + 2} = \sqrt{x}$.
+
+Thay vào $A$: $A = (\sqrt{x} + 3) - \sqrt{x} = 3$. Kết quả là một hằng số, nên giá trị của $A$ không phụ thuộc vào $x$.
+
+Đáp số: $\boxed{A = 3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn căn của bình phương theo khoảng của x
+\begin{problem}[9DS-CAN-041]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-01, 8DS-HDT-01
+% do_kho_du_kien: 3
+Rút gọn biểu thức $B = \sqrt{x^2 - 2x + 1} + \sqrt{x^2 + 6x + 9}$ trong mỗi trường hợp:
+
+a) $-3 \leq x \leq 1$;
+
+b) $x > 1$.
+
+\begin{solution}
+Theo hằng đẳng thức bình phương của một hiệu và của một tổng: $x^2 - 2x + 1 = (x - 1)^2$ và $x^2 + 6x + 9 = (x + 3)^2$. Áp dụng $\sqrt{A^2} = |A|$: $B = |x - 1| + |x + 3|$.
+
+a) Với $-3 \leq x \leq 1$ có $x - 1 \leq 0$ và $x + 3 \geq 0$, nên $|x - 1| = 1 - x$ và $|x + 3| = x + 3$. Do đó $B = (1 - x) + (x + 3) = 4$.
+
+b) Với $x > 1$ có $x - 1 > 0$ và $x + 3 > 0$, nên $|x - 1| = x - 1$ và $|x + 3| = x + 3$. Do đó $B = (x - 1) + (x + 3) = 2x + 2$.
+
+Đáp số: a) $\boxed{B = 4}$; b) $\boxed{B = 2x + 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: công thức Heron
+\begin{problem}[9DS-CAN-042]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-02, 9DS-CAN-03
+% do_kho_du_kien: 3
+Diện tích $S$ của tam giác có ba cạnh $a$, $b$, $c$ được tính theo công thức Heron $S = \sqrt{p(p - a)(p - b)(p - c)}$, trong đó $p = \dfrac{a + b + c}{2}$.
+
+a) Tính diện tích tam giác có ba cạnh $13$ cm, $14$ cm, $15$ cm.
+
+b) Tính độ dài đường cao ứng với cạnh $14$ cm của tam giác ở câu a).
+
+c) Tính diện tích tam giác có ba cạnh $7$ cm, $8$ cm, $9$ cm, viết kết quả dưới dạng $m\sqrt{n}$.
+
+\begin{solution}
+a) Nửa chu vi là $p = \dfrac{13 + 14 + 15}{2} = 21$, nên $p - 13 = 8$, $p - 14 = 7$, $p - 15 = 6$. Do đó $S = \sqrt{21 \cdot 8 \cdot 7 \cdot 6}$.
+
+a) Phân tích các thừa số: $21 \cdot 8 \cdot 7 \cdot 6 = (3 \cdot 7)(2^3)(7)(2 \cdot 3) = 2^4 \cdot 3^2 \cdot 7^2 = (2^2 \cdot 3 \cdot 7)^2$. Khai phương: $S = 2^2 \cdot 3 \cdot 7 = 84$ (cm$^2$).
+
+b) Diện tích tam giác bằng một nửa tích cạnh đáy và đường cao tương ứng, nên $\dfrac{1}{2} \cdot 14 \cdot h = 84$, suy ra $7h = 84$ và $h = 12$ (cm).
+
+c) Nửa chu vi là $p = \dfrac{7 + 8 + 9}{2} = 12$, nên $p - 7 = 5$, $p - 8 = 4$, $p - 9 = 3$. Do đó $S = \sqrt{12 \cdot 5 \cdot 4 \cdot 3} = \sqrt{720}$.
+
+c) Đưa thừa số ra ngoài dấu căn: $\sqrt{720} = \sqrt{12^2 \cdot 5} = 12\sqrt{5}$ (cm$^2$).
+
+Đáp số: a) $\boxed{84 \text{ cm}^2}$; b) $\boxed{12 \text{ cm}}$; c) $\boxed{12\sqrt{5} \text{ cm}^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phương trình tích chứa căn
+\begin{problem}[9DS-CAN-043]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-07, 9DS-CAN-02, 9DS-CAN-01
+% do_kho_du_kien: 3
+Giải phương trình $\sqrt{x^2 - 9} - 3\sqrt{x - 3} = 0$.
+
+\begin{solution}
+Điều kiện xác định: $x^2 - 9 \geq 0$ và $x - 3 \geq 0$. Từ $x - 3 \geq 0$ có $x \geq 3$; khi đó $x^2 - 9 = (x - 3)(x + 3) \geq 0$ cũng thoả mãn. Vậy điều kiện xác định là $x \geq 3$.
+
+Với $x \geq 3$ có $x - 3 \geq 0$ và $x + 3 > 0$, nên theo quy tắc khai phương một tích, $\sqrt{x^2 - 9} = \sqrt{(x - 3)(x + 3)} = \sqrt{x - 3} \cdot \sqrt{x + 3}$.
+
+Phương trình trở thành $\sqrt{x - 3} \cdot \sqrt{x + 3} - 3\sqrt{x - 3} = 0$. Đặt nhân tử chung $\sqrt{x - 3}$: $\sqrt{x - 3}\left(\sqrt{x + 3} - 3\right) = 0$.
+
+Một tích bằng $0$ khi và chỉ khi có ít nhất một thừa số bằng $0$. Trường hợp $\sqrt{x - 3} = 0$ cho $x = 3$. Trường hợp $\sqrt{x + 3} = 3$: bình phương hai vế (hai vế không âm) được $x + 3 = 9$, suy ra $x = 6$.
+
+Đối chiếu điều kiện: $x = 3$ và $x = 6$ đều thoả $x \geq 3$. Thử lại: với $x = 3$ vế trái bằng $0 - 0 = 0$; với $x = 6$ vế trái bằng $\sqrt{27} - 3\sqrt{3} = 3\sqrt{3} - 3\sqrt{3} = 0$ (đều đúng).
+
+Đáp số: $\boxed{x \in \{3; 6\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đưa biểu thức trong căn về bình phương
+\begin{problem}[9DS-CAN-044]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-01, 8DS-HDT-01
+% do_kho_du_kien: 3
+Rút gọn:
+
+a) $\sqrt{11 - 6\sqrt{2}}$;
+
+b) $\sqrt{7 + 4\sqrt{3}} - \sqrt{4 - 2\sqrt{3}}$.
+
+\begin{solution}
+a) Viết $11 = 3^2 + (\sqrt{2})^2$ và $6\sqrt{2} = 2 \cdot 3 \cdot \sqrt{2}$. Theo hằng đẳng thức bình phương của một hiệu: $11 - 6\sqrt{2} = 3^2 - 2 \cdot 3 \cdot \sqrt{2} + (\sqrt{2})^2 = (3 - \sqrt{2})^2$.
+
+a) Áp dụng $\sqrt{A^2} = |A|$: $\sqrt{11 - 6\sqrt{2}} = |3 - \sqrt{2}| = 3 - \sqrt{2}$ (vì $3 = \sqrt{9} > \sqrt{2}$).
+
+b) Viết $7 + 4\sqrt{3} = 2^2 + 2 \cdot 2 \cdot \sqrt{3} + (\sqrt{3})^2 = (2 + \sqrt{3})^2$, nên $\sqrt{7 + 4\sqrt{3}} = 2 + \sqrt{3}$.
+
+b) Viết $4 - 2\sqrt{3} = (\sqrt{3})^2 - 2 \cdot \sqrt{3} \cdot 1 + 1^2 = (\sqrt{3} - 1)^2$, nên $\sqrt{4 - 2\sqrt{3}} = |\sqrt{3} - 1| = \sqrt{3} - 1$ (vì $\sqrt{3} > 1$).
+
+b) Do đó $\sqrt{7 + 4\sqrt{3}} - \sqrt{4 - 2\sqrt{3}} = (2 + \sqrt{3}) - (\sqrt{3} - 1) = 3$.
+
+Đáp số: a) $\boxed{3 - \sqrt{2}}$; b) $\boxed{3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn có phép chia, tìm x, chứng minh bất đẳng thức
+\begin{problem}[9DS-CAN-045]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-05, 8DS-PS-04, 8DS-HDT-06
+% do_kho_du_kien: 4
+Cho biểu thức $B = \left(\dfrac{1}{\sqrt{x} - 1} + \dfrac{1}{\sqrt{x} + 1}\right) : \dfrac{x + 1}{x - 1}$ với $x \geq 0$, $x \neq 1$.
+
+a) Rút gọn $B$.
+
+b) Tìm $x$ để $B = \dfrac{4}{5}$.
+
+c) Chứng minh rằng $B < 1$.
+
+\begin{solution}
+a) Với $x \geq 0$ thì $x = (\sqrt{x})^2$, nên theo hằng đẳng thức hiệu hai bình phương $x - 1 = (\sqrt{x} - 1)(\sqrt{x} + 1)$. Quy đồng mẫu trong ngoặc: $\dfrac{1}{\sqrt{x} - 1} + \dfrac{1}{\sqrt{x} + 1} = \dfrac{(\sqrt{x} + 1) + (\sqrt{x} - 1)}{(\sqrt{x} - 1)(\sqrt{x} + 1)} = \dfrac{2\sqrt{x}}{x - 1}$.
+
+a) Chia cho một phân thức là nhân với phân thức nghịch đảo (hợp lệ vì $x - 1 \neq 0$): $B = \dfrac{2\sqrt{x}}{x - 1} \cdot \dfrac{x - 1}{x + 1} = \dfrac{2\sqrt{x}}{x + 1}$.
+
+b) $B = \dfrac{4}{5}$ khi $\dfrac{2\sqrt{x}}{x + 1} = \dfrac{4}{5}$. Vì $x + 1 > 0$, nhân chéo được $10\sqrt{x} = 4(x + 1)$, chia hai vế cho $2$ rồi chuyển vế: $2x - 5\sqrt{x} + 2 = 0$.
+
+b) Đặt $t = \sqrt{x} \geq 0$: $2t^2 - 5t + 2 = 0$. Tách $-5t = -4t - t$ rồi nhóm hạng tử: $2t^2 - 4t - t + 2 = 2t(t - 2) - (t - 2) = (2t - 1)(t - 2) = 0$, nên $t = \dfrac{1}{2}$ hoặc $t = 2$, tức là $x = \dfrac{1}{4}$ hoặc $x = 4$.
+
+b) Đối chiếu điều kiện: cả hai giá trị đều thoả $x \geq 0$ và $x \neq 1$.
+
+c) Xét hiệu: $1 - B = \dfrac{x + 1 - 2\sqrt{x}}{x + 1} = \dfrac{(\sqrt{x} - 1)^2}{x + 1}$ (hằng đẳng thức bình phương của một hiệu).
+
+c) Vì $x \neq 1$ nên $\sqrt{x} - 1 \neq 0$, do đó tử $(\sqrt{x} - 1)^2 > 0$; mẫu $x + 1 > 0$. Suy ra $1 - B > 0$, tức là $B < 1$.
+
+Đáp số: a) $\boxed{B = \dfrac{2\sqrt{x}}{x + 1}}$; b) $\boxed{x \in \left\{\dfrac{1}{4}; 4\right\}}$; c) $\boxed{B < 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- trục căn thức mẫu có hai và ba căn
+\begin{problem}[9DS-CAN-046]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-04, 8DS-HDT-02, 8DS-HDT-01
+% do_kho_du_kien: 4
+Trục căn thức ở mẫu:
+
+a) $\dfrac{4}{\sqrt{7} - \sqrt{3}}$;
+
+b) $\dfrac{1}{1 + \sqrt{2} + \sqrt{3}}$.
+
+\begin{solution}
+a) Nhân cả tử và mẫu với biểu thức liên hợp $\sqrt{7} + \sqrt{3}$, dùng hằng đẳng thức hiệu hai bình phương ở mẫu: $\dfrac{4}{\sqrt{7} - \sqrt{3}} = \dfrac{4(\sqrt{7} + \sqrt{3})}{7 - 3} = \sqrt{7} + \sqrt{3}$.
+
+b) Coi $1 + \sqrt{2}$ là một hạng tử và nhân cả tử và mẫu với $(1 + \sqrt{2}) - \sqrt{3}$. Ở mẫu, theo hằng đẳng thức hiệu hai bình phương và bình phương của một tổng: $\left[(1 + \sqrt{2}) + \sqrt{3}\right]\left[(1 + \sqrt{2}) - \sqrt{3}\right] = (1 + \sqrt{2})^2 - 3 = 3 + 2\sqrt{2} - 3 = 2\sqrt{2}$.
+
+b) Do đó $\dfrac{1}{1 + \sqrt{2} + \sqrt{3}} = \dfrac{1 + \sqrt{2} - \sqrt{3}}{2\sqrt{2}}$. Mẫu vẫn còn căn, nên nhân tiếp cả tử và mẫu với $\sqrt{2}$.
+
+b) Tính: $\dfrac{(1 + \sqrt{2} - \sqrt{3})\sqrt{2}}{2\sqrt{2} \cdot \sqrt{2}} = \dfrac{\sqrt{2} + 2 - \sqrt{6}}{4}$.
+
+Đáp số: a) $\boxed{\sqrt{7} + \sqrt{3}}$; b) $\boxed{\dfrac{2 + \sqrt{2} - \sqrt{6}}{4}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giá trị nhỏ nhất, giá trị lớn nhất của biểu thức chứa căn
+\begin{problem}[9DS-CAN-047]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-05, 9DS-CAN-01, 8DS-HDT-06
+% do_kho_du_kien: 4
+a) Tìm giá trị nhỏ nhất của biểu thức $M = x - 4\sqrt{x} + 7$.
+
+b) Tìm giá trị lớn nhất của biểu thức $N = \dfrac{1}{x - \sqrt{x} + 1}$.
+
+\begin{solution}
+a) Điều kiện xác định: $x \geq 0$, khi đó $x = (\sqrt{x})^2$. Tách $7 = 4 + 3$ để làm xuất hiện bình phương của một hiệu: $M = \left[(\sqrt{x})^2 - 2 \cdot \sqrt{x} \cdot 2 + 2^2\right] + 3 = (\sqrt{x} - 2)^2 + 3$.
+
+a) Vì $(\sqrt{x} - 2)^2 \geq 0$ nên $M \geq 3$. Dấu bằng xảy ra khi và chỉ khi $\sqrt{x} = 2$, tức là $x = 4$. Thử lại: $M = 4 - 8 + 7 = 3$ (đúng).
+
+b) Điều kiện xác định: $x \geq 0$. Viết mẫu thành bình phương cộng một hằng số: $x - \sqrt{x} + 1 = \left[(\sqrt{x})^2 - 2 \cdot \sqrt{x} \cdot \dfrac{1}{2} + \dfrac{1}{4}\right] + \dfrac{3}{4} = \left(\sqrt{x} - \dfrac{1}{2}\right)^2 + \dfrac{3}{4}$.
+
+b) Vì $\left(\sqrt{x} - \dfrac{1}{2}\right)^2 \geq 0$ nên mẫu $x - \sqrt{x} + 1 \geq \dfrac{3}{4} > 0$. Hai số dương thì nghịch đảo của số lớn hơn thì nhỏ hơn, nên $N = \dfrac{1}{x - \sqrt{x} + 1} \leq \dfrac{1}{3/4} = \dfrac{4}{3}$.
+
+b) Dấu bằng xảy ra khi và chỉ khi $\sqrt{x} = \dfrac{1}{2}$, tức là $x = \dfrac{1}{4}$. Thử lại: mẫu bằng $\dfrac{1}{4} - \dfrac{1}{2} + 1 = \dfrac{3}{4}$ nên $N = \dfrac{4}{3}$ (đúng).
+
+Đáp số: a) $\boxed{\min M = 3 \text{ khi } x = 4}$; b) $\boxed{\max N = \dfrac{4}{3} \text{ khi } x = \dfrac{1}{4}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phương trình chứa căn: nghiệm ngoại lai, hai căn
+\begin{problem}[9DS-CAN-048]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-07, 9DS-CAN-01, 8DS-PTNT-05
+% do_kho_du_kien: 4
+Giải các phương trình sau:
+
+a) $\sqrt{2x - 1} = x - 2$;
+
+b) $\sqrt{x + 5} + \sqrt{x - 3} = 4$.
+
+\begin{solution}
+a) Điều kiện xác định: $2x - 1 \geq 0$. Vế trái không âm nên phương trình chỉ có nghiệm khi $x - 2 \geq 0$, tức là $x \geq 2$ (điều kiện này đã bao gồm $2x - 1 \geq 0$).
+
+a) Với $x \geq 2$, hai vế đều không âm nên bình phương hai vế được phương trình tương đương: $2x - 1 = (x - 2)^2 = x^2 - 4x + 4$, tức là $x^2 - 6x + 5 = 0$.
+
+a) Tách $-6x = -x - 5x$ rồi nhóm hạng tử: $x^2 - x - 5x + 5 = x(x - 1) - 5(x - 1) = (x - 1)(x - 5) = 0$, nên $x = 1$ hoặc $x = 5$.
+
+a) Đối chiếu điều kiện $x \geq 2$: $x = 1$ không thoả nên loại (nghiệm ngoại lai: vế trái bằng $\sqrt{1} = 1$ còn vế phải bằng $-1$); $x = 5$ thoả. Thử lại: $\sqrt{9} = 3 = 5 - 2$ (đúng).
+
+b) Điều kiện xác định: $x + 5 \geq 0$ và $x - 3 \geq 0$, tức là $x \geq 3$. Chuyển một căn sang vế phải: $\sqrt{x + 5} = 4 - \sqrt{x - 3}$.
+
+b) Bình phương hai vế (đây là phép biến đổi hệ quả nên phải thử lại): $x + 5 = 16 - 8\sqrt{x - 3} + (x - 3)$, tức là $x + 5 = x + 13 - 8\sqrt{x - 3}$. Rút gọn $x$ ở hai vế: $8\sqrt{x - 3} = 8$, suy ra $\sqrt{x - 3} = 1$ và $x - 3 = 1$, $x = 4$.
+
+b) Đối chiếu điều kiện: $x = 4 \geq 3$ (thoả mãn). Thử lại: $\sqrt{4 + 5} + \sqrt{4 - 3} = 3 + 1 = 4$ (đúng).
+
+Đáp số: a) $\boxed{x = 5}$; b) $\boxed{x = 4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- căn bậc ba: rút gọn bằng hiệu hai lập phương
+\begin{problem}[9DS-CAN-049]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-06, 8DS-HDT-04
+% do_kho_du_kien: 4
+Cho biểu thức $A = \dfrac{a - b}{\sqrt[3]{a^2} + \sqrt[3]{ab} + \sqrt[3]{b^2}}$ với $a \neq b$.
+
+a) Rút gọn $A$.
+
+b) Tính $A$ khi $a = 125$, $b = 27$.
+
+c) Cho $b = 8$, tìm $a$ để $A = 1$.
+
+\begin{solution}
+a) Đặt $u = \sqrt[3]{a}$ và $v = \sqrt[3]{b}$, khi đó $a = u^3$, $b = v^3$, $\sqrt[3]{a^2} = u^2$, $\sqrt[3]{ab} = uv$, $\sqrt[3]{b^2} = v^2$. Mẫu thức trở thành $u^2 + uv + v^2$.
+
+a) Áp dụng hằng đẳng thức hiệu hai lập phương: $a - b = u^3 - v^3 = (u - v)(u^2 + uv + v^2)$. Vì $a \neq b$ nên $a - b \neq 0$, do đó $u^2 + uv + v^2 \neq 0$ và rút gọn được $A = \dfrac{(u - v)(u^2 + uv + v^2)}{u^2 + uv + v^2} = u - v = \sqrt[3]{a} - \sqrt[3]{b}$.
+
+b) Với $a = 125 = 5^3$ và $b = 27 = 3^3$: $A = 5 - 3 = 2$. Thử lại: $\dfrac{125 - 27}{25 + 15 + 9} = \dfrac{98}{49} = 2$ (đúng).
+
+c) Với $b = 8$ có $\sqrt[3]{b} = 2$, nên $A = \sqrt[3]{a} - 2$. Phương trình $A = 1$ trở thành $\sqrt[3]{a} = 3$.
+
+c) Lập phương hai vế: $a = 3^3 = 27$. Đối chiếu điều kiện: $27 \neq 8$ (thoả mãn). Thử lại: $\dfrac{27 - 8}{9 + 6 + 4} = \dfrac{19}{19} = 1$ (đúng).
+
+Đáp số: a) $\boxed{A = \sqrt[3]{a} - \sqrt[3]{b}}$; b) $\boxed{A = 2}$; c) $\boxed{a = 27}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- rút gọn có hiệu hai lập phương, chứng minh và tìm x
+\begin{problem}[9DS-CAN-050]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-05, 8DS-HDT-04, 8DS-HDT-06
+% do_kho_du_kien: 5
+Cho biểu thức $P = \dfrac{x + 2}{x\sqrt{x} - 1} + \dfrac{\sqrt{x} + 1}{x + \sqrt{x} + 1} - \dfrac{1}{\sqrt{x} - 1}$ với $x \geq 0$, $x \neq 1$.
+
+a) Rút gọn $P$.
+
+b) Chứng minh rằng $P < \dfrac{1}{3}$.
+
+c) Tìm $x$ để $P = \dfrac{3}{13}$.
+
+\begin{solution}
+a) Với $x \geq 0$, theo hằng đẳng thức hiệu hai lập phương, $x\sqrt{x} - 1 = (\sqrt{x})^3 - 1^3 = (\sqrt{x} - 1)(x + \sqrt{x} + 1)$. Mẫu chung của ba phân thức là $(\sqrt{x} - 1)(x + \sqrt{x} + 1)$.
+
+a) Quy đồng mẫu: $P = \dfrac{(x + 2) + (\sqrt{x} + 1)(\sqrt{x} - 1) - (x + \sqrt{x} + 1)}{(\sqrt{x} - 1)(x + \sqrt{x} + 1)}$.
+
+a) Khai triển và thu gọn tử, dùng hằng đẳng thức hiệu hai bình phương $(\sqrt{x} + 1)(\sqrt{x} - 1) = x - 1$: $x + 2 + x - 1 - x - \sqrt{x} - 1 = x - \sqrt{x} = \sqrt{x}(\sqrt{x} - 1)$.
+
+a) Vì $x \neq 1$ nên $\sqrt{x} - 1 \neq 0$, rút gọn được $P = \dfrac{\sqrt{x}(\sqrt{x} - 1)}{(\sqrt{x} - 1)(x + \sqrt{x} + 1)} = \dfrac{\sqrt{x}}{x + \sqrt{x} + 1}$.
+
+b) Xét hiệu, quy đồng mẫu: $\dfrac{1}{3} - P = \dfrac{x + \sqrt{x} + 1 - 3\sqrt{x}}{3(x + \sqrt{x} + 1)} = \dfrac{x - 2\sqrt{x} + 1}{3(x + \sqrt{x} + 1)} = \dfrac{(\sqrt{x} - 1)^2}{3(x + \sqrt{x} + 1)}$.
+
+b) Vì $x \neq 1$ nên tử $(\sqrt{x} - 1)^2 > 0$; mẫu $3(x + \sqrt{x} + 1) \geq 3 > 0$. Suy ra $\dfrac{1}{3} - P > 0$, tức là $P < \dfrac{1}{3}$.
+
+c) $P = \dfrac{3}{13}$ khi $\dfrac{\sqrt{x}}{x + \sqrt{x} + 1} = \dfrac{3}{13}$. Vì mẫu dương, nhân chéo được $13\sqrt{x} = 3(x + \sqrt{x} + 1)$, tức là $3x - 10\sqrt{x} + 3 = 0$.
+
+c) Đặt $t = \sqrt{x} \geq 0$: $3t^2 - 10t + 3 = 0$. Tách $-10t = -t - 9t$ rồi nhóm hạng tử: $3t^2 - t - 9t + 3 = t(3t - 1) - 3(3t - 1) = (3t - 1)(t - 3) = 0$, nên $t = \dfrac{1}{3}$ hoặc $t = 3$, tức là $x = \dfrac{1}{9}$ hoặc $x = 9$.
+
+c) Đối chiếu điều kiện: cả hai giá trị đều thoả $x \geq 0$ và $x \neq 1$. Thử lại: $x = 9$ cho $P = \dfrac{3}{9 + 3 + 1} = \dfrac{3}{13}$; $x = \dfrac{1}{9}$ cho $P = \dfrac{1/3}{1/9 + 1/3 + 1} = \dfrac{1/3}{13/9} = \dfrac{3}{13}$ (đều đúng).
+
+Đáp số: a) $\boxed{P = \dfrac{\sqrt{x}}{x + \sqrt{x} + 1}}$; b) $\boxed{P < \dfrac{1}{3}}$; c) $\boxed{x \in \left\{\dfrac{1}{9}; 9\right\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giá trị lớn nhất, nhỏ nhất của tổng hai căn
+\begin{problem}[9DS-CAN-051]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-CAN-05, 9DS-CAN-01, 8DS-HDT-06
+% do_kho_du_kien: 5
+Với $1 \leq x \leq 5$, đặt $y = \sqrt{x - 1} + \sqrt{5 - x}$.
+
+a) Chứng minh rằng $y^2 = 4 + 2\sqrt{(x - 1)(5 - x)}$.
+
+b) Tìm giá trị lớn nhất của $y$.
+
+c) Tìm giá trị nhỏ nhất của $y$.
+
+\begin{solution}
+a) Với $1 \leq x \leq 5$ có $x - 1 \geq 0$ và $5 - x \geq 0$ nên cả hai căn đều xác định. Áp dụng hằng đẳng thức bình phương của một tổng: $y^2 = (x - 1) + 2\sqrt{x - 1} \cdot \sqrt{5 - x} + (5 - x)$.
+
+a) Áp dụng quy tắc nhân hai căn bậc hai $\sqrt{x - 1} \cdot \sqrt{5 - x} = \sqrt{(x - 1)(5 - x)}$ và thu gọn $(x - 1) + (5 - x) = 4$: $y^2 = 4 + 2\sqrt{(x - 1)(5 - x)}$ (điều phải chứng minh).
+
+b) Khai triển rồi đưa về bình phương của một hiệu: $(x - 1)(5 - x) = -x^2 + 6x - 5 = 4 - (x^2 - 6x + 9) = 4 - (x - 3)^2$.
+
+b) Vì $(x - 3)^2 \geq 0$ nên $(x - 1)(5 - x) \leq 4$, suy ra $\sqrt{(x - 1)(5 - x)} \leq 2$ và $y^2 \leq 4 + 2 \cdot 2 = 8$. Do $y \geq 0$ nên $y \leq \sqrt{8} = 2\sqrt{2}$.
+
+b) Dấu bằng xảy ra khi và chỉ khi $(x - 3)^2 = 0$, tức là $x = 3$. Thử lại: $y = \sqrt{2} + \sqrt{2} = 2\sqrt{2}$ (đúng). Vậy giá trị lớn nhất của $y$ là $2\sqrt{2}$.
+
+c) Với $1 \leq x \leq 5$ có $(x - 1)(5 - x) \geq 0$ nên $\sqrt{(x - 1)(5 - x)} \geq 0$ và $y^2 \geq 4$. Do $y \geq 0$ nên $y \geq 2$.
+
+c) Dấu bằng xảy ra khi và chỉ khi $(x - 1)(5 - x) = 0$, tức là $x = 1$ hoặc $x = 5$. Thử lại: $x = 1$ cho $y = 0 + \sqrt{4} = 2$; $x = 5$ cho $y = \sqrt{4} + 0 = 2$ (đúng). Vậy giá trị nhỏ nhất của $y$ là $2$.
+
+Đáp số: a) $\boxed{y^2 = 4 + 2\sqrt{(x - 1)(5 - x)}}$; b) $\boxed{\max y = 2\sqrt{2} \text{ khi } x = 3}$; c) $\boxed{\min y = 2 \text{ khi } x = 1 \text{ hoặc } x = 5}$
+\end{solution}
+\end{problem}
+
+\end{document}

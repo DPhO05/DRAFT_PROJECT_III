@@ -1,0 +1,597 @@
+% Ngân hàng bài mở rộng (phần 2): Phương trình bậc hai một ẩn và định lý Viète (lớp 9).
+% Quy ước:
+%   - Mỗi bài: \begin{problem}[id] ... \end{problem}; lời giải lồng bên trong.
+%   - id: duy nhất, không dấu, không đổi, không dùng lại. Dạng <lớp><phân môn>-<chủ đề>-<số>.
+%   - Mỗi bước lời giải là 1 đoạn, các bước cách nhau 1 dòng trống; mỗi bước có lý do.
+%   - Dòng cuối lời giải: Đáp số: $\boxed{...}$
+%   - Cách giải khác: thêm \begin{solution}[cách 2].
+%   - Metadata bằng comment ngay sau \begin{problem}: % nguon:, % lop:, % kc_du_kien:, % do_kho_du_kien:
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- phương trình khuyết và dạng bình phương
+\begin{problem}[9DS-PT2-032]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-01
+% do_kho_du_kien: 1
+Giải các phương trình sau:
+
+a) $x^2 + 7x = 0$;
+
+b) $(x - 2)^2 = 9$.
+
+\begin{solution}
+a) Phương trình khuyết hệ số tự do, đặt nhân tử chung $x$: $x(x + 7) = 0$.
+
+a) Một tích bằng $0$ khi một trong các thừa số bằng $0$: $x = 0$ hoặc $x + 7 = 0$, suy ra $x = 0$ hoặc $x = -7$.
+
+b) Số dương $9$ có hai căn bậc hai là $3$ và $-3$, nên $x - 2 = 3$ hoặc $x - 2 = -3$.
+
+b) Suy ra $x = 5$ hoặc $x = -1$. Thử lại: $(5 - 2)^2 = 9$ và $(-1 - 2)^2 = 9$ (đúng).
+
+Đáp số: a) $\boxed{x = 0;\ x = -7}$; b) $\boxed{x = 5;\ x = -1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nhẩm nghiệm bằng a + b + c = 0 và a - b + c = 0
+\begin{problem}[9DS-PT2-033]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-04
+% do_kho_du_kien: 1
+Nhẩm nghiệm của các phương trình sau:
+
+a) $x^2 - 6x + 5 = 0$;
+
+b) $3x^2 + 8x + 5 = 0$.
+
+\begin{solution}
+a) Phương trình có $a = 1$, $b = -6$, $c = 5$ và $a + b + c = 1 - 6 + 5 = 0$.
+
+a) Vì $a + b + c = 0$ nên phương trình có hai nghiệm $x_1 = 1$ và $x_2 = \dfrac{c}{a} = 5$.
+
+b) Phương trình có $a = 3$, $b = 8$, $c = 5$ và $a - b + c = 3 - 8 + 5 = 0$.
+
+b) Vì $a - b + c = 0$ nên phương trình có hai nghiệm $x_1 = -1$ và $x_2 = -\dfrac{c}{a} = -\dfrac{5}{3}$.
+
+Đáp số: a) $\boxed{x_1 = 1;\ x_2 = 5}$; b) $\boxed{x_1 = -1;\ x_2 = -\dfrac{5}{3}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- công thức nghiệm, có hệ số chứa căn
+\begin{problem}[9DS-PT2-034]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-02
+% do_kho_du_kien: 2
+Giải các phương trình sau:
+
+a) $3x^2 + 5x - 2 = 0$;
+
+b) $x^2 - 2\sqrt{2}x + 2 = 0$.
+
+\begin{solution}
+a) Phương trình có $a = 3$, $b = 5$, $c = -2$: $\Delta = b^2 - 4ac = 25 + 24 = 49 > 0$, $\sqrt{\Delta} = 7$, nên phương trình có hai nghiệm phân biệt.
+
+a) Theo công thức nghiệm: $x_1 = \dfrac{-5 + 7}{6} = \dfrac{1}{3}$ và $x_2 = \dfrac{-5 - 7}{6} = -2$.
+
+a) Thử lại: $3 \cdot \dfrac{1}{9} + \dfrac{5}{3} - 2 = 0$ và $3 \cdot 4 - 10 - 2 = 0$ (đúng).
+
+b) Phương trình có $a = 1$, $b = -2\sqrt{2}$ nên $b' = -\sqrt{2}$, và $c = 2$. Dùng công thức nghiệm thu gọn: $\Delta' = b'^2 - ac = 2 - 2 = 0$.
+
+b) Vì $\Delta' = 0$ nên phương trình có nghiệm kép: $x_1 = x_2 = -\dfrac{b'}{a} = \sqrt{2}$ (phù hợp với $x^2 - 2\sqrt{2}x + 2 = (x - \sqrt{2})^2$ theo hằng đẳng thức bình phương của một hiệu).
+
+Đáp số: a) $\boxed{x = \dfrac{1}{3};\ x = -2}$; b) $\boxed{x_1 = x_2 = \sqrt{2}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- số nghiệm theo dấu của biệt thức
+\begin{problem}[9DS-PT2-035]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-02
+% do_kho_du_kien: 2
+Không giải phương trình, hãy cho biết mỗi phương trình sau có bao nhiêu nghiệm:
+
+a) $2x^2 - 5x + 4 = 0$;
+
+b) $9x^2 - 6x + 1 = 0$;
+
+c) $x^2 + x - 5 = 0$.
+
+\begin{solution}
+a) Phương trình có $a = 2$, $b = -5$, $c = 4$: $\Delta = (-5)^2 - 4 \cdot 2 \cdot 4 = 25 - 32 = -7 < 0$.
+
+a) Vì $\Delta < 0$ nên phương trình vô nghiệm.
+
+b) Phương trình có $a = 9$, $b = -6$, $c = 1$: $\Delta = (-6)^2 - 4 \cdot 9 \cdot 1 = 36 - 36 = 0$.
+
+b) Vì $\Delta = 0$ nên phương trình có nghiệm kép (một nghiệm $x = \dfrac{1}{3}$).
+
+c) Phương trình có $a = 1$, $b = 1$, $c = -5$: $\Delta = 1^2 - 4 \cdot 1 \cdot (-5) = 1 + 20 = 21 > 0$.
+
+c) Vì $\Delta > 0$ nên phương trình có hai nghiệm phân biệt.
+
+Đáp số: a) $\boxed{\text{Vô nghiệm}}$; b) $\boxed{\text{Một nghiệm (nghiệm kép)}}$; c) $\boxed{\text{Hai nghiệm phân biệt}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- Viète: tổng và tích hai nghiệm
+\begin{problem}[9DS-PT2-036]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-03, 9DS-PT2-02
+% do_kho_du_kien: 2
+Không giải phương trình, hãy tính tổng và tích hai nghiệm của mỗi phương trình sau:
+
+a) $x^2 - 7x + 5 = 0$;
+
+b) $2x^2 + 9x - 4 = 0$;
+
+c) $3x^2 - 2 = 0$.
+
+\begin{solution}
+a) Phương trình có $a = 1$, $b = -7$, $c = 5$ và $\Delta = 49 - 20 = 29 > 0$ nên có hai nghiệm; theo định lý Viète: $x_1 + x_2 = -\dfrac{b}{a} = 7$ và $x_1x_2 = \dfrac{c}{a} = 5$.
+
+b) Phương trình có $a = 2$, $b = 9$, $c = -4$ và $\Delta = 81 + 32 = 113 > 0$ nên có hai nghiệm; theo định lý Viète: $x_1 + x_2 = -\dfrac{9}{2}$ và $x_1x_2 = \dfrac{-4}{2} = -2$.
+
+c) Phương trình có $a = 3$, $b = 0$, $c = -2$ và $\Delta = 0 + 24 = 24 > 0$ nên có hai nghiệm; theo định lý Viète: $x_1 + x_2 = -\dfrac{0}{3} = 0$ và $x_1x_2 = -\dfrac{2}{3}$.
+
+Đáp số: a) $\boxed{S = 7,\ P = 5}$; b) $\boxed{S = -\dfrac{9}{2},\ P = -2}$; c) $\boxed{S = 0,\ P = -\dfrac{2}{3}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm hai số biết tổng và tích, hình chữ nhật
+\begin{problem}[9DS-PT2-037]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-05, 9DS-PT2-02
+% do_kho_du_kien: 2
+a) Tìm hai số biết tổng của chúng bằng $11$ và tích của chúng bằng $24$.
+
+b) Một hình chữ nhật có chu vi $26$ cm và diện tích $40$ cm$^2$. Tính độ dài hai cạnh của hình chữ nhật.
+
+\begin{solution}
+a) Với $S = 11$, $P = 24$ ta có $S^2 - 4P = 121 - 96 = 25 \geq 0$, nên hai số cần tìm tồn tại và là hai nghiệm của phương trình $X^2 - 11X + 24 = 0$.
+
+a) Giải phương trình: $\Delta = 11^2 - 4 \cdot 24 = 25$, $\sqrt{\Delta} = 5$, nên $X_1 = \dfrac{11 + 5}{2} = 8$ và $X_2 = \dfrac{11 - 5}{2} = 3$. Thử lại: $8 + 3 = 11$ và $8 \cdot 3 = 24$ (đúng).
+
+b) Nửa chu vi là $26 : 2 = 13$ (cm), nên tổng hai cạnh là $S = 13$; diện tích bằng tích hai cạnh nên $P = 40$.
+
+b) Ta có $S^2 - 4P = 169 - 160 = 9 \geq 0$, nên hai cạnh là hai nghiệm của phương trình $X^2 - 13X + 40 = 0$. Phương trình này có $\Delta = 9$, $\sqrt{\Delta} = 3$, nên $X_1 = \dfrac{13 + 3}{2} = 8$ và $X_2 = \dfrac{13 - 3}{2} = 5$.
+
+b) Thử lại: chu vi $2(8 + 5) = 26$ cm và diện tích $8 \cdot 5 = 40$ cm$^2$ (đúng).
+
+Đáp số: a) $\boxed{3 \text{ và } 8}$; b) $\boxed{5 \text{ cm và } 8 \text{ cm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đưa về dạng tổng quát, hệ số phân số
+\begin{problem}[9DS-PT2-038]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-02, 9DS-PT2-04, 8DS-HDT-01
+% do_kho_du_kien: 2
+Giải các phương trình sau:
+
+a) $(x - 3)^2 + 5x = 2x + 13$;
+
+b) $\dfrac{x^2}{2} - \dfrac{x}{3} - \dfrac{1}{6} = 0$.
+
+\begin{solution}
+a) Khai triển theo hằng đẳng thức bình phương của một hiệu: $x^2 - 6x + 9 + 5x = 2x + 13$; thu gọn vế trái: $x^2 - x + 9 = 2x + 13$.
+
+a) Chuyển tất cả các hạng tử sang vế trái để đưa về dạng $ax^2 + bx + c = 0$: $x^2 - 3x - 4 = 0$, với $a = 1$, $b = -3$, $c = -4$.
+
+a) Tính biệt thức: $\Delta = (-3)^2 - 4 \cdot 1 \cdot (-4) = 9 + 16 = 25 > 0$, $\sqrt{\Delta} = 5$; nghiệm $x_1 = \dfrac{3 + 5}{2} = 4$ và $x_2 = \dfrac{3 - 5}{2} = -1$.
+
+a) Thử lại: với $x = 4$, vế trái $1 + 20 = 21$, vế phải $8 + 13 = 21$; với $x = -1$, vế trái $16 - 5 = 11$, vế phải $-2 + 13 = 11$ (đúng).
+
+b) Nhân hai vế với mẫu chung $6$ để khử mẫu: $3x^2 - 2x - 1 = 0$, với $a = 3$, $b = -2$, $c = -1$.
+
+b) Có $a + b + c = 3 - 2 - 1 = 0$ nên phương trình có hai nghiệm $x_1 = 1$ và $x_2 = \dfrac{c}{a} = -\dfrac{1}{3}$.
+
+Đáp số: a) $\boxed{x = 4;\ x = -1}$; b) $\boxed{x = 1;\ x = -\dfrac{1}{3}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phương trình trùng phương: bốn nghiệm và vô nghiệm
+\begin{problem}[9DS-PT2-039]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-08, 9DS-PT2-02
+% do_kho_du_kien: 3
+Giải các phương trình sau:
+
+a) $x^4 - 13x^2 + 36 = 0$;
+
+b) $x^4 + 3x^2 + 2 = 0$.
+
+\begin{solution}
+a) Đặt $t = x^2$, điều kiện $t \geq 0$ (bình phương của một số luôn không âm). Phương trình trở thành $t^2 - 13t + 36 = 0$.
+
+a) Phương trình ẩn $t$ có $\Delta = (-13)^2 - 4 \cdot 36 = 169 - 144 = 25 > 0$, $\sqrt{\Delta} = 5$, nên $t_1 = \dfrac{13 + 5}{2} = 9$ và $t_2 = \dfrac{13 - 5}{2} = 4$.
+
+a) Đối chiếu điều kiện $t \geq 0$: cả hai giá trị đều thoả mãn. Với $t = 9$: $x^2 = 9$, suy ra $x = 3$ hoặc $x = -3$. Với $t = 4$: $x^2 = 4$, suy ra $x = 2$ hoặc $x = -2$.
+
+a) Thử lại: $2^4 - 13 \cdot 2^2 + 36 = 16 - 52 + 36 = 0$ và $3^4 - 13 \cdot 3^2 + 36 = 81 - 117 + 36 = 0$; vì phương trình chỉ chứa luỹ thừa bậc chẵn của $x$ nên $x = -2$, $x = -3$ cũng thoả mãn.
+
+b) Đặt $t = x^2$, điều kiện $t \geq 0$. Phương trình trở thành $t^2 + 3t + 2 = 0$, có $\Delta = 9 - 8 = 1$, nên $t_1 = \dfrac{-3 + 1}{2} = -1$ và $t_2 = \dfrac{-3 - 1}{2} = -2$.
+
+b) Cả hai giá trị của $t$ đều âm nên bị loại (không có $x$ nào để $x^2 < 0$). Vậy phương trình vô nghiệm.
+
+Đáp số: a) $\boxed{x = \pm 2;\ x = \pm 3}$; b) $\boxed{\text{Phương trình vô nghiệm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phương trình chứa ẩn ở mẫu, hai nghiệm đều nhận
+\begin{problem}[9DS-PT2-040]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-08, 9DS-PT2-02, 8DS-PS-03
+% do_kho_du_kien: 3
+Giải phương trình $\dfrac{6}{x - 1} - \dfrac{5}{x + 2} = 2$.
+
+\begin{solution}
+Điều kiện xác định: các mẫu khác $0$, tức là $x - 1 \neq 0$ và $x + 2 \neq 0$; do đó $x \neq 1$ và $x \neq -2$.
+
+Mẫu chung là $(x - 1)(x + 2)$. Quy đồng mẫu rồi khử mẫu: $6(x + 2) - 5(x - 1) = 2(x - 1)(x + 2)$.
+
+Khai triển hai vế: vế trái $6x + 12 - 5x + 5 = x + 17$; vế phải $2(x^2 + x - 2) = 2x^2 + 2x - 4$.
+
+Chuyển tất cả các hạng tử sang vế phải: $2x^2 + x - 21 = 0$, với $a = 2$, $b = 1$, $c = -21$.
+
+Tính biệt thức: $\Delta = 1^2 - 4 \cdot 2 \cdot (-21) = 1 + 168 = 169 > 0$, $\sqrt{\Delta} = 13$; nghiệm $x_1 = \dfrac{-1 + 13}{4} = 3$ và $x_2 = \dfrac{-1 - 13}{4} = -\dfrac{7}{2}$.
+
+Đối chiếu điều kiện: cả $x_1 = 3$ và $x_2 = -\dfrac{7}{2}$ đều khác $1$ và khác $-2$ (thoả mãn).
+
+Thử lại: với $x = 3$, vế trái $\dfrac{6}{2} - \dfrac{5}{5} = 3 - 1 = 2$; với $x = -\dfrac{7}{2}$, vế trái $\dfrac{6}{-9/2} - \dfrac{5}{-3/2} = -\dfrac{4}{3} + \dfrac{10}{3} = 2$ (đúng).
+
+Đáp số: $\boxed{x = 3;\ x = -\dfrac{7}{2}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán chuyển động xuôi dòng, ngược dòng
+\begin{problem}[9DS-PT2-041]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-07, 9DS-PT2-02
+% do_kho_du_kien: 3
+Một ca nô đi xuôi dòng $45$ km, rồi quay lại ngược dòng $45$ km về đúng nơi xuất phát, tổng cộng hết $8$ giờ. Biết vận tốc của dòng nước là $3$ km/h. Tính vận tốc riêng của ca nô.
+
+\begin{solution}
+Gọi vận tốc riêng của ca nô là $x$ (km/h), điều kiện $x > 3$ (để ca nô đi ngược dòng được).
+
+Vận tốc xuôi dòng là $x + 3$ (km/h), vận tốc ngược dòng là $x - 3$ (km/h). Thời gian bằng quãng đường chia cho vận tốc: thời gian xuôi dòng là $\dfrac{45}{x + 3}$ (giờ), thời gian ngược dòng là $\dfrac{45}{x - 3}$ (giờ).
+
+Tổng thời gian là $8$ giờ nên ta có phương trình $\dfrac{45}{x + 3} + \dfrac{45}{x - 3} = 8$.
+
+Vì $x > 3$ nên $(x + 3)(x - 3) \neq 0$; quy đồng mẫu và khử mẫu: $45(x - 3) + 45(x + 3) = 8(x^2 - 9) \Leftrightarrow 90x = 8x^2 - 72 \Leftrightarrow 4x^2 - 45x - 36 = 0$.
+
+Phương trình này có $\Delta = (-45)^2 - 4 \cdot 4 \cdot (-36) = 2\,025 + 576 = 2\,601$, $\sqrt{\Delta} = 51$, nên $x_1 = \dfrac{45 + 51}{8} = 12$ và $x_2 = \dfrac{45 - 51}{8} = -\dfrac{3}{4}$.
+
+Đối chiếu điều kiện $x > 3$: $x_1 = 12$ thoả mãn, $x_2 = -\dfrac{3}{4}$ bị loại (vận tốc phải dương).
+
+Thử lại: thời gian xuôi dòng $\dfrac{45}{15} = 3$ giờ, thời gian ngược dòng $\dfrac{45}{9} = 5$ giờ, tổng cộng $8$ giờ (đúng).
+
+Đáp số: $\boxed{12 \text{ km/h}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: số nghiệm theo biệt thức thu gọn
+\begin{problem}[9DS-PT2-042]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-06, 9DS-PT2-02, 9DS-PT2-03
+% do_kho_du_kien: 3
+Cho phương trình $x^2 - 2x + m - 3 = 0$ $(1)$, với $m$ là tham số.
+
+a) Giải phương trình $(1)$ khi $m = 3$.
+
+b) Tìm $m$ để phương trình $(1)$ có hai nghiệm phân biệt.
+
+c) Tìm $m$ để phương trình $(1)$ có nghiệm kép và tìm nghiệm kép đó.
+
+d) Tìm $m$ để phương trình $(1)$ có một nghiệm bằng $3$ và tìm nghiệm còn lại.
+
+\begin{solution}
+a) Với $m = 3$, phương trình $(1)$ trở thành $x^2 - 2x = 0$; đặt nhân tử chung: $x(x - 2) = 0$, nên $x = 0$ hoặc $x = 2$.
+
+b) Phương trình $(1)$ có $a = 1$, $b' = -1$, $c = m - 3$, nên $\Delta' = b'^2 - ac = 1 - (m - 3) = 4 - m$.
+
+b) Phương trình $(1)$ có hai nghiệm phân biệt khi và chỉ khi $\Delta' > 0 \Leftrightarrow 4 - m > 0 \Leftrightarrow m < 4$.
+
+c) Phương trình $(1)$ có nghiệm kép khi và chỉ khi $\Delta' = 0 \Leftrightarrow m = 4$. Khi đó nghiệm kép là $x = -\dfrac{b'}{a} = 1$ (phương trình trở thành $x^2 - 2x + 1 = (x - 1)^2 = 0$).
+
+d) Vì $x = 3$ là nghiệm của $(1)$ nên khi thay $x = 3$ vào $(1)$ ta được đẳng thức đúng: $9 - 6 + m - 3 = 0 \Leftrightarrow m = 0$.
+
+d) Với $m = 0$, phương trình $(1)$ có nghiệm $x_1 = 3$ nên có hai nghiệm $x_1, x_2$; theo định lý Viète: $x_1 + x_2 = 2$, suy ra nghiệm còn lại $x_2 = 2 - 3 = -1$. Kiểm tra bằng tích: $x_1x_2 = -3 = m - 3$ (đúng).
+
+Đáp số: a) $\boxed{x = 0;\ x = 2}$; b) $\boxed{m < 4}$; c) $\boxed{m = 4;\ x_1 = x_2 = 1}$; d) $\boxed{m = 0;\ \text{nghiệm còn lại } x = -1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- Viète: biểu thức đối xứng bậc hai và bậc bốn
+\begin{problem}[9DS-PT2-043]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-03, 9DS-PT2-02, 8DS-HDT-01
+% do_kho_du_kien: 3
+Cho phương trình $x^2 - 6x + 4 = 0$ có hai nghiệm $x_1, x_2$. Không giải phương trình, hãy tính giá trị của các biểu thức:
+
+a) $A = x_1^2 + x_2^2$;
+
+b) $B = |x_1 - x_2|$;
+
+c) $C = x_1^4 + x_2^4$.
+
+\begin{solution}
+Phương trình có $a = 1$, $b' = -3$, $c = 4$ và $\Delta' = 9 - 4 = 5 > 0$, nên có hai nghiệm phân biệt $x_1, x_2$. Theo định lý Viète: $x_1 + x_2 = 6$ và $x_1x_2 = 4$.
+
+a) Theo hằng đẳng thức bình phương của một tổng: $A = (x_1 + x_2)^2 - 2x_1x_2 = 36 - 8 = 28$.
+
+b) Ta có $B \geq 0$ và $B^2 = (x_1 - x_2)^2 = (x_1 + x_2)^2 - 4x_1x_2 = 36 - 16 = 20$.
+
+b) Suy ra $B = \sqrt{20} = 2\sqrt{5}$.
+
+c) Áp dụng hằng đẳng thức bình phương của một tổng cho $x_1^2$ và $x_2^2$: $C = (x_1^2 + x_2^2)^2 - 2x_1^2x_2^2 = A^2 - 2(x_1x_2)^2$.
+
+c) Thay số: $C = 28^2 - 2 \cdot 4^2 = 784 - 32 = 752$.
+
+Đáp số: a) $\boxed{A = 28}$; b) $\boxed{B = 2\sqrt{5}}$; c) $\boxed{C = 752}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hình học: định lý Pythagore
+\begin{problem}[9DS-PT2-044]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-07, 9DS-PT2-02
+% do_kho_du_kien: 3
+Một tam giác vuông có cạnh huyền dài $13$ cm, hai cạnh góc vuông hơn kém nhau $7$ cm. Tính độ dài hai cạnh góc vuông.
+
+\begin{solution}
+Gọi độ dài cạnh góc vuông ngắn là $x$ (cm), điều kiện $0 < x < 13$ (cạnh góc vuông ngắn hơn cạnh huyền). Khi đó cạnh góc vuông dài là $x + 7$ (cm).
+
+Theo định lý Pythagore, tổng bình phương hai cạnh góc vuông bằng bình phương cạnh huyền, nên ta có phương trình $x^2 + (x + 7)^2 = 13^2$.
+
+Khai triển và thu gọn: $x^2 + x^2 + 14x + 49 = 169 \Leftrightarrow 2x^2 + 14x - 120 = 0 \Leftrightarrow x^2 + 7x - 60 = 0$.
+
+Phương trình này có $\Delta = 7^2 + 4 \cdot 60 = 289$, $\sqrt{\Delta} = 17$, nên $x_1 = \dfrac{-7 + 17}{2} = 5$ và $x_2 = \dfrac{-7 - 17}{2} = -12$.
+
+Đối chiếu điều kiện $0 < x < 13$: $x_1 = 5$ thoả mãn, $x_2 = -12$ bị loại (độ dài phải dương). Cạnh góc vuông dài là $5 + 7 = 12$ (cm).
+
+Thử lại: $5^2 + 12^2 = 25 + 144 = 169 = 13^2$ và $12 - 5 = 7$ (đúng).
+
+Đáp số: $\boxed{5 \text{ cm và } 12 \text{ cm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: hai nghiệm phân biệt, loại m khi nghiệm kép
+\begin{problem}[9DS-PT2-045]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-06, 9DS-PT2-03
+% do_kho_du_kien: 4
+Cho phương trình $x^2 - 2(m + 1)x + m^2 + m - 2 = 0$ $(1)$, với $m$ là tham số.
+
+a) Tìm $m$ để phương trình $(1)$ có hai nghiệm phân biệt.
+
+b) Tìm $m$ để phương trình $(1)$ có hai nghiệm phân biệt $x_1, x_2$ thoả mãn $x_1^2 + x_2^2 = 8$.
+
+\begin{solution}
+a) Phương trình $(1)$ có $a = 1$, $b' = -(m + 1)$, $c = m^2 + m - 2$, nên $\Delta' = (m + 1)^2 - (m^2 + m - 2) = m^2 + 2m + 1 - m^2 - m + 2 = m + 3$.
+
+a) Phương trình $(1)$ có hai nghiệm phân biệt khi và chỉ khi $\Delta' > 0 \Leftrightarrow m + 3 > 0 \Leftrightarrow m > -3$.
+
+b) Với $m > -3$, theo định lý Viète: $x_1 + x_2 = 2(m + 1)$ và $x_1x_2 = m^2 + m - 2$.
+
+b) Biến đổi theo tổng và tích: $x_1^2 + x_2^2 = (x_1 + x_2)^2 - 2x_1x_2 = 4(m + 1)^2 - 2(m^2 + m - 2) = 2m^2 + 6m + 8$.
+
+b) Điều kiện đề bài: $2m^2 + 6m + 8 = 8 \Leftrightarrow 2m^2 + 6m = 0 \Leftrightarrow 2m(m + 3) = 0$, nên $m = 0$ hoặc $m = -3$.
+
+b) Đối chiếu điều kiện $m > -3$: $m = 0$ thoả mãn; $m = -3$ bị loại (khi đó $\Delta' = 0$, phương trình $(1)$ chỉ có nghiệm kép, không có hai nghiệm phân biệt).
+
+b) Thử lại với $m = 0$: phương trình $x^2 - 2x - 2 = 0$ có $\Delta' = 3 > 0$, $x_1 + x_2 = 2$, $x_1x_2 = -2$, nên $x_1^2 + x_2^2 = 4 + 4 = 8$ (đúng).
+
+Đáp số: a) $\boxed{m > -3}$; b) $\boxed{m = 0}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: biệt thức là số chính phương, hai nghiệm theo m
+\begin{problem}[9DS-PT2-046]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-06, 9DS-PT2-02, 9DS-PT2-03
+% do_kho_du_kien: 4
+Cho phương trình $x^2 - (2m + 1)x + m^2 + m - 6 = 0$ $(1)$, với $m$ là tham số.
+
+a) Chứng minh rằng phương trình $(1)$ luôn có hai nghiệm phân biệt với mọi giá trị của $m$.
+
+b) Tìm hai nghiệm của phương trình $(1)$ theo $m$.
+
+c) Tìm $m$ để phương trình $(1)$ có hai nghiệm $x_1, x_2$ thoả mãn $x_1 = 2x_2$.
+
+\begin{solution}
+a) Phương trình $(1)$ có $a = 1$, $b = -(2m + 1)$, $c = m^2 + m - 6$, nên $\Delta = (2m + 1)^2 - 4(m^2 + m - 6) = 4m^2 + 4m + 1 - 4m^2 - 4m + 24 = 25$.
+
+a) Vì $\Delta = 25 > 0$ với mọi $m$ nên phương trình $(1)$ luôn có hai nghiệm phân biệt.
+
+b) Có $\sqrt{\Delta} = 5$. Theo công thức nghiệm: $x = \dfrac{2m + 1 + 5}{2} = m + 3$ hoặc $x = \dfrac{2m + 1 - 5}{2} = m - 2$.
+
+b) Thử lại bằng Viète: $(m + 3) + (m - 2) = 2m + 1$ và $(m + 3)(m - 2) = m^2 + m - 6$ (đúng).
+
+c) Hai nghiệm của $(1)$ là $m + 3$ và $m - 2$; vì vai trò của $x_1, x_2$ trong hệ thức không như nhau nên xét hai trường hợp.
+
+c) Trường hợp $x_1 = m + 3$, $x_2 = m - 2$: $m + 3 = 2(m - 2) \Leftrightarrow m + 3 = 2m - 4 \Leftrightarrow m = 7$.
+
+c) Trường hợp $x_1 = m - 2$, $x_2 = m + 3$: $m - 2 = 2(m + 3) \Leftrightarrow m - 2 = 2m + 6 \Leftrightarrow m = -8$.
+
+c) Thử lại: với $m = 7$ hai nghiệm là $10$ và $5$, và $10 = 2 \cdot 5$; với $m = -8$ hai nghiệm là $-5$ và $-10$, và $-10 = 2 \cdot (-5)$ (đúng).
+
+Đáp số: a) $\boxed{\Delta = 25 > 0 \text{ với mọi } m}$; b) $\boxed{x = m + 3;\ x = m - 2}$; c) $\boxed{m = 7 \text{ hoặc } m = -8}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đặt ẩn phụ là một tam thức
+\begin{problem}[9DS-PT2-047]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-08, 9DS-PT2-04, 9DS-PT2-02
+% do_kho_du_kien: 4
+Giải phương trình $(x^2 - 2x)^2 - 3(x^2 - 2x) - 4 = 0$.
+
+\begin{solution}
+Đặt $t = x^2 - 2x$. Phương trình trở thành phương trình bậc hai ẩn $t$: $t^2 - 3t - 4 = 0$.
+
+Phương trình ẩn $t$ có $a = 1$, $b = -3$, $c = -4$ và $a - b + c = 1 + 3 - 4 = 0$, nên có hai nghiệm $t_1 = -1$ và $t_2 = -\dfrac{c}{a} = 4$.
+
+Với $t = 4$: $x^2 - 2x - 4 = 0$, có $\Delta' = (-1)^2 + 4 = 5 > 0$, nên $x = 1 + \sqrt{5}$ hoặc $x = 1 - \sqrt{5}$ (công thức nghiệm thu gọn với $b' = -1$).
+
+Với $t = -1$: $x^2 - 2x + 1 = 0$, tức là $(x - 1)^2 = 0$ (hằng đẳng thức bình phương của một hiệu), nên $x = 1$.
+
+Thử lại: với $x = 1$, $t = -1$ và $(-1)^2 - 3 \cdot (-1) - 4 = 1 + 3 - 4 = 0$; với $x = 1 \pm \sqrt{5}$, $t = x^2 - 2x = (x - 1)^2 - 1 = 5 - 1 = 4$ và $16 - 12 - 4 = 0$ (đúng).
+
+Đáp số: $\boxed{x = 1;\ x = 1 + \sqrt{5};\ x = 1 - \sqrt{5}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- parabol và đường thẳng, hiệu hai hoành độ
+\begin{problem}[9DS-PT2-048]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-06, 9DS-PT2-03, 9DS-HSB2-03
+% do_kho_du_kien: 4
+Trong mặt phẳng toạ độ $Oxy$, cho parabol $(P)\colon y = x^2$ và đường thẳng $(d)\colon y = (m - 1)x + 4$, với $m$ là tham số.
+
+a) Chứng minh rằng với mọi giá trị của $m$, đường thẳng $(d)$ luôn cắt parabol $(P)$ tại hai điểm phân biệt.
+
+b) Tìm toạ độ các giao điểm của $(d)$ và $(P)$ khi $m = 4$.
+
+c) Gọi $x_A$, $x_B$ là hoành độ hai giao điểm của $(d)$ và $(P)$. Tìm $m$ để $|x_A - x_B| = 5$.
+
+\begin{solution}
+a) Phương trình hoành độ giao điểm của $(d)$ và $(P)$: $x^2 = (m - 1)x + 4 \Leftrightarrow x^2 - (m - 1)x - 4 = 0$ $(*)$.
+
+a) Phương trình $(*)$ có $a = 1$, $b = -(m - 1)$, $c = -4$, nên $\Delta = (m - 1)^2 - 4 \cdot 1 \cdot (-4) = (m - 1)^2 + 16 \geq 16 > 0$ với mọi $m$. Do đó $(*)$ luôn có hai nghiệm phân biệt, tức là $(d)$ luôn cắt $(P)$ tại hai điểm phân biệt.
+
+b) Với $m = 4$, $(*)$ trở thành $x^2 - 3x - 4 = 0$, có $a - b + c = 1 + 3 - 4 = 0$ nên có hai nghiệm $x = -1$ và $x = -\dfrac{c}{a} = 4$.
+
+b) Tung độ giao điểm tính theo $y = x^2$: với $x = -1$ thì $y = 1$; với $x = 4$ thì $y = 16$. Thử lại trên $(d)\colon y = 3x + 4$: $3 \cdot (-1) + 4 = 1$ và $3 \cdot 4 + 4 = 16$ (đúng).
+
+c) Theo định lý Viète cho $(*)$: $x_A + x_B = m - 1$ và $x_Ax_B = -4$.
+
+c) Ta có $|x_A - x_B| = 5 \Leftrightarrow (x_A - x_B)^2 = 25$, và $(x_A - x_B)^2 = (x_A + x_B)^2 - 4x_Ax_B = (m - 1)^2 + 16$. Do đó $(m - 1)^2 + 16 = 25 \Leftrightarrow (m - 1)^2 = 9$.
+
+c) Suy ra $m - 1 = 3$ hoặc $m - 1 = -3$, tức là $m = 4$ hoặc $m = -2$. Cả hai giá trị đều nhận vì theo câu a) $(*)$ luôn có hai nghiệm.
+
+c) Thử lại: với $m = -2$, $(*)$ là $x^2 + 3x - 4 = 0$ có hai nghiệm $1$ và $-4$, $|1 - (-4)| = 5$ (đúng); với $m = 4$ hai nghiệm là $-1$ và $4$, $|-1 - 4| = 5$ (đúng).
+
+Đáp số: a) $\boxed{\Delta = (m - 1)^2 + 16 > 0 \text{ với mọi } m}$; b) $\boxed{(-1; 1) \text{ và } (4; 16)}$; c) $\boxed{m = 4 \text{ hoặc } m = -2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán chuyển động, đổi phút ra giờ, tăng tốc sau 2/3 quãng đường
+\begin{problem}[9DS-PT2-049]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-07, 9DS-PT2-02, 8DS-PS-03
+% do_kho_du_kien: 4
+Một ô tô đi từ A đến B dài $180$ km với vận tốc dự định. Sau khi đi được $\dfrac{2}{3}$ quãng đường, ô tô tăng vận tốc thêm $10$ km/h trên quãng đường còn lại nên đến B sớm hơn dự định $18$ phút. Tính vận tốc dự định của ô tô.
+
+\begin{solution}
+Gọi vận tốc dự định của ô tô là $x$ (km/h), điều kiện $x > 0$.
+
+Quãng đường đã đi với vận tốc dự định là $\dfrac{2}{3} \cdot 180 = 120$ (km); quãng đường còn lại là $180 - 120 = 60$ (km), đi với vận tốc $x + 10$ (km/h).
+
+Thời gian dự định là $\dfrac{180}{x}$ (giờ); thời gian thực tế là $\dfrac{120}{x} + \dfrac{60}{x + 10}$ (giờ). Đổi đơn vị: $18$ phút $= \dfrac{18}{60} = \dfrac{3}{10}$ giờ.
+
+Thời gian thực tế ít hơn dự định $\dfrac{3}{10}$ giờ nên ta có phương trình: $\dfrac{180}{x} - \dfrac{120}{x} - \dfrac{60}{x + 10} = \dfrac{3}{10}$, tức là $\dfrac{60}{x} - \dfrac{60}{x + 10} = \dfrac{3}{10}$.
+
+Vì $x > 0$ nên $x(x + 10) \neq 0$; quy đồng vế trái: $\dfrac{60(x + 10) - 60x}{x(x + 10)} = \dfrac{600}{x(x + 10)} = \dfrac{3}{10}$, suy ra $x(x + 10) = 2\,000$, tức là $x^2 + 10x - 2\,000 = 0$.
+
+Giải bằng công thức nghiệm thu gọn với $b' = 5$: $\Delta' = 5^2 + 2\,000 = 2\,025$, $\sqrt{\Delta'} = 45$, nên $x_1 = -5 + 45 = 40$ và $x_2 = -5 - 45 = -50$.
+
+Đối chiếu điều kiện $x > 0$: $x_1 = 40$ thoả mãn, $x_2 = -50$ bị loại (vận tốc phải dương).
+
+Thử lại: thời gian dự định $\dfrac{180}{40} = 4{,}5$ giờ; thời gian thực tế $\dfrac{120}{40} + \dfrac{60}{50} = 3 + 1{,}2 = 4{,}2$ giờ; hiệu $0{,}3$ giờ $= 18$ phút (đúng).
+
+Đáp số: $\boxed{40 \text{ km/h}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: giá trị nhỏ nhất khi đỉnh nằm ngoài miền điều kiện
+\begin{problem}[9DS-PT2-050]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-06, 9DS-PT2-03
+% do_kho_du_kien: 5
+Cho phương trình $x^2 - 2(m + 1)x + m^2 + 2 = 0$ $(1)$, với $m$ là tham số.
+
+a) Tìm $m$ để phương trình $(1)$ có nghiệm.
+
+b) Khi $(1)$ có nghiệm $x_1, x_2$, biểu diễn $A = x_1^2 + x_2^2$ theo $m$.
+
+c) Tìm giá trị nhỏ nhất của $A$ và giá trị của $m$ tương ứng.
+
+\begin{solution}
+a) Phương trình $(1)$ có $a = 1$, $b' = -(m + 1)$, $c = m^2 + 2$, nên $\Delta' = (m + 1)^2 - (m^2 + 2) = m^2 + 2m + 1 - m^2 - 2 = 2m - 1$.
+
+a) Phương trình $(1)$ có nghiệm khi và chỉ khi $\Delta' \geq 0 \Leftrightarrow 2m - 1 \geq 0 \Leftrightarrow m \geq \dfrac{1}{2}$.
+
+b) Với $m \geq \dfrac{1}{2}$, theo định lý Viète: $x_1 + x_2 = 2(m + 1)$ và $x_1x_2 = m^2 + 2$.
+
+b) Biến đổi theo tổng và tích: $A = (x_1 + x_2)^2 - 2x_1x_2 = 4(m + 1)^2 - 2(m^2 + 2) = 2m^2 + 8m$.
+
+c) Biểu thức $A = 2(m + 2)^2 - 8$ nhỏ nhất khi $m = -2$, nhưng $m = -2$ không thoả điều kiện $m \geq \dfrac{1}{2}$ nên không dùng được; ta phải so sánh $A$ với một giá trị trong miền $m \geq \dfrac{1}{2}$.
+
+c) Xét hiệu tại biên $m = \dfrac{1}{2}$: $A - \dfrac{9}{2} = 2m^2 + 8m - \dfrac{9}{2} = \dfrac{4m^2 + 16m - 9}{2} = \dfrac{(2m - 1)(2m + 9)}{2}$.
+
+c) Với $m \geq \dfrac{1}{2}$ ta có $2m - 1 \geq 0$ và $2m + 9 > 0$, nên $A - \dfrac{9}{2} \geq 0$, tức là $A \geq \dfrac{9}{2}$. Dấu bằng xảy ra khi và chỉ khi $2m - 1 = 0 \Leftrightarrow m = \dfrac{1}{2}$.
+
+c) Thử lại: với $m = \dfrac{1}{2}$, $(1)$ là $x^2 - 3x + \dfrac{9}{4} = 0$, tức là $\left(x - \dfrac{3}{2}\right)^2 = 0$, có $x_1 = x_2 = \dfrac{3}{2}$ và $A = \dfrac{9}{4} + \dfrac{9}{4} = \dfrac{9}{2}$ (đúng).
+
+Đáp số: a) $\boxed{m \geq \dfrac{1}{2}}$; b) $\boxed{A = 2m^2 + 8m}$; c) $\boxed{A_{\min} = \dfrac{9}{2} \text{ khi } m = \dfrac{1}{2}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- phương trình trùng phương có tham số, đếm số nghiệm
+\begin{problem}[9DS-PT2-051]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-PT2-08, 9DS-PT2-06, 9DS-PT2-02
+% do_kho_du_kien: 5
+Cho phương trình $x^4 - (m + 3)x^2 + 3m = 0$ $(1)$, với $m$ là tham số.
+
+a) Giải phương trình $(1)$ khi $m = 4$.
+
+b) Tìm $m$ để phương trình $(1)$ có đúng $3$ nghiệm phân biệt.
+
+c) Tìm $m$ để phương trình $(1)$ có $4$ nghiệm phân biệt.
+
+\begin{solution}
+Đặt $t = x^2$, điều kiện $t \geq 0$. Phương trình $(1)$ trở thành $t^2 - (m + 3)t + 3m = 0$ $(2)$. Phân tích vế trái thành nhân tử: $t^2 - (m + 3)t + 3m = t^2 - 3t - mt + 3m = t(t - 3) - m(t - 3) = (t - 3)(t - m)$.
+
+Do đó $(2)$ có hai nghiệm $t = 3$ và $t = m$ với mọi $m$. Mỗi $t \geq 0$ cho $x^2 = t$: nếu $t > 0$ thì có hai nghiệm $x = \pm\sqrt{t}$, nếu $t = 0$ thì có một nghiệm $x = 0$, nếu $t < 0$ thì không có nghiệm.
+
+a) Với $m = 4$: $t = 3$ hoặc $t = 4$, cả hai đều dương. Từ $x^2 = 3$ ta có $x = \pm\sqrt{3}$; từ $x^2 = 4$ ta có $x = \pm 2$.
+
+b) Giá trị $t = 3$ luôn cho hai nghiệm $x = \pm\sqrt{3}$. Muốn có đúng $3$ nghiệm phân biệt thì $t = m$ phải cho đúng một nghiệm mới, khác $\pm\sqrt{3}$: điều đó chỉ xảy ra khi $t = m = 0$ (cho nghiệm $x = 0$).
+
+b) Thử lại: với $m = 0$, $(1)$ là $x^4 - 3x^2 = x^2(x^2 - 3) = 0$, có đúng ba nghiệm $x = 0$, $x = \sqrt{3}$, $x = -\sqrt{3}$.
+
+c) Phương trình có $4$ nghiệm phân biệt khi $t = m$ cho hai nghiệm $x = \pm\sqrt{m}$ khác hai nghiệm $\pm\sqrt{3}$ của $t = 3$, tức là $m > 0$ và $m \neq 3$.
+
+c) Kiểm tra các trường hợp còn lại: $m < 0$ chỉ có hai nghiệm $\pm\sqrt{3}$; $m = 3$ thì hai giá trị $t$ trùng nhau, chỉ có hai nghiệm $\pm\sqrt{3}$. Vậy $4$ nghiệm phân biệt khi và chỉ khi $m > 0$ và $m \neq 3$.
+
+Đáp số: a) $\boxed{x = \pm\sqrt{3};\ x = \pm 2}$; b) $\boxed{m = 0}$; c) $\boxed{m > 0 \text{ và } m \neq 3}$
+\end{solution}
+\end{problem}
+
+\end{document}

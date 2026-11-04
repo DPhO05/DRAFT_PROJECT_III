@@ -1,0 +1,560 @@
+% Ngân hàng bài dummy (dữ liệu test): Hàm số bậc nhất (lớp 8), phần mở rộng.
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- giá trị hàm số, giải phương trình g(x) = k
+\begin{problem}[8DS-HSBN-032]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-02
+% do_kho_du_kien: 1
+Cho hàm số $y = g(x) = -\dfrac{1}{2}x + 4$.
+
+a) Tính $g(0)$, $g(6)$ và $g(-3)$.
+
+b) Tìm $x$ để $g(x) = 7$.
+
+\begin{solution}
+a) Để tính giá trị của hàm số tại $x = x_0$, ta thay $x = x_0$ vào công thức $g(x) = -\dfrac{1}{2}x + 4$ rồi thực hiện phép tính.
+
+a) Thay $x = 0$: $g(0) = -\dfrac{1}{2} \cdot 0 + 4 = 4$. Thay $x = 6$: $g(6) = -\dfrac{1}{2} \cdot 6 + 4 = -3 + 4 = 1$.
+
+a) Thay $x = -3$: $g(-3) = -\dfrac{1}{2} \cdot (-3) + 4 = \dfrac{3}{2} + 4 = \dfrac{11}{2}$.
+
+b) $g(x) = 7$ nghĩa là $-\dfrac{1}{2}x + 4 = 7$; chuyển vế được $-\dfrac{1}{2}x = 3$, nhân hai vế với $-2$ được $x = -6$.
+
+b) Thử lại: $g(-6) = -\dfrac{1}{2} \cdot (-6) + 4 = 3 + 4 = 7$ (đúng).
+
+Đáp số: a) $\boxed{g(0) = 4,\ g(6) = 1,\ g(-3) = \dfrac{11}{2}}$; b) $\boxed{x = -6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- điểm nào thuộc đường thẳng
+\begin{problem}[8DS-HSBN-033]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-01
+% do_kho_du_kien: 1
+Cho đường thẳng $d\colon y = 2x - 5$. Trong bốn điểm $A(0; -5)$, $B(3; 2)$, $C(-1; -7)$, $D(2; 0)$, điểm nào thuộc $d$, điểm nào không thuộc $d$?
+
+\begin{solution}
+Điểm $(x_0; y_0)$ thuộc $d$ khi và chỉ khi toạ độ của nó thoả mãn công thức hàm số, tức là $y_0 = 2x_0 - 5$.
+
+Với $A(0; -5)$: $2 \cdot 0 - 5 = -5$, đúng bằng tung độ của $A$, nên $A$ thuộc $d$.
+
+Với $B(3; 2)$: $2 \cdot 3 - 5 = 1 \neq 2$, nên $B$ không thuộc $d$.
+
+Với $C(-1; -7)$: $2 \cdot (-1) - 5 = -7$, đúng bằng tung độ của $C$, nên $C$ thuộc $d$.
+
+Với $D(2; 0)$: $2 \cdot 2 - 5 = -1 \neq 0$, nên $D$ không thuộc $d$.
+
+Đáp số: $\boxed{A,\ C \text{ thuộc } d;\ B,\ D \text{ không thuộc } d}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giao điểm với hai trục của ba đường thẳng
+\begin{problem}[8DS-HSBN-034]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-03
+% do_kho_du_kien: 2
+Tìm toạ độ giao điểm của mỗi đường thẳng sau với trục tung và trục hoành:
+
+a) $d_1\colon y = 3x - 6$;
+
+b) $d_2\colon y = -\dfrac{2}{3}x + 4$;
+
+c) $d_3\colon y = \dfrac{1}{2}x$ (với $d_3$, hãy tìm thêm điểm thứ hai có hoành độ bằng $4$ để có thể vẽ đồ thị).
+
+\begin{solution}
+Giao điểm với trục tung có hoành độ bằng $0$; giao điểm với trục hoành có tung độ bằng $0$.
+
+a) Cho $x = 0$ được $y = -6$, nên $d_1$ cắt trục tung tại $A_1(0; -6)$.
+
+a) Cho $y = 0$ được $3x - 6 = 0$, suy ra $x = 2$, nên $d_1$ cắt trục hoành tại $B_1(2; 0)$.
+
+b) Cho $x = 0$ được $y = 4$, nên $d_2$ cắt trục tung tại $A_2(0; 4)$.
+
+b) Cho $y = 0$ được $-\dfrac{2}{3}x + 4 = 0$, tức là $\dfrac{2}{3}x = 4$, suy ra $x = 6$, nên $d_2$ cắt trục hoành tại $B_2(6; 0)$.
+
+c) Cho $x = 0$ được $y = 0$, nên $d_3$ cắt cả hai trục tại cùng một điểm là gốc toạ độ $O(0; 0)$.
+
+c) Vì vậy ta lấy thêm một điểm: cho $x = 4$ được $y = \dfrac{1}{2} \cdot 4 = 2$, được điểm $(4; 2)$. Đồ thị $d_3$ là đường thẳng đi qua $O$ và $(4; 2)$.
+
+Đáp số: a) $\boxed{A_1(0; -6),\ B_1(2; 0)}$; b) $\boxed{A_2(0; 4),\ B_2(6; 0)}$; c) $\boxed{O(0; 0) \text{ và } (4; 2)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- xác định hàm số: hệ số góc và một điểm; song song và tung độ gốc
+\begin{problem}[8DS-HSBN-035]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-05, 8DS-HSBN-04
+% do_kho_du_kien: 2
+Xác định hàm số bậc nhất $y = ax + b$ trong mỗi trường hợp sau:
+
+a) Đồ thị có hệ số góc bằng $-3$ và đi qua điểm $M(-1; 7)$.
+
+b) Đồ thị song song với đường thẳng $y = 2x + 1$ và cắt trục tung tại điểm có tung độ bằng $-3$.
+
+\begin{solution}
+a) Hệ số góc của đồ thị $y = ax + b$ là $a$, nên $a = -3$ và hàm số có dạng $y = -3x + b$.
+
+a) Đồ thị đi qua $M(-1; 7)$ nên toạ độ của $M$ thoả mãn công thức hàm số: $7 = -3 \cdot (-1) + b = 3 + b$, suy ra $b = 4$. Vậy hàm số là $y = -3x + 4$.
+
+b) Đồ thị song song với $y = 2x + 1$ nên hai hệ số góc bằng nhau và hai tung độ gốc khác nhau: $a = 2$ và $b \neq 1$.
+
+b) Đồ thị cắt trục tung tại điểm $(0; b)$, nên theo đề bài $b = -3$; giá trị này thoả mãn $b \neq 1$. Vậy hàm số là $y = 2x - 3$.
+
+Đáp số: a) $\boxed{y = -3x + 4}$; b) $\boxed{y = 2x - 3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- góc nhọn, góc tù với trục Ox, song song, theo tham số
+\begin{problem}[8DS-HSBN-036]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-04
+% do_kho_du_kien: 2
+Cho hàm số $y = (m + 1)x - 2$ với $m$ là tham số, $m \neq -1$. Tìm $m$ để đồ thị của hàm số:
+
+a) tạo với trục $Ox$ một góc nhọn;
+
+b) tạo với trục $Ox$ một góc tù;
+
+c) song song với đường thẳng $y = -3x + 1$.
+
+\begin{solution}
+Hệ số góc của đồ thị là $a = m + 1$. Góc tạo bởi đường thẳng $y = ax + b$ và trục $Ox$ là góc nhọn khi $a > 0$ và là góc tù khi $a < 0$.
+
+a) Góc nhọn khi $m + 1 > 0$, tức là $m > -1$.
+
+b) Góc tù khi $m + 1 < 0$, tức là $m < -1$.
+
+c) Đồ thị song song với $y = -3x + 1$ khi hai hệ số góc bằng nhau và hai tung độ gốc khác nhau: $m + 1 = -3$ và $-2 \neq 1$.
+
+c) Từ $m + 1 = -3$ có $m = -4$; tung độ gốc $-2 \neq 1$ luôn đúng và $m = -4 \neq -1$ (thoả mãn điều kiện của đề bài).
+
+Đáp số: a) $\boxed{m > -1}$; b) $\boxed{m < -1}$; c) $\boxed{m = -4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: lò xo
+\begin{problem}[8DS-HSBN-037]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-02, 8DS-PT1-01
+% do_kho_du_kien: 2
+Một lò xo có chiều dài tự nhiên là $20$ cm. Khi treo vào lò xo một vật nặng $m$ (kg) thì chiều dài $l$ (cm) của lò xo (trong giới hạn đàn hồi) được cho bởi công thức $l = \dfrac{1}{2}m + 20$.
+
+a) $l$ có phải là hàm số bậc nhất của $m$ không? Nếu có, hãy chỉ ra hệ số $a$, $b$ và cho biết ý nghĩa của $b$.
+
+b) Treo vật nặng $6$ kg thì lò xo dài bao nhiêu xentimét?
+
+c) Lò xo dài $28$ cm thì vật được treo nặng bao nhiêu kilôgam?
+
+\begin{solution}
+a) Công thức $l = \dfrac{1}{2}m + 20$ có dạng $y = ax + b$ (biến $m$ đóng vai trò $x$), với $a = \dfrac{1}{2} \neq 0$ và $b = 20$; vậy $l$ là hàm số bậc nhất của $m$.
+
+a) Khi $m = 0$ (không treo vật) thì $l = b = 20$, nên $b$ chính là chiều dài tự nhiên của lò xo.
+
+b) Thay $m = 6$ vào công thức: $l = \dfrac{1}{2} \cdot 6 + 20 = 3 + 20 = 23$ (cm).
+
+c) Cho $l = 28$ được phương trình $\dfrac{1}{2}m + 20 = 28$; chuyển vế được $\dfrac{1}{2}m = 8$, suy ra $m = 16$ (kg).
+
+Đáp số: a) $\boxed{\text{Có; } a = \dfrac{1}{2},\ b = 20}$; b) $\boxed{23 \text{ cm}}$; c) $\boxed{16 \text{ kg}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- ba đường thẳng đồng quy (số cụ thể)
+\begin{problem}[8DS-HSBN-038]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-06, 8DS-HSBN-01
+% do_kho_du_kien: 2
+Cho ba đường thẳng $d_1\colon y = \dfrac{1}{2}x + 3$, $d_2\colon y = -\dfrac{3}{2}x + 7$ và $d_3\colon y = 2x$.
+
+a) Tìm toạ độ giao điểm $M$ của $d_1$ và $d_2$.
+
+b) Chứng minh rằng ba đường thẳng $d_1$, $d_2$, $d_3$ cùng đi qua điểm $M$.
+
+\begin{solution}
+a) Hai hệ số góc $\dfrac{1}{2} \neq -\dfrac{3}{2}$ nên $d_1$ và $d_2$ cắt nhau; hoành độ giao điểm là nghiệm của phương trình hoành độ giao điểm $\dfrac{1}{2}x + 3 = -\dfrac{3}{2}x + 7$.
+
+a) Chuyển vế: $\dfrac{1}{2}x + \dfrac{3}{2}x = 7 - 3$, tức là $2x = 4$, suy ra $x = 2$; thay vào phương trình của $d_1$: $y = \dfrac{1}{2} \cdot 2 + 3 = 4$. Kiểm tra trên $d_2$: $-\dfrac{3}{2} \cdot 2 + 7 = 4$ (đúng). Vậy $M(2; 4)$.
+
+b) Hai đường thẳng $d_1$, $d_2$ đã đi qua $M$. Thay toạ độ của $M$ vào phương trình của $d_3$: $2 \cdot 2 = 4$, đúng bằng tung độ của $M$, nên $d_3$ cũng đi qua $M$.
+
+b) Ba hệ số góc $\dfrac{1}{2}$, $-\dfrac{3}{2}$, $2$ đôi một khác nhau nên ba đường thẳng phân biệt, và chúng cùng đi qua $M(2; 4)$ (đồng quy tại $M$).
+
+Đáp số: a) $\boxed{M(2; 4)}$; b) $\boxed{\text{Cả ba đường thẳng cùng đi qua } M(2; 4)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đường thẳng qua hai điểm trên hai trục (một điểm đã biết), diện tích tam giác
+\begin{problem}[8DS-HSBN-039]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-05, 8DS-HSBN-03
+% do_kho_du_kien: 3
+Đường thẳng $d$ đi qua điểm $A(1; 4)$ và cắt trục hoành tại điểm $C(-2; 0)$.
+
+a) Xác định hàm số bậc nhất $y = ax + b$ có đồ thị là $d$.
+
+b) Đường thẳng $d$ cắt trục tung tại $B$. Tính diện tích tam giác $OBC$ (đơn vị đo trên các trục là xentimét).
+
+\begin{solution}
+a) Đồ thị $y = ax + b$ đi qua $A(1; 4)$ nên $4 = a + b$ $(1)$; đi qua $C(-2; 0)$ nên $0 = -2a + b$ $(2)$.
+
+a) Trừ vế theo vế $(1)$ cho $(2)$: $4 = 3a$, suy ra $a = \dfrac{4}{3}$; từ $(1)$ có $b = 4 - \dfrac{4}{3} = \dfrac{8}{3}$. Vì $a \neq 0$ nên hàm số cần tìm là hàm số bậc nhất $y = \dfrac{4}{3}x + \dfrac{8}{3}$.
+
+a) Kiểm tra với $C$: $\dfrac{4}{3} \cdot (-2) + \dfrac{8}{3} = 0$ (đúng).
+
+b) Giao điểm với trục tung có hoành độ bằng $0$; thay $x = 0$ được $y = \dfrac{8}{3}$, nên $B\left(0; \dfrac{8}{3}\right)$. Các độ dài là $OB = \dfrac{8}{3}$ cm và $OC = 2$ cm.
+
+b) Hai trục toạ độ vuông góc nên tam giác $OBC$ vuông tại $O$, có diện tích bằng nửa tích hai cạnh góc vuông: $S = \dfrac{1}{2} \cdot OB \cdot OC = \dfrac{1}{2} \cdot \dfrac{8}{3} \cdot 2 = \dfrac{8}{3}$ (cm$^2$).
+
+Đáp số: a) $\boxed{y = \dfrac{4}{3}x + \dfrac{8}{3}}$; b) $\boxed{S_{OBC} = \dfrac{8}{3} \text{ cm}^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: lượng nước trong hai bể, hai hàm số bậc nhất
+\begin{problem}[8DS-HSBN-040]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-02, 8DS-HSBN-06
+% do_kho_du_kien: 3
+Bể $A$ đang có $80$ lít nước và được bơm thêm $12$ lít nước mỗi phút. Bể $B$ đang có $260$ lít nước và bị tháo ra $8$ lít nước mỗi phút. Gọi $V_A$, $V_B$ (lít) lần lượt là lượng nước trong bể $A$, bể $B$ sau $t$ phút ($t \geq 0$).
+
+a) Viết công thức tính $V_A$, $V_B$ theo $t$. Các hàm số này có phải là hàm số bậc nhất không?
+
+b) Sau bao nhiêu phút thì lượng nước trong hai bể bằng nhau? Khi đó mỗi bể có bao nhiêu lít nước?
+
+c) Sau bao lâu thì bể $B$ hết nước? (Đổi ra phút và giây.)
+
+\begin{solution}
+a) Lượng nước ban đầu cộng với lượng nước thay đổi sau $t$ phút: $V_A = 12t + 80$ và $V_B = -8t + 260$.
+
+a) Cả hai công thức có dạng $y = at + b$ với hệ số của $t$ lần lượt là $12 \neq 0$ và $-8 \neq 0$, nên đều là hàm số bậc nhất.
+
+b) Lượng nước hai bể bằng nhau khi $V_A = V_B$, tức là $12t + 80 = -8t + 260$.
+
+b) Chuyển vế: $12t + 8t = 260 - 80$, nên $20t = 180$, suy ra $t = 9$ (phút).
+
+b) Khi đó $V_A = 12 \cdot 9 + 80 = 188$ (lít) và $V_B = -8 \cdot 9 + 260 = 188$ (lít).
+
+c) Bể $B$ hết nước khi $V_B = 0$, tức là $-8t + 260 = 0$, suy ra $t = \dfrac{65}{2} = 32{,}5$ (phút), tức là $32$ phút $30$ giây.
+
+Đáp số: a) $\boxed{V_A = 12t + 80,\ V_B = -8t + 260 \text{ (đều là hàm số bậc nhất)}}$; b) $\boxed{9 \text{ phút};\ 188 \text{ lít}}$; c) $\boxed{32 \text{ phút } 30 \text{ giây}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: đi qua gốc, song song, cắt trục hoành
+\begin{problem}[8DS-HSBN-041]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-04, 8DS-HSBN-03, 8DS-HSBN-01
+% do_kho_du_kien: 3
+Cho hàm số $y = (3 - m)x + m - 1$ (với $m \neq 3$) có đồ thị là đường thẳng $d_m$. Tìm $m$ để:
+
+a) $d_m$ đi qua gốc toạ độ;
+
+b) $d_m$ song song với đường thẳng $d'\colon y = x + 3$;
+
+c) $d_m$ cắt trục hoành tại điểm có hoành độ bằng $2$.
+
+\begin{solution}
+a) $d_m$ đi qua gốc toạ độ $O(0; 0)$ khi và chỉ khi toạ độ của $O$ thoả mãn công thức hàm số: $0 = (3 - m) \cdot 0 + m - 1$, suy ra $m = 1$ (thoả mãn $m \neq 3$). Khi đó $d_m\colon y = 2x$.
+
+b) $d_m \parallel d'$ khi và chỉ khi hai hệ số góc bằng nhau và hai tung độ gốc khác nhau: $3 - m = 1$ và $m - 1 \neq 3$.
+
+b) Từ $3 - m = 1$ có $m = 2$; khi đó $m - 1 = 1 \neq 3$ (thoả mãn) và $m \neq 3$. Vậy $m = 2$.
+
+c) $d_m$ cắt trục hoành tại điểm có hoành độ $2$ nghĩa là điểm $(2; 0)$ thuộc $d_m$; thay $x = 2$, $y = 0$ vào công thức hàm số: $0 = (3 - m) \cdot 2 + m - 1$.
+
+c) Rút gọn vế phải: $6 - 2m + m - 1 = 5 - m$; do đó $5 - m = 0$, suy ra $m = 5$ (thoả mãn $m \neq 3$).
+
+c) Thử lại: với $m = 5$ thì $d_m\colon y = -2x + 4$; cho $y = 0$ được $x = 2$, đúng như yêu cầu.
+
+Đáp số: a) $\boxed{m = 1}$; b) $\boxed{m = 2}$; c) $\boxed{m = 5}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giao điểm hai đường thẳng nằm trên đường thẳng y = x
+\begin{problem}[8DS-HSBN-042]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-06, 8DS-HSBN-01
+% do_kho_du_kien: 3
+Cho hai đường thẳng $d_1\colon y = 2x + 3$ và $d_2\colon y = -x + m$ ($m$ là tham số). Tìm $m$ để giao điểm của $d_1$ và $d_2$ nằm trên đường thẳng $d\colon y = x$.
+
+\begin{solution}
+Hai hệ số góc $2 \neq -1$ nên $d_1$ và $d_2$ cắt nhau tại đúng một điểm với mọi $m$. Hoành độ giao điểm là nghiệm của phương trình hoành độ giao điểm $2x + 3 = -x + m$.
+
+Chuyển vế: $3x = m - 3$, suy ra $x = \dfrac{m - 3}{3}$.
+
+Tung độ giao điểm: thay vào phương trình của $d_1$ được $y = 2 \cdot \dfrac{m - 3}{3} + 3 = \dfrac{2m - 6 + 9}{3} = \dfrac{2m + 3}{3}$.
+
+Giao điểm nằm trên $d\colon y = x$ khi và chỉ khi tung độ bằng hoành độ: $\dfrac{2m + 3}{3} = \dfrac{m - 3}{3}$, tức là $2m + 3 = m - 3$, suy ra $m = -6$.
+
+Thử lại: với $m = -6$ thì $d_2\colon y = -x - 6$; phương trình $2x + 3 = -x - 6$ cho $x = -3$, $y = 2 \cdot (-3) + 3 = -3$. Giao điểm $(-3; -3)$ có tung độ bằng hoành độ nên thuộc $d$ (đúng).
+
+Đáp số: $\boxed{m = -6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tam giác tạo bởi hai đường thẳng và trục tung
+\begin{problem}[8DS-HSBN-043]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-06, 8DS-HSBN-03
+% do_kho_du_kien: 3
+Cho hai đường thẳng $d_1\colon y = 2x - 2$ và $d_2\colon y = -x + 4$.
+
+a) Tìm toạ độ giao điểm $A$ của $d_1$ và $d_2$.
+
+b) Gọi $B$, $C$ lần lượt là giao điểm của $d_1$, $d_2$ với trục tung. Tính diện tích tam giác $ABC$ (đơn vị đo trên các trục là xentimét).
+
+\begin{solution}
+a) Hai hệ số góc $2 \neq -1$ nên $d_1$ và $d_2$ cắt nhau; hoành độ giao điểm là nghiệm của phương trình hoành độ giao điểm $2x - 2 = -x + 4$.
+
+a) Chuyển vế: $3x = 6$, suy ra $x = 2$; thay vào phương trình của $d_1$: $y = 2 \cdot 2 - 2 = 2$. Kiểm tra trên $d_2$: $-2 + 4 = 2$ (đúng). Vậy $A(2; 2)$.
+
+b) Giao điểm với trục tung có hoành độ bằng $0$. Với $d_1$: $y = -2$, nên $B(0; -2)$. Với $d_2$: $y = 4$, nên $C(0; 4)$.
+
+b) Hai điểm $B$, $C$ cùng nằm trên trục tung nên độ dài $BC$ bằng hiệu hai tung độ (số lớn trừ số nhỏ): $BC = 4 - (-2) = 6$ (cm).
+
+b) Gọi $H(0; 2)$ là hình chiếu của $A$ trên trục tung; $AH$ vuông góc với $BC$ nên $AH$ là đường cao của tam giác $ABC$ ứng với cạnh $BC$, và $AH = 2$ cm (bằng hoành độ của $A$).
+
+b) Diện tích tam giác bằng nửa tích một cạnh với đường cao ứng với cạnh đó: $S_{ABC} = \dfrac{1}{2} \cdot BC \cdot AH = \dfrac{1}{2} \cdot 6 \cdot 2 = 6$ (cm$^2$).
+
+Đáp số: a) $\boxed{A(2; 2)}$; b) $\boxed{S_{ABC} = 6 \text{ cm}^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- xác định hàm số: song song và đi qua giao điểm của hai đường thẳng
+\begin{problem}[8DS-HSBN-044]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-05, 8DS-HSBN-06, 8DS-HSBN-04
+% do_kho_du_kien: 3
+Xác định hàm số bậc nhất có đồ thị $d$ song song với đường thẳng $y = -2x + 1$ và đi qua giao điểm của hai đường thẳng $y = x + 1$ và $y = 3x - 5$.
+
+\begin{solution}
+Gọi $I$ là giao điểm của hai đường thẳng $y = x + 1$ và $y = 3x - 5$. Hoành độ của $I$ là nghiệm của phương trình hoành độ giao điểm $x + 1 = 3x - 5$, suy ra $2x = 6$, $x = 3$.
+
+Thay $x = 3$ vào $y = x + 1$ được $y = 4$. Kiểm tra: $3 \cdot 3 - 5 = 4$ (đúng). Vậy $I(3; 4)$.
+
+Gọi hàm số cần tìm là $y = ax + b$. Vì $d$ song song với $y = -2x + 1$ nên hai hệ số góc bằng nhau và hai tung độ gốc khác nhau: $a = -2$ và $b \neq 1$.
+
+Vì $d$ đi qua $I(3; 4)$ nên toạ độ của $I$ thoả mãn công thức hàm số: $4 = -2 \cdot 3 + b$, suy ra $b = 10$, thoả mãn $b \neq 1$.
+
+Vì $a = -2 \neq 0$ nên hàm số cần tìm là hàm số bậc nhất.
+
+Đáp số: $\boxed{y = -2x + 10}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hai đường thẳng song song, diện tích tứ giác
+\begin{problem}[8DS-HSBN-045]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-04, 8DS-HSBN-03
+% do_kho_du_kien: 4
+Cho hai đường thẳng $d_1\colon y = -2x + 6$ và $d_2\colon y = -2x + 2$.
+
+a) Chứng minh rằng $d_1$ song song với $d_2$.
+
+b) Gọi $A$, $B$ lần lượt là giao điểm của $d_1$ với trục hoành, trục tung; $C$, $D$ lần lượt là giao điểm của $d_2$ với trục hoành, trục tung. Tìm toạ độ bốn điểm $A$, $B$, $C$, $D$.
+
+c) Tính diện tích tứ giác $ABDC$ (đơn vị đo trên các trục là xentimét).
+
+\begin{solution}
+a) Hai đường thẳng có cùng hệ số góc $a = a' = -2$ và các tung độ gốc khác nhau $b = 6 \neq 2 = b'$, nên $d_1 \parallel d_2$.
+
+b) Với $d_1$: cho $x = 0$ được $y = 6$, nên $B(0; 6)$; cho $y = 0$ được $-2x + 6 = 0$, suy ra $x = 3$, nên $A(3; 0)$.
+
+b) Với $d_2$: cho $x = 0$ được $y = 2$, nên $D(0; 2)$; cho $y = 0$ được $-2x + 2 = 0$, suy ra $x = 1$, nên $C(1; 0)$.
+
+c) Hai trục toạ độ vuông góc nên các tam giác $OAB$ và $OCD$ vuông tại $O$. Ta có $OA = 3$, $OB = 6$, $OC = 1$, $OD = 2$ (cm), nên $S_{OAB} = \dfrac{1}{2} \cdot 3 \cdot 6 = 9$ (cm$^2$) và $S_{OCD} = \dfrac{1}{2} \cdot 1 \cdot 2 = 1$ (cm$^2$).
+
+c) Vì $C$ nằm giữa $O$ và $A$ ($1 < 3$), $D$ nằm giữa $O$ và $B$ ($2 < 6$), nên tứ giác $ABDC$ là phần còn lại của tam giác $OAB$ sau khi bỏ tam giác $OCD$: $S_{ABDC} = S_{OAB} - S_{OCD} = 9 - 1 = 8$ (cm$^2$).
+
+Đáp số: a) $\boxed{d_1 \parallel d_2}$; b) $\boxed{A(3; 0),\ B(0; 6),\ C(1; 0),\ D(0; 2)}$; c) $\boxed{S_{ABDC} = 8 \text{ cm}^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: giá điện hai bậc, hàm số bậc nhất trên từng khoảng
+\begin{problem}[8DS-HSBN-046]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-02, 8DS-HSBN-05, 8DS-PT1-01
+% do_kho_du_kien: 4
+Giá điện sinh hoạt của một khu dân cư được tính theo hai bậc: $50$ số điện đầu tiên giá $2$ nghìn đồng mỗi số; từ số điện thứ $51$ trở đi giá $3$ nghìn đồng mỗi số. Gọi $y$ (nghìn đồng) là số tiền điện phải trả khi dùng $x$ số điện.
+
+a) Tính số tiền điện phải trả khi dùng $40$ số và khi dùng $90$ số.
+
+b) Với $x > 50$, chứng minh $y$ là hàm số bậc nhất của $x$ và viết công thức của nó.
+
+c) Một hộ đã trả $340$ nghìn đồng tiền điện. Hỏi hộ đó đã dùng bao nhiêu số điện?
+
+d) Hộ $A$ dùng nhiều hơn hộ $B$ đúng $20$ số điện, cả hai hộ đều dùng quá $50$ số. Hộ $A$ phải trả nhiều hơn hộ $B$ bao nhiêu nghìn đồng?
+
+\begin{solution}
+a) Với $x = 40 \leq 50$, toàn bộ số điện tính giá $2$ nghìn đồng: $y = 2 \cdot 40 = 80$ (nghìn đồng).
+
+a) Với $x = 90 > 50$: $50$ số đầu phải trả $2 \cdot 50 = 100$ nghìn đồng, $40$ số còn lại phải trả $3 \cdot 40 = 120$ nghìn đồng, tổng cộng $100 + 120 = 220$ (nghìn đồng).
+
+b) Với $x > 50$, có $50$ số tính giá $2$ nghìn đồng và $x - 50$ số tính giá $3$ nghìn đồng, nên $y = 2 \cdot 50 + 3(x - 50) = 100 + 3x - 150 = 3x - 50$.
+
+b) Công thức $y = 3x - 50$ có dạng $y = ax + b$ với $a = 3 \neq 0$, nên $y$ là hàm số bậc nhất của $x$.
+
+c) Nếu $x \leq 50$ thì số tiền phải trả tối đa là $2 \cdot 50 = 100 < 340$, nên hộ này dùng quá $50$ số và $y = 3x - 50$.
+
+c) Cho $y = 340$: $3x - 50 = 340$, nên $3x = 390$, suy ra $x = 130$ (thoả mãn $x > 50$).
+
+d) Gọi hộ $B$ dùng $x$ số thì hộ $A$ dùng $x + 20$ số ($x > 50$); số tiền chênh lệch là $[3(x + 20) - 50] - (3x - 50) = 3x + 60 - 50 - 3x + 50 = 60$.
+
+Đáp số: a) $\boxed{80 \text{ nghìn đồng};\ 220 \text{ nghìn đồng}}$; b) $\boxed{y = 3x - 50}$; c) $\boxed{130 \text{ số điện}}$; d) $\boxed{60 \text{ nghìn đồng}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm hàm số bậc nhất từ f(2x - 1)
+\begin{problem}[8DS-HSBN-047]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-05, 8DS-HSBN-02
+% do_kho_du_kien: 4
+Tìm hàm số bậc nhất $f(x)$ thoả mãn $f(2x - 1) = 6x + 1$ với mọi $x$. Từ đó tính $f(1)$ và $f\big(f(1)\big)$.
+
+\begin{solution}
+Đặt $t = 2x - 1$. Khi $x$ nhận mọi giá trị thì $t$ cũng nhận mọi giá trị; từ $t = 2x - 1$ suy ra $x = \dfrac{t + 1}{2}$.
+
+Thay vào đẳng thức đã cho: $f(t) = 6 \cdot \dfrac{t + 1}{2} + 1 = 3(t + 1) + 1 = 3t + 4$. Vậy $f(x) = 3x + 4$, là hàm số bậc nhất vì hệ số của $x$ bằng $3 \neq 0$.
+
+Thử lại với mọi $x$: $f(2x - 1) = 3(2x - 1) + 4 = 6x - 3 + 4 = 6x + 1$ (đúng).
+
+Tính giá trị: $f(1) = 3 \cdot 1 + 4 = 7$.
+
+Tính tiếp: $f\big(f(1)\big) = f(7) = 3 \cdot 7 + 4 = 25$.
+
+Đáp số: $\boxed{f(x) = 3x + 4;\ f(1) = 7;\ f\big(f(1)\big) = 25}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tam giác tạo bởi hai đường thẳng và trục hoành: vuông cân, chu vi
+\begin{problem}[8DS-HSBN-048]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-06, 8DS-HSBN-03
+% do_kho_du_kien: 4
+Cho hai đường thẳng $d_1\colon y = x + 1$ và $d_2\colon y = -x + 7$ (đơn vị đo trên các trục toạ độ là xentimét). Đường thẳng $d_1$ cắt trục hoành tại $A$, đường thẳng $d_2$ cắt trục hoành tại $B$, và $d_1$ cắt $d_2$ tại $C$.
+
+a) Tìm toạ độ của $A$, $B$, $C$.
+
+b) Chứng minh rằng tam giác $ABC$ vuông cân tại $C$ và tính chu vi của tam giác $ABC$.
+
+\begin{solution}
+a) Giao điểm với trục hoành có tung độ bằng $0$. Với $d_1$: $x + 1 = 0$, suy ra $x = -1$, nên $A(-1; 0)$. Với $d_2$: $-x + 7 = 0$, suy ra $x = 7$, nên $B(7; 0)$.
+
+a) Hai hệ số góc $1 \neq -1$ nên $d_1$ và $d_2$ cắt nhau; phương trình hoành độ giao điểm $x + 1 = -x + 7$ cho $2x = 6$, $x = 3$; thay vào $d_1$: $y = 4$. Kiểm tra trên $d_2$: $-3 + 7 = 4$ (đúng). Vậy $C(3; 4)$.
+
+b) Hai điểm $A$, $B$ cùng nằm trên trục hoành nên $AB = 7 - (-1) = 8$ (cm).
+
+b) Tính $AC$ và $BC$ bằng định lí Pythagore: $AC^2 = (3 + 1)^2 + 4^2 = 32$, nên $AC = 4\sqrt{2}$; $BC^2 = (7 - 3)^2 + 4^2 = 32$, nên $BC = 4\sqrt{2}$.
+
+b) Vì $AC = BC$ nên tam giác $ABC$ cân tại $C$. Hơn nữa $AC^2 + BC^2 = 64 = AB^2$, nên theo định lí Pythagore đảo, tam giác $ABC$ vuông tại $C$. Vậy tam giác $ABC$ vuông cân tại $C$.
+
+b) Chu vi tam giác $ABC$ là $AB + AC + BC = 8 + 4\sqrt{2} + 4\sqrt{2} = 8 + 8\sqrt{2}$ (cm).
+
+Đáp số: a) $\boxed{A(-1; 0),\ B(7; 0),\ C(3; 4)}$; b) $\boxed{\text{Tam giác } ABC \text{ vuông cân tại } C,\ \text{chu vi } 8 + 8\sqrt{2} \text{ cm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- ba đường thẳng là ba cạnh của một tam giác
+\begin{problem}[8DS-HSBN-049]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-04, 8DS-HSBN-06, 8DS-HSBN-01
+% do_kho_du_kien: 4
+Cho ba đường thẳng $d_1\colon y = x + 1$, $d_2\colon y = 2x - 1$ và $d_3\colon y = (m + 1)x + m$ (với $m \neq -1$). Tìm $m$ để ba đường thẳng này là ba cạnh của một tam giác.
+
+\begin{solution}
+Ba đường thẳng là ba cạnh của một tam giác khi và chỉ khi chúng đôi một cắt nhau (không có hai đường thẳng nào song song hay trùng nhau) và không cùng đi qua một điểm (không đồng quy).
+
+Hai hệ số góc $1 \neq 2$ nên $d_1$ và $d_2$ luôn cắt nhau. Phương trình hoành độ giao điểm $x + 1 = 2x - 1$ cho $x = 2$, $y = 3$, nên giao điểm là $I(2; 3)$.
+
+$d_3$ song song hoặc trùng $d_1$ khi $m + 1 = 1$, tức là $m = 0$; khi đó $d_3\colon y = x$ có tung độ gốc $0 \neq 1$ nên $d_3 \parallel d_1$. Loại $m = 0$.
+
+$d_3$ song song hoặc trùng $d_2$ khi $m + 1 = 2$, tức là $m = 1$; khi đó $d_3\colon y = 2x + 1$ có tung độ gốc $1 \neq -1$ nên $d_3 \parallel d_2$. Loại $m = 1$.
+
+Ba đường thẳng đồng quy khi và chỉ khi $d_3$ đi qua $I(2; 3)$: $3 = (m + 1) \cdot 2 + m = 3m + 2$, suy ra $m = \dfrac{1}{3}$. Loại $m = \dfrac{1}{3}$ (thử lại: $d_3\colon y = \dfrac{4}{3}x + \dfrac{1}{3}$ và $\dfrac{4}{3} \cdot 2 + \dfrac{1}{3} = 3$).
+
+Kết hợp với điều kiện $m \neq -1$ của đề bài: ba đường thẳng là ba cạnh của một tam giác khi và chỉ khi $m \neq -1$, $m \neq 0$, $m \neq 1$ và $m \neq \dfrac{1}{3}$.
+
+Đáp số: $\boxed{m \neq -1,\ m \neq 0,\ m \neq \dfrac{1}{3},\ m \neq 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đường thẳng qua điểm cố định, OA + OB nhỏ nhất
+\begin{problem}[8DS-HSBN-050]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-03, 8DS-HSBN-05, 8DS-HDT-01
+% do_kho_du_kien: 5
+Trên mặt phẳng toạ độ $Oxy$ cho điểm $M(4; 1)$. Xét các đường thẳng $d\colon y = ax + b$ ($a \neq 0$) đi qua $M$, cắt tia $Ox$ tại $A$ và cắt tia $Oy$ tại $B$ ($A$, $B$ khác $O$). Xác định đường thẳng $d$ sao cho tổng $OA + OB$ nhỏ nhất và tính giá trị nhỏ nhất đó.
+
+\begin{solution}
+$d$ đi qua $M(4; 1)$ nên $1 = 4a + b$, suy ra $b = 1 - 4a$.
+
+$d$ cắt trục tung tại $B(0; b)$ và cắt trục hoành tại $A\left(-\dfrac{b}{a}; 0\right)$. Để $B$ nằm trên tia $Oy$ và khác $O$ thì $b > 0$; để $A$ nằm trên tia $Ox$ và khác $O$ thì $-\dfrac{b}{a} > 0$; hai điều kiện này cho $a < 0$. Ngược lại, nếu $a < 0$ thì $b = 1 - 4a > 1 > 0$, nên hai điều kiện đều thoả mãn.
+
+Đặt $t = -a > 0$. Khi đó $b = 1 + 4t$, $OB = b = 1 + 4t$ và $OA = -\dfrac{b}{a} = \dfrac{1 + 4t}{t} = 4 + \dfrac{1}{t}$. Suy ra $OA + OB = 5 + 4t + \dfrac{1}{t}$.
+
+Xét hiệu, dùng hằng đẳng thức bình phương của một hiệu: $OA + OB - 9 = 4t + \dfrac{1}{t} - 4 = \dfrac{4t^2 - 4t + 1}{t} = \dfrac{(2t - 1)^2}{t}$.
+
+Vì $(2t - 1)^2 \geq 0$ và $t > 0$ nên $OA + OB - 9 \geq 0$, tức là $OA + OB \geq 9$. Dấu bằng xảy ra khi và chỉ khi $2t - 1 = 0$, tức là $t = \dfrac{1}{2}$, suy ra $a = -\dfrac{1}{2}$ và $b = 1 + 4 \cdot \dfrac{1}{2} = 3$.
+
+Thử lại: $d\colon y = -\dfrac{1}{2}x + 3$ đi qua $M(4; 1)$ vì $-\dfrac{1}{2} \cdot 4 + 3 = 1$; $d$ cắt trục hoành tại $A(6; 0)$ và trục tung tại $B(0; 3)$, nên $OA + OB = 6 + 3 = 9$ (đúng).
+
+Đáp số: $\boxed{d\colon y = -\dfrac{1}{2}x + 3,\ (OA + OB)_{\min} = 9}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- điểm trên đường thẳng gần gốc toạ độ nhất
+\begin{problem}[8DS-HSBN-051]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 8
+% kc_du_kien: 8DS-HSBN-01, 8DS-HDT-01, 8DS-HSBN-03
+% do_kho_du_kien: 5
+Cho đường thẳng $d\colon y = 2x + 3$. Điểm $M$ chạy trên $d$.
+
+a) Tìm toạ độ điểm $M$ sao cho độ dài $OM$ nhỏ nhất ($O$ là gốc toạ độ) và tính giá trị nhỏ nhất đó.
+
+b) Đường thẳng $d$ cắt trục tung tại $A$ và cắt trục hoành tại $B$. Chứng minh rằng với điểm $M$ tìm được ở câu a) thì $OM \perp d$, tức là $M$ là chân đường cao kẻ từ $O$ của tam giác $OAB$.
+
+\begin{solution}
+a) Điểm $M$ thuộc $d$ khi và chỉ khi toạ độ của $M$ thoả mãn công thức hàm số, nên $M$ có dạng $M(x; 2x + 3)$. Khi đó $OM^2 = x^2 + (2x + 3)^2 = 5x^2 + 12x + 9$.
+
+a) Biến đổi bằng hằng đẳng thức bình phương của một tổng: $5x^2 + 12x + 9 = 5\left(x^2 + \dfrac{12}{5}x + \dfrac{36}{25}\right) - \dfrac{36}{5} + 9 = 5\left(x + \dfrac{6}{5}\right)^2 + \dfrac{9}{5}$.
+
+a) Vì $\left(x + \dfrac{6}{5}\right)^2 \geq 0$ nên $OM^2 \geq \dfrac{9}{5}$, suy ra $OM \geq \dfrac{3}{\sqrt{5}} = \dfrac{3\sqrt{5}}{5}$. Dấu bằng xảy ra khi và chỉ khi $x = -\dfrac{6}{5}$; khi đó $y = 2 \cdot \left(-\dfrac{6}{5}\right) + 3 = \dfrac{3}{5}$.
+
+a) Thử lại: $OM^2 = \dfrac{36}{25} + \dfrac{9}{25} = \dfrac{9}{5}$ (đúng). Vậy $M\left(-\dfrac{6}{5}; \dfrac{3}{5}\right)$ và $OM_{\min} = \dfrac{3\sqrt{5}}{5}$.
+
+b) Cho $x = 0$ được $y = 3$, nên $A(0; 3)$; cho $y = 0$ được $2x + 3 = 0$, nên $B\left(-\dfrac{3}{2}; 0\right)$. Tam giác $OAB$ vuông tại $O$ và $AB$ nằm trên $d$.
+
+b) Gọi $H$ là chân đường cao kẻ từ $O$ của tam giác $OAB$, tức là chân đường vuông góc hạ từ $O$ xuống $d$. Trong các đoạn nối $O$ với điểm của $d$, đường vuông góc $OH$ ngắn nhất, và độ dài $OM$ bằng $OH$ chỉ khi $M$ trùng $H$.
+
+b) Theo câu a), $OM$ nhỏ nhất đạt được tại duy nhất một điểm $M$; do đó điểm đó phải là $H$. Vậy $M$ là chân đường cao kẻ từ $O$ của tam giác $OAB$ và $OM \perp d$.
+
+Đáp số: a) $\boxed{M\left(-\dfrac{6}{5}; \dfrac{3}{5}\right),\ OM_{\min} = \dfrac{3\sqrt{5}}{5}}$; b) $\boxed{M \text{ là chân đường cao kẻ từ } O \text{ của tam giác } OAB}$
+\end{solution}
+\end{problem}
+
+\end{document}

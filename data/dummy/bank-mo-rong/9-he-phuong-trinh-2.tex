@@ -1,0 +1,537 @@
+% Ngân hàng bài dummy (dữ liệu test): Hệ hai phương trình bậc nhất hai ẩn (lớp 9).
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- kiểm tra cặp số có là nghiệm
+\begin{problem}[9DS-HPT-032]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-01
+% do_kho_du_kien: 1
+Cho hệ phương trình
+\[ \begin{cases} 2x - y = 4 \\ x + 3y = -5 \end{cases} \]
+a) Cặp số $(1; -2)$ có là nghiệm của hệ không?
+
+b) Cặp số $(3; 2)$ có là nghiệm của hệ không?
+
+\begin{solution}
+Một cặp số $(x_0; y_0)$ là nghiệm của hệ khi và chỉ khi nó thoả mãn đồng thời cả hai phương trình của hệ, nên ta thay từng cặp số vào cả hai phương trình.
+
+a) Với $(1; -2)$: phương trình thứ nhất có $2 \cdot 1 - (-2) = 4$ (thoả mãn) và phương trình thứ hai có $1 + 3 \cdot (-2) = -5$ (thoả mãn). Vậy $(1; -2)$ là nghiệm của hệ.
+
+b) Với $(3; 2)$: phương trình thứ nhất có $2 \cdot 3 - 2 = 4$ (thoả mãn), nhưng phương trình thứ hai có $3 + 3 \cdot 2 = 9 \neq -5$ (không thoả mãn). Vậy $(3; 2)$ không là nghiệm của hệ.
+
+Đáp số: a) $\boxed{(1; -2) \text{ là nghiệm}}$; b) $\boxed{(3; 2) \text{ không là nghiệm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giải hệ bằng phương pháp thế
+\begin{problem}[9DS-HPT-033]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-02
+% do_kho_du_kien: 1
+Giải hệ phương trình
+\[ \begin{cases} y = 2x - 1 \\ x + y = 8 \end{cases} \]
+
+\begin{solution}
+Phương trình thứ nhất đã cho $y$ theo $x$, nên thế $y = 2x - 1$ vào phương trình thứ hai: $x + (2x - 1) = 8$.
+
+Thu gọn vế trái: $3x - 1 = 8$, nên $3x = 9$, suy ra $x = 3$.
+
+Thay $x = 3$ vào $y = 2x - 1$: $y = 2 \cdot 3 - 1 = 5$.
+
+Thử lại phương trình thứ hai: $3 + 5 = 8$ (đúng).
+
+Đáp số: $\boxed{(x; y) = (3; 5)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- cộng đại số, nhân một phương trình
+\begin{problem}[9DS-HPT-034]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-03
+% do_kho_du_kien: 2
+Giải hệ phương trình
+\[ \begin{cases} 2x + 3y = 7 \\ 4x - y = 7 \end{cases} \]
+
+\begin{solution}
+Nhân hai vế phương trình thứ hai với $3$ để hệ số của $y$ đối nhau với hệ số của $y$ ở phương trình thứ nhất: $12x - 3y = 21$.
+
+Cộng vế theo vế với phương trình thứ nhất để khử $y$: $14x = 28$, suy ra $x = 2$.
+
+Thế $x = 2$ vào phương trình thứ hai: $8 - y = 7$, suy ra $y = 1$.
+
+Thử lại phương trình thứ nhất: $2 \cdot 2 + 3 \cdot 1 = 7$ (đúng).
+
+Đáp số: $\boxed{(x; y) = (2; 1)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hệ số thập phân
+\begin{problem}[9DS-HPT-035]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-03
+% do_kho_du_kien: 2
+Giải hệ phương trình
+\[ \begin{cases} 0{,}5x + 0{,}4y = 2{,}2 \\ 0{,}3x + 0{,}2y = 1{,}2 \end{cases} \]
+
+\begin{solution}
+Nhân hai vế của mỗi phương trình với $10$ để các hệ số là số nguyên: $5x + 4y = 22$ và $3x + 2y = 12$.
+
+Nhân hai vế phương trình thứ hai với $2$ để hệ số của $y$ bằng nhau: $6x + 4y = 24$.
+
+Trừ vế theo vế phương trình $6x + 4y = 24$ cho phương trình $5x + 4y = 22$: $x = 2$.
+
+Thế $x = 2$ vào $3x + 2y = 12$: $6 + 2y = 12$, nên $2y = 6$, suy ra $y = 3$.
+
+Thử lại phương trình thứ nhất ban đầu: $0{,}5 \cdot 2 + 0{,}4 \cdot 3 = 1 + 1{,}2 = 2{,}2$ (đúng).
+
+Đáp số: $\boxed{(x; y) = (2; 3)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đường thẳng đi qua một điểm và cắt trục hoành
+\begin{problem}[9DS-HPT-036]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-08, 9DS-HPT-03, 8DS-HSBN-03
+% do_kho_du_kien: 2
+Tìm $a$ và $b$ để đường thẳng $y = ax + b$ đi qua điểm $A(2; 1)$ và cắt trục hoành tại điểm có hoành độ $5$.
+
+\begin{solution}
+Điểm cắt trục hoành có tung độ bằng $0$, nên đường thẳng đi qua điểm $B(5; 0)$.
+
+Đường thẳng đi qua $A(2; 1)$ nên toạ độ của $A$ thoả phương trình: $1 = 2a + b$, tức là $2a + b = 1$.
+
+Đường thẳng đi qua $B(5; 0)$ nên $0 = 5a + b$, tức là $5a + b = 0$.
+
+Trừ vế theo vế phương trình thứ hai cho phương trình thứ nhất: $3a = -1$, suy ra $a = -\dfrac{1}{3}$; khi đó $b = -5a = \dfrac{5}{3}$.
+
+Thử lại: với $y = -\dfrac{1}{3}x + \dfrac{5}{3}$, tại $x = 2$ có $y = -\dfrac{2}{3} + \dfrac{5}{3} = 1$ và tại $x = 5$ có $y = 0$ (đúng).
+
+Đáp số: $\boxed{a = -\dfrac{1}{3},\ b = \dfrac{5}{3}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm hai số, phép chia có dư
+\begin{problem}[9DS-HPT-037]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-07, 9DS-HPT-02
+% do_kho_du_kien: 2
+Tổng của hai số tự nhiên bằng $45$. Nếu lấy số lớn chia cho số nhỏ thì được thương bằng $2$ và số dư bằng $3$. Tìm hai số đó.
+
+\begin{solution}
+Gọi số lớn là $x$, số nhỏ là $y$; điều kiện $x$, $y$ là số tự nhiên và $x > y > 3$ (số dư phải nhỏ hơn số chia).
+
+Tổng hai số bằng $45$ nên $x + y = 45$.
+
+Số lớn chia cho số nhỏ được thương $2$ dư $3$ nên $x = 2y + 3$.
+
+Thế $x = 2y + 3$ vào phương trình thứ nhất: $(2y + 3) + y = 45$, tức là $3y = 42$, suy ra $y = 14$; khi đó $x = 2 \cdot 14 + 3 = 31$.
+
+Đối chiếu điều kiện: $31 > 14 > 3$ (thoả mãn). Thử lại: $31 + 14 = 45$ và $31 = 2 \cdot 14 + 3$ (đúng).
+
+Đáp số: $\boxed{\text{Số lớn: } 31;\ \text{số nhỏ: } 14}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tìm tham số để cặp số là nghiệm
+\begin{problem}[9DS-HPT-038]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-01, 9DS-HPT-02
+% do_kho_du_kien: 2
+Tìm $m$ và $n$ để cặp số $(2; -1)$ là nghiệm của hệ phương trình
+\[ \begin{cases} mx + ny = 4 \\ nx - my = 7 \end{cases} \]
+
+\begin{solution}
+Cặp số $(2; -1)$ là nghiệm của hệ khi và chỉ khi nó thoả mãn cả hai phương trình, nên ta thay $x = 2$, $y = -1$ vào từng phương trình.
+
+Phương trình thứ nhất cho $2m - n = 4$; phương trình thứ hai cho $2n + m = 7$. Đây là hệ phương trình bậc nhất hai ẩn $m$, $n$.
+
+Từ $2m - n = 4$ rút $n$ theo $m$: $n = 2m - 4$.
+
+Thế vào $m + 2n = 7$: $m + 2(2m - 4) = 7$, tức là $5m - 8 = 7$, suy ra $m = 3$; khi đó $n = 2 \cdot 3 - 4 = 2$.
+
+Thử lại: với $m = 3$, $n = 2$, hệ là $3x + 2y = 4$ và $2x - 3y = 7$; tại $(2; -1)$ có $6 - 2 = 4$ và $4 + 3 = 7$ (đúng).
+
+Đáp số: $\boxed{m = 3,\ n = 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đặt ẩn phụ, nghịch đảo của ẩn
+\begin{problem}[9DS-HPT-039]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-06, 9DS-HPT-03
+% do_kho_du_kien: 3
+Giải hệ phương trình
+\[ \begin{cases} \dfrac{3}{x} + \dfrac{4}{y} = -1 \\ \dfrac{6}{x} - \dfrac{2}{y} = 3 \end{cases} \]
+
+\begin{solution}
+Điều kiện xác định: $x \neq 0$, $y \neq 0$ (mẫu phải khác $0$).
+
+Đặt $u = \dfrac{1}{x}$, $v = \dfrac{1}{y}$, hệ trở thành hệ bậc nhất hai ẩn: $3u + 4v = -1$ và $6u - 2v = 3$.
+
+Nhân hai vế phương trình thứ hai với $2$ để hệ số của $v$ đối nhau: $12u - 4v = 6$. Cộng vế theo vế với phương trình thứ nhất: $15u = 5$, suy ra $u = \dfrac{1}{3}$.
+
+Thế $u = \dfrac{1}{3}$ vào $3u + 4v = -1$: $1 + 4v = -1$, nên $4v = -2$, suy ra $v = -\dfrac{1}{2}$.
+
+Trở lại ẩn ban đầu: $\dfrac{1}{x} = \dfrac{1}{3}$ nên $x = 3$; $\dfrac{1}{y} = -\dfrac{1}{2}$ nên $y = -2$.
+
+Đối chiếu điều kiện: $x = 3 \neq 0$, $y = -2 \neq 0$ (thoả mãn). Thử lại: $\dfrac{3}{3} + \dfrac{4}{-2} = 1 - 2 = -1$ và $\dfrac{6}{3} - \dfrac{2}{-2} = 2 + 1 = 3$ (đúng).
+
+Đáp số: $\boxed{(x; y) = (3; -2)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán về tuổi
+\begin{problem}[9DS-HPT-040]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-07, 9DS-HPT-03
+% do_kho_du_kien: 3
+Cách đây $5$ năm, tuổi bố gấp $7$ lần tuổi con. Sau $5$ năm nữa, tuổi bố chỉ còn gấp $3$ lần tuổi con. Tính tuổi hiện nay của mỗi người.
+
+\begin{solution}
+Gọi tuổi bố hiện nay là $x$ (tuổi), tuổi con hiện nay là $y$ (tuổi); điều kiện $x$, $y$ nguyên và $x > y > 5$ (cách đây $5$ năm người con đã có tuổi).
+
+Cách đây $5$ năm, tuổi bố là $x - 5$ và tuổi con là $y - 5$. Bố gấp con $7$ lần nên $x - 5 = 7(y - 5)$, tức là $x - 7y = -30$.
+
+Sau $5$ năm nữa, tuổi bố là $x + 5$ và tuổi con là $y + 5$. Bố gấp con $3$ lần nên $x + 5 = 3(y + 5)$, tức là $x - 3y = 10$.
+
+Trừ vế theo vế phương trình $x - 3y = 10$ cho phương trình $x - 7y = -30$ để khử $x$: $4y = 40$, suy ra $y = 10$.
+
+Thế $y = 10$ vào $x - 3y = 10$: $x = 40$.
+
+Đối chiếu điều kiện: $40 > 10 > 5$ (thoả mãn). Thử lại: cách đây $5$ năm bố $35$ tuổi, con $5$ tuổi và $35 = 7 \cdot 5$; sau $5$ năm nữa bố $45$ tuổi, con $15$ tuổi và $45 = 3 \cdot 15$ (đúng).
+
+Đáp số: $\boxed{\text{Bố: } 40 \text{ tuổi; con: } 10 \text{ tuổi}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chuyển động ngược chiều và cùng chiều
+\begin{problem}[9DS-HPT-041]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-07, 9DS-HPT-03
+% do_kho_du_kien: 3
+Hai địa điểm $A$ và $B$ cách nhau $60$ km. Hai xe máy cùng khởi hành, một xe từ $A$ và một xe từ $B$. Nếu hai xe đi ngược chiều, hướng về nhau, thì sau $1$ giờ gặp nhau. Nếu hai xe đi cùng chiều từ $A$ về phía $B$ thì sau $3$ giờ xe xuất phát từ $A$ đuổi kịp xe xuất phát từ $B$. Tính vận tốc của mỗi xe.
+
+\begin{solution}
+Gọi vận tốc xe xuất phát từ $A$ là $x$ (km/h), vận tốc xe xuất phát từ $B$ là $y$ (km/h); điều kiện $x > y > 0$ (xe từ $A$ đuổi kịp xe từ $B$ nên đi nhanh hơn).
+
+Đi ngược chiều, sau $1$ giờ hai xe gặp nhau, khi đó tổng quãng đường hai xe đi được bằng $AB = 60$ km: $1 \cdot (x + y) = 60$, tức là $x + y = 60$.
+
+Đi cùng chiều, sau $3$ giờ xe từ $A$ đuổi kịp xe từ $B$, tức là xe từ $A$ đi nhiều hơn xe từ $B$ đúng $60$ km: $3x - 3y = 60$, tức là $x - y = 20$.
+
+Cộng vế theo vế hai phương trình $x + y = 60$ và $x - y = 20$: $2x = 80$, suy ra $x = 40$; khi đó $y = 60 - 40 = 20$.
+
+Đối chiếu điều kiện: $40 > 20 > 0$ (thoả mãn). Thử lại: $40 + 20 = 60$ và $3 \cdot 40 - 3 \cdot 20 = 60$ (đúng).
+
+Đáp số: $\boxed{\text{Xe từ } A \text{: } 40 \text{ km/h; xe từ } B \text{: } 20 \text{ km/h}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán lãi suất, phần trăm
+\begin{problem}[9DS-HPT-042]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-07, 9DS-HPT-02
+% do_kho_du_kien: 3
+Một người gửi tổng cộng $800$ triệu đồng vào hai ngân hàng. Ngân hàng I trả lãi $6\%$ một năm, ngân hàng II trả lãi $8\%$ một năm. Sau một năm, tổng tiền lãi người đó nhận được là $58$ triệu đồng. Hỏi người đó đã gửi bao nhiêu tiền ở mỗi ngân hàng?
+
+\begin{solution}
+Gọi số tiền gửi ở ngân hàng I là $x$ (triệu đồng), ở ngân hàng II là $y$ (triệu đồng); điều kiện $x > 0$, $y > 0$.
+
+Tổng số tiền gửi là $800$ triệu đồng nên $x + y = 800$.
+
+Tiền lãi sau một năm là $6\%$ của $x$ cộng $8\%$ của $y$, bằng $58$ triệu đồng: $0{,}06x + 0{,}08y = 58$. Nhân hai vế với $100$ rồi chia cho $2$: $3x + 4y = 2\,900$.
+
+Từ $x + y = 800$ rút $x = 800 - y$ rồi thế vào phương trình thứ hai: $3(800 - y) + 4y = 2\,900$, tức là $2\,400 + y = 2\,900$, suy ra $y = 500$.
+
+Thay $y = 500$ vào $x = 800 - y$: $x = 300$.
+
+Đối chiếu điều kiện: $x = 300 > 0$, $y = 500 > 0$ (thoả mãn). Thử lại: tiền lãi là $0{,}06 \cdot 300 + 0{,}08 \cdot 500 = 18 + 40 = 58$ (triệu đồng) (đúng).
+
+Đáp số: $\boxed{\text{Ngân hàng I: } 300 \text{ triệu đồng; ngân hàng II: } 500 \text{ triệu đồng}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số, nghiệm thoả một hệ thức
+\begin{problem}[9DS-HPT-043]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-05, 9DS-HPT-03
+% do_kho_du_kien: 3
+Cho hệ phương trình (với $m$ là tham số)
+\[ \begin{cases} x + y = 2m \\ x - 2y = 3 - m \end{cases} \]
+Tìm $m$ để nghiệm $(x; y)$ của hệ thoả mãn $2x - 3y = 7$.
+
+\begin{solution}
+Trừ vế theo vế phương trình thứ nhất cho phương trình thứ hai để khử $x$: $3y = 2m - (3 - m) = 3m - 3$, suy ra $y = m - 1$.
+
+Thế $y = m - 1$ vào phương trình thứ nhất: $x = 2m - (m - 1) = m + 1$. Vậy với mọi $m$, hệ có nghiệm duy nhất $(x; y) = (m + 1; m - 1)$.
+
+Thay nghiệm vào hệ thức $2x - 3y = 7$: $2(m + 1) - 3(m - 1) = 7$.
+
+Bỏ ngoặc và thu gọn: $2m + 2 - 3m + 3 = 7$, tức là $5 - m = 7$, suy ra $m = -2$.
+
+Thử lại: với $m = -2$, nghiệm là $(-1; -3)$; có $x + y = -4 = 2m$, $x - 2y = -1 + 6 = 5 = 3 - m$ và $2x - 3y = -2 + 9 = 7$ (đúng).
+
+Đáp số: $\boxed{m = -2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- ba đường thẳng đồng quy
+\begin{problem}[9DS-HPT-044]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-01, 9DS-HPT-03, 8DS-HSBN-06
+% do_kho_du_kien: 3
+Cho ba đường thẳng $(d_1)\colon 2x + y = 5$, $(d_2)\colon x - y = 1$ và $(d_3)\colon mx + 2y = 6$ (với $m$ là tham số). Tìm $m$ để ba đường thẳng đồng quy, tức là cùng đi qua một điểm.
+
+\begin{solution}
+Toạ độ giao điểm của $(d_1)$ và $(d_2)$ là nghiệm của hệ $2x + y = 5$ và $x - y = 1$.
+
+Cộng vế theo vế hai phương trình để khử $y$: $3x = 6$, suy ra $x = 2$; từ $x - y = 1$ có $y = x - 1 = 1$. Vậy $(d_1)$ và $(d_2)$ cắt nhau tại $M(2; 1)$.
+
+Ba đường thẳng đồng quy khi và chỉ khi $(d_3)$ đi qua $M(2; 1)$, tức là toạ độ của $M$ thoả phương trình của $(d_3)$.
+
+Thay $x = 2$, $y = 1$ vào $mx + 2y = 6$: $2m + 2 = 6$, suy ra $m = 2$.
+
+Thử lại: với $m = 2$, đường thẳng $(d_3)$ là $2x + 2y = 6$, và tại $M(2; 1)$ có $4 + 2 = 6$ (đúng).
+
+Đáp số: $\boxed{m = 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số, nghiệm nằm ở một góc phần tư
+\begin{problem}[9DS-HPT-045]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-05, 9DS-HPT-02, 9DS-BPT-02, 9DS-BPT-08
+% do_kho_du_kien: 4
+Cho hệ phương trình (với $m$ là tham số)
+\[ \begin{cases} x + 2y = m \\ 2x - y = 3 \end{cases} \]
+Tìm $m$ để hệ có nghiệm $(x; y)$ thoả mãn $x > 0$ và $y < 0$.
+
+\begin{solution}
+Từ phương trình thứ hai rút $y$ theo $x$: $y = 2x - 3$.
+
+Thế vào phương trình thứ nhất: $x + 2(2x - 3) = m$, tức là $5x - 6 = m$, suy ra $x = \dfrac{m + 6}{5}$. Khi đó $y = 2 \cdot \dfrac{m + 6}{5} - 3 = \dfrac{2m - 3}{5}$. Vậy với mọi $m$, hệ có nghiệm duy nhất $(x; y) = \left(\dfrac{m + 6}{5}; \dfrac{2m - 3}{5}\right)$.
+
+Điều kiện $x > 0$ tương đương $\dfrac{m + 6}{5} > 0$; vì $5 > 0$ nên $m + 6 > 0$, tức là $m > -6$.
+
+Điều kiện $y < 0$ tương đương $\dfrac{2m - 3}{5} < 0$, tức là $2m - 3 < 0$, hay $m < \dfrac{3}{2}$.
+
+Hai điều kiện phải thoả mãn đồng thời, nên lấy phần chung của $m > -6$ và $m < \dfrac{3}{2}$: $-6 < m < \dfrac{3}{2}$.
+
+Thử lại với $m = 0$ (thuộc khoảng trên): nghiệm là $\left(\dfrac{6}{5}; -\dfrac{3}{5}\right)$ có $x > 0$ và $y < 0$ (đúng).
+
+Đáp số: $\boxed{-6 < m < \dfrac{3}{2}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đặt ẩn phụ với biểu thức ở mẫu
+\begin{problem}[9DS-HPT-046]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-06, 9DS-HPT-03, 8DS-PS-01
+% do_kho_du_kien: 4
+Giải hệ phương trình
+\[ \begin{cases} \dfrac{2}{x - 1} + \dfrac{4}{y + 2} = 2 \\ \dfrac{6}{x - 1} - \dfrac{8}{y + 2} = 1 \end{cases} \]
+
+\begin{solution}
+Điều kiện xác định: các mẫu khác $0$, tức là $x \neq 1$ và $y \neq -2$.
+
+Đặt $u = \dfrac{1}{x - 1}$, $v = \dfrac{1}{y + 2}$, hệ trở thành hệ bậc nhất hai ẩn: $2u + 4v = 2$ và $6u - 8v = 1$.
+
+Nhân hai vế phương trình thứ nhất với $2$ để hệ số của $v$ đối nhau: $4u + 8v = 4$. Cộng vế theo vế với phương trình thứ hai: $10u = 5$, suy ra $u = \dfrac{1}{2}$.
+
+Thế $u = \dfrac{1}{2}$ vào $2u + 4v = 2$: $1 + 4v = 2$, suy ra $v = \dfrac{1}{4}$.
+
+Trở lại ẩn ban đầu: $\dfrac{1}{x - 1} = \dfrac{1}{2}$ nên $x - 1 = 2$, suy ra $x = 3$; $\dfrac{1}{y + 2} = \dfrac{1}{4}$ nên $y + 2 = 4$, suy ra $y = 2$.
+
+Đối chiếu điều kiện: $x = 3 \neq 1$ và $y = 2 \neq -2$ (thoả mãn). Thử lại: $\dfrac{2}{2} + \dfrac{4}{4} = 2$ và $\dfrac{6}{2} - \dfrac{8}{4} = 3 - 2 = 1$ (đúng).
+
+Đáp số: $\boxed{(x; y) = (3; 2)}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán hai vòi nước, đặt ẩn phụ
+\begin{problem}[9DS-HPT-047]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-07, 9DS-HPT-06, 9DS-HPT-03
+% do_kho_du_kien: 4
+Hai vòi nước cùng chảy vào một bể không có nước thì sau $6$ giờ đầy bể. Nếu mở vòi I chảy trong $3$ giờ rồi khoá lại, sau đó mở vòi II chảy trong $6$ giờ thì được $\dfrac{7}{10}$ bể. Hỏi nếu mở riêng từng vòi thì mỗi vòi chảy đầy bể sau bao lâu? Biết lưu lượng của mỗi vòi không đổi.
+
+\begin{solution}
+Gọi thời gian vòi I chảy một mình đầy bể là $x$ (giờ), của vòi II là $y$ (giờ); điều kiện $x > 6$, $y > 6$ (một vòi chảy một mình phải lâu hơn khi hai vòi cùng chảy).
+
+Coi cả bể là $1$. Trong một giờ, vòi I chảy được $\dfrac{1}{x}$ bể và vòi II chảy được $\dfrac{1}{y}$ bể.
+
+Hai vòi cùng chảy thì sau $6$ giờ đầy bể, nên trong một giờ cả hai vòi chảy được $\dfrac{1}{6}$ bể: $\dfrac{1}{x} + \dfrac{1}{y} = \dfrac{1}{6}$.
+
+Vòi I chảy $3$ giờ và vòi II chảy $6$ giờ được $\dfrac{7}{10}$ bể: $\dfrac{3}{x} + \dfrac{6}{y} = \dfrac{7}{10}$.
+
+Đặt $u = \dfrac{1}{x}$, $v = \dfrac{1}{y}$ (với $u > 0$, $v > 0$), ta được hệ bậc nhất hai ẩn: $u + v = \dfrac{1}{6}$ và $3u + 6v = \dfrac{7}{10}$.
+
+Nhân hai vế phương trình thứ nhất với $3$ để hệ số của $u$ bằng nhau: $3u + 3v = \dfrac{1}{2}$. Trừ vế theo vế phương trình $3u + 6v = \dfrac{7}{10}$ cho phương trình này: $3v = \dfrac{7}{10} - \dfrac{1}{2} = \dfrac{1}{5}$, suy ra $v = \dfrac{1}{15}$.
+
+Thế $v = \dfrac{1}{15}$ vào phương trình thứ nhất: $u = \dfrac{1}{6} - \dfrac{1}{15} = \dfrac{5 - 2}{30} = \dfrac{1}{10}$.
+
+Trở lại ẩn ban đầu: $\dfrac{1}{x} = \dfrac{1}{10}$ nên $x = 10$; $\dfrac{1}{y} = \dfrac{1}{15}$ nên $y = 15$.
+
+Đối chiếu điều kiện: $x = 10 > 6$, $y = 15 > 6$ (thoả mãn). Thử lại: $\dfrac{1}{10} + \dfrac{1}{15} = \dfrac{3 + 2}{30} = \dfrac{1}{6}$ và $\dfrac{3}{10} + \dfrac{6}{15} = \dfrac{3}{10} + \dfrac{4}{10} = \dfrac{7}{10}$ (đúng).
+
+Đáp số: $\boxed{\text{Vòi I: } 10 \text{ giờ; vòi II: } 15 \text{ giờ}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- hệ thức không phụ thuộc tham số, giá trị nhỏ nhất của tích
+\begin{problem}[9DS-HPT-048]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-09, 9DS-HPT-03, 8DS-HDT-06
+% do_kho_du_kien: 4
+Cho hệ phương trình (với $m$ là tham số)
+\[ \begin{cases} x + y = 2m - 2 \\ 2x - y = m + 5 \end{cases} \]
+a) Giải hệ phương trình theo $m$.
+
+b) Tìm một hệ thức liên hệ giữa $x$ và $y$ không phụ thuộc vào $m$.
+
+c) Tìm giá trị nhỏ nhất của tích $P = xy$ và giá trị của $m$ tương ứng.
+
+\begin{solution}
+a) Cộng vế theo vế hai phương trình để khử $y$: $3x = 3m + 3$, suy ra $x = m + 1$.
+
+a) Thế $x = m + 1$ vào phương trình thứ nhất: $y = 2m - 2 - (m + 1) = m - 3$. Vậy với mọi $m$, hệ có nghiệm duy nhất $(x; y) = (m + 1; m - 3)$.
+
+a) Thử lại phương trình thứ hai: $2(m + 1) - (m - 3) = m + 5$ (đúng).
+
+b) Trừ vế theo vế hai biểu thức của nghiệm để khử $m$: $x - y = (m + 1) - (m - 3) = 4$. Vậy $x - y = 4$ với mọi $m$.
+
+c) Thay nghiệm vào tích: $P = (m + 1)(m - 3) = m^2 - 2m - 3$.
+
+c) Theo hằng đẳng thức bình phương của một hiệu: $P = (m^2 - 2m + 1) - 4 = (m - 1)^2 - 4$.
+
+c) Vì $(m - 1)^2 \geq 0$ với mọi $m$ nên $P \geq -4$. Dấu bằng xảy ra khi $(m - 1)^2 = 0$, tức là $m = 1$.
+
+c) Thử lại: với $m = 1$ nghiệm là $(2; -2)$ và $P = 2 \cdot (-2) = -4$ (đúng).
+
+Đáp số: a) $\boxed{(x; y) = (m + 1; m - 3)}$; b) $\boxed{x - y = 4}$; c) $\boxed{\min P = -4 \text{ khi } m = 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giao điểm hai đường thẳng, diện tích tam giác
+\begin{problem}[9DS-HPT-049]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-02, 8DS-HSBN-06, 8DS-HSBN-03
+% do_kho_du_kien: 4
+Cho hai đường thẳng $(d_1)\colon y = x + 2$ và $(d_2)\colon y = -2x + 8$.
+
+a) Tìm toạ độ giao điểm $A$ của $(d_1)$ và $(d_2)$.
+
+b) Gọi $B$ và $C$ lần lượt là giao điểm của $(d_1)$ và $(d_2)$ với trục hoành. Tính diện tích tam giác $ABC$ (đơn vị đo trên các trục toạ độ là xentimét).
+
+\begin{solution}
+a) Toạ độ giao điểm $A$ là nghiệm của hệ $y = x + 2$ và $y = -2x + 8$. Thế $y = x + 2$ vào phương trình thứ hai: $x + 2 = -2x + 8$.
+
+a) Chuyển vế: $3x = 6$, suy ra $x = 2$; khi đó $y = 2 + 2 = 4$. Vậy $A(2; 4)$.
+
+a) Thử lại với $(d_2)$: $-2 \cdot 2 + 8 = 4$ (đúng).
+
+b) Điểm $B$ thuộc trục hoành nên có tung độ $0$. Thay $y = 0$ vào $(d_1)$: $0 = x + 2$, suy ra $x = -2$, nên $B(-2; 0)$.
+
+b) Tương tự, thay $y = 0$ vào $(d_2)$: $0 = -2x + 8$, suy ra $x = 4$, nên $C(4; 0)$.
+
+b) Vì $B$, $C$ cùng nằm trên trục hoành nên $BC = |4 - (-2)| = 6$ (cm). Đường cao của tam giác $ABC$ hạ từ $A$ xuống trục hoành bằng tung độ của $A$, tức là $4$ cm.
+
+b) Diện tích tam giác $ABC$: $S = \dfrac{1}{2} \cdot BC \cdot 4 = \dfrac{1}{2} \cdot 6 \cdot 4 = 12$ (cm$^2$).
+
+Đáp số: a) $\boxed{A(2; 4)}$; b) $\boxed{S = 12\ \text{cm}^2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- biện luận ba trường hợp, giá trị nguyên
+\begin{problem}[9DS-HPT-050]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-05, 9DS-HPT-04, 9DS-HPT-02, 8DS-PTNT-02
+% do_kho_du_kien: 5
+Cho hệ phương trình (với $m$ là tham số)
+\[ \begin{cases} x + my = m + 1 \\ mx + 4y = 2m + 2 \end{cases} \]
+a) Tìm $m$ để hệ có nghiệm duy nhất và tìm nghiệm đó theo $m$.
+
+b) Khi $m = 2$ và khi $m = -2$, hệ có bao nhiêu nghiệm?
+
+c) Tìm các giá trị nguyên của $m$ để hệ có nghiệm duy nhất $(x; y)$ mà $x + y$ là số nguyên.
+
+\begin{solution}
+a) Từ phương trình thứ nhất rút $x$ theo $y$: $x = m + 1 - my$.
+
+a) Thế vào phương trình thứ hai: $m(m + 1 - my) + 4y = 2m + 2$, tức là $m^2 + m - m^2y + 4y = 2m + 2$; chuyển vế và nhóm các hạng tử chứa $y$ được $(4 - m^2)y = -m^2 + m + 2$.
+
+a) Phân tích hai vế thành nhân tử (vế trái dùng hằng đẳng thức hiệu hai bình phương, vế phải dùng $-m^2 + m + 2 = (2 - m)(m + 1)$): $(2 - m)(2 + m)y = (2 - m)(m + 1)$. Hệ đã cho tương đương với hệ gồm phương trình này và $x = m + 1 - my$.
+
+a) Hệ có nghiệm duy nhất khi và chỉ khi phương trình $(2 - m)(2 + m)y = (2 - m)(m + 1)$ có nghiệm duy nhất, tức là $(2 - m)(2 + m) \neq 0$, hay $m \neq 2$ và $m \neq -2$.
+
+a) Với $m \neq \pm 2$: chia hai vế cho $(2 - m)(2 + m)$ được $y = \dfrac{m + 1}{m + 2}$; khi đó $x = m + 1 - \dfrac{m(m + 1)}{m + 2} = \dfrac{(m + 1)(m + 2 - m)}{m + 2} = \dfrac{2(m + 1)}{m + 2}$.
+
+b) Khi $m = 2$, phương trình $(2 - m)(2 + m)y = (2 - m)(m + 1)$ thành $0y = 0$, đúng với mọi $y$. Hệ có vô số nghiệm: $x = 3 - 2y$ với $y$ tuỳ ý.
+
+b) Khi $m = -2$, phương trình đó thành $0y = 4 \cdot (-1) = -4$, không có $y$ nào thoả mãn. Hệ vô nghiệm.
+
+c) Với $m \neq \pm 2$: $x + y = \dfrac{2(m + 1) + (m + 1)}{m + 2} = \dfrac{3(m + 1)}{m + 2} = \dfrac{3(m + 2) - 3}{m + 2} = 3 - \dfrac{3}{m + 2}$.
+
+c) Với $m$ nguyên, $x + y$ là số nguyên khi và chỉ khi $\dfrac{3}{m + 2}$ là số nguyên, tức là số nguyên $m + 2$ là ước của $3$: $m + 2 \in \{-3;\ -1;\ 1;\ 3\}$.
+
+c) Suy ra $m \in \{-5;\ -3;\ -1;\ 1\}$; cả bốn giá trị đều khác $2$ và $-2$ (thoả mãn điều kiện có nghiệm duy nhất).
+
+c) Thử lại: $m = -5$ cho $x + y = 3 - \dfrac{3}{-3} = 4$; $m = -3$ cho $3 - \dfrac{3}{-1} = 6$; $m = -1$ cho $3 - 3 = 0$; $m = 1$ cho $3 - 1 = 2$ (đều là số nguyên).
+
+Đáp số: a) $\boxed{m \neq \pm 2,\ (x; y) = \left(\dfrac{2(m + 1)}{m + 2}; \dfrac{m + 1}{m + 2}\right)}$; b) $\boxed{m = 2 \text{: vô số nghiệm; } m = -2 \text{: vô nghiệm}}$; c) $\boxed{m \in \{-5;\ -3;\ -1;\ 1\}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- đặt ẩn phụ hai lần
+\begin{problem}[9DS-HPT-051]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-HPT-06, 9DS-HPT-03, 8DS-PS-01
+% do_kho_du_kien: 5
+Giải hệ phương trình
+\[ \begin{cases} \dfrac{3}{2x - y} + \dfrac{2}{x + 2y} = -1 \\ \dfrac{6}{2x - y} - \dfrac{1}{x + 2y} = 3 \end{cases} \]
+
+\begin{solution}
+Điều kiện xác định: các mẫu khác $0$, tức là $2x - y \neq 0$ và $x + 2y \neq 0$.
+
+Đặt $u = \dfrac{1}{2x - y}$, $v = \dfrac{1}{x + 2y}$, hệ trở thành hệ bậc nhất hai ẩn: $3u + 2v = -1$ và $6u - v = 3$.
+
+Từ phương trình thứ hai rút $v$ theo $u$: $v = 6u - 3$.
+
+Thế vào phương trình thứ nhất: $3u + 2(6u - 3) = -1$, tức là $15u - 6 = -1$, suy ra $u = \dfrac{1}{3}$; khi đó $v = 6 \cdot \dfrac{1}{3} - 3 = -1$.
+
+Trở lại biểu thức ban đầu: $\dfrac{1}{2x - y} = \dfrac{1}{3}$ nên $2x - y = 3$; $\dfrac{1}{x + 2y} = -1$ nên $x + 2y = -1$. Đây là một hệ bậc nhất hai ẩn $x$, $y$ mới.
+
+Nhân hai vế phương trình $2x - y = 3$ với $2$ để hệ số của $y$ đối nhau: $4x - 2y = 6$. Cộng vế theo vế với $x + 2y = -1$: $5x = 5$, suy ra $x = 1$; khi đó $y = 2x - 3 = -1$.
+
+Đối chiếu điều kiện: $2 \cdot 1 - (-1) = 3 \neq 0$ và $1 + 2 \cdot (-1) = -1 \neq 0$ (thoả mãn). Thử lại: $\dfrac{3}{3} + \dfrac{2}{-1} = -1$ và $\dfrac{6}{3} - \dfrac{1}{-1} = 3$ (đúng).
+
+Đáp số: $\boxed{(x; y) = (1; -1)}$
+\end{solution}
+\end{problem}
+
+\end{document}

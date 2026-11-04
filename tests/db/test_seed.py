@@ -23,6 +23,21 @@ def test_seed_loads_bank_with_tags_rubrics_delta(conn):
     assert repo.row_counts(conn)["problem"] == 310  # idempotent
 
 
+def test_extended_bank_is_valid_labeled_and_new(conn):
+    """bank-mo-rong: 20 new problems per topic file, imported through Ngân hàng (G2) on top of the dummy bank."""
+    from tutor.services import bank
+
+    seed_dummy.seed(conn, BANK)
+    kc_id = {k["code"]: k["id"] for k in repo.list_kc(conn)}
+    have = {r[0] for r in conn.execute("SELECT ref FROM problem")}
+    files = sorted((BANK.parent / "bank-mo-rong").glob("*.tex"))
+    items = [i for f in files for i in bank.read_bank(f.read_text(encoding="utf-8"), kc_id)]
+    assert len(files) == 10 and len(items) == 200
+    assert [i.ref for i in items if i.invalid or i.needs or i.unknown_label] == []
+    refs = [i.ref for i in items]
+    assert len(set(refs)) == 200 and not set(refs) & have
+
+
 SNAPSHOT = {
     "kc": "918107634027b8c280ae6f32ac2b00131553e73b78b63a3d6bc34d742b6aa038",
     "kc_prereq": "e5b135c78d684a9b1aa613d40549bec382ee61f599b2cf40c693efb8c60513ab",

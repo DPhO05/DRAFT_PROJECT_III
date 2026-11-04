@@ -1,0 +1,530 @@
+% Ngân hàng bài dummy mở rộng: Bất đẳng thức và bất phương trình bậc nhất một ẩn (lớp 9).
+% Quy ước:
+%   - Mỗi bài: \begin{problem}[id] ... \end{problem}; lời giải lồng bên trong.
+%   - id: duy nhất, không dấu, không đổi, không dùng lại. Dạng <lớp><phân môn>-<chủ đề>-<số>.
+%   - Mỗi bước lời giải là 1 đoạn, các bước cách nhau 1 dòng trống; mỗi bước có lý do.
+%   - Dòng cuối lời giải: Đáp số: $\boxed{...}$
+%   - Cách giải khác: thêm \begin{solution}[cách 2].
+%   - Metadata bằng comment ngay sau \begin{problem}: % nguon:, % lop:, % kc_du_kien:, % do_kho_du_kien:
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\newenvironment{problem}[1][]{\par\medskip\noindent\textbf{Bài #1.}\ }{\par}
+\newenvironment{solution}[1][]{\par\noindent\textit{Lời giải #1.}\par}{\par}
+
+\begin{document}
+
+% ---------------------------------------------------------------- kiểm tra một số có là nghiệm, dấu không ngặt
+\begin{problem}[9DS-BPT-032]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-07
+% do_kho_du_kien: 1
+Trong các số $-3$; $0$; $2$; $5$, những số nào là nghiệm của bất phương trình $5 - 2x \geq 1$?
+
+\begin{solution}
+Một số là nghiệm của bất phương trình khi thay vào ta được một khẳng định đúng, nên ta thay lần lượt từng số vào hai vế.
+
+Với $x = -3$: vế trái $5 - 2 \cdot (-3) = 11$, vế phải $1$; khẳng định $11 \geq 1$ đúng, nên $-3$ là nghiệm.
+
+Với $x = 0$: vế trái $5 - 2 \cdot 0 = 5$, vế phải $1$; khẳng định $5 \geq 1$ đúng, nên $0$ là nghiệm.
+
+Với $x = 2$: vế trái $5 - 2 \cdot 2 = 1$, vế phải $1$; khẳng định $1 \geq 1$ đúng (dấu $\geq$ cho phép hai vế bằng nhau), nên $2$ là nghiệm.
+
+Với $x = 5$: vế trái $5 - 2 \cdot 5 = -5$, vế phải $1$; khẳng định $-5 \geq 1$ sai, nên $5$ không là nghiệm.
+
+Đáp số: $\boxed{-3,\ 0 \text{ và } 2}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tính chất bất đẳng thức, ba ý
+\begin{problem}[9DS-BPT-033]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-01
+% do_kho_du_kien: 1
+Cho hai số $m$ và $n$ thoả mãn $m > n$. Không tính cụ thể, hãy so sánh:
+
+a) $m + 5$ và $n + 5$;
+
+b) $-3m$ và $-3n$;
+
+c) $4 - \dfrac{m}{2}$ và $4 - \dfrac{n}{2}$.
+
+\begin{solution}
+a) Cộng $5$ vào hai vế của bất đẳng thức $m > n$; theo tính chất liên hệ giữa thứ tự và phép cộng, chiều bất đẳng thức giữ nguyên: $m + 5 > n + 5$.
+
+b) Nhân hai vế của bất đẳng thức $m > n$ với số âm $-3$; theo tính chất liên hệ giữa thứ tự và phép nhân với số âm, chiều bất đẳng thức đổi ngược: $-3m < -3n$.
+
+c) Nhân hai vế của bất đẳng thức $m > n$ với số âm $-\dfrac{1}{2}$, chiều bất đẳng thức đổi ngược: $-\dfrac{m}{2} < -\dfrac{n}{2}$.
+
+c) Cộng $4$ vào hai vế của bất đẳng thức $-\dfrac{m}{2} < -\dfrac{n}{2}$, chiều bất đẳng thức giữ nguyên: $4 - \dfrac{m}{2} < 4 - \dfrac{n}{2}$.
+
+Đáp số: a) $\boxed{m + 5 > n + 5}$; b) $\boxed{-3m < -3n}$; c) $\boxed{4 - \dfrac{m}{2} < 4 - \dfrac{n}{2}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- giải bpt bậc nhất: hệ số âm là phân số
+\begin{problem}[9DS-BPT-034]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-02, 9DS-BPT-01
+% do_kho_du_kien: 2
+Giải các bất phương trình sau:
+
+a) $4x - 7 < 5$;
+
+b) $-\dfrac{2}{3}x + 1 \leq 5$.
+
+\begin{solution}
+a) Chuyển $-7$ sang vế phải và đổi dấu (quy tắc chuyển vế): $4x < 5 + 7$, tức là $4x < 12$.
+
+a) Chia hai vế cho $4$; vì $4 > 0$ nên chiều bất phương trình giữ nguyên: $x < 3$.
+
+b) Chuyển $1$ sang vế phải và đổi dấu (quy tắc chuyển vế): $-\dfrac{2}{3}x \leq 5 - 1$, tức là $-\dfrac{2}{3}x \leq 4$.
+
+b) Nhân hai vế với $-\dfrac{3}{2}$; vì $-\dfrac{3}{2} < 0$ nên phải đổi chiều bất phương trình: $x \geq 4 \cdot \left(-\dfrac{3}{2}\right)$, tức là $x \geq -6$.
+
+b) Kiểm tra: với $x = -6$ có $-\dfrac{2}{3} \cdot (-6) + 1 = 5 \leq 5$ (đúng); với $x = -9$ (không thuộc tập nghiệm) có $6 + 1 = 7 \leq 5$ (sai), phù hợp với kết quả.
+
+Đáp số: a) $\boxed{x < 3}$; b) $\boxed{x \geq -6}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- cộng các bất đẳng thức cùng chiều, bất đẳng thức kép
+\begin{problem}[9DS-BPT-035]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-01, 9DS-BPT-06
+% do_kho_du_kien: 2
+Cho hai số thực $a$, $b$ thoả mãn $1 < a < 3$ và $2 < b < 5$. Chứng minh rằng:
+
+a) $3 < a + b < 8$;
+
+b) $-4 < a - b < 1$.
+
+\begin{solution}
+a) Hai bất đẳng thức kép đã cho nghĩa là đồng thời có $1 < a$, $a < 3$, $2 < b$ và $b < 5$. Cộng vế theo vế hai bất đẳng thức cùng chiều $1 < a$ và $2 < b$ (tính chất cộng các bất đẳng thức cùng chiều): $1 + 2 < a + b$, tức là $3 < a + b$.
+
+a) Cộng vế theo vế hai bất đẳng thức cùng chiều $a < 3$ và $b < 5$: $a + b < 3 + 5 = 8$. Kết hợp hai kết quả: $3 < a + b < 8$.
+
+b) Nhân các vế của $2 < b < 5$ với số âm $-1$; theo tính chất liên hệ giữa thứ tự và phép nhân với số âm, chiều các bất đẳng thức đổi ngược: $-5 < -b < -2$.
+
+b) Cộng vế theo vế hai bất đẳng thức cùng chiều $1 < a < 3$ và $-5 < -b < -2$: $1 + (-5) < a + (-b) < 3 + (-2)$, tức là $-4 < a - b < 1$.
+
+Đáp số: a) $\boxed{3 < a + b < 8}$; b) $\boxed{-4 < a - b < 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bpt đưa về bậc nhất: bỏ ngoặc có dấu trừ
+\begin{problem}[9DS-BPT-036]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-03
+% do_kho_du_kien: 2
+Giải bất phương trình $2(x - 3) - 5(1 - x) \geq 4x + 1$.
+
+\begin{solution}
+Bỏ ngoặc theo tính chất phân phối, chú ý dấu trừ trước ngoặc thứ hai làm đổi dấu các hạng tử trong ngoặc: $2x - 6 - 5 + 5x \geq 4x + 1$.
+
+Thu gọn vế trái: $7x - 11 \geq 4x + 1$.
+
+Chuyển vế, đổi dấu các hạng tử được chuyển (quy tắc chuyển vế): $7x - 4x \geq 1 + 11$, tức là $3x \geq 12$.
+
+Chia hai vế cho $3$; vì $3 > 0$ nên chiều bất phương trình giữ nguyên: $x \geq 4$.
+
+Kiểm tra: với $x = 4$, vế trái bằng $2 \cdot 1 - 5 \cdot (-3) = 17$, vế phải bằng $4 \cdot 4 + 1 = 17$, hai vế bằng nhau nên thoả mãn dấu $\geq$; với $x = 3$ (không thuộc tập nghiệm), vế trái bằng $0 - 5 \cdot (-2) = 10$ và vế phải bằng $13$, khẳng định $10 \geq 13$ sai.
+
+Đáp số: $\boxed{x \geq 4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: "nhiều nhất", số tiền
+\begin{problem}[9DS-BPT-037]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-05, 9DS-BPT-02
+% do_kho_du_kien: 2
+Bạn Nam có $150\,000$ đồng. Bạn muốn mua một chiếc ba lô giá $78\,000$ đồng và một số quyển vở, mỗi quyển giá $7\,000$ đồng. Hỏi bạn Nam mua được nhiều nhất bao nhiêu quyển vở?
+
+\begin{solution}
+Gọi số quyển vở bạn Nam mua là $x$ (quyển), điều kiện: $x$ là số tự nhiên.
+
+Số tiền phải trả gồm tiền ba lô và tiền $x$ quyển vở: $78\,000 + 7\,000x$ (đồng). Số tiền này không vượt quá $150\,000$ đồng, ta có bất phương trình $78\,000 + 7\,000x \leq 150\,000$.
+
+Chuyển $78\,000$ sang vế phải và đổi dấu (quy tắc chuyển vế): $7\,000x \leq 72\,000$. Chia hai vế cho $7\,000 > 0$, chiều giữ nguyên: $x \leq \dfrac{72}{7}$.
+
+Vì $\dfrac{72}{7} = 10 + \dfrac{2}{7}$ và $x$ là số tự nhiên nên $x \leq 10$; giá trị lớn nhất là $x = 10$.
+
+Kiểm tra: mua $10$ quyển hết $78\,000 + 7\,000 \cdot 10 = 148\,000$ đồng, không vượt quá $150\,000$ đồng; mua $11$ quyển hết $78\,000 + 7\,000 \cdot 11 = 155\,000$ đồng, vượt quá $150\,000$ đồng.
+
+Đáp số: $\boxed{10 \text{ quyển vở}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bất phương trình kép, đếm nghiệm nguyên
+\begin{problem}[9DS-BPT-038]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-08, 9DS-BPT-04, 9DS-BPT-02
+% do_kho_du_kien: 2
+Giải bất phương trình kép $-5 < 2x + 1 \leq 9$ và cho biết có bao nhiêu số nguyên $x$ thoả mãn.
+
+\begin{solution}
+Bất phương trình kép nghĩa là đồng thời có $-5 < 2x + 1$ và $2x + 1 \leq 9$; ta biến đổi cả ba biểu thức cùng lúc để cô lập $x$ ở giữa.
+
+Trừ $1$ ở cả ba biểu thức, chiều các bất đẳng thức giữ nguyên (tính chất liên hệ giữa thứ tự và phép cộng): $-6 < 2x \leq 8$.
+
+Chia cả ba biểu thức cho $2$; vì $2 > 0$ nên chiều giữ nguyên: $-3 < x \leq 4$.
+
+Các số nguyên thoả mãn $-3 < x \leq 4$ là $-2$; $-1$; $0$; $1$; $2$; $3$; $4$, tức là $7$ số.
+
+Kiểm tra hai đầu: với $x = 4$ có $2 \cdot 4 + 1 = 9$ thoả mãn $-5 < 9 \leq 9$; với $x = -3$ có $2 \cdot (-3) + 1 = -5$ không thoả mãn $-5 < -5$ (dấu $<$ là dấu ngặt).
+
+Đáp số: $\boxed{-3 < x \leq 4,\ \text{có } 7 \text{ số nguyên}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bpt đưa về bậc nhất bằng hằng đẳng thức, đếm nghiệm nguyên dương
+\begin{problem}[9DS-BPT-039]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-03, 9DS-BPT-04, 8DS-HDT-01, 8DS-HDT-02
+% do_kho_du_kien: 3
+Cho bất phương trình $(x - 3)^2 + 2x \geq (x + 4)(x - 4) + 13$.
+
+a) Giải bất phương trình.
+
+b) Bất phương trình có bao nhiêu nghiệm nguyên dương?
+
+\begin{solution}
+a) Khai triển theo hằng đẳng thức bình phương của một hiệu: $(x - 3)^2 = x^2 - 6x + 9$. Vế trái bằng $x^2 - 6x + 9 + 2x = x^2 - 4x + 9$.
+
+a) Khai triển theo hằng đẳng thức hiệu hai bình phương: $(x + 4)(x - 4) = x^2 - 16$. Vế phải bằng $x^2 - 16 + 13 = x^2 - 3$.
+
+a) Bất phương trình trở thành $x^2 - 4x + 9 \geq x^2 - 3$. Chuyển vế, đổi dấu các hạng tử được chuyển (quy tắc chuyển vế): $-4x \geq -3 - 9$, tức là $-4x \geq -12$.
+
+a) Chia hai vế cho $-4$; vì $-4 < 0$ nên phải đổi chiều bất phương trình: $x \leq 3$.
+
+b) Các số nguyên dương thoả mãn $x \leq 3$ là $1$, $2$, $3$. Vậy bất phương trình có $3$ nghiệm nguyên dương.
+
+b) Kiểm tra: với $x = 3$, vế trái bằng $0 + 6 = 6$ và vế phải bằng $-7 + 13 = 6$, hai vế bằng nhau nên thoả mãn dấu $\geq$; với $x = 4$ vế trái bằng $1 + 8 = 9$ và vế phải bằng $0 + 13 = 13$, khẳng định $9 \geq 13$ sai.
+
+Đáp số: a) $\boxed{x \leq 3}$; b) $\boxed{3 \text{ nghiệm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- khử mẫu, ba mẫu số khác nhau, hạng tử tự do ở vế phải
+\begin{problem}[9DS-BPT-040]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-03
+% do_kho_du_kien: 3
+Giải bất phương trình $\dfrac{2x - 1}{3} - \dfrac{x + 2}{6} < \dfrac{3 - x}{2} + 1$.
+
+\begin{solution}
+Mẫu số chung của $3$, $6$, $2$ là $6$. Nhân hai vế với $6$; vì $6 > 0$ nên chiều bất phương trình giữ nguyên: $2(2x - 1) - (x + 2) < 3(3 - x) + 6$.
+
+Bỏ ngoặc theo tính chất phân phối, chú ý dấu trừ trước ngoặc thứ hai: $4x - 2 - x - 2 < 9 - 3x + 6$.
+
+Thu gọn hai vế: $3x - 4 < 15 - 3x$.
+
+Chuyển vế, đổi dấu các hạng tử được chuyển (quy tắc chuyển vế): $3x + 3x < 15 + 4$, tức là $6x < 19$.
+
+Chia hai vế cho $6$; vì $6 > 0$ nên chiều bất phương trình giữ nguyên: $x < \dfrac{19}{6}$.
+
+Kiểm tra: với $x = 3 < \dfrac{19}{6}$, vế trái bằng $\dfrac{5}{3} - \dfrac{5}{6} = \dfrac{5}{6}$, vế phải bằng $0 + 1 = 1$, và $\dfrac{5}{6} < 1$ (đúng); với $x = 4$ (không thuộc tập nghiệm), vế trái bằng $\dfrac{7}{3} - 1 = \dfrac{4}{3}$, vế phải bằng $-\dfrac{1}{2} + 1 = \dfrac{1}{2}$, và $\dfrac{4}{3} < \dfrac{1}{2}$ là sai.
+
+Đáp số: $\boxed{x < \dfrac{19}{6}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: điểm trung bình, "ít nhất"
+\begin{problem}[9DS-BPT-041]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-05, 9DS-BPT-03, 9DS-BPT-04
+% do_kho_du_kien: 3
+Điểm trung bình môn Toán của một học sinh được tính như sau: lấy tổng điểm ba bài kiểm tra thường xuyên (mỗi bài hệ số $1$) cộng với hai lần điểm thi cuối kì (hệ số $2$), rồi chia cho $5$. Bạn Lan đã có ba điểm kiểm tra thường xuyên là $6$; $7$; $8$. Điểm thi cuối kì được chấm theo số nguyên từ $0$ đến $10$. Để điểm trung bình môn đạt từ $7{,}5$ trở lên, bạn Lan phải thi được ít nhất bao nhiêu điểm?
+
+\begin{solution}
+Gọi điểm thi cuối kì của bạn Lan là $y$ (điểm), điều kiện: $y$ là số nguyên và $0 \leq y \leq 10$.
+
+Điểm trung bình môn là $\dfrac{6 + 7 + 8 + 2y}{5} = \dfrac{21 + 2y}{5}$. Đạt từ $7{,}5 = \dfrac{15}{2}$ trở lên nghĩa là điểm trung bình không nhỏ hơn $\dfrac{15}{2}$, ta có bất phương trình $\dfrac{21 + 2y}{5} \geq \dfrac{15}{2}$.
+
+Nhân hai vế với $10$; vì $10 > 0$ nên chiều bất phương trình giữ nguyên: $2(21 + 2y) \geq 75$, tức là $42 + 4y \geq 75$.
+
+Chuyển vế (quy tắc chuyển vế): $4y \geq 33$; chia hai vế cho $4 > 0$, chiều giữ nguyên: $y \geq \dfrac{33}{4}$.
+
+Vì $\dfrac{33}{4} = 8 + \dfrac{1}{4}$ nên $8 < \dfrac{33}{4} < 9$. Kết hợp điều kiện $y$ là số nguyên, $y \leq 10$, ta được $9 \leq y \leq 10$; giá trị nhỏ nhất là $y = 9$.
+
+Kiểm tra: thi $9$ điểm thì điểm trung bình là $\dfrac{21 + 18}{5} = 7{,}8 \geq 7{,}5$ (đạt); thi $8$ điểm thì điểm trung bình là $\dfrac{21 + 16}{5} = 7{,}4 < 7{,}5$ (không đạt).
+
+Đáp số: $\boxed{\text{Ít nhất } 9 \text{ điểm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nghiệm chung của hai bpt, đếm nghiệm nguyên âm
+\begin{problem}[9DS-BPT-042]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-08, 9DS-BPT-03, 9DS-BPT-04
+% do_kho_du_kien: 3
+Cho hai bất phương trình ẩn $x$: $\dfrac{x - 3}{2} \leq x + 1$ (1) và $4 - 3x > -2$ (2).
+
+a) Tìm tất cả các giá trị của $x$ thoả mãn đồng thời (1) và (2).
+
+b) Trong các giá trị đó có bao nhiêu số nguyên âm?
+
+\begin{solution}
+a) Giải (1): nhân hai vế với $2 > 0$, chiều giữ nguyên: $x - 3 \leq 2x + 2$. Chuyển vế, đổi dấu các hạng tử được chuyển (quy tắc chuyển vế): $x - 2x \leq 2 + 3$, tức là $-x \leq 5$; nhân hai vế với $-1 < 0$ nên đổi chiều: $x \geq -5$.
+
+a) Giải (2): chuyển $4$ sang vế phải và đổi dấu (quy tắc chuyển vế): $-3x > -2 - 4$, tức là $-3x > -6$; chia hai vế cho $-3 < 0$ nên đổi chiều: $x < 2$.
+
+a) Số $x$ thoả mãn đồng thời (1) và (2) khi và chỉ khi nó thuộc phần chung của hai tập nghiệm: $-5 \leq x < 2$.
+
+b) Các số nguyên âm thoả mãn $-5 \leq x < 2$ là $-5$; $-4$; $-3$; $-2$; $-1$, tức là $5$ số.
+
+b) Kiểm tra hai đầu: với $x = -5$, (1) có $\dfrac{-8}{2} = -4 \leq -4$ (đúng) và (2) có $4 + 15 = 19 > -2$ (đúng); với $x = 2$, (2) có $4 - 6 = -2 > -2$ (sai).
+
+Đáp số: a) $\boxed{-5 \leq x < 2}$; b) $\boxed{5 \text{ số nguyên âm}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh bất đẳng thức với hai số dương, hai ý
+\begin{problem}[9DS-BPT-043]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-06, 9DS-BPT-01, 8DS-HDT-01
+% do_kho_du_kien: 3
+Cho hai số dương $a$ và $b$.
+
+a) Chứng minh rằng $\dfrac{a}{b} + \dfrac{b}{a} \geq 2$. Khi nào xảy ra dấu bằng?
+
+b) Từ đó chứng minh rằng $(a + b)\left(\dfrac{1}{a} + \dfrac{1}{b}\right) \geq 4$.
+
+\begin{solution}
+a) Xét hiệu hai vế, quy đồng với mẫu $ab$: $\dfrac{a}{b} + \dfrac{b}{a} - 2 = \dfrac{a^2 + b^2 - 2ab}{ab}$.
+
+a) Theo hằng đẳng thức bình phương của một hiệu, $a^2 + b^2 - 2ab = (a - b)^2$, nên hiệu trên bằng $\dfrac{(a - b)^2}{ab}$.
+
+a) Vì $(a - b)^2 \geq 0$ và $ab > 0$ nên $\dfrac{(a - b)^2}{ab} \geq 0$, do đó $\dfrac{a}{b} + \dfrac{b}{a} \geq 2$. Dấu bằng xảy ra khi và chỉ khi $(a - b)^2 = 0$, tức là $a = b$.
+
+b) Nhân phá ngoặc: $(a + b)\left(\dfrac{1}{a} + \dfrac{1}{b}\right) = 1 + \dfrac{a}{b} + \dfrac{b}{a} + 1 = 2 + \dfrac{a}{b} + \dfrac{b}{a}$.
+
+b) Theo câu a), $\dfrac{a}{b} + \dfrac{b}{a} \geq 2$; cộng $2$ vào hai vế, chiều bất đẳng thức giữ nguyên: $2 + \dfrac{a}{b} + \dfrac{b}{a} \geq 4$. Vậy $(a + b)\left(\dfrac{1}{a} + \dfrac{1}{b}\right) \geq 4$, dấu bằng xảy ra khi và chỉ khi $a = b$.
+
+Đáp số: a) $\boxed{\dfrac{a}{b} + \dfrac{b}{a} \geq 2,\ \text{dấu bằng khi } a = b}$; b) $\boxed{(a + b)\left(\dfrac{1}{a} + \dfrac{1}{b}\right) \geq 4}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- nghiệm nguyên nhỏ nhất, khử mẫu có dấu trừ
+\begin{problem}[9DS-BPT-044]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-04, 9DS-BPT-03
+% do_kho_du_kien: 3
+Tìm số nguyên $x$ nhỏ nhất thoả mãn bất phương trình $\dfrac{3 - x}{4} - \dfrac{2x + 1}{3} < 2$.
+
+\begin{solution}
+Mẫu số chung của $4$ và $3$ là $12$. Nhân hai vế với $12$; vì $12 > 0$ nên chiều bất phương trình giữ nguyên: $3(3 - x) - 4(2x + 1) < 24$.
+
+Bỏ ngoặc theo tính chất phân phối, chú ý dấu trừ trước ngoặc thứ hai: $9 - 3x - 8x - 4 < 24$; thu gọn vế trái: $5 - 11x < 24$.
+
+Chuyển $5$ sang vế phải và đổi dấu (quy tắc chuyển vế): $-11x < 19$.
+
+Chia hai vế cho $-11$; vì $-11 < 0$ nên phải đổi chiều bất phương trình: $x > -\dfrac{19}{11}$.
+
+Vì $-\dfrac{19}{11} = -1 - \dfrac{8}{11}$ nên $-2 < -\dfrac{19}{11} < -1$. Do đó các số nguyên thoả mãn là các số nguyên $x \geq -1$, và số nguyên nhỏ nhất là $x = -1$.
+
+Kiểm tra: với $x = -1$, vế trái bằng $\dfrac{4}{4} - \dfrac{-1}{3} = \dfrac{4}{3} < 2$ (đúng); với $x = -2$, vế trái bằng $\dfrac{5}{4} - \dfrac{-3}{3} = \dfrac{9}{4}$ và $\dfrac{9}{4} < 2$ là sai.
+
+Đáp số: $\boxed{x = -1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh bất đẳng thức hai biến bằng tổng các bình phương
+\begin{problem}[9DS-BPT-045]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-06, 8DS-HDT-01
+% do_kho_du_kien: 4
+Chứng minh rằng với mọi số thực $x$, $y$ ta có $x^2 + y^2 + 1 \geq xy + x + y$. Khi nào xảy ra dấu bằng?
+
+\begin{solution}
+Xét hiệu hai vế và nhân với $2$ để không còn hệ số phân số: $2(x^2 + y^2 + 1) - 2(xy + x + y) = 2x^2 + 2y^2 + 2 - 2xy - 2x - 2y$.
+
+Tách thành tổng ba bình phương và dùng hằng đẳng thức bình phương của một hiệu: $(x - y)^2 = x^2 - 2xy + y^2$, $(x - 1)^2 = x^2 - 2x + 1$, $(y - 1)^2 = y^2 - 2y + 1$. Cộng ba đẳng thức này: $(x - y)^2 + (x - 1)^2 + (y - 1)^2 = 2x^2 + 2y^2 + 2 - 2xy - 2x - 2y$.
+
+Bình phương của mọi số thực đều không âm nên tổng ba bình phương trên không âm: $2\left[(x^2 + y^2 + 1) - (xy + x + y)\right] \geq 0$. Chia hai vế cho $2 > 0$, chiều giữ nguyên: $x^2 + y^2 + 1 - (xy + x + y) \geq 0$, tức là $x^2 + y^2 + 1 \geq xy + x + y$.
+
+Dấu bằng xảy ra khi và chỉ khi cả ba bình phương cùng bằng $0$: $x - y = 0$, $x - 1 = 0$ và $y - 1 = 0$, tức là $x = y = 1$. Thử lại: $1 + 1 + 1 = 3 = 1 + 1 + 1$ (đúng).
+
+Đáp số: $\boxed{x^2 + y^2 + 1 \geq xy + x + y,\ \text{dấu bằng khi } x = y = 1}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- tham số: đúng 3 nghiệm nguyên chung của hai bpt
+\begin{problem}[9DS-BPT-046]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-08, 9DS-BPT-04, 9DS-BPT-02
+% do_kho_du_kien: 4
+Cho hai bất phương trình ẩn $x$ (với $m$ là tham số): $3x - 2 > x + 4$ (1) và $2x - 1 \leq m$ (2).
+
+a) Giải bất phương trình (1).
+
+b) Tìm tất cả các giá trị của $m$ để (1) và (2) có đúng $3$ nghiệm nguyên chung.
+
+\begin{solution}
+a) Chuyển vế, đổi dấu các hạng tử được chuyển (quy tắc chuyển vế): $3x - x > 4 + 2$, tức là $2x > 6$; chia hai vế cho $2 > 0$, chiều giữ nguyên: $x > 3$.
+
+b) Giải (2) với $m$ bất kì: chuyển $-1$ sang vế phải và đổi dấu (quy tắc chuyển vế): $2x \leq m + 1$; chia hai vế cho $2 > 0$, chiều giữ nguyên: $x \leq \dfrac{m + 1}{2}$.
+
+b) Số $x$ là nghiệm chung khi và chỉ khi $x > 3$ và $x \leq \dfrac{m + 1}{2}$, tức là $3 < x \leq \dfrac{m + 1}{2}$. Các số nguyên lớn hơn $3$ là $4$, $5$, $6$, $7$, $\ldots$
+
+b) Có đúng $3$ nghiệm nguyên chung khi và chỉ khi các nghiệm đó là $4$, $5$, $6$, tức là $6$ là nghiệm còn $7$ không là nghiệm: $6 \leq \dfrac{m + 1}{2} < 7$.
+
+b) Nhân các vế với $2 > 0$, chiều giữ nguyên: $12 \leq m + 1 < 14$; trừ $1$ ở các vế: $11 \leq m < 13$.
+
+b) Kiểm tra: với $m = 11$ có $x \leq 6$, nghiệm chung là $4, 5, 6$ (đúng $3$ nghiệm); với $m = 13$ có $x \leq 7$, có $4$ nghiệm chung (không thoả mãn); với $m = 10$ có $x \leq 5{,}5$, chỉ có $2$ nghiệm chung (không thoả mãn).
+
+Đáp số: a) $\boxed{x > 3}$; b) $\boxed{11 \leq m < 13}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: tổng khối lượng nằm giữa hai mức
+\begin{problem}[9DS-BPT-047]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-05, 9DS-BPT-08, 9DS-BPT-04
+% do_kho_du_kien: 4
+Một xe tải chở đúng $20$ thùng hàng gồm hai loại: thùng loại I nặng $30$ kg và thùng loại II nặng $50$ kg. Để an toàn, tổng khối lượng hàng trên xe phải từ $700$ kg đến $800$ kg (kể cả hai giá trị này). Hỏi số thùng loại II trên xe có thể là bao nhiêu?
+
+\begin{solution}
+Gọi số thùng loại II là $x$ (thùng), điều kiện: $x$ là số tự nhiên và $x \leq 20$. Khi đó số thùng loại I là $20 - x$ (thùng).
+
+Tổng khối lượng hàng là $30(20 - x) + 50x = 600 - 30x + 50x = 600 + 20x$ (kg).
+
+Tổng khối lượng từ $700$ kg đến $800$ kg nên ta có bất phương trình kép $700 \leq 600 + 20x \leq 800$.
+
+Trừ $600$ ở cả ba biểu thức, chiều giữ nguyên: $100 \leq 20x \leq 200$. Chia cả ba biểu thức cho $20 > 0$, chiều giữ nguyên: $5 \leq x \leq 10$.
+
+Kết hợp điều kiện $x$ là số tự nhiên, $x \leq 20$: $x \in \{5;\ 6;\ 7;\ 8;\ 9;\ 10\}$.
+
+Kiểm tra hai đầu: với $x = 5$ tổng khối lượng là $600 + 100 = 700$ kg; với $x = 10$ là $600 + 200 = 800$ kg (đều thoả mãn); với $x = 4$ là $680$ kg (thiếu) và với $x = 11$ là $820$ kg (quá tải).
+
+Đáp số: $\boxed{\text{Từ } 5 \text{ đến } 10 \text{ thùng loại II}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh bất đẳng thức có điều kiện a + b + c = 3, hai ý
+\begin{problem}[9DS-BPT-048]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-06, 9DS-BPT-01, 8DS-HDT-01
+% do_kho_du_kien: 4
+Cho ba số thực $a$, $b$, $c$ thoả mãn $a + b + c = 3$.
+
+a) Chứng minh rằng $a^2 + b^2 + c^2 \geq 3$. Khi nào xảy ra dấu bằng?
+
+b) Dùng kết quả câu a), chứng minh rằng $ab + bc + ca \leq 3$.
+
+\begin{solution}
+a) Bình phương của mọi số thực đều không âm nên $(a - 1)^2 \geq 0$, $(b - 1)^2 \geq 0$ và $(c - 1)^2 \geq 0$. Cộng vế theo vế ba bất đẳng thức cùng chiều (tính chất cộng các bất đẳng thức cùng chiều): $(a - 1)^2 + (b - 1)^2 + (c - 1)^2 \geq 0$.
+
+a) Khai triển theo hằng đẳng thức bình phương của một hiệu: $a^2 - 2a + 1 + b^2 - 2b + 1 + c^2 - 2c + 1 \geq 0$, tức là $a^2 + b^2 + c^2 - 2(a + b + c) + 3 \geq 0$.
+
+a) Thay $a + b + c = 3$: $a^2 + b^2 + c^2 - 6 + 3 \geq 0$; chuyển vế (quy tắc chuyển vế): $a^2 + b^2 + c^2 \geq 3$. Dấu bằng xảy ra khi và chỉ khi $a - 1 = b - 1 = c - 1 = 0$, tức là $a = b = c = 1$ (thoả mãn $a + b + c = 3$).
+
+b) Theo hằng đẳng thức bình phương của một tổng: $(a + b + c)^2 = a^2 + b^2 + c^2 + 2(ab + bc + ca)$. Thay $a + b + c = 3$: $9 = a^2 + b^2 + c^2 + 2(ab + bc + ca)$, nên $2(ab + bc + ca) = 9 - (a^2 + b^2 + c^2)$.
+
+b) Theo câu a), $a^2 + b^2 + c^2 \geq 3$; nhân hai vế với số âm $-1$ thì đổi chiều: $-(a^2 + b^2 + c^2) \leq -3$. Cộng $9$ vào hai vế, chiều giữ nguyên: $9 - (a^2 + b^2 + c^2) \leq 6$, tức là $2(ab + bc + ca) \leq 6$.
+
+b) Chia hai vế cho $2 > 0$, chiều giữ nguyên: $ab + bc + ca \leq 3$. Dấu bằng xảy ra khi $a = b = c = 1$.
+
+Đáp số: a) $\boxed{a^2 + b^2 + c^2 \geq 3,\ \text{dấu bằng khi } a = b = c = 1}$; b) $\boxed{ab + bc + ca \leq 3}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bài toán thực tế: nồng độ dung dịch, nhân hai vế với mẫu dương
+\begin{problem}[9DS-BPT-049]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-05, 9DS-BPT-03
+% do_kho_du_kien: 4
+Có $300$ g dung dịch nước muối nồng độ $8\%$. Cần pha thêm ít nhất bao nhiêu gam nước để dung dịch mới có nồng độ không vượt quá $5\%$?
+
+\begin{solution}
+Khối lượng muối trong $300$ g dung dịch nồng độ $8\%$ là $300 \cdot \dfrac{8}{100} = 24$ (g). Khi pha thêm nước, khối lượng muối không đổi.
+
+Gọi khối lượng nước pha thêm là $x$ (g), điều kiện: $x \geq 0$. Khối lượng dung dịch mới là $300 + x$ (g) nên nồng độ mới là $\dfrac{24}{300 + x}$.
+
+Nồng độ không vượt quá $5\% = \dfrac{5}{100}$ nên ta có bất phương trình $\dfrac{24}{300 + x} \leq \dfrac{5}{100}$.
+
+Nhân hai vế với số dương $100(300 + x)$ (vì $300 + x > 0$), chiều bất phương trình giữ nguyên: $2\,400 \leq 5(300 + x)$, tức là $2\,400 \leq 1\,500 + 5x$.
+
+Chuyển vế (quy tắc chuyển vế): $900 \leq 5x$; chia hai vế cho $5 > 0$, chiều giữ nguyên: $x \geq 180$. Giá trị nhỏ nhất là $x = 180$.
+
+Kiểm tra: pha thêm $180$ g nước thì nồng độ là $\dfrac{24}{480} = 0{,}05 = 5\%$ (đạt); pha thêm $179$ g nước thì nồng độ là $\dfrac{24}{479} > \dfrac{24}{480} = 5\%$ (vượt quá).
+
+Đáp số: $\boxed{\text{Ít nhất } 180 \text{ g nước}}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- chứng minh bất đẳng thức ba số dương bằng tổng các số hạng không âm
+\begin{problem}[9DS-BPT-050]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-06, 9DS-BPT-01, 8DS-HDT-01
+% do_kho_du_kien: 5
+Cho ba số dương $a$, $b$, $c$.
+
+a) Chứng minh rằng $(a + b)(b + c)(c + a) - 8abc = a(b - c)^2 + b(c - a)^2 + c(a - b)^2$.
+
+b) Từ đó chứng minh rằng $(a + b)(b + c)(c + a) \geq 8abc$. Khi nào xảy ra dấu bằng?
+
+\begin{solution}
+a) Nhân hai thừa số đầu: $(a + b)(b + c) = ab + ac + b^2 + bc$. Nhân tiếp với $c + a$: $(a + b)(b + c)(c + a) = a^2b + a^2c + ab^2 + b^2c + bc^2 + c^2a + 2abc$.
+
+a) Trừ $8abc$ ở hai vế: vế trái bằng $a^2b + a^2c + ab^2 + b^2c + bc^2 + c^2a - 6abc$.
+
+a) Khai triển vế phải theo hằng đẳng thức bình phương của một hiệu: $a(b - c)^2 = ab^2 - 2abc + ac^2$, $b(c - a)^2 = bc^2 - 2abc + a^2b$ và $c(a - b)^2 = a^2c - 2abc + b^2c$. Cộng ba kết quả: $a(b - c)^2 + b(c - a)^2 + c(a - b)^2 = a^2b + a^2c + ab^2 + b^2c + bc^2 + c^2a - 6abc$, bằng vế trái.
+
+b) Vì $a$, $b$, $c$ dương và các bình phương không âm nên $a(b - c)^2 \geq 0$, $b(c - a)^2 \geq 0$ và $c(a - b)^2 \geq 0$. Cộng vế theo vế ba bất đẳng thức cùng chiều: $a(b - c)^2 + b(c - a)^2 + c(a - b)^2 \geq 0$.
+
+b) Theo câu a), $(a + b)(b + c)(c + a) - 8abc \geq 0$; chuyển vế (quy tắc chuyển vế): $(a + b)(b + c)(c + a) \geq 8abc$.
+
+b) Dấu bằng xảy ra khi và chỉ khi cả ba số hạng cùng bằng $0$. Vì $a$, $b$, $c$ dương nên điều đó nghĩa là $(b - c)^2 = (c - a)^2 = (a - b)^2 = 0$, tức là $a = b = c$. Thử lại với $a = b = c = 1$: $2 \cdot 2 \cdot 2 = 8 = 8 \cdot 1$ (đúng).
+
+Đáp số: a) $\boxed{(a + b)(b + c)(c + a) - 8abc = a(b - c)^2 + b(c - a)^2 + c(a - b)^2}$; b) $\boxed{(a + b)(b + c)(c + a) \geq 8abc,\ \text{dấu bằng khi } a = b = c}$
+\end{solution}
+\end{problem}
+
+% ---------------------------------------------------------------- bpt biến đổi đặc biệt: cộng thêm 1 vào mỗi phân thức, câu khó
+\begin{problem}[9DS-BPT-051]
+% nguon: dummy (tự soạn để mở rộng ngân hàng)
+% lop: 9
+% kc_du_kien: 9DS-BPT-03, 9DS-BPT-01
+% do_kho_du_kien: 5
+Giải bất phương trình
+\[ \dfrac{x + 1}{99} + \dfrac{x + 2}{98} + \dfrac{x + 3}{97} + 3 \leq 0. \]
+
+\begin{solution}
+Nhận xét: $1 + 99 = 2 + 98 = 3 + 97 = 100$. Vì vậy viết $3 = 1 + 1 + 1$ và gộp mỗi số $1$ với một phân thức: $\dfrac{x + 1}{99} + 1 = \dfrac{x + 1 + 99}{99} = \dfrac{x + 100}{99}$, tương tự $\dfrac{x + 2}{98} + 1 = \dfrac{x + 100}{98}$ và $\dfrac{x + 3}{97} + 1 = \dfrac{x + 100}{97}$.
+
+Bất phương trình trở thành $\dfrac{x + 100}{99} + \dfrac{x + 100}{98} + \dfrac{x + 100}{97} \leq 0$.
+
+Đặt nhân tử chung $x + 100$ ra ngoài: $(x + 100)\left(\dfrac{1}{99} + \dfrac{1}{98} + \dfrac{1}{97}\right) \leq 0$.
+
+Đặt $k = \dfrac{1}{99} + \dfrac{1}{98} + \dfrac{1}{97}$. Tổng của các số dương là số dương nên $k > 0$, và bất phương trình có dạng $k(x + 100) \leq 0$.
+
+Chia hai vế cho số dương $k$, chiều bất phương trình giữ nguyên: $x + 100 \leq 0$. Chuyển vế (quy tắc chuyển vế): $x \leq -100$.
+
+Kiểm tra: với $x = -100$, mỗi phân thức đều bằng $-1$, vế trái bằng $-3 + 3 = 0$ nên thoả mãn dấu $\leq$; với $x = 0$ (không thuộc tập nghiệm), vế trái bằng $\dfrac{1}{99} + \dfrac{2}{98} + \dfrac{3}{97} + 3 > 0$ nên không thoả mãn.
+
+Đáp số: $\boxed{x \leq -100}$
+\end{solution}
+\end{problem}
+
+\end{document}
