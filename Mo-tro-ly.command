@@ -7,6 +7,4 @@ if [ ! -x "$UV" ]; then
   echo "Đang cài uv (chỉ lần đầu)…"
   curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
-"$UV" run --frozen --no-dev tutor app
-echo "App đã dừng. Nếu có lỗi ở trên, chụp màn hình gửi người cài. Nhấn Enter để đóng."
-read -r
+"$UV" run --frozen --no-dev tutor app || { echo "App đã dừng vì lỗi ở trên. Chụp màn hình gửi người cài. Nhấn Enter để đóng."; read -r; }
