@@ -32,6 +32,7 @@ router = APIRouter(prefix="/api/assistant")
 log = logging.getLogger("tutor")
 BUSY = "Trợ lý đang trả lời tin trước"
 UNAVAILABLE = "Chưa trả lời được, thử lại"
+BAD_KEY = "Khoá API sai, hết hạn hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để nhập khoá khác."
 INTERNAL = "Lỗi không lường trước, chi tiết ở data/logs/app.log"
 _ID = re.compile(r"\d{4}-\d{2}-\d{2}-\d+")
 _AT = re.compile(r"@HS-(\d+)", re.IGNORECASE)
@@ -199,6 +200,9 @@ def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn) -> Iterat
                         tools.append({"name": ev["name"], "summary": ev.pop("summary")})
                     kept.append(ev)
                 yield _line(ev)
+        except orchestrator.KeyRejected as e:
+            log.warning("assistant %s: %s", cid, e)
+            err = {"type": "error", "code": "bad_key", "message": BAD_KEY}
         except orchestrator.LLMUnavailable as e:
             log.warning("assistant %s: %s", cid, e)
             err = {"type": "error", "code": "llm_unavailable", "message": UNAVAILABLE}

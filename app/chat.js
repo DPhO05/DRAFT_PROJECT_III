@@ -10,7 +10,8 @@
   var ERR = {
     not_ready: 'Trợ lý đang trả lời tin trước. Chờ một lát rồi bấm Gửi lại.',
     validation_error: 'Tin này chưa gửi được. Kiểm tra lại học sinh đã chọn rồi bấm Gửi lại.',
-    not_found: 'Hội thoại này không còn nữa. Bấm Mới để bắt đầu lại.'
+    not_found: 'Hội thoại này không còn nữa. Bấm Mới để bắt đầu lại.',
+    bad_key: 'Khoá API sai, hết hạn hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để nhập khoá khác.'
   };
   var UNAVAILABLE = 'Chưa trả lời được, thử lại';
 
@@ -138,7 +139,7 @@
     }
     if (m.stopped === 'max_tool_turns') h += '<p class="small">Mình dừng sau 8 lượt tra cứu, thầy/cô hỏi hẹp hơn giúp mình nhé.</p>';
     if (m.error) {
-      h += '<p class="err">' + U.esc(ERR[m.error.code] || UNAVAILABLE) + '</p>' + (m.retry ? btn('c-retry', 'Gửi lại', 'data-turn="' + m.retry.id + '"') : '');
+      h += '<p class="err">' + U.esc(ERR[m.error.code] || UNAVAILABLE) + '</p>' + (m.error.code === 'bad_key' ? btn('c-keys', 'Mở Cài đặt') : '') + (m.retry ? btn('c-retry', 'Gửi lại', 'data-turn="' + m.retry.id + '"') : '');
     }
     m.bubble.querySelector('.b-end').innerHTML = h;
   }

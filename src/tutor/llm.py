@@ -28,6 +28,10 @@ class LLMUnavailable(Exception):
     """Transient errors used up every try, or the model refused."""
 
 
+class KeyRejected(LLMUnavailable):
+    """The provider refused the API key, or the account has no quota left: retrying cannot help."""
+
+
 class SchemaFlag(Exception):
     """Output did not match the schema twice; the node flags it for the teacher."""
 
@@ -99,6 +103,9 @@ def _net_errors(retryable: Callable[[Exception], bool] = _retryable):
     try:
         yield
     except Exception as e:
+        # checked before retryable: a 429 for no quota is not overload
+        if getattr(e, "status_code", None) in (401, 403) or getattr(e, "code", None) == "insufficient_quota":
+            raise KeyRejected(f"Khoá API bị từ chối: {e}") from e
         if retryable(e):
             raise Retryable(str(e)) from e
         raise
@@ -315,7 +322,7 @@ class OpenAIBackend:
         try:
             self.client = client or openai.OpenAI(max_retries=0)  # retries are counted here (§8.4), not twice
         except openai.OpenAIError:
-            raise LLMUnavailable("Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại") from None
+            raise KeyRejected("Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại") from None
 
     def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply:
         with _openai_errors():

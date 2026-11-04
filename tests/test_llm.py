@@ -101,6 +101,17 @@ def test_other_errors_are_not_retried(log):
     assert lines(log)[0]["result"] == "error"
 
 
+def test_anthropic_401_is_a_refused_key():
+    import anthropic
+    import httpx2
+
+    err = anthropic.AuthenticationError(
+        "x", response=httpx2.Response(401, request=httpx2.Request("POST", "http://x")), body=None
+    )
+    with pytest.raises(llm.KeyRejected), llm._net_errors():
+        raise err
+
+
 def test_model_comes_from_settings(log):
     llm.configure(log, {"01": "claude-sonnet-5-5"})
     fake = FakeLLM({"01": Out(answer="ok")})

@@ -135,6 +135,12 @@ def test_busy_released_after_error(paths, client, w):
     assert [r["id"] for r in got] == ["m1", "m2", "m3", "m4", "m5", "m6"]
 
 
+def test_refused_key_has_its_own_code(paths, client, w):
+    script(llm.KeyRejected("x"), llm.LLMUnavailable("x"))
+    assert lines(send(client, "Hỏi"))[-1] == {"type": "error", "code": "bad_key", "message": assistant.BAD_KEY}
+    assert lines(send(client, "Hỏi lại"))[-1]["code"] == "llm_unavailable"
+
+
 def real_llm(monkeypatch, paths, models, client=None):
     """Route agent 00 through the real llm.py, with the provider (if any) over a mock transport."""
     if client:

@@ -174,7 +174,7 @@ def test_openai_retryable():
 
 def test_missing_key_is_unavailable(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with pytest.raises(llm.LLMUnavailable, match="OPENAI_API_KEY"):
+    with pytest.raises(llm.KeyRejected, match="OPENAI_API_KEY"):
         llm.OpenAIBackend()
 
 
@@ -183,7 +183,7 @@ def test_missing_key_on_call_marks_health_error(tmp_path, monkeypatch):
     monkeypatch.setattr(llm, "_live", {})
     llm.set_backend(None)
     llm.configure(tmp_path / "llm.jsonl", {"02": MODEL})
-    with pytest.raises(llm.LLMUnavailable, match="Thiếu OPENAI_API_KEY"):
+    with pytest.raises(llm.KeyRejected, match="Thiếu OPENAI_API_KEY"):
         grade()
     assert llm.status() == "error"
 
@@ -202,10 +202,22 @@ def test_empty_body_is_retried(use_openai, tmp_path):
     assert len(bodies) == 2 and [r["result"] for r in rows(tmp_path)] == ["retry", "ok"]
 
 
+@pytest.mark.parametrize(
+    ("code", "err"),
+    [(401, "invalid_api_key"), (403, "unsupported_country_region_territory"), (429, "insufficient_quota")],
+)
+def test_refused_key_is_not_retried(use_openai, tmp_path, code, err):
+    body = {"error": {"message": "x", "type": "x", "code": err}}
+    bodies = use_openai(httpx2.Response(code, json=body))
+    with pytest.raises(llm.KeyRejected, match="Khoá API bị từ chối"):
+        grade()
+    assert len(bodies) == 1 and [r["result"] for r in rows(tmp_path)] == ["error"]
+
+
 def test_key_fragment_scrubbed_from_errors(use_openai, tmp_path):
     echo = "Incorrect API key provided: sk-proj-ab**********wxyz. You can find your API key at https://x."
     use_openai(httpx2.Response(401, json={"error": {"message": echo, "type": "x", "code": "invalid_api_key"}}))
-    with pytest.raises(openai.AuthenticationError) as e:
+    with pytest.raises(llm.KeyRejected) as e:
         grade()
     shown = "".join(traceback.format_exception(e.value))  # what log.exception writes to app.log
     log = (tmp_path / "llm.jsonl").read_text(encoding="utf-8")

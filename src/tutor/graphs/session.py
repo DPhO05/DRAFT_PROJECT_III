@@ -283,6 +283,8 @@ def _stage(row: dict, state: dict) -> str:
 
 
 def _reason(error: str) -> str:
+    if re.search(r"Khoá API bị từ chối|Thiếu OPENAI_API_KEY", error):  # before 429: no quota arrives as a 429
+        return "Khoá API sai, hết hạn hoặc chưa có (mở ⚙ Cài đặt)"
     if "Tiến trình dừng giữa chừng" in error:
         return "App bị tắt"
     if re.search(r"\b(?:429|529)\b|overloaded|rate.?limit", error, re.I):

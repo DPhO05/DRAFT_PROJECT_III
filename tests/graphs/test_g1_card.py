@@ -23,6 +23,7 @@ FORBIDDEN = re.compile(
     r"|g[1-5]-hs|\bnode\b|\b\d[A-Z]{2}-[A-Z0-9]+-\d\d\b"
 )
 TAIL = "Bài làm vẫn còn nguyên, chưa có gì được lưu."
+KEY = "Khoá API sai, hết hạn hoặc chưa có (mở ⚙ Cài đặt)"
 
 
 def row_of(r, tid) -> dict:
@@ -220,6 +221,8 @@ def test_failed_stage_names_the_lane(env):
     ("LLMUnavailable: 04: Error code: 429 - {'type': 'error'}", "lane", "Dịch vụ trợ lý đang quá tải", "chấm bài"),
     ("LLMUnavailable: 02: Error code: 529 - overloaded", "profile", "Dịch vụ trợ lý đang quá tải", "tính tiến bộ"),
     ("Tiến trình dừng giữa chừng (tắt app / máy ngủ); bấm Chạy lại", "commit", "App bị tắt", "lưu kết quả"),
+    ("KeyRejected: Khoá API bị từ chối: Error code: 429 - insufficient_quota", "lane", KEY, "chấm bài"),
+    ("KeyRejected: Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại", "ingest", KEY, "đọc bài"),
     ("KeyError: 'x'", "commit", "Gặp lỗi không lường trước", "lưu kết quả"),
 ])  # fmt: skip
 def test_error_words(env, error, node, reason, step):
