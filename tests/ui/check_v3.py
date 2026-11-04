@@ -1383,6 +1383,9 @@ def grade_routes(page, rep: dict, reqs: list) -> None:
     cancel_btn(page, rep, G_NEW, "failed")
     seen = len(reqs)
     press(page, rep, f'{h} [data-act="g-retry"]', "grading Chấm lại")
+    expect(
+        page, rep, JS_OFF, "grading failed: Huỷ buổi chấm stayed on while Chấm lại ran", f'{h} [data-act="g-cancel"]'
+    )
     page.wait_for_timeout(500)
     if (n := sum(m == "POST" and again.search(u) is not None for m, u, _ in reqs[seen:])) != 1:
         rep["missing"].append(f"grading failed: Chấm lại sent {n} resumes, want 1")
@@ -1745,8 +1748,9 @@ def cancel_grading(page, rep: dict, data_dir: str, root: str) -> None:
     if CANCEL_WORDS not in page.inner_text("#modal-root"):
         rep["missing"].append(f"cancel: the question lacks '{CANCEL_WORDS}'")
     press(page, rep, '#modal-root [data-act="confirm-ok"]', "cancel đồng ý", JS_HOST_HAS, [tid, CANCELLED])
-    if GONE in page.inner_text(host(tid)):
-        rep["missing"].append(f"cancel: the card says '{GONE}' over '{CANCELLED}'")
+    page.wait_for_timeout(1500)  # the next poll (1 s) meets the 404 and must not flip the card
+    if CANCELLED not in (text := page.inner_text(host(tid))) or GONE in text:
+        rep["missing"].append(f"cancel: a poll later the card says {text!r}, want '{CANCELLED}' and not '{GONE}'")
     see_chat(page, rep, "cancel done", False)
     if (n := page.request.get(f"{root}api/threads/{tid}").status) != 404:
         rep["missing"].append(f"cancel: GET /api/threads/{tid} answered {n}, want 404")
@@ -1778,8 +1782,9 @@ def cancel_draft(page, rep: dict, data_dir: str, root: str) -> None:
         return
     ask_cancel(page, rep, root, tid, button, "cancel draft Bỏ phiếu nháp", DROP_ASK)
     press(page, rep, '#modal-root [data-act="confirm-ok"]', "cancel draft đồng ý", JS_WS_HAS, DROPPED)
-    if GONE in page.inner_text("#draft"):
-        rep["missing"].append(f"cancel draft: the panel says '{GONE}' over '{DROPPED}'")
+    page.wait_for_timeout(1500)  # the next poll (1 s) meets the 404 and must not flip the panel
+    if DROPPED not in (text := page.inner_text("#draft")) or GONE in text:
+        rep["missing"].append(f"cancel draft: a poll later the panel says {text!r}, want '{DROPPED}' and not '{GONE}'")
     see_chat(page, rep, "cancel draft done", False)
     if (n := page.request.get(f"{root}api/threads/{tid}").status) != 404:
         rep["missing"].append(f"cancel draft: GET /api/threads/{tid} answered {n}, want 404")

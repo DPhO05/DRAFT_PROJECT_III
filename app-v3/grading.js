@@ -100,7 +100,7 @@
   }
   function cardHTML(s) {
     var c = s.card, st = c.stage, body = stepsHTML(st), p = c.progress, chip = CHIP[st] || ['chip-info', 'Đang làm'], n = c.attempts.length;
-    var drop = /^(confirm|review|preview|failed|locked)$/.test(st) ? btn('g-cancel', 'Huỷ buổi chấm', s.chain ? 'disabled' : '', 'btn-ghost') : '';
+    var drop = /^(confirm|review|preview|failed|locked)$/.test(st) ? btn('g-cancel', 'Huỷ buổi chấm', s.chain || s.busy ? 'disabled' : '', 'btn-ghost') : '';
     if (st === 'reading') body += '<p class="tool-line">Đang đọc bài…</p>';
     else if (st === 'grading') body += '<p class="tool-line">' + (p && p.total ? 'Đang chấm bài ' + Math.min(p.done + 1, p.total) + '/' + p.total : 'Đang chấm…') + '</p>';
     else if (st === 'saving') body += '<p class="tool-line">Đang lưu…</p>';

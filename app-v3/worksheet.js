@@ -115,7 +115,7 @@
     if (st === 'saving') h += '<p class="tool-line">Đang tạo phiếu…</p>';
     else if (st === 'saved') h += '<div class="callout callout-ok"><p><b>Đã tạo phiếu</b> cho ' + U.esc(who(c.student_id)) + ', buổi ' + day(c.for_date) + ' · ' + items.length + ' bài.</p></div>';
     else if (st === 'failed') h += '<div class="callout callout-crit"><p><b>Chưa tạo được phiếu.</b> Chưa có gì được lưu.</p><div class="row">' + btn('ws-retry', 'Thử lại', s.busy ? 'disabled' : '', 'btn-primary') +
-      btn('ws-drop', 'Bỏ phiếu nháp', s.busy ? 'disabled' : '') + '</div></div>';
+      btn('ws-drop', 'Bỏ phiếu nháp', s.busy ? 'disabled' : '', 'btn-ghost') + '</div></div>';
     if (!ro) h += '<label class="field"><span>Buổi học</span><input type="date" class="ws-date" value="' + U.esc(c.for_date) + '"></label>';
     h += '<p class="small muted ws-counts">' + GROUPS.map(function (g) { return items.filter(function (i) { return (i.bucket || null) === g[0]; }).length + ' ' + g[1]; }).join(' · ') + '</p>';
     if (c.warnings.length) h += '<div class="callout callout-warn">' + c.warnings.map(function (w) { return '<p>' + esc(w) + '</p>'; }).join('') + '</div>';
@@ -155,7 +155,7 @@
       return r;
     }, function (e) {
       s.saving--;
-      U.toast('Chưa lưu được phiếu nháp. Thử lại sau.', 'warn');
+      if (!s.dropped) U.toast('Chưa lưu được phiếu nháp. Thử lại sau.', 'warn');  // a PUT in the air when Bỏ phiếu nháp went through gets a 404
       throw e;
     });
   }
@@ -231,12 +231,17 @@
     var s = W;
     if (!s || s.busy) return;
     U.confirm('Bỏ phiếu nháp này?', 'Phiếu nháp sẽ mất, chưa lưu gì. Gợi ý lại lúc nào cũng được.', 'Bỏ phiếu nháp', function () {
+      var had = !!s.timer;  // a change still waiting for its PUT must not go out after the cancel
+      clearTimeout(s.timer); s.timer = 0;
       U.api.send('POST', path(s, '/cancel')).then(function () {
-        clearTimeout(s.timer); s.timer = 0; s.dropped = true; gone(s); C.refreshPending();
+        s.dropped = true; gone(s); C.refreshPending();
         if (W === s) W = null;
         var h = aside().querySelector('h2');  // the button is gone: the focus goes to the heading
         h.textContent = who(s.card.student_id); show(true); h.focus();
-      }, function (e) { U.toast(e.code === 'not_ready' ? 'Đang chạy, chờ xong rồi huỷ.' : ERR[e.code] || 'Chưa bỏ được phiếu nháp, thử lại sau.', 'warn'); });
+      }, function (e) {
+        if (had) put(s);  // not cancelled: the change goes out as it would have
+        U.toast(e.code === 'not_ready' ? 'Đang chạy, chờ xong rồi huỷ.' : ERR[e.code] || 'Chưa bỏ được phiếu nháp, thử lại sau.', 'warn');
+      });
     }, true);
   };
   ACT['ws-pdf'] = function () {
