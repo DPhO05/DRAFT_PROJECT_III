@@ -1155,10 +1155,17 @@ def grade_confirm(page, rep: dict, data_dir: str) -> None:
     """s04 has a problem with no ref: the candidates are formulas; Bỏ bài này sends skip and grading goes on."""
     open_card(page, rep, False, G_S04, "grading Mở bài cần xác nhận", JS_HOST_SEL, [G_S04, ".match-opt mjx-container"])
     see_chat(page, rep, "grading confirm", False)
+    cancel_btn(page, rep, G_S04, "confirm")
     skip, saved = f'{host(G_S04)} [data-act="g-skip"]', [G_S04, "[data-act=g-save]"]
     press(page, rep, skip, "grading Bỏ bài này", JS_HOST_SEL, saved)
     if not any(isinstance(d, dict) and d.get("skip") is True for d in decisions(data_dir, G_S04).values()):
         rep["missing"].append(f"grading confirm: decisions_json of s04 is {decisions(data_dir, G_S04)}, want a skip")
+
+
+def cancel_btn(page, rep: dict, tid: str, stage: str, want: bool = True) -> None:
+    """Huỷ buổi chấm sits on the card at confirm, review, preview, failed and locked, not once it is saved."""
+    if bool(page.locator(f'{host(tid)} [data-act="g-cancel"]').count()) != want:
+        rep["missing"].append(f"grading {stage}: Huỷ buổi chấm should be {'on the card' if want else 'gone'}")
 
 
 def other_sig(route) -> None:
@@ -1186,7 +1193,8 @@ def grade_changed(page, rep: dict, reqs: list) -> None:
         press(page, rep, f"{reject} >> nth={i}", f"grading Bỏ lỗi {i + 1} của s04")
     if not expect(page, rep, JS_ON, "grading s04: Lưu kết quả did not turn on after every Bỏ", save):
         return
-    expect(page, rep, JS_HOST_SEL, "grading s04: no preview table", [G_S04, ".preview-tbl"])
+    if expect(page, rep, JS_HOST_SEL, "grading s04: no preview table", [G_S04, ".preview-tbl"]):
+        cancel_btn(page, rep, G_S04, "preview")
     poll = re.compile(rf"/api/threads/{G_S04}\?view=teacher$")
     page.route(poll, other_sig)
     seen = resumes(reqs, G_S04)  # the confirm step resumed once already
@@ -1221,6 +1229,7 @@ def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
     ok = lambda: len(rep["missing"]) == start  # noqa: E731
     open_card(page, rep, False, G_S06, "grading Mở buổi bị khoá", JS_HOST_HAS, [G_S06, LOCKED])
     see_chat(page, rep, "grading locked", False)
+    cancel_btn(page, rep, G_S06, "locked")
     poll = re.compile(rf"/api/threads/{G_S01}\?view=teacher$")
     page.evaluate(JS_HREF_READY)  # MathJax autoloads \href; typeset at once, runs break each other
     page.route(poll, coded)
@@ -1231,6 +1240,7 @@ def grade_review(page, rep: dict, data_dir: str, reqs: list) -> bool:
         return False
     if page.locator(save).is_enabled() or LEFT_5 not in page.inner_text(h):
         rep["missing"].append(f"grading review: Lưu kết quả should be off with '{LEFT_5}'")
+    cancel_btn(page, rep, G_S01, "review")
     rows = db_state(data_dir)[0]
     dec = lambda pid, v: f'{h} [data-act="g-dec"][data-pid="{pid}"][data-v="{v}"]'  # noqa: E731
     press(page, rep, dec("p1", "accept"), "grading Đúng", JS_PRESSED, dec("p1", "accept"))
@@ -1320,6 +1330,7 @@ def grade_save(page, rep: dict, data_dir: str, reqs: list) -> None:
     if not scalar(data_dir, "SELECT COALESCE(review_seconds, 0) FROM session WHERE thread_id = ?", G_S01):
         rep["missing"].append("grading saved: session.review_seconds is not > 0")
     see_chat(page, rep, "grading saved", False)
+    cancel_btn(page, rep, G_S01, "saved", False)
     press(page, rep, f'{h} [data-act="g-profile"]', "grading Xem hồ sơ")
     if not page.evaluate(JS_TAB, "hoc-sinh"):
         rep["missing"].append("grading saved: Xem hồ sơ did not open Học sinh")
@@ -1369,6 +1380,7 @@ def grade_routes(page, rep: dict, reqs: list) -> None:
     if FAILED_WORDS not in " ".join(page.locator(h).all_inner_texts()):
         rep["missing"].append("grading failed: the red box does not show error_words")
     see_chat(page, rep, "grading failed", False)
+    cancel_btn(page, rep, G_NEW, "failed")
     seen = len(reqs)
     press(page, rep, f'{h} [data-act="g-retry"]', "grading Chấm lại")
     page.wait_for_timeout(500)
@@ -1548,6 +1560,8 @@ def ws_create(page, rep: dict, data_dir: str, reqs: list, tid: str) -> None:
     expect(page, rep, JS_ON, "worksheet: Tạo phiếu did not turn on with 2 problems", CREATE)
     page.press("#draft .ws-date", "Enter")
     expect(page, rep, JS_WS_HAS, "worksheet: Enter in the date box did not make the sheet", WS_MADE)
+    if page.locator('#draft [data-act="ws-drop"]').count():
+        rep["missing"].append("worksheet: Bỏ phiếu nháp stayed on a sheet that is made")
     if (n := resumes(reqs, tid)) != 1:
         rep["missing"].append(f"worksheet: Tạo phiếu sent {n} resumes, want 1")
     if (got := sheet(data_dir, 2)) != [("9DS-PT2-001", 1), ("8DS-PT1-001", 2)]:
@@ -1610,6 +1624,8 @@ def ws_retry(page, rep: dict) -> None:
     page.route(again, lambda r: r.fulfill(status=202, json={"thread_id": tid, "status": "running"}))
     retry = '#draft [data-act="ws-retry"]'
     if expect(page, rep, JS_ON, "worksheet retry: a failed draft has no Thử lại", retry):
+        if not page.locator('#draft [data-act="ws-drop"]').count():
+            rep["missing"].append("worksheet retry: a failed draft has no Bỏ phiếu nháp")
         press(page, rep, retry, "worksheet Thử lại")
         expect(page, rep, JS_ON, "worksheet retry: Thử lại stayed off after the retry failed again", retry)
     page.unroute(poll)
@@ -1662,6 +1678,116 @@ def walk_worksheet(page, rep: dict, phone: bool, data_dir: str) -> None:
         ws_switch(page, rep, phone)
     if ok():
         ws_retry(page, rep)
+
+
+CANCEL_FILE = "hs02-2026-10-26.tex"
+CANCEL_ASK = "Huỷ buổi chấm này?"
+CANCEL_WORDS = "Bài làm và các lỗi đã duyệt sẽ bỏ, chưa có gì được lưu. Nộp lại file này được."
+CANCELLED = "Đã huỷ buổi chấm."
+DROP_ASK = "Bỏ phiếu nháp này?"
+DROPPED = "Đã bỏ phiếu nháp."
+CANCEL_BUSY = "Đang chạy, chờ xong rồi huỷ."
+TUTOR = {"X-Tutor": "1"}
+NOT_READY = {"error": {"code": "not_ready", "message": "x", "detail": None}}
+JS_BADGE_TL = """n => { const b = document.getElementById('badge-tro-ly');
+  return n === '0' ? b.hidden : !b.hidden && b.textContent === n; }"""
+
+
+def listed(root: str, tid: str) -> bool:
+    """The thread is in the reminders (GET /api/assistant/pending)."""
+    return any(i["thread_id"] == tid for i in api(root, "GET", "/assistant/pending")["items"])
+
+
+def waiting(root: str) -> str:
+    """The number the Trợ lý badge must show (pending.counts.assistant)."""
+    return str(api(root, "GET", "/assistant/pending")["counts"]["assistant"])
+
+
+def ask_cancel(page, rep: dict, root: str, tid: str, button: str, what: str, title: str) -> None:
+    """The button asks first (Thôi leaves the thread), and a 409 not_ready answer is a toast, not a lost card."""
+    press(page, rep, button, f"{what} (hỏi lại)", JS_MODAL)
+    if title not in page.inner_text("#modal-root"):
+        rep["missing"].append(f"{what}: the question does not say '{title}'")
+    press(page, rep, '#modal-root [data-act="modal-close"]', f"{what} Thôi", JS_NO_MODAL)
+    if (n := page.request.get(f"{root}api/threads/{tid}").status) != 200:
+        rep["missing"].append(f"{what}: Thôi left GET /api/threads/{tid} at {n}, want 200")
+    route = re.compile(rf"/api/threads/{tid}/cancel$")
+    page.route(route, lambda r: r.fulfill(status=409, json=NOT_READY))
+    press(page, rep, button, f"{what} (đang chạy)", JS_MODAL)
+    press(page, rep, '#modal-root [data-act="confirm-ok"]', f"{what} đồng ý (đang chạy)", JS_TOAST_HAS, CANCEL_BUSY)
+    page.unroute(route)
+    expect(page, rep, JS_ON, f"{what}: the button went after a 409 not_ready", button)
+    press(page, rep, button, f"{what} (lần cuối)", JS_MODAL)
+
+
+@counted(commit=("session",))
+def cancel_grading(page, rep: dict, data_dir: str, root: str) -> None:
+    """Huỷ buổi chấm (R8): the session row goes, the thread 404s, the same file can be sent again."""
+    Path(data_dir, "inbox", CANCEL_FILE).write_bytes((FIX / "s01.tex").read_bytes() + b"\n% robot cancel\n")
+    body, sessions = {"student_id": 2, "held_on": "2026-10-26", "path": CANCEL_FILE}, "SELECT count(*) FROM session"
+    base = scalar(data_dir, sessions)
+    r = page.request.post(f"{root}api/sessions", data=body, headers=TUTOR)
+    if r.status != 202:
+        rep["missing"].append(f"cancel: POST /api/sessions answered {r.status}, want 202")
+        return
+    tid = r.json()["thread_id"]
+    wait_idle(root, tid)
+    if (st := api(root, "GET", f"/threads/{tid}")["status"]) != "awaiting_review":
+        rep["missing"].append(f"cancel: the thread is {st}, want awaiting_review")
+        return
+    new_chat(page, rep, False)
+    page.evaluate("t => CHAT.openThread(t, 'grading')", tid)
+    button = f'{host(tid)} [data-act="g-cancel"]'
+    if not expect(page, rep, JS_ON, "cancel: the grading card has no Huỷ buổi chấm", button):
+        return
+    see_chat(page, rep, "cancel card", False)
+    ask_cancel(page, rep, root, tid, button, "cancel Huỷ buổi chấm", CANCEL_ASK)
+    if CANCEL_WORDS not in page.inner_text("#modal-root"):
+        rep["missing"].append(f"cancel: the question lacks '{CANCEL_WORDS}'")
+    press(page, rep, '#modal-root [data-act="confirm-ok"]', "cancel đồng ý", JS_HOST_HAS, [tid, CANCELLED])
+    if GONE in page.inner_text(host(tid)):
+        rep["missing"].append(f"cancel: the card says '{GONE}' over '{CANCELLED}'")
+    see_chat(page, rep, "cancel done", False)
+    if (n := page.request.get(f"{root}api/threads/{tid}").status) != 404:
+        rep["missing"].append(f"cancel: GET /api/threads/{tid} answered {n}, want 404")
+    if (n := scalar(data_dir, sessions)) != base:
+        rep["missing"].append(f"cancel: {n} session rows after Huỷ buổi chấm, want {base}")
+    expect(page, rep, JS_BADGE_TL, "cancel: the Trợ lý badge is stale", waiting(root))
+    r = page.request.post(f"{root}api/sessions", data=body, headers=TUTOR)  # the same file goes again
+    if r.status != 202:
+        rep["missing"].append(f"cancel: sending the file again answered {r.status}, want 202")
+        return
+    tid = r.json()["thread_id"]
+    wait_idle(root, tid)  # a running thread cannot be cancelled (409)
+    if (n := page.request.post(f"{root}api/threads/{tid}/cancel", headers=TUTOR).status) != 200:
+        rep["missing"].append(f"cancel: dropping the second thread answered {n}, want 200")
+    elif (n := scalar(data_dir, sessions)) != base:
+        rep["missing"].append(f"cancel: {n} session rows after dropping the second thread, want {base}")
+
+
+@counted()
+def cancel_draft(page, rep: dict, data_dir: str, root: str) -> None:
+    """Bỏ phiếu nháp (R8): asks first, the thread goes, the reminder goes, no recommendation row changes."""
+    if not (tid := ws_propose(page, rep, False)):
+        return
+    before = recs(data_dir)
+    if not listed(root, tid):
+        rep["missing"].append("cancel draft: the draft is not in the reminders before Bỏ phiếu nháp")
+    button = '#draft [data-act="ws-drop"]'
+    if not expect(page, rep, JS_ON, "cancel draft: the draft panel has no Bỏ phiếu nháp", button):
+        return
+    ask_cancel(page, rep, root, tid, button, "cancel draft Bỏ phiếu nháp", DROP_ASK)
+    press(page, rep, '#modal-root [data-act="confirm-ok"]', "cancel draft đồng ý", JS_WS_HAS, DROPPED)
+    if GONE in page.inner_text("#draft"):
+        rep["missing"].append(f"cancel draft: the panel says '{GONE}' over '{DROPPED}'")
+    see_chat(page, rep, "cancel draft done", False)
+    if (n := page.request.get(f"{root}api/threads/{tid}").status) != 404:
+        rep["missing"].append(f"cancel draft: GET /api/threads/{tid} answered {n}, want 404")
+    if (n := recs(data_dir)) != before:
+        rep["missing"].append(f"cancel draft: {n} recommendation rows after Bỏ phiếu nháp, want {before}")
+    if listed(root, tid):
+        rep["missing"].append("cancel draft: the draft is still in the reminders")
+    expect(page, rep, JS_BADGE_TL, "cancel draft: the Trợ lý badge is stale", waiting(root))
 
 
 REP_DAY, REP_WEEK, REP_MONTH = "2026-10-20", "2026-10-19", "2026-10-01"
@@ -3308,6 +3434,9 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
     if data_dir:
         walk_grading(page, rep, phone, data_dir)
         walk_worksheet(page, rep, phone, data_dir)
+        if not phone:
+            cancel_grading(page, rep, data_dir, base.removesuffix("v3/"))
+            cancel_draft(page, rep, data_dir, base.removesuffix("v3/"))
         walk_reports(page, rep, phone, data_dir, base.removesuffix("v3/"))
         if not phone:
             walk_chat_report(page, rep, data_dir, base.removesuffix("v3/"))

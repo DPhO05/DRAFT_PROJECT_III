@@ -39,9 +39,13 @@
       editing: null, add: null, work: {}, left: null, dirty: false, putErr: false, putSeq: 0, timer: 0, chain: null, busy: false, waits: 0, secs: 0, mark: 0 };
     host.innerHTML = '<div class="gcard"><div class="gcard-body"><p class="tool-line">Đang mở bài chấm…</p></div></div>';
     loadCodes().then(function () { if (s.card) draw(s); }, noop);
-    C.poll(s.tid, function (row) { return onRow(s, row); }, host);
+    C.poll(s.tid, function (row) { return onRow(s, row); }, host, function () { gone(s); });
   };
+  function gone(s) {  // 404: cancelled on this card (`dropped`), or finished or dropped somewhere else
+    s.host.innerHTML = '<div class="empty"><p>' + (s.dropped ? 'Đã huỷ buổi chấm.' : 'Việc này đã xong.') + '</p>' + btn('c-tab', 'Sang tab Học sinh', 'data-tab="hoc-sinh"') + '</div>';
+  }
   function onRow(s, row) {
+    if (s.dropped) return false;  // a poll already in the air when Huỷ buổi chấm went through
     var c = row.card, j = JSON.stringify(Object.assign({}, c, { saved: null })), back = bounced(s, row);  // `saved` only echoes this screen's PUTs
     tick(s);
     if (back) { s.chain = null; U.toast(CHANGED, 'info'); }
@@ -96,6 +100,7 @@
   }
   function cardHTML(s) {
     var c = s.card, st = c.stage, body = stepsHTML(st), p = c.progress, chip = CHIP[st] || ['chip-info', 'Đang làm'], n = c.attempts.length;
+    var drop = /^(confirm|review|preview|failed|locked)$/.test(st) ? btn('g-cancel', 'Huỷ buổi chấm', s.chain ? 'disabled' : '', 'btn-ghost') : '';
     if (st === 'reading') body += '<p class="tool-line">Đang đọc bài…</p>';
     else if (st === 'grading') body += '<p class="tool-line">' + (p && p.total ? 'Đang chấm bài ' + Math.min(p.done + 1, p.total) + '/' + p.total : 'Đang chấm…') + '</p>';
     else if (st === 'saving') body += '<p class="tool-line">Đang lưu…</p>';
@@ -110,7 +115,7 @@
         btn('g-open', 'Mở buổi ' + d, 'data-tid="' + U.esc(c.lock.blocked_by.thread_id) + '"') + '</div></div>';
     }
     return '<div class="gcard' + (st === 'saved' ? ' is-saved' : '') + '"><div class="gcard-head"><div class="row"><b>Bài của ' + U.esc(who(c.student_id)) + '</b><span class="muted small">buổi ' +
-      dm(c.held_on) + (n ? ' · ' + n + ' bài' : '') + (c.file ? ' · ' + esc(c.file) : '') + '</span></div><span class="chip ' + chip[0] + '">' + chip[1] + '</span></div>' +
+      dm(c.held_on) + (n ? ' · ' + n + ' bài' : '') + (c.file ? ' · ' + esc(c.file) : '') + '</span></div><div class="row"><span class="chip ' + chip[0] + '">' + chip[1] + '</span>' + drop + '</div></div>' +
       '<div class="gcard-body">' + body + '</div>' + footHTML(s) + '</div>';
   }
   function flag(s) {  // one flag at a time; once all are answered the last one stays, so a refused resume can be sent again
@@ -291,6 +296,16 @@
     var s = stateOf(el);
     s.busy = true; s.waits = 0; draw(s);
     resume(s).catch(function () { free(s); });
+  };
+  ACT['g-cancel'] = function (el) {
+    var s = stateOf(el);
+    U.confirm('Huỷ buổi chấm này?', 'Bài làm và các lỗi đã duyệt sẽ bỏ, chưa có gì được lưu. Nộp lại file này được.', 'Huỷ buổi chấm', function () {
+      U.api.send('POST', path(s, '/cancel')).then(function () {
+        clearTimeout(s.timer); s.dropped = true; gone(s); C.refreshPending();
+        var p = s.host.querySelector('p');  // the button is gone: the focus goes to the words
+        p.tabIndex = -1; p.focus();
+      }, function (e) { U.toast(e.code === 'not_ready' ? 'Đang chạy, chờ xong rồi huỷ.' : ERR[e.code] || 'Chưa huỷ được, thử lại sau.', 'warn'); });
+    }, true);
   };
   ACT['g-open'] = function (el) { C.openThread(el.dataset.tid, 'grading'); };
   ACT['g-profile'] = function (el) { STUDENTS.open(stateOf(el).card.student_id); };
