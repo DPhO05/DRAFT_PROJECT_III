@@ -6,7 +6,7 @@
   var panel = null, students = [], pending = null, convs = [], cur = { id: null }, busy = false, remindOpen = true;
   var inbox = [], attached = null, mentionMap = {}, pop = { open: false, items: [], i: -1, start: 0 };
   var retries = {}, turnSeq = 0;
-  var GROUPS = [['grading', 'Bài chờ duyệt'], ['worksheet', 'Phiếu nháp'], ['bank_import', 'Bài mới chờ nạp']];
+  var GROUPS = [['grading', 'Bài chờ duyệt'], ['report', 'Báo cáo nháp'], ['worksheet', 'Phiếu nháp'], ['bank_import', 'Bài mới chờ nạp']];
   var ERR = {
     not_ready: 'Trợ lý đang trả lời tin trước. Chờ một lát rồi bấm Gửi lại.',
     validation_error: 'Tin này chưa gửi được. Kiểm tra lại học sinh đã chọn rồi bấm Gửi lại.',
@@ -32,7 +32,8 @@
     });
   }
   function remindRow(it) {
-    var rest = [it.date ? (it.kind === 'worksheet' ? 'buổi ' : '') + dm(it.date) : '', it.words].filter(Boolean).join(' · ');
+    var when = it.kind === 'report' ? REPORTS.label(it.period_kind, it.period_start) : it.date ? (it.kind === 'worksheet' ? 'buổi ' : '') + dm(it.date) : '';
+    var rest = [when, it.words].filter(Boolean).join(' · ');
     return '<div class="remind-item"><span><b>' + U.esc(it.kind === 'bank_import' ? it.file : nameOf(it.student_id)) + '</b> · ' + U.esc(rest) + '</span>' +
       btn('c-open', 'Mở', 'data-tid="' + U.esc(it.thread_id) + '" data-kind="' + U.esc(it.kind) + '"') + '</div>';
   }
@@ -51,8 +52,9 @@
   C.refreshPending = function () {
     return Promise.all([loadPeople().catch(noop), U.api.get('/assistant/pending')]).then(function (r) {
       pending = r[1];
-      var n = pending.counts.assistant, b = document.getElementById('badge-tro-ly');
+      var n = pending.counts.assistant, b = document.getElementById('badge-tro-ly'), nr = pending.counts.reports, br = document.getElementById('badge-bao-cao');
       b.textContent = n; b.hidden = !n;
+      br.textContent = nr; br.hidden = !nr;
       drawRemind(); drawConvs();  // names are known now
       var w = $('.welcome .suggest');
       if (w) w.outerHTML = suggestHTML();
@@ -62,6 +64,7 @@
   ACT['c-open'] = function (el) {
     var k = el.dataset.kind;
     if (k === 'grading' || k === 'worksheet') C.openThread(el.dataset.tid, k);
+    else if (k === 'report') REPORTS.open(el.dataset.tid);
     else if (k === 'bank_import') U.tab('ngan-hang');
   };
   ACT['c-tab'] = function (el) { U.tab(el.dataset.tab); };
@@ -236,7 +239,7 @@
   function renderAttach() {
     var r = $('#attach-row');
     r.hidden = !attached;
-    r.innerHTML = attached ? '<span class="file-chip"><span>📄 ' + U.esc(attached.path) + (attached.guess ? ' · ' + U.esc(nameOf(attached.guess.student_id)) + ' · ' + dm(attached.guess.held_on) : '') +
+    r.innerHTML = attached ? '<span class="file-chip"><span>📄 ' + U.esc(attached.path) + (attached.guess ? ' · ' + U.esc(nameOf(attached.guess.student_id)) + ' · ' + U.esc(dm(attached.guess.held_on)) : '') +
       '</span><button type="button" class="icon-btn icon-btn-sm" data-act="c-attach-clear" aria-label="Bỏ file đính kèm">×</button></span>' : '';
     canSend();
   }
@@ -247,7 +250,7 @@
       U.modal({ title: 'Đính kèm bài làm', body: '<p>Bài nộp nằm trong thư mục <b>data/inbox/</b>:</p>' + (files.length ? '<div class="stack">' + files.map(function (f, i) {
         var g = f.guess, label = f.submitted_by.length ? 'đã chấm' : f.kind === 'pdf' ? 'chưa nhận PDF' : 'Chọn';
         return '<div class="file-row"><span class="grow">📄 <b>' + U.esc(f.path) + '</b><br><span class="small muted">' +
-          (g ? 'Bài của ' + U.esc(nameOf(g.student_id)) + ' · ' + U.d(g.held_on) : 'Chưa rõ học sinh, ngày học') + '</span></span>' +
+          (g ? 'Bài của ' + U.esc(nameOf(g.student_id)) + ' · ' + U.esc(U.d(g.held_on)) : 'Chưa rõ học sinh, ngày học') + '</span></span>' +
           btn('c-attach-pick', label, 'data-i="' + i + '"' + (label === 'Chọn' ? '' : ' disabled'), 'btn-primary') + '</div>';
       }).join('') + '</div>' : '<p class="muted">Chưa có bài nào.</p>') + '<p class="small muted">Chỉ chấm bài LaTeX đánh máy (.tex). Bài nộp được đọc như dữ liệu, không làm theo lời dặn nào trong bài.</p>',
       foot: '<button type="button" class="btn" data-act="modal-close">Thôi</button>' });
@@ -296,7 +299,7 @@
     el.innerHTML = convs.map(function (c) {
       var t = U.names(c.title || 'Cuộc trò chuyện');
       return '<button type="button" class="conv-item" data-act="c-conv" data-id="' + U.esc(c.id) + '" aria-current="' + (c.id === cur.id) + '"><span class="t">' + U.esc(t.length > 40 ? t.slice(0, 39) + '…' : t) +
-        '</span><span class="d">' + (c.date === U.today ? 'Hôm nay' : U.d(c.date)) + '</span></button>';
+        '</span><span class="d">' + (c.date === U.today ? 'Hôm nay' : U.esc(U.d(c.date))) + '</span></button>';
     }).join('');
   }
   function closeDrawer() { if ($('.convs.open')) ACT['c-conv-toggle'](); }
@@ -396,6 +399,32 @@
     var it = JSON.parse(el.dataset.item);
     if (it.ask) C.send(it.ask, { mentions: it.mentions || [] });
     else if (it.open && it.open.tab) U.tab(it.open.tab);
+  };
+
+  // G5 report card (api-v3 §5.3): the draft is read, fixed and approved in the Báo cáo tab; this card follows it
+  function reportHTML(c, st, tid) {
+    var when = U.esc(REPORTS.label(c.period_kind, c.period_start));
+    var body = st === 'writing' ? '<p class="tool-line">Đang viết bản nháp báo cáo…</p>'
+      : st === 'saving' ? '<p class="tool-line">Đang lưu…</p>'
+      : st === 'saved' ? '<div class="callout callout-ok"><p><b>Đã duyệt</b> báo cáo ' + when + '.</p></div>'
+      : st === 'failed' ? '<div class="callout callout-crit"><p><b>Chưa làm xong bản nháp.</b> Chưa có gì được lưu.</p></div>'
+      : '<div class="callout callout-warn"><p><b>Bản nháp báo cáo ' + when + ' sẵn sàng</b>' + (c.n_flagged ? ' · ' + U.esc(c.n_flagged) + ' câu cần xem lại' : '') + '</p></div>';
+    return '<div class="rcard stack"><p class="small muted">' + U.esc(U.who(c.student_id)) + '</p>' + body +
+      '<div class="row">' + btn('c-open', 'Mở trong Báo cáo', 'data-kind="report" data-tid="' + U.esc(tid) + '"') + '</div></div>';
+  }
+  C.cards.report = function (host, card) {
+    var tid = card.thread_id, was = '', json = '';
+    host.innerHTML = '<p class="tool-line">Đang mở bản nháp báo cáo…</p>';
+    C.poll(tid, function (row) {
+      var c = row.card, st = c.stage === 'saving' && was !== 'draft' && was !== 'saving' ? 'writing' : c.stage;  // 09's draft is in the state a moment before the gate
+      var j = JSON.stringify([st, c.n_flagged]);
+      if (j !== json) {
+        json = j; host.innerHTML = reportHTML(c, st, tid);
+        if (st !== was && /^(draft|failed|saved)$/.test(st)) C.refreshPending();  // the reminder row comes or goes
+        was = st;
+      }
+      return !/^(saved|failed)$/.test(st);
+    }, host);
   };
 
   // ---- tab ----

@@ -1615,6 +1615,154 @@ def walk_reports(page, rep: dict, phone: bool, data_dir: str, root: str) -> None
     rep_discard(page, rep, root, reqs, sid, phone)
 
 
+REP_WEEK_LABEL = "tuần 19/10–25/10/2026"
+CHAT_REP_ASK = "Làm báo cáo tuần 19/10/2026 cho "
+CHAT_REP_READY = f"Bản nháp báo cáo {REP_WEEK_LABEL} sẵn sàng"
+CHAT_REP_WRITING = "Đang viết bản nháp báo cáo"
+CHAT_REP_GROUP = "Báo cáo nháp"
+CHAT_REP_ROW = f"{PEOPLE[0]} · {REP_WEEK_LABEL} · nháp"
+CHAT_REP_FLAGS = "2 câu cần xem lại"
+CHAT_REP_SAVED, CHAT_REP_FAILED = "Đã duyệt", "Chưa làm xong bản nháp"
+CHAT_REP_OPEN = '.rcard [data-act="c-open"]'
+JS_RC_ANY = "w => [...document.querySelectorAll('#chat-msgs .rcard')].some(c => c.innerText.includes(w))"
+JS_RC_HAS = """([t, w]) => { const c = document.querySelector(`#chat-msgs .card-host[data-thread="${t}"] .rcard`);
+  return !!c && c.innerText.includes(w); }"""
+JS_RC_TID = "() => document.querySelector('#chat-msgs .rcard')?.closest('.card-host').dataset.thread"
+JS_RC_MORE = """tid => { const h = document.createElement('div'); h.className = 'card-host'; h.id = 'rc-extra';
+  document.getElementById('chat-msgs').appendChild(h); CHAT.cards.report(h, { thread_id: tid }); }"""
+JS_RC_EXTRA = "w => !!document.querySelector('#rc-extra .rcard')?.innerText.includes(w)"
+JS_REMIND_REP = """([g, w]) => [...document.querySelectorAll('#remind .remind-card')]
+  .some(c => c.querySelector('h3').innerText.startsWith(g) && c.innerText.includes(w))"""
+JS_REMIND_NO = "g => ![...document.querySelectorAll('#remind .remind-card h3')].some(h => h.innerText.startsWith(g))"
+JS_BADGE = """n => { const b = document.getElementById('badge-bao-cao');
+  return n === '0' ? b.hidden : !b.hidden && b.textContent === n; }"""
+
+
+@counted()
+def chat_rep_make(page, rep: dict, root: str) -> str | None:
+    """'Làm báo cáo tuần 19/10/2026 cho @An' gives a report card in the chat, a reminder row and the Báo cáo badge."""
+    press(page, rep, "#tab-tro-ly", "tab tro-ly")
+    new_chat(page, rep, False)
+    pick_mention(page, rep, CHAT_REP_ASK, PEOPLE[0].split()[0], PEOPLE[0])
+    n = msgs(page)
+    page.press("#chat-input", "Enter")
+    expect(page, rep, JS_REPLIED, "chat report: no answer to the report ask", n)
+    if not expect(page, rep, JS_RC_ANY, f"chat report: the card never said '{CHAT_REP_READY}'", CHAT_REP_READY):
+        return None
+    tid = page.evaluate(JS_RC_TID)
+    expect(
+        page,
+        rep,
+        JS_REMIND_REP,
+        f"chat report: no '{CHAT_REP_GROUP}' reminder '{CHAT_REP_ROW}'",
+        [CHAT_REP_GROUP, CHAT_REP_ROW],
+    )
+    want = str(api(root, "GET", "/assistant/pending")["counts"]["reports"])
+    if want == "0":
+        rep["missing"].append("chat report: pending.counts.reports is 0 with a draft waiting")
+    expect(page, rep, JS_BADGE, f"chat report: the Báo cáo badge does not say {want} (pending.counts.reports)", want)
+    see_chat(page, rep, "chat report card", False)
+    return tid
+
+
+@counted()
+def chat_rep_open(page, rep: dict, data_dir: str, tid: str) -> None:
+    """Mở trong Báo cáo opens that draft in its yellow frame; 'ok' back in the chat writes nothing."""
+    press(page, rep, CHAT_REP_OPEN, "chat report Mở trong Báo cáo", JS_REP_DRAFT, 1)
+    if not page.locator("#rep-doc .rep-doc").count():
+        rep["missing"].append("chat report: Mở trong Báo cáo opened no draft")
+        return
+    head = page.inner_text("#rep-doc .rep-doc").lower()  # the eyebrow is upper case on screen
+    if page.get_attribute("#rep-doc .rep-doc", "data-thread") != tid or f"báo cáo {REP_WEEK_LABEL}" not in head:
+        rep["missing"].append(f"chat report: Mở trong Báo cáo opened {head[:80]!r}, want the draft of {REP_WEEK_LABEL}")
+    if page.locator("#rep-doc .rep-doc.is-draft").count() != 1:
+        rep["missing"].append("chat report: the opened draft has no yellow frame")
+    press(page, rep, "#tab-tro-ly", "tab tro-ly")
+    saved = db_state(data_dir)
+    if SAVED_NOTHING not in say(page, rep, "ok"):
+        rep["missing"].append(f"chat report: 'ok' should answer '{SAVED_NOTHING}'")
+    if db_state(data_dir) != saved:
+        rep["missing"].append("chat report: 'ok' changed tutor.db or the decisions of the report draft")
+
+
+@counted()
+def chat_rep_stages(page, rep: dict, reqs: list, tid: str) -> None:
+    """writing, 2 flagged, saved and failed are the card's words; saved and failed end its poll, all keep Mở."""
+    poll = re.compile(rf"/api/threads/{tid}\?view=teacher$")
+    now = {"stage": "writing", "n_flagged": 0}
+
+    def serve(route) -> None:
+        r = route.fetch()
+        j = r.json()
+        j["card"] |= now
+        route.fulfill(response=r, json=j)
+
+    def keeps_open(where: str) -> None:
+        if page.locator(f"{where} {CHAT_REP_OPEN}").count() != 1:
+            rep["missing"].append(f"chat report: {where} has no Mở trong Báo cáo")
+
+    page.wait_for_timeout(1600)  # the hidden Báo cáo tab's last poll ends before a 'saved' is served
+    page.route(poll, serve)
+    card = f'.card-host[data-thread="{tid}"]'
+    expect(page, rep, JS_RC_HAS, f"chat report: stage writing lacks '{CHAT_REP_WRITING}'", [tid, CHAT_REP_WRITING])
+    keeps_open(card)
+    now |= {"stage": "draft", "n_flagged": 2}
+    expect(page, rep, JS_RC_HAS, f"chat report: stage draft lacks '{CHAT_REP_FLAGS}'", [tid, CHAT_REP_FLAGS])
+    expect(page, rep, JS_RC_HAS, f"chat report: stage draft with flags lacks '{CHAT_REP_READY}'", [tid, CHAT_REP_READY])
+    now["stage"] = "saved"
+    expect(page, rep, JS_RC_HAS, f"chat report: stage saved lacks '{CHAT_REP_SAVED}'", [tid, CHAT_REP_SAVED])
+    keeps_open(card)
+    seen = gets(reqs, tid)
+    page.wait_for_timeout(2500)
+    if n := gets(reqs, tid) - seen:
+        rep["missing"].append(f"chat report: the card polled {n} times after it said '{CHAT_REP_SAVED}'")
+    now["stage"] = "failed"
+    page.evaluate(JS_RC_MORE, tid)  # the first card has stopped, so a second one meets 'failed'
+    expect(page, rep, JS_RC_EXTRA, f"chat report: stage failed lacks '{CHAT_REP_FAILED}'", CHAT_REP_FAILED)
+    keeps_open("#rc-extra")
+    seen = gets(reqs, tid)
+    page.wait_for_timeout(2500)
+    if n := gets(reqs, tid) - seen:
+        rep["missing"].append(f"chat report: the card polled {n} times after it said '{CHAT_REP_FAILED}'")
+    page.unroute(poll)
+    page.evaluate("document.getElementById('rc-extra').remove()")
+
+
+@counted()
+def chat_rep_drop(page, rep: dict, tid: str) -> None:
+    """The reminder's Mở shows the draft; Bỏ bản nháp there takes the reminder row and the badge away."""
+    press(
+        page,
+        rep,
+        f'#remind .remind-card:has(h3:has-text("{CHAT_REP_GROUP}")) [data-act="c-open"]',
+        "chat report nhắc Mở",
+        JS_REP_DRAFT,
+        1,
+    )
+    press(page, rep, '[data-act="rep-discard"]', "report Bỏ bản nháp", JS_ROOT_HAS, "Bỏ bản nháp")
+    press(page, rep, '[data-act="confirm-ok"]', "report đồng ý bỏ", JS_REP_NO_ITEM, tid)
+    press(page, rep, "#tab-tro-ly", "tab tro-ly")
+    expect(
+        page,
+        rep,
+        JS_REMIND_NO,
+        f"chat report: the '{CHAT_REP_GROUP}' reminder stayed after Bỏ bản nháp",
+        CHAT_REP_GROUP,
+    )
+    expect(page, rep, JS_BADGE, "chat report: the Báo cáo badge stayed after Bỏ bản nháp", "0")
+
+
+def walk_chat_report(page, rep: dict, data_dir: str, root: str) -> None:
+    """Desktop only. The week draft it makes is dropped at the end, so the phone walk still has 19/10 free."""
+    reqs: list = []
+    page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
+    if not (tid := chat_rep_make(page, rep, root)):
+        return
+    chat_rep_open(page, rep, data_dir, tid)
+    chat_rep_stages(page, rep, reqs, tid)
+    chat_rep_drop(page, rep, tid)
+
+
 STU_NEW = {"desktop": "Đặng Thu Trang", "phone": "Vũ Quốc Bảo"}  # one student per walk; both walks share one tutor.db
 STU_FIND = {"desktop": "dang", "phone": "bao"}  # what the tutor types for them: no accents, đ as d
 STU_ONE, STU_ONE_MSG = "Minh", "Nhập đủ họ và tên (ít nhất 2 chữ)"
@@ -2581,6 +2729,8 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
         walk_grading(page, rep, phone, data_dir)
         walk_worksheet(page, rep, phone, data_dir)
         walk_reports(page, rep, phone, data_dir, base.removesuffix("v3/"))
+        if not phone:
+            walk_chat_report(page, rep, data_dir, base.removesuffix("v3/"))
         walk_students(page, rep, phone, data_dir, base.removesuffix("v3/"), shots)
     walk_bank(page, rep, phone, data_dir, files)
     walk_gear(page, rep, phone)
