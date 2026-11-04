@@ -405,7 +405,7 @@ def split_model(setting: str) -> tuple[str, str]:
 def _route(agent: str) -> tuple[Backend, str, str]:
     """(backend, model name sent to the API, models setting as logged) for one agent."""
     global _last_result
-    setting = _models.get(agent, "claude-opus-5-5")
+    setting = _models.get(agent, "openai:gpt-5.6-sol")
     try:
         provider, name = split_model(setting)
     except ValueError as e:
