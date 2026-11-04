@@ -59,9 +59,9 @@ def rank_problems(
     for kc, pre in conn.execute("SELECT kc_id, prereq_id FROM kc_prereq"):
         prereqs.setdefault(kc, []).append(pre)
     pool = [
-        {"id": pid, "kc": kc, "delta": delta, "gap": theta.get(kc, 0.0) - delta}
-        for pid, delta, kc in conn.execute(
-            f"SELECT p.id, COALESCE(p.delta, 0), {_MAIN} FROM problem p"
+        {"id": pid, "ref": ref, "kc": kc, "delta": delta, "gap": theta.get(kc, 0.0) - delta}
+        for pid, ref, delta, kc in conn.execute(
+            f"SELECT p.id, p.ref, COALESCE(p.delta, 0), {_MAIN} FROM problem p"
             " WHERE EXISTS (SELECT 1 FROM rubric r WHERE r.problem_id = p.id)"
             " AND NOT EXISTS (SELECT 1 FROM attempt_current a JOIN session s ON s.id = a.session_id"
             "  WHERE a.problem_id = p.id AND s.student_id = ? AND s.held_on >= ?)"
@@ -70,6 +70,9 @@ def rank_problems(
         )
         if kc is not None
     ]
+    grade = (conn.execute("SELECT grade FROM student WHERE id = ?", (student_id,)).fetchone() or (None,))[0]
+    # a ref starts with its grade digit, as in a01_ingest; no candidate of that grade -> the whole pool
+    pool = [c for c in pool if grade is None or c["ref"].startswith(str(grade))] or pool
     chosen: list[dict] = []
     taken: set[int] = set()
     kcs: set[int] = set()  # main skills already on the sheet

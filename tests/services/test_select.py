@@ -128,8 +128,9 @@ def test_kc_mix(conn):
     w = world(conn)
     r = rank(conn, w)
     assert len({i["kc_id"] for i in r["items"]}) >= 3 and r["warnings"] == []
-    pool = by_kc(conn, w["kc_swap"]) + by_kc(conn, 2)
+    pool = by_kc(conn, w["kc_swap"]) + by_kc(conn, 2)  # grades 9 and 8
     only(conn, pool, delta=0)
+    conn.execute("UPDATE student SET grade = NULL WHERE id = ?", (w["an"],))
     r = rank(conn, w)
     assert len(r["items"]) == 6 and {i["kc_id"] for i in r["items"]} == {w["kc_swap"], 2}
     assert r["warnings"] == ["Phiếu chỉ có 2 kỹ năng"]
@@ -199,3 +200,19 @@ def test_reason_words(conn):
     again = rank(conn, w)
     assert again["items"][0]["reason"] == f"Ôn lại “{name}”: còn nhầm phép toán hoặc dấu (2 lần), cả kỹ năng 3 lần."
     assert not [i["reason"] for i in r["items"] + again["items"] if FORBIDDEN.search(i["reason"])]
+
+
+@pytest.mark.parametrize("grade", [8, 9])
+def test_worksheet_keeps_student_grade(conn, grade):
+    w = world(conn)
+    w["new"] = repo.add_student(conn, name="Học Sinh Mới", grade=grade)
+    refs = [i["ref"] for i in rank(conn, w, who="new")["items"]]
+    assert refs and all(r.startswith(str(grade)) for r in refs)
+
+
+@pytest.mark.parametrize("grade", [None, 7])
+def test_no_grade_or_no_bank_of_that_grade_keeps_whole_pool(conn, grade):
+    w = world(conn)
+    w["new"] = repo.add_student(conn, name="Học Sinh Mới", grade=grade)
+    refs = [i["ref"] for i in rank(conn, w, who="new")["items"]]
+    assert refs == ["8DS-HDT-004", "8DS-HDT-005", "8DS-HDT-006", "8DS-HDT-017", "8DS-HSBN-004", "8DS-HDT-007"]
