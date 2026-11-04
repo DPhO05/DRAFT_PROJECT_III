@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Robot UI check for the 4-tab app at /v3/ (P5-T05).
+"""Robot UI check for the 4-tab app at / (P5-T05).
 
 Run: .venv/bin/python tests/ui/check_v3.py [--url http://127.0.0.1:8000/] [--data] [--shots]
-Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Trợ lý chat tab (reminders, @, stream, cards, 📎, retry,
+Opens / at 1440 px and 390 px; walks the 4 tabs, the Trợ lý chat tab (reminders, @, stream, cards, 📎, retry,
 the G1 grading card, the G4 worksheet panel), the Báo cáo tab (draft, edit, approve, PDF), the Học sinh tab (list,
 add / edit / archive, profile with chart, windows), the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu,
 light/dark.
@@ -2281,7 +2281,7 @@ def rep_pause(page, rep: dict, root: str, reqs: list, tid: str, approve: bool) -
 @counted()
 def rep_prefill(page, rep: dict, root: str, sid: int, name: str, phone: bool) -> None:
     """A cold page: REPORTS.prefill(id) before the tab was ever opened still shows that student once the list is in."""
-    page.goto(f"{root}v3/?cold={'phone' if phone else 'desk'}#tro-ly")
+    page.goto(f"{root}?cold={'phone' if phone else 'desk'}#tro-ly")
     page.evaluate("id => REPORTS.prefill(id)", sid)
     expect(page, rep, JS_REP_NAME, f"report prefill: the form does not show {name} after a cold prefill", name)
     expect(page, rep, JS_REP_KIND_FOCUS, "report prefill: the Kỳ buttons took no focus")
@@ -3621,17 +3621,17 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
     if page.evaluate("U.api.get('/health')").get("status") != "ok":
         rep["missing"].append("U.api.get('/health') is not ok")
     walk_tabs(page, rep, phone, shots)
-    walk_chat(page, rep, phone, data_dir, base.removesuffix("v3/"))
+    walk_chat(page, rep, phone, data_dir, base)
     if data_dir:
         walk_grading(page, rep, phone, data_dir)
         walk_worksheet(page, rep, phone, data_dir)
         if not phone:
-            cancel_grading(page, rep, data_dir, base.removesuffix("v3/"))
-            cancel_draft(page, rep, data_dir, base.removesuffix("v3/"))
-        walk_reports(page, rep, phone, data_dir, base.removesuffix("v3/"))
+            cancel_grading(page, rep, data_dir, base)
+            cancel_draft(page, rep, data_dir, base)
+        walk_reports(page, rep, phone, data_dir, base)
         if not phone:
-            walk_chat_report(page, rep, data_dir, base.removesuffix("v3/"))
-        walk_students(page, rep, phone, data_dir, base.removesuffix("v3/"), shots)
+            walk_chat_report(page, rep, data_dir, base)
+        walk_students(page, rep, phone, data_dir, base, shots)
     walk_bank(page, rep, phone, data_dir, files)
     walk_gear(page, rep, phone, bool(data_dir), home)
     walk_nokey(page, rep, phone)
@@ -3660,7 +3660,6 @@ def walk_restore(browser, base: str, data_dir: str) -> dict:
     Bỏ các việc này rồi khôi phục drops it, and tutor.db ends with the rows of the chosen backup."""
     rep = {k: [] for k in ("console_errors", "page_errors", "dead", "missing", "forbidden", "overflow", "shots")}
     rep["viewport"] = "restore"
-    root = base.removesuffix("v3/")
     page = browser.new_context(viewport=DESK, color_scheme="light").new_page()
     page.on(
         "console",
@@ -3679,8 +3678,8 @@ def walk_restore(browser, base: str, data_dir: str) -> dict:
         if len(new) != 1:
             rep["missing"].append(f"restore: Sao lưu ngay added {new}, expected one file")
             return rep
-        api(root, "POST", "/students", {"name": "Phạm Robot", "grade": 7})  # a change the backup does not hold
-        open_ = [t for t in api(root, "GET", "/threads") if t["status"] in OPEN_STATES]
+        api(base, "POST", "/students", {"name": "Phạm Robot", "grade": 7})  # a change the backup does not hold
+        open_ = [t for t in api(base, "GET", "/threads") if t["status"] in OPEN_STATES]
         want = (
             f"Còn {len(open_)} việc chưa xong ("
             + ", ".join(f"{sum(t['graph'] == g for t in open_)} {word}" for g, word in UNFINISHED)
@@ -3713,7 +3712,7 @@ def walk_restore(browser, base: str, data_dir: str) -> dict:
             f"Đã khôi phục bản {backup_when(new[0])}",
         )
         expect(page, rep, JS_RELOADED, "restore: the page did not reload after Khôi phục")
-        if left := [t["thread_id"] for t in api(root, "GET", "/threads") if t["status"] in OPEN_STATES]:
+        if left := [t["thread_id"] for t in api(base, "GET", "/threads") if t["status"] in OPEN_STATES]:
             rep["missing"].append(f"restore: unfinished threads left after Khôi phục: {left}")
         got, want_rows = counts(data_dir), expected_rows(Path(data_dir, "backup", new[0]))
         if diff := moved(want_rows, got):
@@ -3768,7 +3767,7 @@ def named_bodies(reqs: list) -> list:
 
 
 def check(url: str, args: argparse.Namespace) -> int:
-    base = f"{url}v3/"
+    base = url
     data_dir = getattr(url, "data_dir", None) if args.data else None
     if data_dir:
         api(url, "POST", "/catalog/kc", {"code": "ROBOT-LE-01", "name": LEAF, "description": "robot", "lop": 8})

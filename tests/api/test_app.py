@@ -3,7 +3,7 @@
 from fastapi.testclient import TestClient
 
 from tutor import __version__
-from tutor.api.app import APP_DIR, create_app
+from tutor.api.app import create_app
 from tutor.db import repo
 
 
@@ -19,19 +19,21 @@ def test_health_reports_db_error(paths, client):
     assert client.get("/api/health").json()["db"] == "error"
 
 
-def test_serves_app_shell(client):
+def test_serves_four_tab_app(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
-    assert client.get("/api.js").status_code == 200
-
-
-def test_v3_served(client):
-    r = client.get("/v3/")
+    assert "<title>Trợ lý gia sư Toán</title>" in r.text
+    assert 'data-tab="ngan-hang"' in r.text
+    assert client.get("/core.js").status_code == 200
+    r = client.get("/api.js")
     assert r.status_code == 200
-    assert "<title>" in r.text
-    assert client.get("/v3/core.js").status_code == 200
-    assert client.get("/").content == (APP_DIR / "index.html").read_bytes()
+    assert "refreshQueue" not in r.text
+
+
+def test_old_paths_gone(client):
+    assert client.get("/v3/").status_code == 404
+    assert client.get("/tabs/today.js").status_code == 404
 
 
 def test_unknown_host_rejected(client):

@@ -146,7 +146,7 @@ def ingest_cmd(
     data_dir: DataDir = None,
     fake_llm: FakeLLM = False,
 ) -> None:
-    """Nộp bài và chạy G1 tới DỪNG (= Buổi học › Bắt đầu xử lý)."""
+    """Nộp bài và chạy G1 tới DỪNG (= 📎 đính bài trong tab Trợ lý)."""
     paths = config.paths(data_dir)
     lock = _hold_lock(paths)
     try:
@@ -215,7 +215,7 @@ def review_cmd(
     data_dir: DataDir = None,
     fake_llm: FakeLLM = False,
 ) -> None:
-    """Hộp duyệt trên terminal: in hàng đợi, duyệt lỗi G1 (A / E / R / N) → xem trước tiến bộ → Lưu kết quả,
+    """Duyệt trên terminal: in hàng đợi, duyệt lỗi G1 (A / E / R / N) → xem trước tiến bộ → Lưu kết quả,
     chọn kỹ năng cho bài vừa nạp (G2) → Lưu vào ngân hàng, duyệt phiếu bài tập (G4) → Tạo phiếu, hoặc báo cáo
     kỳ (G5) → Duyệt báo cáo."""
     paths = config.paths(data_dir)

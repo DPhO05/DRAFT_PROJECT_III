@@ -1,4 +1,4 @@
-"""SDD Phụ lục B #26 (read part): bank problems for Buổi học bước 3 › Chọn bài khác."""
+"""SDD Phụ lục B #26 (read part): bank problems for the Ngân hàng bài tab."""
 
 import shutil
 from contextlib import closing

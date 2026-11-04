@@ -1,4 +1,4 @@
-"""/api/bank (read part used by Buổi học bước 3 › Chọn bài khác; the Ngân hàng screen is phase P5)."""
+"""/api/bank: the Ngân hàng bài tab (list, view, edit, import)."""
 
 import sqlite3
 from typing import Annotated, Literal

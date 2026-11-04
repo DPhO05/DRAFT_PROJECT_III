@@ -132,7 +132,7 @@ def test_env_file_read_by_cli(tmp_path, monkeypatch):
 
 
 # What `tutor app` and every graph command do at start, run for real in a child: the child then lists which API-key
-# variables it holds (names only, never values), like tests/ui/check.py KEY_PROBE.
+# variables it holds (names only, never values), like tests/ui/check_v3.py KEY_PROBE.
 DATA_PROBE = (
     "import os, sys, uvicorn; from pathlib import Path; from tutor import cli, config; "
     "uvicorn.run = lambda *a, **k: None; "  # app_cmd builds the app and returns, nothing listens

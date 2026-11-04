@@ -630,7 +630,7 @@ def _lane(paths: DataPaths) -> StateGraph:
 
 
 def diagnoser_prompt_version(conn) -> str:
-    """03's prompt_version for the current active taxonomy (Danh mục › Mã lỗi shows it after each edit)."""
+    """03's prompt_version for the current active taxonomy."""
     return diagnoser.prompt_version(repo.error_codes(conn, active_only=True))
 
 
