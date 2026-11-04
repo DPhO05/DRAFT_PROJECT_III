@@ -173,7 +173,7 @@ var U = {};
   };
   ACT.tab = function (el, ev) { if (ev) ev.preventDefault(); U.tab(el.dataset.tab); };
 
-  // ---- ⚙ menu: items run ACT.sys (soon.js); theme is real ----
+  // ---- ⚙ menu: items run ACT.sys (system.js); theme is real ----
   U.closeGear = function () { var m = document.getElementById('gear-menu'); if (!m.hidden) { m.hidden = true; document.getElementById('gear-btn').setAttribute('aria-expanded', 'false'); } };
   ACT.gear = function () {
     var m = document.getElementById('gear-menu'), open = m.hidden;

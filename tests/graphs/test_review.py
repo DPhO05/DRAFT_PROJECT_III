@@ -137,6 +137,15 @@ def test_inactive_code_cannot_be_chosen_in_edit(env):
     assert r.save_decisions(out["thread_id"], full(conn)) == 1
 
 
+def test_inactive_code_left_out_of_prompt_03(env):
+    go, conn, _ = env
+    repo.update_error_code(conn, "computational.final_answer", active=False)
+    _, _, fake = go(THREE)
+    systems = ["\n".join(c["system"]) for c in fake.calls if c["agent"] == "03"]
+    assert systems
+    assert all("computational.final_answer" not in s and "computational.intermediate_calc" in s for s in systems)
+
+
 def test_failure_inside_commit_writes_nothing_and_rerun_commits(env, monkeypatch):
     go, conn, r = env
     out, _, _ = go(THREE)

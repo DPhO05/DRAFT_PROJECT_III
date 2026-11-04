@@ -140,6 +140,9 @@ mjx-container[jax="SVG"][display="true"] { overflow-x: auto; overflow-y: hidden;
 .file-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; border: 1px solid var(--line); border-radius: 3px; padding: 10px; }
 .file-row .grow { overflow-wrap: anywhere; }
 summary { cursor: pointer; }
+.cat-topics { gap: 8px; }
+.cat-list, .cat-kinds { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.cat-list { padding-top: 6px; padding-bottom: 4px; }
 .sol { border-left: 3px solid var(--line); padding-left: 10px; display: flex; flex-direction: column; gap: 4px; color: var(--ink-2); }
 .rub-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .rub-list li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: start; }

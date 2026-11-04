@@ -139,7 +139,45 @@ def walk_tabs(page, rep: dict, phone: bool, shots: bool) -> None:
         rep["missing"].append("brand did not go to Trợ lý")
 
 
-def walk_gear(page, rep: dict, phone: bool) -> None:
+JS_CATALOG = """() => ({
+  topics: document.querySelectorAll('#modal-body details').length,
+  open: document.querySelectorAll('#modal-body details[open]').length,
+  kinds: document.querySelectorAll('#modal-body .cat-kinds li').length,
+})"""
+EMPTY_CATALOG = "Chưa có kỹ năng nào trong danh mục."
+CATALOG_NOTE = "Danh mục chỉ xem ở đây; người cài đổi được bằng file."
+
+
+def walk_catalog(page, rep: dict, phone: bool, data: bool) -> None:
+    """⚙ Danh mục is read-only: topics fold open on their skills, active error codes by description."""
+    kcs = page.evaluate("U.api.get('/catalog/kc')")
+    active = [c for c in page.evaluate("U.api.get('/catalog/error-codes')") if c["active"]]
+    topics = [k for k in kcs if k["parent_id"] is None]
+    got = page.evaluate(JS_CATALOG)
+    text = page.inner_text("#modal-body")
+    if CATALOG_NOTE not in text:
+        rep["missing"].append("gear catalog: the read-only note is missing")
+    if (got["topics"], got["open"], got["kinds"]) != (len(topics), 0, len(active)) or len(active) != 18:
+        rep["missing"].append(f"gear catalog: page shows {got}, API has {len(topics)} topics, {len(active)} codes (18)")
+    if not data:
+        if kcs or EMPTY_CATALOG not in text:
+            rep["missing"].append(f"gear catalog: an empty catalog should say '{EMPTY_CATALOG}'")
+        return
+    first = next((t for t in topics if any(k["parent_id"] == t["id"] for k in kcs)), None)
+    if not first:
+        rep["missing"].append("gear catalog: --data has no topic with skills")
+        return
+    kids = [k["name"] for k in kcs if k["parent_id"] == first["id"]]
+    summary = f"#modal-body details >> nth={topics.index(first)} >> summary"
+    press(page, rep, summary, "gear catalog topic")
+    shown = page.evaluate("[...document.querySelectorAll('#modal-body details[open] li')].map(l => l.innerText)")
+    if shown != kids or f"lớp {first['lop']} · {len(kids)} kỹ năng" not in page.inner_text(summary):
+        rep["missing"].append(f"gear catalog: topic {first['name']!r} shows {shown}, expected {kids}")
+    if any(k["code"] in page.inner_text("#modal-body") for k in kcs):
+        rep["missing"].append("gear catalog: a skill code is on screen")
+
+
+def walk_gear(page, rep: dict, phone: bool, data: bool) -> None:
     keys = page.evaluate("[...document.querySelectorAll('[data-sys]')].map(b => b.dataset.sys)")
     if len(keys) != 4:
         rep["missing"].append(f"gear menu has {len(keys)} items, expected 4")
@@ -150,7 +188,12 @@ def walk_gear(page, rep: dict, phone: bool) -> None:
             rep["missing"].append(f"gear menu did not show {key}")
             continue
         press(page, rep, f'[data-sys="{key}"]', f"gear item {key}")
-        if SOON not in page.inner_text("#modal-root"):
+        if key == "catalog":
+            if SOON in page.inner_text("#modal-root"):
+                rep["missing"].append(f"gear {key}: still '{SOON}'")
+            elif how == "Esc":
+                walk_catalog(page, rep, phone, data)
+        elif SOON not in page.inner_text("#modal-root"):
             rep["missing"].append(f"gear {key}: no '{SOON}'")
         see(page, rep, f"gear {key}", phone)
         if how == "Esc":
@@ -2892,7 +2935,7 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
             walk_chat_report(page, rep, data_dir, base.removesuffix("v3/"))
         walk_students(page, rep, phone, data_dir, base.removesuffix("v3/"), shots)
     walk_bank(page, rep, phone, data_dir, files)
-    walk_gear(page, rep, phone)
+    walk_gear(page, rep, phone, bool(data_dir))
     walk_theme(page, rep, base)
     page.wait_for_timeout(500)  # late errors
     rep["missing"] += [f"{x}: the request body holds a student name (C-40)" for x in named_bodies(reqs)]
