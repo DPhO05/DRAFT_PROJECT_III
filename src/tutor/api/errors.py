@@ -47,6 +47,7 @@ def install(app: FastAPI) -> None:
         repo.ReportApproved: lambda e: (409, "already_committed", {"report_id": e.report_id,
                                                                     "approved_at": e.approved_at}),
         facts.NotReady: lambda e: (409, "not_ready", e.detail),
+        repo.NotRestored: lambda e: (500, "restore_failed", None),
         repo.RestoreFailed: lambda e: (500, "restore_failed", {"safety_backup": e.safety}),
         repo.CatalogError: lambda e: (422, "validation_error", {"cycle": e.cycle} if e.cycle else None),
         ValueError: lambda e: (422, "validation_error", None),
@@ -55,6 +56,8 @@ def install(app: FastAPI) -> None:
 
         def handler(request: Request, e: Exception, fn=fn) -> JSONResponse:
             status, code, detail = fn(e)
+            if status >= 500 and e.__cause__:  # the words are for the teacher; the cause is for app.log
+                log.error("%s %s: %s: %s", request.method, request.url.path, type(e.__cause__).__name__, e.__cause__)
             return error(status, code, str(e) or code, detail)
 
         app.add_exception_handler(exc, handler)

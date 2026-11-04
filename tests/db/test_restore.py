@@ -1,5 +1,6 @@
 """P8-T02: repo.restore puts a chosen backup back into tutor.db (R7)."""
 
+import os
 import re
 import shutil
 import sqlite3
@@ -168,3 +169,36 @@ def test_backup_of_a_newer_app_is_refused_before_anything_moves(paths, conn):
         repo.restore(paths.tutor_db, paths.backup, b.name)
     assert paths.tutor_db.read_bytes() == db_bytes and repo.row_counts(conn) == before
     assert list(paths.backup.iterdir()) == [b]  # no safety backup
+
+
+needs_perms = pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file modes")
+
+
+@needs_perms
+def test_unwritable_backup_folder_leaves_a_healthy_tutor_db_alone(paths, conn):
+    students(conn, 1)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    students(conn, 1)
+    db_bytes, before = paths.tutor_db.read_bytes(), repo.row_counts(conn)
+    paths.backup.chmod(0o555)
+    try:
+        with pytest.raises(repo.NotRestored, match="Không sao lưu được dữ liệu hiện tại .*chưa khôi phục gì."):
+            repo.restore(paths.tutor_db, paths.backup, b.name)
+    finally:
+        paths.backup.chmod(0o755)
+    assert paths.tutor_db.read_bytes() == db_bytes and repo.row_counts(conn) == before
+    assert not list(paths.root.glob("tutor.db.broken*")) and list(paths.backup.iterdir()) == [b]
+
+
+@needs_perms
+def test_unreadable_backup_is_not_called_damaged(paths, conn):
+    students(conn, 1)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    before = repo.row_counts(conn)
+    b.chmod(0)
+    try:
+        with pytest.raises(repo.NotRestored, match="Không đọc được bản sao lưu này .*chưa khôi phục gì."):
+            repo.restore(paths.tutor_db, paths.backup, b.name)
+    finally:
+        b.chmod(0o644)
+    assert repo.row_counts(conn) == before and not list(paths.root.glob("tutor.db.broken*"))

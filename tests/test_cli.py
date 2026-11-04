@@ -509,7 +509,26 @@ def test_restore_cli_failure_names_the_safety_file(paths, conn, monkeypatch):
     r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
     safety = next(p.name for p in paths.backup.iterdir() if p != b)
     assert r.exit_code == 1 and safety in r.output and "Traceback" not in r.output
+    assert r.output.splitlines()[-1].strip() == "(MigrationError: 004.sql: gài lỗi)"  # the cause, for the installer
     assert repo.row_counts(conn)["student"] == 2
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file modes")
+def test_restore_cli_unwritable_backup_folder_leaves_tutor_db_alone(paths, conn):
+    repo.add_student(conn, name="An", grade=8)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    repo.add_student(conn, name="Bình", grade=8)
+    db_bytes = paths.tutor_db.read_bytes()
+    paths.backup.chmod(0o555)
+    try:
+        r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
+    finally:
+        paths.backup.chmod(0o755)
+    lines = r.output.splitlines()
+    assert r.exit_code == 1 and "Traceback" not in r.output
+    assert lines[0] == "Không sao lưu được dữ liệu hiện tại (ổ đầy hoặc không ghi được), chưa khôi phục gì."
+    assert lines[1].strip().startswith("(OperationalError: ")
+    assert paths.tutor_db.read_bytes() == db_bytes and not list(paths.root.glob("tutor.db.broken*"))
 
 
 def test_restore_cli_refuses_a_backup_of_a_newer_app(paths, conn):

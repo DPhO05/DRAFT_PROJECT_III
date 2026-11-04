@@ -1,7 +1,10 @@
 """P8-T02: POST /api/backup/restore (api-v3 §7.1, R7, R19)."""
 
+import os
 import sqlite3
 from contextlib import closing
+
+import pytest
 
 from tests.api.test_sessions import W
 from tutor.db import repo
@@ -79,6 +82,7 @@ def test_failure_after_the_copy_is_500_naming_the_safety_file(paths, client, mon
     assert r.status_code == 500 and r.json()["error"]["code"] == "restore_failed"
     assert safety in r.json()["error"]["message"]
     assert len(client.get("/api/students").json()) == 2  # the data is back as it was
+    assert "MigrationError: 004.sql: gài lỗi" in (paths.logs / "app.log").read_text(encoding="utf-8")
 
 
 def test_backup_of_a_newer_app_is_422_and_nothing_moves(paths, client):
@@ -92,3 +96,22 @@ def test_backup_of_a_newer_app_is_422_and_nothing_moves(paths, client):
     assert r.json()["error"]["message"] == "Bản sao lưu này của bản app mới hơn, cập nhật app trước."
     assert paths.tutor_db.read_bytes() == db_bytes
     assert [p.name for p in paths.backup.iterdir()] == [made["path"]]
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file modes")
+def test_unwritable_backup_folder_is_500_with_words_and_nothing_moves(paths, client):
+    student(client, "Lê An")
+    made = client.post("/api/backup", headers=W).json()
+    student(client, "Võ Bình")
+    db_bytes = paths.tutor_db.read_bytes()
+    paths.backup.chmod(0o555)
+    try:
+        r = client.post("/api/backup/restore", json={"name": made["path"]}, headers=W)
+    finally:
+        paths.backup.chmod(0o755)
+    err = r.json()["error"]
+    assert r.status_code == 500 and err["code"] == "restore_failed"
+    assert err["message"] == "Không sao lưu được dữ liệu hiện tại (ổ đầy hoặc không ghi được), chưa khôi phục gì."
+    assert paths.tutor_db.read_bytes() == db_bytes and not list(paths.root.glob("tutor.db.broken*"))
+    assert len(client.get("/api/students").json()) == 2
+    assert "OperationalError" in (paths.logs / "app.log").read_text(encoding="utf-8")

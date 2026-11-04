@@ -48,6 +48,10 @@ class BackupTooNew(ValueError):
         super().__init__("Bản sao lưu này của bản app mới hơn, cập nhật app trước.")
 
 
+class NotRestored(Exception):
+    """Restore stopped before tutor.db moved: a file could not be read or written (500 restore_failed)."""
+
+
 class RestoreFailed(Exception):
     """Restore failed after tutor.db was touched; `safety` holds the data from before it (500 restore_failed)."""
 
@@ -206,7 +210,8 @@ def backup(db_path: Path, backup_dir: Path, keep_recent: int = 30, keep_monthly:
             src.backup(out)
             out.execute("PRAGMA journal_mode = DELETE")  # backup = 1 self-contained file
     except BaseException:
-        dst.unlink(missing_ok=True)  # a failed copy must not stay in the list as a backup
+        with suppress(OSError):  # a failed copy must not stay in the list; a read-only folder must not hide why
+            dst.unlink(missing_ok=True)
         raise
     _prune(backup_dir, keep_recent, keep_monthly)
     return dst
@@ -243,6 +248,9 @@ def read_backup(backup_dir: Path, name: str) -> sqlite3.Connection:
         ok = mem.execute("PRAGMA quick_check").fetchone()[0] == "ok"
         if not ok or mem.execute("SELECT 1 FROM sqlite_master WHERE name = 'student'").fetchone() is None:
             raise BackupCorrupt
+    except sqlite3.OperationalError as e:  # locked, unreadable: not a damaged file
+        mem.close()
+        raise NotRestored("Không đọc được bản sao lưu này (ổ lỗi hoặc không đọc được), chưa khôi phục gì.") from e
     except (sqlite3.DatabaseError, BackupCorrupt) as e:
         mem.close()
         raise BackupCorrupt from e
@@ -287,7 +295,11 @@ def restore(db_path: Path, backup_dir: Path, name: str) -> dict:
         }
         try:
             safety = backup(db_path, backup_dir)
-        except sqlite3.DatabaseError:
+        except (sqlite3.OperationalError, OSError) as e:  # locked, disk full, folder not writable: tutor.db is fine
+            raise NotRestored(
+                "Không sao lưu được dữ liệu hiện tại (ổ đầy hoặc không ghi được), chưa khôi phục gì."
+            ) from e
+        except sqlite3.DatabaseError:  # not a database / malformed: it cannot be backed up, so keep it aside
             safety = db_path.with_name(_set_aside(db_path, companions))
         try:
             _into(db_path, mem)
