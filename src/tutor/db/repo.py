@@ -261,18 +261,28 @@ def read_backup(backup_dir: Path, name: str) -> sqlite3.Connection:
 
 
 def _set_aside(db_path: Path, companions: dict[str, bytes]) -> str:
-    """Move an unreadable tutor.db and its -wal / -shm to tutor.db.broken-<time>, a name no prune pattern matches."""
+    """Move an unreadable tutor.db and its -wal / -shm to tutor.db.broken-<time>, a name no prune pattern matches.
+
+    The -wal / -shm copies are written before tutor.db moves, so a full disk stops with tutor.db still in place."""
     stamp, n = f"{datetime.now():%Y%m%d-%H%M%S}", 1
     kept = db_path.with_name(f"{db_path.name}.broken-{stamp}")
     while kept.exists():
         n += 1
         kept = db_path.with_name(f"{db_path.name}.broken-{stamp}-{n}")
-    if db_path.exists():
-        db_path.rename(kept)
+    written = []
+    try:
+        for suffix, data in companions.items():
+            written.append(kept.with_name(kept.name + suffix))
+            written[-1].write_bytes(data)
+        if db_path.exists():
+            db_path.rename(kept)
+    except OSError as e:
+        for p in written:
+            with suppress(OSError):
+                p.unlink(missing_ok=True)
+        raise NotRestored("Không giữ lại được dữ liệu cũ (ổ đầy hoặc không ghi được), chưa khôi phục gì.") from e
     for suffix in ("-wal", "-shm"):
         db_path.with_name(db_path.name + suffix).unlink(missing_ok=True)
-        if suffix in companions:
-            kept.with_name(kept.name + suffix).write_bytes(companions[suffix])
     return kept.name
 
 
@@ -293,14 +303,16 @@ def restore(db_path: Path, backup_dir: Path, name: str) -> dict:
         companions = {
             x: p.read_bytes() for x in ("-wal", "-shm") if (p := db_path.with_name(db_path.name + x)).exists()
         }
-        try:
-            safety = backup(db_path, backup_dir)
-        except (sqlite3.OperationalError, OSError) as e:  # locked, disk full, folder not writable: tutor.db is fine
-            raise NotRestored(
-                "Không sao lưu được dữ liệu hiện tại (ổ đầy hoặc không ghi được), chưa khôi phục gì."
-            ) from e
-        except sqlite3.DatabaseError:  # not a database / malformed: it cannot be backed up, so keep it aside
-            safety = db_path.with_name(_set_aside(db_path, companions))
+        safety = None  # a missing tutor.db (new Mac) holds nothing to keep, and connect() would make an empty one
+        if db_path.exists():
+            try:
+                safety = backup(db_path, backup_dir)
+            except (sqlite3.OperationalError, OSError) as e:  # locked, disk full, folder not writable: tutor.db is fine
+                raise NotRestored(
+                    "Không sao lưu được dữ liệu hiện tại (ổ đầy hoặc không ghi được), chưa khôi phục gì."
+                ) from e
+            except sqlite3.DatabaseError:  # not a database / malformed: it cannot be backed up, so keep it aside
+                safety = db_path.with_name(_set_aside(db_path, companions))
         try:
             _into(db_path, mem)
             migrate(db_path, backup_dir, backup_first=False)
@@ -312,12 +324,16 @@ def restore(db_path: Path, backup_dir: Path, name: str) -> dict:
                     ).rowcount  # fmt: skip
                 rows = sum(row_counts(conn).values())
         except Exception as e:
+            if safety is None:  # nothing was there before: leave nothing half-restored
+                for x in ("", "-wal", "-shm"):
+                    db_path.with_name(db_path.name + x).unlink(missing_ok=True)
+                raise NotRestored("Chưa khôi phục được. Máy này chưa có dữ liệu nào nên không mất gì.") from e
             # shortcut: a set-aside file is not copied back (it was unreadable); the restored copy stays
             if safety.parent == backup_dir:
                 with suppress(sqlite3.Error), closing(connect(safety, readonly=True)) as f:
                     _into(db_path, f)
             raise RestoreFailed(safety.name) from e
-    return {"restored": name, "safety_backup": safety.name, "rows": rows, "sessions_dropped": dropped}
+    return {"restored": name, "safety_backup": safety and safety.name, "rows": rows, "sessions_dropped": dropped}
 
 
 def row_counts(conn: sqlite3.Connection) -> dict[str, int]:

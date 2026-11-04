@@ -84,6 +84,15 @@ def test_patch_corrupt_file_raises(tmp_path):
     assert p.read_text(encoding="utf-8") == "{oops"
 
 
+def test_load_env_non_utf8_is_skipped_with_one_line(tmp_path, capsys):
+    f = tmp_path / ".env"
+    f.write_bytes(b"OPENAI_API_KEY=sk-test-fake\xff\xfe\n")
+    config.load_env(f)
+    out, err = capsys.readouterr()
+    assert out == "" and err == "File khoá .env không đọc được (không phải UTF-8), bỏ qua.\n"
+    assert "OPENAI_API_KEY" not in os.environ and "sk-test" not in err
+
+
 def test_save_env_keeps_other_lines_and_0600(tmp_path):
     f = tmp_path / ".env"
     f.write_text("A=1\nexport OPENAI_API_KEY=old\n# OPENAI_API_KEY=note\nOPENAI_API_KEY = older\nB=2", encoding="utf-8")

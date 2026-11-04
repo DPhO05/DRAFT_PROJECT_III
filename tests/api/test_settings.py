@@ -97,7 +97,9 @@ def test_patch_out_of_range_422(paths, client, body):
 def test_patch_refused_when_settings_corrupt(paths):
     paths.settings.write_bytes(b"{oops \xff")
     with started(paths) as c:
-        assert c.get(URL).json()["settings_error"]
+        shown = c.get(URL).json()["settings_error"]
+        assert shown == "settings.json hỏng, nhờ người cài sửa."  # no path, no parser text
+        assert str(paths.root) not in shown
         r = c.patch(URL, json={"reco": {"n_problems": 8}}, headers=W)
         assert r.status_code == 409
         assert r.json()["error"]["code"] == "not_ready"

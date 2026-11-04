@@ -187,6 +187,10 @@ NO_BACKUPS = "Chưa có bản sao lưu."
 RESTORE_API = "**/api/backup/restore"
 CORRUPT = "Bản sao lưu này bị hỏng, không khôi phục được."
 REFUSED = json.dumps({"error": {"code": "validation_error", "message": CORRUPT, "detail": None}})
+SAFETY_WORDS = (  # (file the server names in detail.safety_backup, what the page says instead)
+    ("tutor-2026-10-20-093000.db", "bản sao lưu lúc 20/10/2026 09:30"),
+    ("tutor.db.broken-20261020-093000", "bản lưu tạm của dữ liệu cũ"),
+)
 UNFINISHED = ("G1", "bài chấm"), ("G4", "phiếu nháp"), ("G2", "lần nạp bài"), ("G5", "báo cáo nháp")
 OPEN_STATES = ("running", "awaiting_review", "failed")
 
@@ -235,6 +239,29 @@ def backup_restore(page, rep: dict, phone: bool) -> None:
         press(page, rep, ask, "backup Khôi phục (hỏng)", JS_ROOT_HAS, "Khôi phục bản sao lưu?")
         press(page, rep, '[data-act="confirm-ok"]', "backup Khôi phục (hỏng, hỏi lại)", JS_TOAST_HAS, CORRUPT)
         page.unroute(RESTORE_API)
+        # a failure after tutor.db was touched: the toast says when / what the old data is, never a file name (C-01)
+        for safety, words in SAFETY_WORDS:
+            press(page, rep, "#gear-btn", "gear")
+            press(page, rep, '[data-sys="backup"]', "gear item backup", JS_ROOT_HAS, "Sao lưu ngay")
+            failed = json.dumps(
+                {
+                    "error": {
+                        "code": "restore_failed",
+                        "message": f"Chưa khôi phục được. Dữ liệu trước khi khôi phục nằm ở {safety}.",
+                        "detail": {"safety_backup": safety},
+                    }
+                }
+            )
+            page.route(
+                RESTORE_API, lambda r, _, body=failed: r.fulfill(status=500, content_type="application/json", body=body)
+            )
+            press(page, rep, ask, "backup Khôi phục (lỗi)", JS_ROOT_HAS, "Khôi phục bản sao lưu?")
+            press(
+                page, rep, '[data-act="confirm-ok"]', "backup Khôi phục (lỗi, hỏi lại)", JS_TOAST_HAS, f"nằm ở {words}."
+            )
+            page.unroute(RESTORE_API)
+            if ".db" in page.inner_text("#toasts"):
+                rep["missing"].append(f"backup: the failure toast shows a file name: {page.inner_text('#toasts')!r}")
         press(page, rep, "#gear-btn", "gear")
         press(page, rep, '[data-sys="backup"]', "gear item backup", JS_ROOT_HAS, "Sao lưu ngay")
         press(page, rep, ask, "backup Khôi phục", JS_ROOT_HAS, "Khôi phục bản sao lưu?")

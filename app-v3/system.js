@@ -30,7 +30,7 @@
 
   function when(name) {
     var m = BK_NAME.exec(name);
-    return m ? m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] + ':' + m[5] : name;
+    return m ? m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] + ':' + m[5] : U.esc(name);
   }
 
   SYS.backup = function () {
@@ -69,6 +69,10 @@
       var d = e.detail || {};
       if (e.status === 409 && d.reason === 'unfinished') return unfinished(d.threads || []);
       if (e.status === 404) { U.toast('Bản sao lưu này không còn nữa.', 'warn'); return SYS.backup(); }
+      if (e.code === 'restore_failed' && d.safety_backup) {  // the server names the file; the page says when it is from
+        var old = BK_NAME.test(d.safety_backup) ? 'bản sao lưu lúc ' + when(d.safety_backup) : 'bản lưu tạm của dữ liệu cũ';
+        return U.toast('Chưa khôi phục được. Dữ liệu trước khi khôi phục nằm ở ' + old + '.', 'warn');
+      }
       if (e.status === 422 || e.code === 'restore_failed') return U.toast(e.message, 'warn');  // the server's own words
       U.toast('Chưa khôi phục được. Thử lại sau.', 'warn');
     });

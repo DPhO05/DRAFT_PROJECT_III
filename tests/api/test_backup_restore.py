@@ -8,6 +8,7 @@ import pytest
 
 from tests.api.test_sessions import W
 from tutor.db import repo
+from tutor.graphs import threads
 
 
 def counts_of(path):
@@ -115,3 +116,18 @@ def test_unwritable_backup_folder_is_500_with_words_and_nothing_moves(paths, cli
     assert paths.tutor_db.read_bytes() == db_bytes and not list(paths.root.glob("tutor.db.broken*"))
     assert len(client.get("/api/students").json()) == 2
     assert "OperationalError" in (paths.logs / "app.log").read_text(encoding="utf-8")
+
+
+def test_cleanup_failing_after_the_restore_is_still_a_success(paths, client, monkeypatch):
+    student(client, "Lê An")
+    made = client.post("/api/backup", headers=W).json()
+    student(client, "Võ Bình")
+
+    def boom(runner):
+        raise OSError("gài lỗi dọn")
+
+    monkeypatch.setattr(threads, "cleanup", boom)
+    r = client.post("/api/backup/restore", json={"name": made["path"]}, headers=W)
+    assert r.status_code == 200 and r.json()["threads_removed"] == 0  # the data is restored: say so
+    assert [s["name"] for s in client.get("/api/students").json()] == ["Lê An"]
+    assert "gài lỗi dọn" in (paths.logs / "app.log").read_text(encoding="utf-8")

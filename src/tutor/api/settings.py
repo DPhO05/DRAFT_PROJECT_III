@@ -37,7 +37,7 @@ def _view(request: Request) -> dict:
     return {
         "reco": {k: s["reco"][k] for k in ("n_problems", "no_repeat_days")},
         "budget_usd_month": s["budget_usd_month"],
-        "settings_error": request.app.state.settings_error,
+        "settings_error": "settings.json hỏng, nhờ người cài sửa." if request.app.state.settings_error else None,
         "keys": _keys(s),
     }
 

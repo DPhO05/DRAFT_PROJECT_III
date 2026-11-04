@@ -1,5 +1,6 @@
 """Review queue, date lock (C-28), cancel (C-15), cleanup and restore over the runner's threads (P3-T03, P3-T08)."""
 
+import logging
 from contextlib import closing
 from datetime import date
 
@@ -7,6 +8,7 @@ from tutor.config import DataPaths, student_code
 from tutor.db import repo
 from tutor.graphs.runner import AlreadyCommitted, Runner, ThreadBusy
 
+log = logging.getLogger("tutor")
 GRAPH_ORDER = {"G1": 1, "G2": 2, "G4": 4, "G5": 5}
 _BLOCKING = {"awaiting_review": "", "failed": " đang lỗi — chạy lại và duyệt buổi đó trước",
              "running": " đang chạy — chờ xong và duyệt buổi đó trước"}  # fmt: skip
@@ -116,4 +118,9 @@ def restore(runner: Runner, paths: DataPaths, name: str, *, drop_unfinished: boo
     for t in open_:
         runner.delete(t["thread_id"])
     out = repo.restore(paths.tutor_db, paths.backup, name)
-    return out | {"threads_removed": len(cleanup(runner)["removed"])}
+    try:
+        removed = len(cleanup(runner)["removed"])
+    except Exception:  # the data is restored already: a failed tidy-up must not look like a failed restore
+        log.error("restore: dọn checkpoint lỗi", exc_info=True)
+        removed = 0
+    return out | {"threads_removed": removed}

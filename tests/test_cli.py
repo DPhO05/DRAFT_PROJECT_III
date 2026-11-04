@@ -465,6 +465,16 @@ def test_restore_cli(paths, conn):
     assert repo.row_counts(conn)["student"] == 1
 
 
+def test_restore_cli_on_a_new_mac_has_no_old_data_to_name(tmp_path, paths):
+    src = tmp_path / "src.db"
+    repo.init_db(src, tmp_path / "bk")
+    b = repo.backup(src, paths.backup)
+    r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
+    assert r.exit_code == 0, r.output
+    assert r.output.strip() == f"Đã khôi phục {b.name} (máy chưa có dữ liệu cũ)"
+    assert list(paths.backup.iterdir()) == [b]
+
+
 def test_restore_cli_refusals(paths, conn):
     b = repo.backup(paths.tutor_db, paths.backup)
     r = CliRunner().invoke(cli.cli, ["restore", "../tutor.db", "--data-dir", str(paths.root)])

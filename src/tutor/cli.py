@@ -715,7 +715,8 @@ def restore_cmd(
             raise typer.Exit(1) from None
         finally:
             runner.close()
-        typer.echo(f"Đã khôi phục {name} (bản hiện tại: {out['safety_backup']})")
+        was = f"bản hiện tại: {out['safety_backup']}" if out["safety_backup"] else "máy chưa có dữ liệu cũ"
+        typer.echo(f"Đã khôi phục {name} ({was})")
     finally:
         lock.release()
 

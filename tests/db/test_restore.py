@@ -1,10 +1,12 @@
 """P8-T02: repo.restore puts a chosen backup back into tutor.db (R7)."""
 
+import errno
 import os
 import re
 import shutil
 import sqlite3
 from contextlib import closing
+from pathlib import Path
 
 import pytest
 
@@ -202,3 +204,64 @@ def test_unreadable_backup_is_not_called_damaged(paths, conn):
     finally:
         b.chmod(0o644)
     assert repo.row_counts(conn) == before and not list(paths.root.glob("tutor.db.broken*"))
+
+
+def backup_made_elsewhere(tmp_path, paths):
+    """A backup with 1 student in paths.backup, taken from a tutor.db that is not at paths.tutor_db."""
+    src = tmp_path / "src.db"
+    repo.init_db(src, tmp_path / "bk")
+    with closing(repo.connect(src)) as c:
+        students(c, 1)
+    return repo.backup(src, paths.backup)
+
+
+def test_missing_tutor_db_gets_no_safety_backup(tmp_path, paths):
+    b = backup_made_elsewhere(tmp_path, paths)
+    assert not paths.tutor_db.exists()  # a new Mac
+    out = repo.restore(paths.tutor_db, paths.backup, b.name)
+    assert out["safety_backup"] is None and list(paths.backup.iterdir()) == [b]  # no empty "backup" in the list
+    assert counts_of(paths.tutor_db)["student"] == 1
+
+
+def test_missing_tutor_db_failure_leaves_nothing_behind(tmp_path, paths, monkeypatch):
+    b = backup_made_elsewhere(tmp_path, paths)
+
+    def boom(*a, **kw):
+        raise repo.MigrationError("004.sql: gài lỗi")
+
+    monkeypatch.setattr(repo, "migrate", boom)
+    with pytest.raises(repo.NotRestored) as e:  # no data from before exists, so there is no safety file to name
+        repo.restore(paths.tutor_db, paths.backup, b.name)
+    assert isinstance(e.value.__cause__, repo.MigrationError)
+    assert not list(paths.root.glob("tutor.db*")) and list(paths.backup.iterdir()) == [b]
+
+
+def test_set_aside_writes_the_kept_copies_before_moving_tutor_db(paths, monkeypatch):
+    repo.init_db(paths.tutor_db, paths.backup)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    garbage(paths.tutor_db)
+    paths.tutor_db.with_name("tutor.db-wal").write_bytes(b"wal bytes")
+    paths.tutor_db.with_name("tutor.db-shm").write_bytes(b"shm bytes")
+    real = Path.write_bytes
+
+    def disk_full(self, data):  # the -wal copy is written, the -shm copy is not
+        if self.name.endswith("-shm") and ".broken-" in self.name:
+            raise OSError(errno.ENOSPC, "No space left on device")
+        return real(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", disk_full)
+    with pytest.raises(repo.NotRestored) as e:
+        repo.restore(paths.tutor_db, paths.backup, b.name)
+    assert isinstance(e.value.__cause__, OSError)
+    assert paths.tutor_db.read_bytes() == b"not a database " * 2000  # still where it was
+    assert not list(paths.root.glob("tutor.db.broken*")) and list(paths.backup.iterdir()) == [b]
+
+
+def test_restore_leaves_the_env_file_alone(paths, conn):
+    env = paths.root / ".env"
+    env.write_bytes(b"OPENAI_API_KEY=sk-test-fake\n\xff\n")
+    students(conn, 1)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    students(conn, 1)
+    repo.restore(paths.tutor_db, paths.backup, b.name)
+    assert env.read_bytes() == b"OPENAI_API_KEY=sk-test-fake\n\xff\n"

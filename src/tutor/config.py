@@ -4,6 +4,7 @@ import copy
 import json
 import os
 import re
+import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import date
@@ -60,6 +61,9 @@ def load_env(path: Path) -> None:
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:
+        return
+    except UnicodeDecodeError:  # not OSError; the message would quote a byte of the file, so say our own words
+        print("File khoá .env không đọc được (không phải UTF-8), bỏ qua.", file=sys.stderr)
         return
     for line in lines:
         line = line.strip().removeprefix("export ")
