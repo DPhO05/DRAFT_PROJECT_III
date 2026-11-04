@@ -71,6 +71,8 @@ def test_00_wrong_oracle_scores_drop(tmp_path):
     s = res["metrics"]["per_run"][0]
     assert s["tools_ok"] == 6 / 8 and s["unverified_pct"] == 100 / 8 and s["passed"] == 5 / 8
     assert res["metrics"]["pass_k"] == 5 / 8
+    [q3] = [a for a in res["answers"][0] if a["id"] == "q3"]
+    assert q3["text"] == "HS-01 sai 99 lần." and [w["kind"] for w in q3["warnings"]] == ["unverified_number"]
 
 
 def test_00_one_failing_question_is_an_error_not_a_crash(tmp_path):
@@ -126,6 +128,17 @@ def test_09_period_without_facts_is_an_error(tmp_path, monkeypatch):
     monkeypatch.setattr(agents, "PERIODS", [*agents.PERIODS, empty])
     res = agents.evaluate_09(agents.oracle_09, work=tmp_path, runs=1)
     assert [e["key"] for e in res["errors"]] == ["HS-02 day 2026-10-20"] and res["metrics"]["pass_k"] == 3 / 4
+
+
+def test_09_masks_every_full_name(tmp_path, monkeypatch):
+    """09's prompt holds no student name today; what is checked is that the context carries the app's mask map."""
+    seen = []
+    real = agents.reporter.run
+    monkeypatch.setattr(agents.reporter, "run", lambda *a, **k: seen.append(k["ctx"]) or real(*a, **k))
+    agents.evaluate_09(agents.oracle_09, work=tmp_path, runs=1)
+    assert len(seen) == 3 and all(c.graph == "G5" for c in seen)
+    assert seen[0].redact == {"Nguyễn Văn An": "HS-01", "Trần Thị Bình": "HS-02", "Lê Văn Cường": "HS-03"}
+    assert [c.student_code for c in seen] == ["HS-01", "HS-01", "HS-02"]
 
 
 @pytest.mark.parametrize("agent", ["00", "09"])

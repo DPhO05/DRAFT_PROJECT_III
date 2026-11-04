@@ -20,6 +20,7 @@ from tutor.agents.a00_orchestrator import orchestrator
 from tutor.agents.a00_orchestrator.tools import Toolbox
 from tutor.agents.a09_reporter import reporter
 from tutor.db import repo
+from tutor.graphs import session
 from tutor.mcp import server
 from tutor.mcp.client import connect
 
@@ -75,6 +76,8 @@ def _ask_00(paths, w: dict, q: dict) -> tuple[dict, str]:
         "tool_errors": sum(e["type"] == "tool" and e["state"] == "error" for e in events),
         "unverified": sum(e["type"] == "warning" and e["kind"] == "unverified_number" for e in events),
         "stopped": events[-1]["stopped"],
+        "text": "".join(e["delta"] for e in events if e["type"] == "text"),
+        "warnings": [e for e in events if e["type"] == "warning"],
     }
     return answer, orchestrator.version(fixed, tools)
 
@@ -129,7 +132,9 @@ def _report_09(paths, w: dict, p: dict) -> dict:
     """The report of one period, written in a new read-only session."""
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         box = Toolbox(conn, settings=config.defaults(), today=w["today"], text="", starters=None)
-        ctx = llm.CallContext(graph="G5", thread_id=f"eval-{p['key']}", student_code=p["code"])
+        sid = next(s["id"] for s in repo.list_students(conn, include_archived=True) if s["code"] == p["code"])
+        cfg = {"configurable": {"thread_id": f"eval-{p['key']}"}}
+        ctx = session.call_context(paths, sid, None, cfg, graph="G5")  # as the app: names masked
         r = reporter.run(
             connect("09", box).call,
             code=p["code"],

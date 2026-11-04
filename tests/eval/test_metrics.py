@@ -86,7 +86,7 @@ def test_stability_items_changed_and_pass_k():
 
 def ans(expect, tools, forbid=(), **kw):
     return {"id": "q", "expect": list(expect), "forbid": list(forbid), "tools": list(tools),
-            "tool_errors": 0, "unverified": 0, "stopped": None} | kw  # fmt: skip
+            "tool_errors": 0, "unverified": 0, "stopped": None, "text": "Xong."} | kw  # fmt: skip
 
 
 def test_passed_00_needs_expected_tools_in_order():
@@ -104,6 +104,8 @@ def test_passed_00_fails_on_forbidden_errors_numbers_and_stop():
     assert not metrics.passed_00(ans(["list_students"], ["list_students"], tool_errors=1))
     assert not metrics.passed_00(ans(["list_students"], ["list_students"], unverified=1))
     assert not metrics.passed_00(ans(["list_students"], ["list_students"], stopped="max_tool_turns"))
+    assert not metrics.passed_00(ans(["list_students"], ["list_students"], text=""))
+    assert not metrics.passed_00(ans(["list_students"], ["list_students"], text=" \n"))
 
 
 def test_score_00():

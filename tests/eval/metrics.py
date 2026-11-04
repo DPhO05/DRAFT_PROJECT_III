@@ -3,7 +3,8 @@
 A problem is {labels: [{step_idx, code, propagates_to}], proposals: [{step_idx, code}], items: {item_id: passed}}.
 Steps a label lists in propagates_to are not required, but flagging them (any code) is not an addition.
 
-Agent 00 (P8b): an answer is {id, expect, forbid, tools, tool_errors, unverified, stopped}; see `passed_00`.
+Agent 00 (P8b): an answer is {id, expect, forbid, tools, tool_errors, unverified, stopped, text, warnings}; see
+`passed_00`.
 Agent 09 (P8b): a report is {key, period_kind, n_sentences, audit}; audit rows have a status (ok, rewritten, dropped).
 """
 
@@ -92,8 +93,11 @@ def _tools_ok(a: dict) -> bool:
 
 
 def passed_00(a: dict) -> bool:
-    """Right tools, no unverified number in the reply, and the loop was not cut off."""
-    return _tools_ok(a) and a["unverified"] == 0 and a["stopped"] is None
+    """Right tools, no unverified number, the loop not cut off, and a reply that says something.
+
+    A max_tokens cut is not `stopped` (orchestrator.py), so an empty reply is caught here.
+    """
+    return _tools_ok(a) and a["unverified"] == 0 and a["stopped"] is None and bool(a["text"].strip())
 
 
 def score_00(answers: list[dict]) -> dict:
