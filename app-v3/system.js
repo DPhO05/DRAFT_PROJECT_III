@@ -186,7 +186,7 @@
     U.api.get('/logs/cost').then(function (c) {
       var m = c.month.split('-'), pct = Math.min(100, Math.round((c.pct || 0) * 100));
       show({ title: 'Chi phí tháng ' + m[1] + '/' + m[0], body:
-        '<p>Khoảng <b>' + usd(c.total_usd) + ' USD</b>' + (c.budget_usd ? ' trên ' + String(c.budget_usd).replace('.', ',') + ' USD (giả định).' : ' (giả định). Chưa đặt ngân sách tháng.') + '</p>' +
+        '<p>Khoảng <b>' + usd(c.total_usd) + ' USD</b>' + (c.budget_usd ? ' trên ' + U.esc(String(c.budget_usd).replace('.', ',')) + ' USD (giả định).' : ' (giả định). Chưa đặt ngân sách tháng.') + '</p>' +
         (c.budget_usd ? '<div class="cost-bar" role="progressbar" aria-label="Đã dùng của ngân sách tháng" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><div style="width:' + pct + '%"></div></div>' : '') +
         (WARN[c.warning] ? '<p class="cost-warn" role="status">' + WARN[c.warning] + '</p>' : '') +
         '<div class="table-wrap"><table class="tbl"><thead><tr><th>Việc</th><th class="al-right">Khoảng</th></tr></thead><tbody>' +
@@ -199,8 +199,9 @@
   U.api.get('/logs/cost').then(function (c) { if (WARN[c.warning]) U.toast(WARN[c.warning], 'warn'); }, function () {});
 
   ACT.sys = function (el) {
+    var k = el.dataset.sys;
     U.closeGear();
     document.getElementById('gear-btn').focus();
-    SYS[el.dataset.sys]();
+    if (SYS[k]) SYS[k]();
   };
 })();

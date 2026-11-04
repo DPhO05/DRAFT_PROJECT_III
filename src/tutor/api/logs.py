@@ -52,17 +52,22 @@ def month_cost(request: Request, month: Month = None) -> dict:
     c = cost(path, s["price_assumption"], month=month, by_model=s["price_by_model"])
     budget = s["budget_usd_month"]
     pct = c["total_usd"] / budget if budget else None
-    parts = dict.fromkeys([*(label for label, _ in PARTS), "Khác"], 0.0)
+    named = dict.fromkeys((label for label, _ in PARTS), 0.0)
     for agent, a in c["by_agent"].items():
-        label = next((lb for lb, codes in PARTS if agent in codes), "Khác")
-        parts[label] += a["usd"]
+        for label, codes in PARTS:
+            if agent in codes:
+                named[label] += a["usd"]
+    named = {label: round(usd, 6) for label, usd in named.items()}
+    # the rest as a remainder, so the four lines add up to total_usd whatever the per-agent rounding
+    rest = max(0.0, round(c["total_usd"] - sum(named.values()), 6))
+    ratio = round(pct or 0, 6)  # 5.6 / 7 is 0.7999999999999999 and counts as 80 %
     return {
         "month": month,
         **c,
         "budget_usd": budget,
         "pct": pct,
-        "warning": None if pct is None or pct < 0.8 else "over" if pct >= 1 else "near",
-        "parts": [{"label": label, "usd": round(usd, 6)} for label, usd in parts.items()],
+        "warning": None if ratio < 0.8 else "over" if ratio >= 1 else "near",
+        "parts": [{"label": label, "usd": usd} for label, usd in {**named, "Khác": rest}.items()],
         "prices": s["price_assumption"],
         "price_by_model": s["price_by_model"],
         "assumption": True,

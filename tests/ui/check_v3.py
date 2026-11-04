@@ -472,8 +472,13 @@ COST_LINE = re.compile(r"Khoảng (\d+),(\d+) USD trên (\S+) USD \(giả địn
 COST_ROW = re.compile(r"(\d+),(\d+) USD")
 NEAR = "Đã dùng hơn 80 % ngân sách tháng."
 OVER = "Đã vượt ngân sách tháng. App vẫn chạy bình thường."
+NO_BUDGET = "Chưa đặt ngân sách tháng."
 JS_BAR = """() => { const b = document.querySelector('#modal-body [role=progressbar]');
   return b && [Number(b.getAttribute('aria-valuenow')), b.firstElementChild.style.width]; }"""
+JS_STRAY = """() => {
+  document.body.insertAdjacentHTML('beforeend', '<button id="stray" data-act="sys" data-sys="nope">x</button>');
+  document.getElementById('stray').click(); document.getElementById('stray').remove();
+}"""
 JS_TOAST_N = "t => [...document.querySelectorAll('#toasts .toast')].filter(x => x.innerText.includes(t)).length"
 JS_SOON_IN_SCRIPTS = """s => Promise.all([...document.scripts].filter(x => x.src.startsWith(location.origin)).map(
   x => fetch(x.src).then(r => r.text()).then(t => t.includes(s) ? x.src : null))).then(r => r.filter(Boolean))"""
@@ -503,18 +508,19 @@ def walk_cost(page, rep: dict, phone: bool) -> None:
 
 
 def walk_cost_warning(page, rep: dict, phone: bool) -> None:
-    """R14: /api/logs/cost is stubbed with each warning: ⚙ Chi phí says it, and one toast says it when the app opens.
-    A real answer (warning null) opens the app with no toast."""
-    state = {"warn": None}
+    """R14: /api/logs/cost is stubbed with each warning: ⚙ Chi phí says it, and one toast says it when the app opens
+    (opening ⚙ Chi phí adds none). A budget of 0 says it is not set and draws no bar. A real answer (warning null)
+    opens the app with no toast."""
+    state = {"patch": {}}
 
     def stub(route) -> None:
         r = route.fetch()
-        route.fulfill(response=r, json=r.json() | {"warning": state["warn"]})
+        route.fulfill(response=r, json=r.json() | state["patch"])
 
-    for warn, words in (("near", NEAR), ("over", OVER)):
-        state["warn"] = warn
-        page.route(COST_API, stub)
-        try:
+    page.route(COST_API, stub)
+    try:
+        for warn, words in (("near", NEAR), ("over", OVER)):
+            state["patch"] = {"warning": warn}
             page.reload()
             if expect(page, rep, JS_TOAST_HAS, f"cost {warn}: no toast when the app opened", words):
                 page.wait_for_timeout(300)
@@ -522,10 +528,18 @@ def walk_cost_warning(page, rep: dict, phone: bool) -> None:
                     rep["missing"].append(f"cost {warn}: {n} toasts say it, expected 1")
             press(page, rep, "#gear-btn", "gear")
             press(page, rep, '[data-sys="cost"]', f"gear item cost ({warn})", JS_ROOT_HAS, words)
+            if (n := page.evaluate(JS_TOAST_N, words)) != 1:
+                rep["missing"].append(f"cost {warn}: opening ⚙ Chi phí left {n} toasts, expected the 1 from the load")
             see(page, rep, f"gear cost {warn}", phone)
             close_overlay(page)
-        finally:
-            page.unroute(COST_API)
+        state["patch"] = {"budget_usd": 0, "pct": None, "warning": None}
+        press(page, rep, "#gear-btn", "gear")
+        press(page, rep, '[data-sys="cost"]', "gear item cost (no budget)", JS_ROOT_HAS, NO_BUDGET)
+        if page.query_selector("#modal-body [role=progressbar]"):
+            rep["missing"].append("cost: a budget of 0 still draws the bar")
+        close_overlay(page)
+    finally:
+        page.unroute(COST_API)
     page.reload()
     page.wait_for_timeout(600)
     if shown := page.evaluate("document.getElementById('toasts').innerText.trim()"):
@@ -563,6 +577,8 @@ def walk_gear(page, rep: dict, phone: bool, data: bool, home: str | None) -> Non
             rep["missing"].append(f"{label}: focus is on {focus or 'the page'}, not the ⚙ button")
     if left := page.evaluate(JS_SOON_IN_SCRIPTS, SOON):
         rep["missing"].append(f"gear: '{SOON}' is still in {left}")
+    # a ⚙ item with no handler must not throw (a page error would fail the run)
+    page.evaluate(JS_STRAY)
     walk_cost_warning(page, rep, phone)
     if not data:
         backup_restore(page, rep, phone)

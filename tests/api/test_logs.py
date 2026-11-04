@@ -46,9 +46,39 @@ def test_cost_parts_group_agents(paths, client):
     ]
 
 
+def test_cost_parts_add_up_to_total(monkeypatch, client):
+    # four lines of 1.4e-6 each: rounded one by one they total 4e-6, but total_usd is round(5.6e-6) = 6e-6
+    by_agent = {a: {"calls": 1, "usd": 1.4e-6} for a in ("01", "00", "09", "05")}
+    fake = {"total_usd": 6e-6, "calls": 4, "by_agent": by_agent, "by_session": []}
+    monkeypatch.setattr("tutor.api.logs.cost", lambda *a, **k: fake)
+    c = client.get("/api/logs/cost?month=2026-11").json()
+    assert sum(p["usd"] for p in c["parts"]) == pytest.approx(c["total_usd"], abs=1e-9)
+    assert all(p["usd"] >= 0 for p in c["parts"])
+
+
+def test_cost_parts_add_up_with_cache_read_rows(paths, client):
+    # cache-read-only rows cost 0.5e-6 or 1e-6 each: many agents, sub-micro amounts
+    agents = ("00", "01", "02", "03", "04", "05", "09")
+    rows = [
+        {"agent": a, "ts": "2026-11-01T08:00:00Z", "cache_read_tokens": 1 + (i * 7 + j) % 3}
+        for i, a in enumerate(agents)
+        for j in range(5 + i)
+    ]
+    (paths.logs / "llm.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    c = client.get("/api/logs/cost?month=2026-11").json()
+    assert 0 < c["total_usd"] < 1e-4
+    assert sum(p["usd"] for p in c["parts"]) == pytest.approx(c["total_usd"], abs=1e-9)
+
+
 @pytest.mark.parametrize(
     ("usd", "budget", "warning"),
-    [(23.99, 30, None), (24, 30, "near"), (30, 30, "over"), (5, 0, None)],
+    [
+        (23.99, 30, None),
+        (24, 30, "near"),
+        (30, 30, "over"),
+        (5, 0, None),
+        (5.6, 7, "near"),
+    ],  # 5.6 / 7 = 0.7999999999999999
 )
 def test_cost_warning_thresholds(paths, app, client, usd, budget, warning):
     app.state.settings["budget_usd_month"] = budget
