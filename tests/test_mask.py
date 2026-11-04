@@ -42,3 +42,10 @@ def test_chat_masks_pasted_tex(tmp_path):
 def test_name_split_by_line_break_or_double_space():
     assert llm.mask("Nguyễn Văn\nAn làm sai", {"Nguyễn Văn An": "HS-01"}) == "HS-01 làm sai"
     assert llm.mask("Nguyễn  Văn   An", {"Nguyễn Văn An": "HS-01"}) == "HS-01"
+
+
+def test_mask_latex_spaced_names():
+    redact = {"Nguyễn Văn An": "HS-01"}
+    for text in ("Nguyễn~Văn~An", "Nguyễn\\ Văn\\ An", "Nguyễn\\,Văn~An", "nguyen~van an"):
+        assert llm.mask(text, redact) == "HS-01"
+    assert llm.mask("An~ và Nguyễn~", redact) == "An~ và Nguyễn~"

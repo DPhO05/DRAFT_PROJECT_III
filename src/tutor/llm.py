@@ -174,10 +174,12 @@ _OPENAI_RETRY_CODES = {"server_error", "rate_limit_exceeded"}
 
 
 def _openai_retryable(e: Exception) -> bool:
-    """Network / timeout / 408 / 409 / 429 / 5xx, or an SSE error event carrying a transient code."""
+    """Network / timeout / 408 / 409 / 429 / 5xx, an SSE error event with a transient code, or an empty body."""
     import httpx2
     import openai as o
 
+    if isinstance(e, json.JSONDecodeError):  # the SDK lets this escape when a 200 body is empty or cut
+        return True
     if isinstance(e, o.APIConnectionError | o.RateLimitError | o.InternalServerError | httpx2.TransportError):
         return True
     if isinstance(e, o.APIStatusError):
@@ -446,7 +448,8 @@ def _mask(text: str, redact: dict[str, str]) -> tuple[str, bool]:
     for name, code in redact.items():
         key = "".join(_fold(c) for c in unicodedata.normalize("NFC", name.strip()))
         if key:
-            pattern = r"\s+".join(map(re.escape, key.split()))  # a line break or double space inside a name still hits
+            # a line break, double space or LaTeX spacing (~, backslash-space, backslash-comma) inside a name still hits
+            pattern = r"(?:\s|~|\\[ ,])+".join(map(re.escape, key.split()))
             spans += [(m.start(), m.end(), code) for m in re.finditer(rf"(?<!\w){pattern}(?!\w)", folded)]
     kept = []
     for start, end, code in sorted(spans, key=lambda x: (x[0] - x[1], x[0])):  # longest first: nested names lose

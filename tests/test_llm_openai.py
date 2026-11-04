@@ -159,6 +159,7 @@ def test_openai_retryable():
         openai.APITimeoutError(REQ),
         httpx2.ReadError("x"),
         openai.APIError("x", REQ, body={"code": "server_error"}),
+        json.JSONDecodeError("Expecting value", "", 0),
     ]
     no = [
         status(openai.BadRequestError, 400),
@@ -190,6 +191,13 @@ def test_missing_key_on_call_marks_health_error(tmp_path, monkeypatch):
 def test_call_failed_server_error_is_retried(use_openai, tmp_path):
     failed = RESP("") | {"status": "failed", "error": {"code": "server_error", "message": "x"}, "output": []}
     bodies = use_openai(failed, RESP(OK))
+    assert grade().score == 0
+    assert len(bodies) == 2 and [r["result"] for r in rows(tmp_path)] == ["retry", "ok"]
+
+
+def test_empty_body_is_retried(use_openai, tmp_path):
+    empty = httpx2.Response(200, content=b"", headers={"content-type": "application/json"})
+    bodies = use_openai(empty, RESP(OK))
     assert grade().score == 0
     assert len(bodies) == 2 and [r["result"] for r in rows(tmp_path)] == ["retry", "ok"]
 
