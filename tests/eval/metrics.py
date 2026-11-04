@@ -4,6 +4,7 @@ A problem is {labels: [{step_idx, code, propagates_to}], proposals: [{step_idx, 
 Steps a label lists in propagates_to are not required, but flagging them (any code) is not an addition.
 
 Agent 00 (P8b): an answer is {id, expect, forbid, tools, tool_errors, unverified, stopped}; see `passed_00`.
+Agent 09 (P8b): a report is {key, period_kind, n_sentences, audit}; audit rows have a status (ok, rewritten, dropped).
 """
 
 from collections import Counter
@@ -103,6 +104,26 @@ def score_00(answers: list[dict]) -> dict:
         "tools_ok": _rate(sum(map(_tools_ok, answers)), n),
         "unverified_pct": _rate(100 * sum(a["unverified"] > 0 for a in answers), n),
         "passed": _rate(sum(map(passed_00, answers)), n),
+    }
+
+
+SENTENCES = {"day": (3, 4), "week": (5, 8), "month": (5, 8)}  # reporter.INSTRUCTIONS
+
+
+def passed_09(r: dict) -> bool:
+    """No draft sentence dropped, and the shown report has the sentence count its period asks for."""
+    lo, hi = SENTENCES[r["period_kind"]]
+    return all(a["status"] != "dropped" for a in r["audit"]) and lo <= r["n_sentences"] <= hi
+
+
+def score_09(reports: list[dict]) -> dict:
+    """One run of agent 09 over the periods that finished. Percentages are of audit rows (draft sentences)."""
+    rows = [a["status"] for r in reports for a in r["audit"]]
+    return {
+        "n_reports": len(reports),
+        "draft_flagged_pct": _rate(100 * sum(x != "ok" for x in rows), len(rows)),
+        "dropped_pct": _rate(100 * rows.count("dropped"), len(rows)),
+        "passed": _rate(sum(map(passed_09, reports)), len(reports)),
     }
 
 

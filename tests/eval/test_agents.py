@@ -1,7 +1,12 @@
 """P8b: the agent 00 eval harness end to end, with scripted FakeLLM instead of the API (C-34)."""
 
-from tests.eval import agents, metrics
+import json
+
+import pytest
+
+from tests.eval import agents, metrics, run
 from tutor import llm
+from tutor.agents.a09_reporter.reporter import ReportOut, Sentence
 
 
 def test_00_oracle_passes_every_question(tmp_path):
@@ -80,3 +85,57 @@ def test_00_tool_error_fails_the_question(tmp_path):
     assert q2["tools"] == ["student_profile"] and q2["tool_errors"] == 1  # called as expected, but it failed
     assert not metrics.passed_00(q2)
     assert res["metrics"]["per_run"][0]["tools_ok"] == 7 / 8
+
+
+def test_09_oracle_passes_every_period(tmp_path):
+    res = agents.evaluate_09(agents.oracle_09, work=tmp_path, runs=3)
+    assert res["errors"] == [] and res["agent"] == "09"
+    assert [p["key"] for p in agents.PERIODS] == [
+        "HS-01 month 2026-10-01",
+        "HS-01 week 2026-10-12",
+        "HS-02 day 2026-10-14",
+    ]
+    for s in res["metrics"]["per_run"]:
+        assert s == {"n_reports": 3, "draft_flagged_pct": 0, "dropped_pct": 0, "passed": 1}
+    assert res["metrics"]["pass_k"] == 1 and list(res["prompt_versions"]) == ["09"]
+
+
+def wrong_09(conn):
+    """One draft sentence states a number its fact does not have; the rewrite repeats it, so it is dropped."""
+    fake, models = agents.oracle_09(conn)
+    right = fake.handlers["09"]
+    bad = Sentence(text="Em làm 99 bài.", facts=["F01"])
+
+    def handle(user, system):
+        if "Câu cần viết lại" in user:
+            return ReportOut(sentences=[bad])
+        return ReportOut(sentences=[*right(user, system).sentences, bad])
+
+    fake.handlers["09"] = handle
+    return fake, models
+
+
+def test_09_bad_number_is_dropped_after_one_rewrite(tmp_path):
+    res = agents.evaluate_09(wrong_09, work=tmp_path, runs=1)
+    assert all(sum(a["status"] == "dropped" for a in r["audit"]) == 1 for r in res["reports"][0])
+    assert res["metrics"]["pass_k"] == 0
+
+
+def test_09_period_without_facts_is_an_error(tmp_path, monkeypatch):
+    empty = {"key": "HS-02 day 2026-10-20", "code": "HS-02", "period_kind": "day", "period_start": "2026-10-20"}
+    monkeypatch.setattr(agents, "PERIODS", [*agents.PERIODS, empty])
+    res = agents.evaluate_09(agents.oracle_09, work=tmp_path, runs=1)
+    assert [e["key"] for e in res["errors"]] == ["HS-02 day 2026-10-20"] and res["metrics"]["pass_k"] == 3 / 4
+
+
+@pytest.mark.parametrize("agent", ["00", "09"])
+def test_real_backend_needs_yes(agent, monkeypatch, capsys):
+    monkeypatch.setattr(agents, f"evaluate_{agent}", lambda *a, **k: pytest.fail("ran the real API without --yes"))
+    assert run.main(["--agent", agent, "--backend", "real"]) == 2
+    assert "tốn tiền" in capsys.readouterr().out
+
+
+def test_main_fake_00_writes_result(tmp_path):
+    assert run.main(["--agent", "00", "--backend", "fake", "--runs", "1", "--out", str(tmp_path)]) == 0
+    (out,) = tmp_path.glob("*_00-*.json")
+    assert json.loads(out.read_text(encoding="utf-8"))["metrics"]["pass_k"] == 1

@@ -114,3 +114,20 @@ def test_score_00():
 def test_pass_k_missing_counts_as_failed():
     assert metrics.pass_k([{"a": True, "b": True}, {"a": True}]) == 0.5
     assert metrics.pass_k([]) is None
+
+
+def rep(kind, n, statuses):
+    return {"key": "k", "period_kind": kind, "n_sentences": n, "audit": [{"status": s} for s in statuses]}
+
+
+def test_passed_09_needs_no_drop_and_the_sentence_range():
+    assert metrics.passed_09(rep("day", 3, ["ok", "ok", "rewritten"]))
+    assert not metrics.passed_09(rep("day", 2, ["ok", "ok"]))
+    assert not metrics.passed_09(rep("day", 5, ["ok"] * 5))
+    assert metrics.passed_09(rep("week", 5, ["ok"] * 5)) and metrics.passed_09(rep("month", 8, ["ok"] * 8))
+    assert not metrics.passed_09(rep("month", 5, ["ok"] * 5 + ["dropped"]))
+
+
+def test_score_09():
+    s = metrics.score_09([rep("day", 3, ["ok", "rewritten", "ok"]), rep("week", 4, ["ok"] * 4 + ["dropped"])])
+    assert s == {"n_reports": 2, "draft_flagged_pct": 25.0, "dropped_pct": 12.5, "passed": 0.5}

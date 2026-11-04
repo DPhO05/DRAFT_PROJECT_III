@@ -1,9 +1,11 @@
 """G1 eval harness (P2-T10, NFR8): run G1 to the review gate on the labeled fixtures, score it, save by prompt_version.
 
-uv run python tests/eval/run.py [--backend fake|dev|real] [--runs 3] [--files s01.tex ...] [--out data/eval/results/]
+uv run python tests/eval/run.py [--agent g1|00|09] [--backend fake|dev|real] [--runs 3] [--files s01.tex ...]
+                                [--out data/eval/results/]
 
 fake = label oracle (checks the harness itself), dev = tutor.devfake, real = Anthropic API (costs money; manual only,
-C-34). A prompt is fit for use only after it passes 3 runs (pass^3).
+C-34). A prompt is fit for use only after it passes 3 runs (pass^3). --agent 00 and 09 use tests/eval/agents.py;
+--files is for g1 only.
 """
 
 # ruff: noqa: E402
@@ -19,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if not __package__:  # run as a script: make `tests.*` importable
     sys.path.insert(0, str(ROOT))
 
-from tests.eval import metrics
+from tests.eval import agents, metrics
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import config, devfake, llm
 from tutor.agents.a01_ingest import ingest
@@ -145,12 +147,12 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
     }
 
 
-def _backend(name: str):
+def _backend(name: str, fake=oracle):
     if name == "fake":
-        return oracle
+        return fake
     if name == "dev":
-        return lambda conn, labels: (devfake.DevFakeLLM(), devfake.models())
-    return lambda conn, labels: (None, config.load(config.paths().settings)["models"])
+        return lambda *_: (devfake.DevFakeLLM(), devfake.models())
+    return lambda *_: (None, config.load(config.paths().settings)["models"])
 
 
 def _fmt(x) -> str:
@@ -159,6 +161,7 @@ def _fmt(x) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--agent", choices=["g1", "00", "09"], default="g1")
     ap.add_argument("--backend", choices=["fake", "dev", "real"], default="dev")
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--files", nargs="+")
@@ -166,22 +169,35 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--yes", action="store_true", help="xác nhận chạy API thật (tốn tiền)")
     a = ap.parse_args(argv)
     if a.backend == "real":
-        n = sum(len(lab["problems"]) for lab in load_labels(a.files).values())
-        print(f"CẢNH BÁO: gọi API thật (Anthropic / OpenAI theo settings), tốn tiền: {a.runs} lần × {n} bài toán "
-              "× ≥ 3 lượt gọi (02 · 03 · 04 mỗi lỗi; 01 khi thiếu mã bài).")  # fmt: skip
+        if a.agent == "g1":
+            n = sum(len(lab["problems"]) for lab in load_labels(a.files).values())
+            what = f"{n} bài toán × ≥ 3 lượt gọi (02 · 03 · 04 mỗi lỗi; 01 khi thiếu mã bài)"
+        elif a.agent == "00":
+            what = f"{len(agents.QUESTIONS)} câu × ≥ 2 lượt gọi"
+        else:
+            what = f"{len(agents.PERIODS)} kỳ × 1–2 lượt gọi"
+        print(f"CẢNH BÁO: gọi API thật (Anthropic / OpenAI theo settings), tốn tiền: {a.runs} lần × {what}.")
         if not a.yes:
             print("Thêm --yes để chạy.")
             return 2
         config.load_env(config.ENV_FILE)  # no cli callback here; GPT settings need OPENAI_API_KEY
     with tempfile.TemporaryDirectory(prefix="tutor-eval-") as tmp:
-        res = {"backend": a.backend} | evaluate(_backend(a.backend), work=Path(tmp), files=a.files, runs=a.runs)
+        if a.agent == "g1":
+            res = {"backend": a.backend} | evaluate(_backend(a.backend), work=Path(tmp), files=a.files, runs=a.runs)
+        else:
+            fake, run_agent = getattr(agents, f"oracle_{a.agent}"), getattr(agents, f"evaluate_{a.agent}")
+            res = {"backend": a.backend} | run_agent(_backend(a.backend, fake), work=Path(tmp), runs=a.runs)
     for k, s in enumerate(res["metrics"]["per_run"], 1):
         print(f"run {k}: " + "  ".join(f"{m}={_fmt(v)}" for m, v in s.items()))
-    print("stability: " + "  ".join(f"{m}={_fmt(v)}" for m, v in res["metrics"]["stability"].items()))
+    if a.agent == "g1":
+        print("stability: " + "  ".join(f"{m}={_fmt(v)}" for m, v in res["metrics"]["stability"].items()))
+    else:
+        print(f"pass_k={_fmt(res['metrics']['pass_k'])}")
     for e in res["errors"]:
-        print(f"LỖI run {e['run']} {e['file']}: {e['error']}")
+        print(f"LỖI run {e['run']} {e.get('file') or e.get('id') or e.get('key')}: {e['error']}")
     print("prompt_version: " + "  ".join(v for vs in res["prompt_versions"].values() for v in vs))
-    key = "_".join(v for a_ in ("02", "03", "04") for v in res["prompt_versions"].get(a_, []))
+    ids = ("02", "03", "04") if a.agent == "g1" else (a.agent,)
+    key = "_".join(v for a_ in ids for v in res["prompt_versions"].get(a_, []))
     a.out.mkdir(parents=True, exist_ok=True)
     out = a.out / f"{res['created'].replace(':', '').replace('-', '')}_{key}.json"
     out.write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
