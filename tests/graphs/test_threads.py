@@ -159,6 +159,23 @@ def test_restore_refused_for_every_unfinished_status(paths, conn, status):
         r.close()
 
 
+def test_drop_unfinished_keeps_the_work_when_the_restore_fails(paths, conn, monkeypatch):
+    r = rmod.Runner(paths, {})
+    try:
+        r._set("g5-hs01", create=True, graph="G5", status="awaiting_review")
+        b = repo.backup(paths.tutor_db, paths.backup)
+
+        def full_disk(*a, **k):
+            raise repo.NotRestored("ổ đầy")
+
+        monkeypatch.setattr(repo, "restore", full_disk)
+        with pytest.raises(repo.NotRestored):
+            threads.restore(r, paths, b.name, drop_unfinished=True)
+        assert [t["thread_id"] for t in r.list_threads()] == ["g5-hs01"]
+    finally:
+        r.close()
+
+
 def test_restore_cleans_committed_threads(paths, conn):
     r = rmod.Runner(paths, {"G4": gate_graph()})
     try:

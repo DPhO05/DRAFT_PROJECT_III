@@ -107,7 +107,7 @@ def cleanup(runner: Runner) -> dict:
 def restore(runner: Runner, paths: DataPaths, name: str, *, drop_unfinished: bool = False) -> dict:
     """Restore backup `name` unless a thread is unfinished (R7, R19), then drop the committed threads' checkpoints.
 
-    `drop_unfinished` (CLI only, app closed) deletes the unfinished threads first instead of refusing."""
+    `drop_unfinished` (CLI only, app closed) deletes the unfinished threads once the copy is in, instead of refusing."""
     repo.read_backup(paths.backup, name).close()  # a bad file is refused before the teacher is asked to drop work
     # shortcut: no lock between this check and the copy (one teacher, one app); a grading started in between loses
     # its session row. Add a restore lock if the app is ever shared.
@@ -115,9 +115,9 @@ def restore(runner: Runner, paths: DataPaths, name: str, *, drop_unfinished: boo
              if t["running"] or t["status"] in ("running", "awaiting_review", "failed")]  # fmt: skip
     if open_ and not drop_unfinished:
         raise Unfinished(open_)
-    for t in open_:
-        runner.delete(t["thread_id"])
     out = repo.restore(paths.tutor_db, paths.backup, name)
+    for t in open_:  # after the copy: a restore that fails keeps the teacher's work
+        runner.delete(t["thread_id"])
     try:
         removed = len(cleanup(runner)["removed"])
     except Exception:  # the data is restored already: a failed tidy-up must not look like a failed restore
