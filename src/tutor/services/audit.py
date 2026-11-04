@@ -20,6 +20,8 @@ _PLAIN = re.compile(r"(?:(?<![^\W_.])|(?<=\dT))\d+(?:\.\d+)?")
 # m/yyyy or dd/mm[/yyyy]: zero-padded as facts write dates, so a score like 7/10 is never a date;
 # not glued to a digit, "," or ".", so "8,05/10" and "10/2026" keep their numbers
 _DATE = re.compile(r"(?<![\d,.])(?:(?P<m>\d{1,2})/(?P<y>\d{4})|(?P<d>\d\d)/(?P<mo>\d\d)(?:/\d{4})?)(?!\d)")
+# an id is not a fact a reply may quote: "id": 7, "kc_id": 6
+_ID_PAIR = re.compile(r'"(?:id|\w+_id)"\s*:\s*-?\d+(?:\.\d+)?')
 # number words the digit check cannot see; một, ba, năm are left out: they mean other things too
 _WORDS = re.compile(r"(?<!\w)(?:hai|bốn|sáu|bảy|tám|chín|mười|mươi|trăm)(?!\w)", re.IGNORECASE)
 PRAISE = ("xuất sắc", "tuyệt vời", "hoàn hảo", "rất tốt", "rất giỏi")
@@ -47,6 +49,7 @@ def known_numbers(texts: Iterable[str]) -> set[float]:
     """Every number in the strings (tool-result JSON), dates and fraction parts included."""
     out: set[float] = set()
     for raw in texts:
+        raw = _ID_PAIR.sub(" ", raw)
         text = _CODE.sub(lambda m: "_" * len(m.group()), raw)  # digits of HS-05 / 9DS-PT2-012 are not data
         for tok in _TOKEN.finditer(text):
             for part in _parts(tok.group()):

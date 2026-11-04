@@ -93,3 +93,9 @@ def test_scale_in_key_name_is_known():
     known = known_numbers(['{"score_10":6.5}'])
     assert known == {6.5, 10.0}
     assert unverified("Được 6,5/10 điểm.", known) == []
+
+
+def test_ids_are_not_known_numbers():
+    known = known_numbers(['{"id": 7, "kc_id": 6, "student_id": 12, "grade": 9, "count": 5, "kc": {"id": 31}}'])
+    assert {5.0, 9.0} <= known and not {6.0, 7.0, 12.0, 31.0} & known
+    assert unverified("HS-01 có 6 lỗi.", known)
