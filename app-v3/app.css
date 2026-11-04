@@ -170,6 +170,37 @@ summary { cursor: pointer; }
 .sent-edit { grid-template-columns: minmax(0, 1fr); }
 .rep-text { font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; }
 
+/* ---------- Học sinh ---------- */
+.st-card { cursor: pointer; }
+.st-card:hover { border-color: var(--ink-3); }
+.st-card h3 { font-size: 18px; }
+.st-name { border: 0; background: none; padding: 0; font: inherit; color: var(--ink); cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.st-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding-left: 18px; }
+.lv-vung { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: var(--ok-soft); }
+.lv-dang { color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft); }
+.lv-chua { color: var(--crit); border-color: color-mix(in srgb, var(--crit) 50%, transparent); background: var(--crit-soft); }
+.lv-groups { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+.lv-group { border: 1px solid var(--line); border-radius: 3px; padding: 10px; display: flex; flex-direction: column; gap: 6px; border-top-width: 4px; min-width: 0; }
+.lv-group.g-vung { border-top-color: var(--ok); }
+.lv-group.g-dang { border-top-color: var(--warn-line); }
+.lv-group.g-chua { border-top-color: var(--crit); }
+.lv-group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.lv-group li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.lv-group li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.lv-group li > .chip { flex: none; }
+.profile-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); }
+.profile-grid > * { min-width: 0; }
+.tbl .al-right { text-align: right; }
+.chart-box { width: 100%; min-width: 0; }
+.chart-box svg { display: block; max-width: 100%; height: auto; }
+.band-label { fill: var(--ink-2); font: 500 11px var(--font-ui); }
+.tick { fill: var(--ink-3); font: 11px var(--font-ui); }
+.cline { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.cdot { fill: var(--accent); stroke: var(--sheet); stroke-width: 2; }
+.chit { fill: transparent; cursor: default; }
+.chit:hover + .cdot, .chit:focus + .cdot { r: 6; }
+.chart-tip { font-size: 12.5px; color: var(--ink-2); min-height: 1.5em; }
+
 /* ---------- Trợ lý ---------- */
 .eyebrow { font: 600 11.5px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .09em; color: var(--ink-3); }
 .table-wrap { overflow-x: auto; max-width: 100%; border: 1px solid var(--line); border-radius: 3px; background: var(--sheet); }

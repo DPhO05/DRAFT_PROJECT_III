@@ -3,8 +3,9 @@
 
 Run: .venv/bin/python tests/ui/check_v3.py [--url http://127.0.0.1:8000/] [--data] [--shots]
 Opens /v3/ at 1440 px and 390 px; walks the 4 tabs, the Trợ lý chat tab (reminders, @, stream, cards, 📎, retry,
-the G1 grading card, the G4 worksheet panel), the Báo cáo tab (draft, edit, approve, PDF), the Ngân hàng bài tab
-(filters, view, edit, import), ⚙ menu, light/dark.
+the G1 grading card, the G4 worksheet panel), the Báo cáo tab (draft, edit, approve, PDF), the Học sinh tab (list,
+add / edit / archive, profile with chart, windows), the Ngân hàng bài tab (filters, view, edit, import), ⚙ menu,
+light/dark.
 Exit 1 on any page error, app console error, dead button, horizontal overflow at 390 px or forbidden text on screen.
 Without --url it starts `tutor app` on a free port with a temp data dir; --data seeds dummy bank and students and
 checks the chat and bank tabs against that tutor.db and imports tests/fixtures/bank/import-mix.tex (needs no --url).
@@ -15,10 +16,12 @@ scans llm.jsonl and the chat logs for student names.
 import argparse
 import functools
 import json
+import math
 import re
 import sqlite3
 import sys
 import unicodedata
+from collections import Counter
 from contextlib import closing, contextmanager
 from pathlib import Path
 
@@ -122,9 +125,8 @@ def walk_tabs(page, rep: dict, phone: bool, shots: bool) -> None:
         press(page, rep, f"#tab-{tab}", f"tab {tab}")
         if not page.evaluate(JS_TAB, tab):
             rep["missing"].append(f"tab {tab} did not open")
-        real = tab in ("tro-ly", "bao-cao", "ngan-hang")
-        if (SOON in page.inner_text(f"#panel-{tab}")) == real:
-            rep["missing"].append(f"{tab}: '{SOON}' {'still' if real else 'missing'}")
+        if SOON in page.inner_text(f"#panel-{tab}"):
+            rep["missing"].append(f"{tab}: '{SOON}' still on the tab")
         see(page, rep, tab, phone)
         if shots:
             shoot(page, rep, f"{tab}-{'phone' if phone else 'desktop'}")
@@ -319,6 +321,7 @@ MOVES_ROWS = {
     "rep_approve",
     "rep_resumed",
     "rep_hidden",
+    "stu_add",
 }
 
 
@@ -898,6 +901,9 @@ def grade_save(page, rep: dict, data_dir: str, reqs: list) -> None:
     press(page, rep, f'{h} [data-act="g-profile"]', "grading Xem hồ sơ")
     if not page.evaluate(JS_TAB, "hoc-sinh"):
         rep["missing"].append("grading saved: Xem hồ sơ did not open Học sinh")
+    expect(
+        page, rep, JS_STU_PROFILE, f"grading saved: Xem hồ sơ did not open the profile of {PEOPLE[0]} (R6)", PEOPLE[0]
+    )
     press(page, rep, "#tab-tro-ly", "tab tro-ly")
 
 
@@ -1593,6 +1599,7 @@ def walk_reports(page, rep: dict, phone: bool, data_dir: str, root: str) -> None
     rep_prefill(page, rep, root, ids[PEOPLE[1]], PEOPLE[1], phone)
     if phone:
         rep_again(page, rep, phone)
+        rep_discard(page, rep, root, reqs, sid, phone)  # before rep_hidden approves the week it drafts
         rep_hidden(page, rep, root, reqs, sid, phone)
         return
     if not rep_make(page, rep, phone) or not rep_edit(page, rep, reqs, phone):
@@ -1606,6 +1613,393 @@ def walk_reports(page, rep: dict, phone: bool, data_dir: str, root: str) -> None
     rep_resumed(page, rep, data_dir, root, reqs, sid)
     rep_gone(page, rep, root, sid, phone)
     rep_discard(page, rep, root, reqs, sid, phone)
+
+
+STU_NEW = {"desktop": "Phạm Thu Trang", "phone": "Vũ Quốc Bảo"}  # one student per walk; both walks share one tutor.db
+STU_ONE, STU_ONE_MSG = "Minh", "Nhập đủ họ và tên (ít nhất 2 chữ)"
+STU_NOTE, STU_NOTE2 = "Mới vào lớp", "Học thêm thứ Bảy"
+STU_EMPTY = (
+    "Chưa có buổi nào đã chấm, chưa vẽ được tiến bộ",
+    "Chưa có lỗi nào lặp lại",
+    "Chưa có buổi nào đã chấm.",
+    "Chưa có phiếu nào được giao",
+    "Chưa có báo cáo nào được duyệt",
+)
+STU_TIP = re.compile(r"^(\d\d/\d\d): (vững|đang hình thành|chưa vững)$")
+STU_TRENDS = ("↑ tiến bộ", "→ giữ", "↓ cần ôn")
+BACK = '#panel-hoc-sinh [data-act="st-back"]'
+JS_STU_LIST = "() => !!document.getElementById('st-cards')"
+JS_STU_PROFILE = """n => !!document.querySelector('#panel-hoc-sinh .profile-grid')
+  && document.getElementById('st-h1').innerText.includes(n)"""
+JS_STU_CARD = "n => [...document.querySelectorAll('#st-cards .st-card')].some(c => c.innerText.includes(n))"
+JS_STU_CARD_HAS = """([n, t]) => [...document.querySelectorAll('#st-cards .st-card')]
+  .some(c => c.innerText.includes(n) && c.innerText.includes(t))"""
+JS_STU_ARCH = "n => document.getElementById('st-arch').innerText.includes(n)"
+JS_SF_ERR = "m => { const e = document.getElementById('sf-err'); return !!e && !e.hidden && e.innerText.includes(m); }"
+JS_STU_SKILLS = """() => [...document.querySelectorAll('#panel-hoc-sinh .lv-group')].flatMap(g => {
+  const lv = g.querySelector('h3').firstChild.textContent.trim().toLowerCase();
+  return [...g.querySelectorAll('li')].map(li =>
+    [li.firstElementChild.innerText.trim(), lv, li.lastElementChild.innerText.trim()]);
+})"""
+JS_STU_TIP = "() => /^\\d\\d\\/\\d\\d: /.test(document.getElementById('st-tip').innerText)"
+JS_STU_DOT = "() => document.activeElement?.tagName.toLowerCase() === 'circle'"
+JS_STU_TABLE = "() => !!document.querySelector('#st-chart table')"
+JS_STU_SVG = "() => !!document.querySelector('#st-chart svg')"
+JS_STU_SVG_NAME = "n => !!document.querySelector('#st-chart svg')?.getAttribute('aria-label').startsWith(n)"
+JS_STU_FIT = """() => { const b = document.getElementById('st-chart'), s = b.querySelector('svg');
+  return !s || s.getBoundingClientRect().width <= b.clientWidth + 1; }"""
+JS_MJX = "() => !!document.querySelector('#modal-root mjx-container')"
+JS_ACT = "() => document.activeElement?.dataset?.act || ''"
+JS_WS_DRAFT = "() => !!(CHAT.worksheetThread && CHAT.worksheetThread())"
+SKILL_THETA = "SELECT k.name, t.theta FROM skill_state t JOIN kc k ON k.id = t.kc_id WHERE t.student_id = ?"
+SHEET_DATES = (
+    "SELECT for_date FROM recommendation WHERE student_id = ? AND status <> 'rejected' GROUP BY for_date"
+    " ORDER BY for_date DESC"
+)
+SHEET_REFS = (
+    "SELECT p.ref FROM recommendation r JOIN problem p ON p.id = r.problem_id"
+    " WHERE r.student_id = ? AND r.status <> 'rejected' AND r.for_date = ? ORDER BY r.position"
+)
+
+
+def level_of(theta: float) -> str:
+    """The word for a skill_state theta (C-48: the thresholds are +-0.5), written out here, not imported."""
+    return "chưa vững" if theta < -0.5 else "vững" if theta > 0.5 else "đang hình thành"
+
+
+def ten(score: float, top: float) -> str:
+    """U.score: out of 10, rounded to 0,5, a comma for the decimal."""
+    return f"{math.floor(score / top * 20 + 0.5) / 2:g}".replace(".", ",") + "/10"
+
+
+def fetch(data_dir: str, sql: str, *args) -> list:
+    with closing(sqlite3.connect(f"{Path(data_dir, 'tutor.db').as_uri()}?mode=ro", uri=True)) as con:
+        return con.execute(sql, args).fetchall()
+
+
+def see_stu(page, rep: dict, where: str, phone: bool) -> None:
+    """see(), plus: no student code on the tab or in a window over it."""
+    see(page, rep, where, phone)
+    if codes := HS_CODE.findall(page.inner_text("#panel-hoc-sinh") + page.inner_text("#modal-root")):
+        rep["missing"].append(f"{where}: a student code is on screen {codes}")
+
+
+def stu_list(page, rep: dict) -> bool:
+    """The Học sinh tab on its list; a profile left open goes back with ← Danh sách."""
+    press(page, rep, "#tab-hoc-sinh", "tab hoc-sinh")
+    if page.locator(BACK).count():
+        press(page, rep, BACK, "students ← Danh sách", JS_STU_LIST)
+    return expect(page, rep, JS_STU_LIST, "students: the list did not show")
+
+
+def stu_open(page, rep: dict, name: str) -> bool:
+    if not stu_list(page, rep):
+        return False
+    press(page, rep, f'#st-cards .st-card:has-text("{name}") .st-name', f"students open {name}", JS_STU_PROFILE, name)
+    return page.locator(BACK).count() == 1
+
+
+@counted()
+def stu_view(page, rep: dict, data_dir: str, root: str, phone: bool) -> None:
+    """The list: the live students with their levels, the archived one only under Đã lưu trữ, search without accents."""
+    if not stu_list(page, rep):
+        return
+    live = scalar(data_dir, "SELECT count(*) FROM student WHERE archived_at IS NULL")
+    cards, arch = page.inner_text("#st-cards"), page.inner_text("#st-arch")
+    if (
+        f"{live} em đang học" not in page.inner_text("#panel-hoc-sinh .page-head")
+        or page.locator(".st-card").count() != live
+    ):
+        rep["missing"].append(f"students list: want '{live} em đang học' and {live} cards")
+    rep["missing"] += [f"students list: no card for {n}" for n in PEOPLE if n not in cards]
+    if ARCHIVED in cards or ARCHIVED not in arch or "Bỏ lưu trữ" not in arch:
+        rep["missing"].append(f"students list: {ARCHIVED} should be only under Đã lưu trữ, with Bỏ lưu trữ")
+    info = {s["name"]: s for s in api(root, "GET", "/students?view=teacher&archived=true")}
+    sid = info[PEOPLE[0]]["id"]
+    card = page.locator("#st-cards .st-card", has_text=PEOPLE[0]).inner_text()
+    got = Counter(level_of(t) for _, t in fetch(data_dir, SKILL_THETA, sid))
+    for w in ("vững", "đang hình thành", "chưa vững"):
+        if not re.search(rf"(?<!\d){got[w]} {w}", card):
+            rep["missing"].append(f"students list: the card of {PEOPLE[0]} lacks '{got[w]} {w}'")
+    last, pend = info[PEOPLE[0]]["last_session"], info[PEOPLE[0]]["pending_grading"]
+    if (
+        last
+        and f"Buổi gần nhất: {last['held_on'][8:]}/{last['held_on'][5:7]} · {ten(last['score'], last['max_score'])}"
+        not in card
+    ):
+        rep["missing"].append(f"students list: the last session of {PEOPLE[0]} is not on its card: {card!r}")
+    if pend and f"{pend} bài chờ duyệt" not in card:
+        rep["missing"].append(f"students list: want '{pend} bài chờ duyệt' on the card of {PEOPLE[0]}")
+    for typed, want, words in (("binh", 1, PEOPLE[1]), ("zzz", 0, "Không có học sinh nào"), ("", live, "")):
+        page.fill("#st-q", typed)
+        if page.locator(".st-card").count() != want or words not in page.inner_text("#st-cards"):
+            rep["missing"].append(f"students list: searching {typed!r} should leave {want} cards ({words!r})")
+    see_stu(page, rep, "students list", phone)
+
+
+@counted(commit=("student",))
+def stu_add(page, rep: dict, data_dir: str, phone: bool, name: str) -> bool:
+    """One word is refused in the server's words and adds no row (Focus 5); the full name adds one card."""
+    if not stu_list(page, rep):
+        return False
+    before = scalar(data_dir, "SELECT count(*) FROM student")
+    press(page, rep, '[data-act="st-add"]', "students + Thêm học sinh", JS_MODAL)
+    page.fill("#sf-name", STU_ONE)
+    press(page, rep, '[data-act="st-save"]', "students Thêm một chữ", JS_SF_ERR, STU_ONE_MSG)
+    if scalar(data_dir, "SELECT count(*) FROM student") != before or not page.evaluate(JS_MODAL):
+        rep["missing"].append("students add: a one-word name added a row, or the window closed")
+    see_stu(page, rep, "students add refused", phone)
+    page.fill("#sf-name", name)
+    page.select_option("#sf-grade", "9")
+    page.fill("#sf-note", STU_NOTE)
+    press(page, rep, '[data-act="st-save"]', "students Thêm học sinh", JS_STU_CARD_HAS, [name, STU_NOTE])
+    if scalar(data_dir, "SELECT count(*) FROM student") != before + 1 or not scalar(
+        data_dir, "SELECT count(*) FROM student WHERE name = ? AND grade = 9 AND note = ?", name, STU_NOTE
+    ):
+        rep["missing"].append(f"students add: want 1 new row for {name}, lớp 9, with the note")
+    if "Lớp 9" not in page.locator("#st-cards .st-card", has_text=name).inner_text():
+        rep["missing"].append("students add: the new card lacks 'Lớp 9'")
+    see_stu(page, rep, "students added", phone)
+    return True
+
+
+@counted(commit=("student",))
+def stu_edit(page, rep: dict, data_dir: str, phone: bool, name: str) -> None:
+    """Sửa: the box holds the name, a new note shows on the card and in the table."""
+    press(page, rep, f'#st-cards .st-card:has-text("{name}") [data-act="st-edit"]', "students Sửa", JS_MODAL)
+    if page.input_value("#sf-name") != name:
+        rep["missing"].append(f"students edit: the name box holds {page.input_value('#sf-name')!r}, want {name!r}")
+    page.fill("#sf-note", STU_NOTE2)
+    press(page, rep, '[data-act="st-save"]', "students Lưu thay đổi", JS_STU_CARD_HAS, [name, STU_NOTE2])
+    if not scalar(data_dir, "SELECT count(*) FROM student WHERE name = ? AND note = ?", name, STU_NOTE2):
+        rep["missing"].append("students edit: the new note is not in tutor.db")
+    see_stu(page, rep, "students edited", phone)
+
+
+@counted()
+def stu_empty(page, rep: dict, phone: bool, name: str) -> None:
+    """A student with no session (Focus 4): every empty part says Chưa có, no console error; Làm báo cáo picks them."""
+    errors = len(rep["console_errors"]) + len(rep["page_errors"])
+    if not stu_open(page, rep, name):
+        return
+    text = page.inner_text("#panel-hoc-sinh")
+    rep["missing"] += [f"students empty: no '{w}'" for w in STU_EMPTY if w not in text]
+    if text.count("Chưa có.") != 3 or page.locator("#st-chart").count():
+        rep["missing"].append("students empty: want 3 'Chưa có.' skill columns and no chart")
+    see_stu(page, rep, "students empty", phone)
+    press(page, rep, '#panel-hoc-sinh [data-act="st-rep"]', "students Làm báo cáo", JS_TAB, "bao-cao")
+    expect(
+        page,
+        rep,
+        JS_REP_NAME,
+        f"students: Làm báo cáo does not select {name} (a student added after the Báo cáo list)",
+        name,
+    )
+    see_rep(page, rep, "students Làm báo cáo", phone)
+    if len(rep["console_errors"]) + len(rep["page_errors"]) != errors:
+        rep["missing"].append("students empty: the console logged an error")
+
+
+@counted(commit=("student",))
+def stu_archive(page, rep: dict, data_dir: str, root: str, phone: bool, name: str) -> None:
+    """Lưu trữ asks first and moves the card under Đã lưu trữ; Bỏ lưu trữ brings it back; it ends archived."""
+    if not stu_list(page, rep):
+        return
+    card, gone = f'#st-cards .st-card:has-text("{name}")', "SELECT archived_at IS NOT NULL FROM student WHERE name = ?"
+    press(page, rep, f'{card} [data-act="st-archive"]', "students Lưu trữ", JS_ROOT_HAS, f"Lưu trữ {name}?")
+    press(page, rep, '[data-act="confirm-ok"]', "students đồng ý lưu trữ", JS_STU_ARCH, name)
+    if page.locator(card).count() or not scalar(data_dir, gone, name):
+        rep["missing"].append("students archive: the card is still in the list, or tutor.db is not archived")
+    see_stu(page, rep, "students archived", phone)
+    press(
+        page,
+        rep,
+        f'#st-arch .spread:has-text("{name}") [data-act="st-unarchive"]',
+        "students Bỏ lưu trữ",
+        JS_STU_CARD,
+        name,
+    )
+    if scalar(data_dir, gone, name):
+        rep["missing"].append("students unarchive: tutor.db still has the student archived")
+    # the chat's @ list and the next walk want only PEOPLE live
+    api(root, "POST", f"/students/{scalar(data_dir, 'SELECT id FROM student WHERE name = ?', name)}/archive")
+
+
+@counted()
+def stu_progress(page, rep: dict, data_dir: str, phone: bool, sid: int, name: str) -> None:
+    """An's profile: every skill at the level tutor.db holds, the arrows, the chart (points, Tab, table, one skill)."""
+    if not stu_open(page, rep, name):
+        return
+    head = page.inner_text("#panel-hoc-sinh .page-head") + " " + page.inner_text(BACK)
+    rep["missing"] += [
+        f"students profile: no '{w}'"
+        for w in (name, "Học từ ", "Soạn phiếu với Trợ lý", "Làm báo cáo", "Sửa", "← Danh sách")
+        if w not in head
+    ]
+    while page.locator('[data-act="st-more"]:has-text("Xem tất cả")').count():
+        page.click('[data-act="st-more"]:has-text("Xem tất cả") >> nth=0')
+    got = page.evaluate(JS_STU_SKILLS)
+    thetas = dict(fetch(data_dir, SKILL_THETA, sid))
+    if not thetas or sorted((n, lv) for n, lv, _ in got) != sorted((n, level_of(t)) for n, t in thetas.items()):
+        rep["missing"].append(
+            f"students profile: levels {sorted(got)[:2]}... differ from skill_state {sorted(thetas.items())[:2]}..."
+        )
+    rep["missing"] += [f"students profile: '{n}' has no arrow ({a!r})" for n, _, a in got if a not in STU_TRENDS]
+    open_n = scalar(
+        data_dir, "SELECT count(*) FROM misconception_log WHERE student_id = ? AND resolved_at IS NULL", sid
+    )
+    done_n = scalar(
+        data_dir, "SELECT count(*) FROM misconception_log WHERE student_id = ? AND resolved_at IS NOT NULL", sid
+    )
+    shown = page.locator('section:has(h2:text-is("Lỗi hay lặp lại")) > ul > li').count()
+    if shown != open_n or (done_n and f"Đã sửa được ({done_n})" not in page.inner_text("#panel-hoc-sinh")):
+        rep["missing"].append(
+            f"students profile: {shown} repeated mistakes shown, tutor.db has {open_n} open and {done_n} fixed"
+        )
+    see_stu(page, rep, "students profile", phone)
+    first = fetch(data_dir, "SELECT min(held_on) FROM session WHERE student_id = ? AND status = 'committed'", sid)[0][0]
+    dm = f"{first[8:]}/{first[5:7]}"
+    if not page.locator("#st-chart circle > title").count():
+        rep["missing"].append("students chart: no point with a <title>")
+    page.focus("#st-chart-skill")
+    page.keyboard.press("Tab")
+    expect(page, rep, JS_STU_DOT, "students chart: Tab from the skill box did not reach a point")
+    expect(page, rep, JS_STU_TIP, "students chart: the focused point wrote no 'dd/mm: mức'")
+    want = f"{dm}: {level_of(sum(thetas.values()) / len(thetas))}"
+    if page.inner_text("#st-tip").strip() != want:
+        rep["missing"].append(f"students chart: the first point says {page.inner_text('#st-tip')!r}, want {want!r}")
+    if not page.evaluate(JS_STU_FIT):
+        rep["missing"].append("students chart: the drawing is wider than its box")
+    press(page, rep, '[data-act="st-table"]', "students Xem dạng bảng", JS_STU_TABLE)
+    if first[8:] + "/" + first[5:7] + "/" + first[:4] not in page.inner_text(
+        "#st-chart"
+    ) or "Xem biểu đồ" not in page.inner_text("#panel-hoc-sinh"):
+        rep["missing"].append("students chart: the table lacks the date, or the button did not turn into Xem biểu đồ")
+    see_stu(page, rep, "students table", phone)
+    press(page, rep, '[data-act="st-table"]', "students Xem biểu đồ", JS_STU_SVG)
+    names = page.eval_on_selector_all("#st-chart-skill option", "os => os.map(o => o.textContent)")
+    if len(names) < 2 or names[1] not in thetas:
+        rep["missing"].append(f"students chart: the skill box lists {names[:3]}, want 'Mức chung' then skill names")
+        return
+    page.select_option("#st-chart-skill", index=1)
+    expect(page, rep, JS_STU_SVG_NAME, f"students chart: picking {names[1]} did not redraw it", names[1])
+    page.focus("#st-chart-skill")
+    page.keyboard.press("Tab")
+    expect(page, rep, JS_STU_TIP, "students chart: a skill's point wrote no 'dd/mm: mức'")
+    if (m := STU_TIP.match(page.inner_text("#st-tip").strip())) is None or m[2] != level_of(thetas[names[1]]):
+        rep["missing"].append(
+            f"students chart: {names[1]} says {page.inner_text('#st-tip')!r}, want {level_of(thetas[names[1]])}"
+        )
+    see_stu(page, rep, "students chart skill", phone)
+
+
+@counted()
+def stu_session(page, rep: dict, data_dir: str, phone: bool, sid: int) -> None:
+    """Xem bài of 20/10: formulas typeset, steps, mistakes in words (not codes); Esc closes and returns the focus."""
+    row = '#panel-hoc-sinh tr:has-text("20/10/2026")'
+    press(page, rep, f'{row} [data-act="st-session"]', "students Xem bài", JS_MJX)
+    text = page.inner_text("#modal-root")
+    n = scalar(data_dir, "SELECT count(*) FROM mistake_current m JOIN attempt_current a ON a.id = m.attempt_id"
+                         " JOIN session s ON s.id = a.session_id WHERE s.thread_id = ?", G_S01)  # fmt: skip
+    if page.locator("#modal-root .mistake").count() != n or page.inner_text(f"{row} td:nth-child(4)").strip() != str(n):
+        rep["missing"].append(f"students session: want {n} mistakes in the window and in the table")
+    rep["missing"] += [f"students session: no '{w}'" for w in (NEW_KIND, ADDED, NAMED, "Bước 1") if w not in text]
+    if NEW_CODE in text or page.locator("#modal-root .wstep.hit").count() < 1:
+        rep["missing"].append("students session: the error code shows, or no step is marked")
+    see_stu(page, rep, "students session", phone)
+    page.keyboard.press("Escape")
+    expect(page, rep, JS_NO_MODAL, "students session: Esc did not close the window")
+    if (on := page.evaluate(JS_ACT)) != "st-session":
+        rep["missing"].append(f"students session: the focus is on {on!r} after Esc, want the Xem bài button")
+
+
+@counted()
+def stu_report(page, rep: dict, phone: bool, name: str) -> None:
+    """Làm báo cáo selects An; Xem on the 20/10 report opens it in the Báo cáo tab, green frame."""
+    press(page, rep, '#panel-hoc-sinh [data-act="st-rep"]', "students Làm báo cáo", JS_TAB, "bao-cao")
+    expect(page, rep, JS_REP_NAME, f"students: Làm báo cáo does not select {name}", name)
+    press(page, rep, "#tab-hoc-sinh", "tab hoc-sinh")
+    row = '#panel-hoc-sinh .st-report:has-text("ngày 20/10/2026")'
+    if not expect(
+        page,
+        rep,
+        "() => !!document.querySelector('#panel-hoc-sinh .st-report')",
+        "students: Báo cáo đã duyệt lists nothing",
+    ):
+        return
+    if not re.search(r"duyệt \d\d/\d\d/\d{4}", page.inner_text(row)):
+        rep["missing"].append(f"students: the 20/10 report row lacks 'duyệt dd/mm/yyyy': {page.inner_text(row)!r}")
+    press(page, rep, f'{row} [data-act="st-rep-open"]', "students Xem báo cáo", JS_TAB, "bao-cao")
+    expect(page, rep, JS_REP_DONE, "students: Xem did not open the approved report in the Báo cáo tab")
+    see_rep(page, rep, "students Xem báo cáo", phone)
+
+
+@counted()
+def stu_sheet(page, rep: dict, data_dir: str, phone: bool, sid: int, name: str) -> None:
+    """Bình's sheet from walk_worksheet: Xem phiếu lists every problem with its formula."""
+    if not stu_open(page, rep, name):
+        return
+    sheets = fetch(data_dir, SHEET_DATES, sid)
+    refs = [r for (r,) in fetch(data_dir, SHEET_REFS, sid, sheets[0][0])] if sheets else []
+    if not sheets or page.locator("#panel-hoc-sinh .st-sheet").count() != len(sheets):
+        rep["missing"].append(f"students sheet: want {len(sheets)} sheets listed under Phiếu đã giao")
+        return
+    press(page, rep, '#panel-hoc-sinh .st-sheet [data-act="st-ws-view"] >> nth=0', "students Xem phiếu", JS_MJX)
+    text = page.inner_text("#modal-root")
+    if page.locator("#modal-root li").count() != len(refs) or any(r not in text for r in refs):
+        rep["missing"].append(f"students sheet: want {len(refs)} problems {refs} in the window")
+    if f"Phiếu buổi {sheets[0][0][8:]}/{sheets[0][0][5:7]}/{sheets[0][0][:4]}" not in text:
+        rep["missing"].append("students sheet: the window title lacks the sheet's date")
+    see_stu(page, rep, "students sheet", phone)
+    page.keyboard.press("Escape")
+    expect(page, rep, JS_NO_MODAL, "students sheet: Esc did not close the window")
+
+
+@counted()
+def stu_job(page, rep: dict, root: str, phone: bool, sid: int, name: str) -> None:
+    """The waiting-grading reminder on the profile opens that G1 card in the Trợ lý tab."""
+    tid = api(root, "GET", f"/students/{sid}/profile")["pending"][0]["thread_id"]
+    if not stu_open(page, rep, name):
+        return
+    press(page, rep, '#panel-hoc-sinh [data-act="st-job"]', "students Duyệt trong Trợ lý", JS_TAB, "tro-ly")
+    expect(page, rep, JS_HOST_SEL, f"students: Duyệt trong Trợ lý did not open the card of {tid}", [tid, ".mistake"])
+
+
+@counted()
+def stu_assist(page, rep: dict, root: str, phone: bool, sid: int, name: str) -> None:
+    """Soạn phiếu với Trợ lý: the Trợ lý tab sends the ask (name on screen, no code); the draft it makes is dropped."""
+    if not stu_open(page, rep, name):
+        return
+    n = msgs(page)
+    press(page, rep, '#panel-hoc-sinh [data-act="st-ws"]', "students Soạn phiếu với Trợ lý", JS_TAB, "tro-ly")
+    expect(page, rep, JS_REPLIED, "students: no answer to Soạn phiếu với Trợ lý", n)
+    mine = page.locator("#chat-msgs .msg-me").last
+    if mine.locator(".mention").inner_text().strip() != name or HS_CODE.search(mine.inner_text()):
+        rep["missing"].append(
+            f"students: the sent message shows {mine.inner_text()!r}, want the mention {name!r} and no code"
+        )
+    if not expect(page, rep, JS_WS_DRAFT, "students: Soạn phiếu with the assistant made no draft"):
+        return
+    api(root, "POST", f"/threads/{page.evaluate(JS_WS_TID)}/cancel")
+
+
+def walk_students(page, rep: dict, phone: bool, data_dir: str, root: str, shots: bool) -> None:
+    """The Học sinh tab after the reports are made: list, add / edit / archive, an empty profile, An's and Bình's."""
+    ids = {s["name"]: s["id"] for s in api(root, "GET", "/students?archived=true")}
+    an, binh, new = ids[PEOPLE[0]], ids[PEOPLE[1]], STU_NEW[rep["viewport"]]
+    stu_view(page, rep, data_dir, root, phone)
+    if stu_add(page, rep, data_dir, phone, new):
+        stu_edit(page, rep, data_dir, phone, new)
+        stu_empty(page, rep, phone, new)
+        stu_archive(page, rep, data_dir, root, phone, new)
+    stu_progress(page, rep, data_dir, phone, an, PEOPLE[0])
+    if shots:
+        shoot(page, rep, f"students-profile-{'phone' if phone else 'desktop'}")
+    stu_session(page, rep, data_dir, phone, an)
+    stu_report(page, rep, phone, PEOPLE[0])
+    stu_sheet(page, rep, data_dir, phone, binh, PEOPLE[1])
+    stu_job(page, rep, root, phone, an, PEOPLE[0])
+    stu_assist(page, rep, root, phone, an, PEOPLE[0])
 
 
 BANK_LABELS = ("Tìm", "Chủ đề", "Lớp", "Kỹ năng", "Mức", "Xoá lọc")
@@ -2116,6 +2510,7 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
         walk_grading(page, rep, phone, data_dir)
         walk_worksheet(page, rep, phone, data_dir)
         walk_reports(page, rep, phone, data_dir, base.removesuffix("v3/"))
+        walk_students(page, rep, phone, data_dir, base.removesuffix("v3/"), shots)
     walk_bank(page, rep, phone, data_dir, files)
     walk_gear(page, rep, phone)
     walk_theme(page, rep, base)

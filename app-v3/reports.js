@@ -12,7 +12,7 @@
     '<p class="small">Báo cáo viết cho phụ huynh: chỉ dùng lời, không có phần trăm hay con số khó hiểu.</p></div>';
 
   var ready = false, students = [], list = { drafts: [], approved: [] };
-  var days = {}, form = { student: 0, kind: 'week', start: '' }, filt = 0, msg = '', busy = false, want = '';
+  var days = {}, form = { student: 0, kind: 'week', start: '' }, filt = 0, msg = '', busy = false, want = '', pick = 0;
   var cur = null;  // the report on the right: { tid?, id?, holder, card, eff, json, edit, busy, go, retrying, waits, paused, rep }
 
   function $(id) { return document.getElementById(id); }
@@ -51,7 +51,11 @@
     return U.api.get('/reports').then(function (r) { list = r; }, function () { U.toast('Chưa tải được danh sách báo cáo. Thử lại sau.', 'warn'); });
   }
   function load() {
-    return Promise.all([loadStudents().catch(noop), fetchList()]).then(function () { ready = true; drawLeft(); });
+    return Promise.all([loadStudents().catch(noop), fetchList()]).then(function () {
+      ready = true;
+      if (pick) { form.student = pick; pick = 0; }  // prefill's student may be newer than the roster the tab held
+      drawLeft();
+    });
   }
   function refresh() { return fetchList().then(function () { drawLeft(); }); }
   function loadDays(sid) {
@@ -350,10 +354,11 @@
     });
   };
 
-  // ---- API for the other tabs: open(thread id | report id), prefill(student id) ----
+  // ---- API for the other tabs: open(thread id | report id), prefill(student id), the period words and local day ----
   window.REPORTS = {
+    label: label, local: local,
     open: function (id) { U.tab('bao-cao'); openDoc(id); },
-    prefill: function (sid) { U.tab('bao-cao'); form.student = sid; msg = ''; want = '[data-act="rep-kind"][aria-pressed="true"]'; drawLeft(); }
+    prefill: function (sid) { U.tab('bao-cao'); pick = sid; msg = ''; want = '[data-act="rep-kind"][aria-pressed="true"]'; drawLeft(); }
   };
 
   TABS['bao-cao'] = {

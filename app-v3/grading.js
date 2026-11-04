@@ -300,7 +300,7 @@
     resume(s).catch(function () { free(s); });
   };
   ACT['g-open'] = function (el) { C.openThread(el.dataset.tid, 'grading'); };
-  ACT['g-profile'] = function () { U.tab('hoc-sinh'); };
+  ACT['g-profile'] = function (el) { STUDENTS.open(stateOf(el).card.student_id); };
   ACT['g-next'] = function (el) { var id = stateOf(el).card.student_id; C.send('Gợi ý 6 bài cho @' + code(id), { mentions: [id] }); };
   ACT['g-match'] = function (el) {
     var s = stateOf(el), seq = +el.dataset.seq, typed = (s.typed[seq] || '').trim().toUpperCase();
