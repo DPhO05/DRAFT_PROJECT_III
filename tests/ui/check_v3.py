@@ -1278,6 +1278,12 @@ JS_REP_NO_ITEM = 't => !document.querySelector(`.rep-item[data-tid="${t}"]`)'
 JS_REP_NAME = """n => { const s = document.getElementById('rep-student');
   return !!s && !s.disabled && s.selectedOptions[0]?.textContent === n; }"""
 JS_REP_KIND_FOCUS = "() => document.activeElement?.dataset?.act === 'rep-kind'"
+JS_FOCUS_ACT = "a => document.activeElement?.dataset?.act === a"
+JS_REP_ITEM_HAS = 'a => !!document.querySelector(`.rep-item[data-tid="${a[0]}"]`)?.innerText.includes(a[1])'
+JS_REP_BOX_TEXT = "i => document.getElementById('sent-' + i)?.value ?? null"
+JS_TOASTS_CLEAR = "() => { document.getElementById('toasts').innerHTML = ''; }"
+REP_POLL = re.compile(r"/api/threads/[^/?]+\?view=teacher$")
+REP_LIST = re.compile(r"/api/reports$")
 JS_REP_DELS = "n => document.querySelectorAll('#rep-doc [data-act=\"sent-del\"]').length === n"
 JS_PRINT_HAS = "t => document.getElementById('print-root').textContent.includes(t)"
 JS_PRINTED = "() => window.__printed > 0"
@@ -1563,6 +1569,7 @@ def rep_gone(page, rep: dict, root: str, sid: int, phone: bool) -> None:
     api(root, "POST", f"/threads/{tid}/cancel")
     expect(page, rep, JS_REP_HAS, f"report gone: the right side did not go back to '{REP_EMPTY}'", REP_EMPTY)
     expect(page, rep, JS_REP_NO_ITEM, "report gone: the dropped draft is still in the list", tid)
+    expect(page, rep, JS_FOCUS_ACT, "report gone: the focus is not on Tạo báo cáo after the draft vanished", "rep-make")
     if REP_GONE in page.inner_text("#panel-bao-cao"):
         rep["missing"].append(f"report gone: '{REP_GONE}' and a stale button are on the tab")
     see_rep(page, rep, "report gone", phone)
@@ -1583,11 +1590,46 @@ def rep_discard(page, rep: dict, root: str, reqs: list, sid: int, phone: bool) -
         rep["missing"].append(f"report discard: want '{REP_NEED_ONE}' and a last PUT with no sentence")
     press(page, rep, '[data-act="rep-discard"]', "report Bỏ bản nháp", JS_ROOT_HAS, "Bỏ bản nháp")
     press(page, rep, '[data-act="confirm-ok"]', "report đồng ý bỏ", JS_REP_NO_ITEM, tid)
+    expect(
+        page, rep, JS_FOCUS_ACT, "report discard: the focus is not on Tạo báo cáo once Bỏ bản nháp is done", "rep-make"
+    )
     if REP_EMPTY not in page.inner_text("#rep-doc"):
         rep["missing"].append(f"report discard: the right side should say '{REP_EMPTY}' again")
     if (status := page.evaluate(JS_STATUS, f"/api/threads/{tid}")) != 404:
         rep["missing"].append(f"report discard: GET /api/threads/{tid} is {status}, want 404")
     see_rep(page, rep, "report discarded", phone)
+
+
+def failed_poll(route) -> None:
+    """A report thread that polls as `failed` (the real one stays at the gate)."""
+    r = route.fetch()
+    j = r.json()
+    if j.get("card", {}).get("kind") == "report":
+        j["card"]["stage"] = "failed"
+    route.fulfill(response=r, json=j)
+
+
+@counted()
+def rep_retry(page, rep: dict, root: str, sid: int, phone: bool) -> None:
+    """A draft served as failed: Thử lại keeps the focus on the page."""
+    resume = re.compile(r"/api/threads/[^/?]+/resume$")
+    tid = None
+    try:
+        if not (tid := rep_week_draft(page, rep, root, sid)):
+            return
+        page.route(REP_POLL, failed_poll)  # the open draft's next poll says failed
+        page.route(resume, lambda r: r.fulfill(status=202, json={}))
+        expect(page, rep, JS_REP_HAS, "report retry: the failed draft has no Thử lại", "Thử lại")
+        see_rep(page, rep, "report failed draft", phone)
+        press(page, rep, '[data-act="rep-retry"]', "report Thử lại", JS_FOCUS_ID, "rep-failed")
+        off = "report retry: Thử lại stayed off"  # two more polls say failed, then it is on again
+        expect(page, rep, JS_ON, off, '[data-act="rep-retry"]')
+        expect(page, rep, JS_FOCUS_ID, "report retry: the focus left the status line on the redraw", "rep-failed")
+    finally:
+        for pattern in (REP_POLL, resume):
+            page.unroute(pattern)
+        if tid:
+            api(root, "POST", f"/threads/{tid}/cancel")
 
 
 def walk_reports(page, rep: dict, phone: bool, data_dir: str, root: str) -> None:
@@ -1612,6 +1654,7 @@ def walk_reports(page, rep: dict, phone: bool, data_dir: str, root: str) -> None
     rep_empty(page, rep, phone)
     rep_resumed(page, rep, data_dir, root, reqs, sid)
     rep_gone(page, rep, root, sid, phone)
+    rep_retry(page, rep, root, sid, phone)
     rep_discard(page, rep, root, reqs, sid, phone)
 
 
@@ -1669,6 +1712,9 @@ def chat_rep_make(page, rep: dict, root: str) -> str | None:
 def chat_rep_open(page, rep: dict, data_dir: str, tid: str) -> None:
     """Mở trong Báo cáo opens that draft in its yellow frame; 'ok' back in the chat writes nothing."""
     press(page, rep, CHAT_REP_OPEN, "chat report Mở trong Báo cáo", JS_REP_DRAFT, 1)
+    expect(
+        page, rep, JS_FOCUS_ID, "chat report: the focus is not on the report title after Mở trong Báo cáo", "rep-title"
+    )
     if not page.locator("#rep-doc .rep-doc").count():
         rep["missing"].append("chat report: Mở trong Báo cáo opened no draft")
         return
@@ -2149,6 +2195,7 @@ def stu_report(page, rep: dict, phone: bool, name: str) -> None:
         rep["missing"].append(f"students: the 20/10 report row lacks 'duyệt dd/mm/yyyy': {page.inner_text(row)!r}")
     press(page, rep, f'{row} [data-act="st-rep-open"]', "students Xem báo cáo", JS_TAB, "bao-cao")
     expect(page, rep, JS_REP_DONE, "students: Xem did not open the approved report in the Báo cáo tab")
+    expect(page, rep, JS_FOCUS_ID, "students: the focus is not on the report title after Xem", "rep-title")
     see_rep(page, rep, "students Xem báo cáo", phone)
 
 

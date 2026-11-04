@@ -6,6 +6,7 @@
   var KIND = { day: 'Ngày', week: 'Tuần', month: 'Tháng' };
   var OPEN_BOX = 'Lưu hoặc bỏ câu đang sửa trước nhé.';
   var ERR = { already_committed: 'Báo cáo này đã duyệt rồi.', undecided_items: 'Báo cáo cần ít nhất một câu.' };
+  var MAKE = '[data-act="rep-make"]';
   var BUSY = 'Báo cáo đang được xử lý. Thử lại sau giây lát.';
   var STALE = 'Có buổi mới được duyệt trong kỳ này. Bỏ bản nháp rồi tạo lại.';  // the one 409 text the server writes for the tutor (report.py check)
   var EMPTY = '<div class="empty"><p>Chọn một báo cáo bên trái, hoặc tạo báo cáo mới.</p>' +
@@ -57,7 +58,7 @@
       drawLeft();
     });
   }
-  function refresh() { return fetchList().then(function () { drawLeft(); }); }
+  function refresh(sel) { return fetchList().then(function () { drawLeft(sel); }); }
   function loadDays(sid) {
     if (days[sid] !== undefined) return;
     days[sid] = null;  // asked, not here yet
@@ -123,7 +124,7 @@
 
   // ---- right: the report ----
   function head(r, chip) {
-    return '<div class="spread"><div><div class="eyebrow">Báo cáo ' + lab(r.period_kind, r.period_start) + '</div><h2>' + U.esc(U.who(r.student_id)) + grade(r.student_id) + '</h2></div>' + chip + '</div>';
+    return '<div class="spread"><div><div class="eyebrow">Báo cáo ' + lab(r.period_kind, r.period_start) + '</div><h2 id="rep-title" tabindex="-1">' + U.esc(U.who(r.student_id)) + grade(r.student_id) + '</h2></div>' + chip + '</div>';
   }
   function flags(s) { return s.card.sentences.filter(function (x) { return x.flag; }).length; }
   function sentRow(x, i) {
@@ -161,23 +162,28 @@
     return '<article class="rep-doc is-draft" aria-label="Báo cáo">' + head(c, '') + (st === 'writing' ? '<p class="tool-line" role="status">Đang viết bản nháp…</p>'
       : st === 'saving' ? '<p class="tool-line" role="status">Đang lưu…</p>'
       : st === 'saved' ? '<p class="tool-line" role="status">Đã duyệt. Báo cáo nằm trong danh sách “Đã duyệt” bên trái.</p>'
-      : '<div class="callout callout-crit" role="alert"><p><b>Chưa làm xong bản nháp.</b> Chưa có gì được lưu. Thầy/cô bấm Thử lại, hoặc bỏ bản nháp rồi tạo lại.</p><div class="row">' +
+      : '<div class="callout callout-crit" role="alert"><p id="rep-failed" tabindex="-1"><b>Chưa làm xong bản nháp.</b> Chưa có gì được lưu. Thầy/cô bấm Thử lại, hoặc bỏ bản nháp rồi tạo lại.</p><div class="row">' +
         btn('rep-retry', 'Thử lại', s.retrying ? 'disabled' : '', 'btn-primary') + btn('rep-discard', 'Bỏ bản nháp') + '</div></div>') + '</article>';
   }
   function drawDoc(s, focusSel) {
     var h = s.holder, a = document.activeElement, k = h.contains(a) && keyOf(a), pos = k && a.selectionStart;
     h.innerHTML = docHTML(s);
-    var n = focusSel ? h.querySelector(focusSel) : k && [].find.call(h.querySelectorAll('button, textarea'), function (x) { return keyOf(x) === k; });
+    if (s.land && !focusSel && h.querySelector('#rep-title')) { s.land = false; focusSel = '#rep-title'; }  // opened from another tab: the clicked button is in a hidden panel
+    var n = focusSel ? h.querySelector(focusSel) : k && [].find.call(h.querySelectorAll('button, textarea, [tabindex="-1"]'), function (x) { return keyOf(x) === k; });
     if (!n) return;
     n.focus({ preventScroll: !focusSel });
     if (!focusSel && typeof pos === 'number') try { n.setSelectionRange(pos, pos); } catch (e) { /* not a text box */ }
   }
 
   // ---- opening: a thread (draft, polled) or a report id (approved) ----
-  function openDoc(id) {
+  function openDoc(id, land) {
     var box = $('rep-doc'), h = document.createElement('div');
-    var s = { holder: h, card: null, eff: '', json: '', edit: null, busy: false, go: false, retrying: false, waits: 0, rep: null };
-    if (cur && cur.holder.isConnected && (cur.tid === id || cur.id === id)) { box.scrollIntoView({ block: 'start' }); return; }
+    var s = { holder: h, card: null, eff: '', json: '', edit: null, busy: false, go: false, retrying: false, waits: 0, rep: null, land: !!land };
+    if (cur && cur.holder.isConnected && (cur.tid === id || cur.id === id)) {
+      box.scrollIntoView({ block: 'start' });
+      if (land) { cur.land = true; drawDoc(cur); }
+      return;
+    }
     box.innerHTML = ''; box.appendChild(h);  // the old holder leaves the page, so its poll stops
     cur = s; msg = '';
     if (typeof id === 'number') {
@@ -202,7 +208,7 @@
   function gone(s) {  // the thread is not there any more: dropped or cleaned up elsewhere
     if (cur !== s) return;
     cur = null; $('rep-doc').innerHTML = EMPTY;
-    C.refreshPending(); refresh();
+    C.refreshPending(); refresh(MAKE);
     U.toast('Bản nháp này không còn nữa.', 'info');
   }
   function onRow(s, row) {
@@ -309,7 +315,7 @@
   ACT['rep-retry'] = function () {
     var s = cur;
     if (!s || s.retrying) return;
-    s.retrying = s.go = true; s.waits = 0; drawDoc(s);
+    s.retrying = s.go = true; s.waits = 0; drawDoc(s, '#rep-failed');  // the button disables itself
     U.api.send('POST', path(s, '/resume')).then(function () { C.refreshPending(); }, function (e) { s.retrying = s.go = false; fail(s, e); });
   };
   ACT['rep-discard'] = function () {
@@ -317,7 +323,7 @@
     if (!s || !s.tid) return;
     U.confirm('Bỏ bản nháp này?', 'Bản nháp sẽ mất; tạo lại lúc nào cũng được.', 'Bỏ bản nháp', function () {
       U.api.send('POST', path(s, '/cancel')).then(null, function (e) { if (e.status !== 404) throw e; }).then(function () {
-        C.refreshPending(); refresh();
+        C.refreshPending(); refresh(MAKE);  // the Bỏ button is gone, so the focus goes to the form
         if (cur === s) { cur = null; $('rep-doc').innerHTML = EMPTY; }
       }, function () { U.toast('Chưa bỏ được bản nháp. Thử lại sau.', 'warn'); });
     }, true);
@@ -357,7 +363,7 @@
   // ---- API for the other tabs: open(thread id | report id), prefill(student id), the period words and local day ----
   window.REPORTS = {
     label: label, local: local,
-    open: function (id) { U.tab('bao-cao'); openDoc(id); },
+    open: function (id) { U.tab('bao-cao'); openDoc(id, true); },
     prefill: function (sid) { U.tab('bao-cao'); pick = sid; msg = ''; want = '[data-act="rep-kind"][aria-pressed="true"]'; drawLeft(); }
   };
 
