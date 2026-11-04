@@ -8,7 +8,9 @@ Có hai thư mục, đừng nhầm:
 
 ## 1. Cài đặt lần đầu
 
-1. Giải nén `GiaSuToan-app.zip`. Kéo thư mục `GiaSuToan-app` vào Tài liệu (Documents).
+Cần Mac chip Apple (M1 trở lên).
+
+1. Giải nén `GiaSuToan-app.zip`. Kéo thư mục `GiaSuToan-app` vào thư mục cá nhân (bấm ⇧⌘H trong Finder). Đừng đặt vào Tài liệu. macOS bảo vệ thư mục đó, nên Terminal sẽ hỏi quyền truy cập.
 2. Bấm đúp file `Mo-tro-ly.command` trong thư mục đó. Cửa sổ Terminal mở ra.
 3. Lần đầu máy cần mạng và chờ vài phút. Đừng đóng cửa sổ Terminal.
 4. Trình duyệt tự mở app. Nếu không, gõ `http://127.0.0.1:8000/` vào thanh địa chỉ.
@@ -16,10 +18,7 @@ Có hai thư mục, đừng nhầm:
 6. Bấm ⚙ ở góc trên bên phải, chọn **Cài đặt**. Dán khoá người cài gửi vào ô **Khoá Anthropic**, rồi bấm **Lưu cài đặt**. Nếu app ghi tên nhà cung cấp khác, dán vào ô đó.
 7. Hỏi trợ lý một câu để thử. Nếu thấy "Trợ lý chưa có khoá API", bấm **Mở Cài đặt** và làm lại bước 6.
 
-Nếu macOS chặn file lần đầu với chữ "không xác minh được nhà phát triển", làm một trong hai cách:
-
-- Bấm chuột phải vào `Mo-tro-ly.command`, chọn **Mở**, rồi bấm **Mở** lần nữa.
-- Mở Cài đặt hệ thống › Quyền riêng tư & Bảo mật, kéo xuống, bấm **Vẫn mở**. Nhập mật khẩu máy nếu được hỏi.
+Nếu macOS không cho mở file, mở Cài đặt hệ thống › Quyền riêng tư & Bảo mật, kéo xuống rồi bấm **Vẫn mở**. Nhập mật khẩu máy nếu được hỏi.
 
 Nếu Terminal hiện lỗi, chụp màn hình gửi người cài.
 
@@ -29,7 +28,6 @@ Nếu Terminal hiện lỗi, chụp màn hình gửi người cài.
 2. Nên đặt tên file `hsNN-yyyy-mm-dd.tex`, ví dụ `hs01-2026-11-03.tex`. `NN` là số thứ tự của em: em thêm đầu tiên là `01`, em thứ hai là `02`.
 3. Tên khác cũng được. Trợ lý sẽ hỏi em nào, ngày nào.
 4. Mở tab **Trợ lý**, bấm 📎, bấm **Chọn** cạnh file, rồi bấm **Gửi**.
-   Cửa sổ ghi `data/inbox/`. Trên máy này đó là `GiaSuToan/inbox`.
 5. Nếu trợ lý hỏi em và ngày học, chọn xong bấm **Chấm bài này**.
 6. Nếu bài làm không ghi mã bài, chọn bài đúng rồi bấm **Đúng bài này**. Muốn bỏ bài đó, bấm **Bỏ bài này, không chấm**.
 7. Với mỗi lỗi trợ lý tìm ra, bấm **Đúng**, **Sửa** hoặc **Bỏ**.
@@ -83,7 +81,6 @@ Nếu Terminal hiện lỗi, chụp màn hình gửi người cài.
 6. `do_kho_du_kien` là số từ 1 đến 5.
 7. Bài thiếu mã bài hoặc thiếu lời giải bị bỏ qua.
 8. Chép file vào `GiaSuToan/inbox/bank`.
-   Cửa sổ trong app ghi `data/inbox/bank/`. Trên máy này đó là thư mục trên.
 9. Mở tab **Ngân hàng bài**, bấm **Nạp bài mới**, rồi bấm **Đọc file**.
 10. Bài có nhãn kỹ năng và mức thì đã sẵn sàng. Bài không nhãn thì chọn kỹ năng, và mức nếu thiếu, ở bước xem trước. Để trống mức thì tính là mức vừa.
 11. Khi hết bài cần chọn, bấm **Lưu vào ngân hàng**.
@@ -109,7 +106,8 @@ Nếu Terminal hiện lỗi, chụp màn hình gửi người cài.
 3. Thay thư mục `GiaSuToan-app` bằng bản mới, cùng tên, cùng chỗ.
 4. Giữ nguyên thư mục `GiaSuToan`. Dữ liệu và khoá nằm ở đó.
 5. Bấm đúp lại `Mo-tro-ly.command`. Nếu macOS chặn, làm lại cách ở mục 1.
-6. App tự nâng cấp dữ liệu và sao lưu trước.
+6. Lần đầu sau cập nhật, chờ vài phút và cần mạng.
+7. App tự nâng cấp dữ liệu và sao lưu trước.
 
 ## 9. Dành cho người cài
 
@@ -122,6 +120,7 @@ git archive --format=zip --prefix=GiaSuToan-app/ -o ~/Desktop/GiaSuToan-app.zip 
 unzip -l ~/Desktop/GiaSuToan-app.zip
 ```
 
+- Cần Mac chip Apple (M1 trở lên).
 - Lần đầu launcher cài `uv`, Python 3.12 và thư viện, nên máy cần mạng.
 - Launcher đặt dữ liệu ở `~/GiaSuToan`. Biến `TUTOR_DATA` đổi được chỗ này.
 - Khoá lấy theo thứ tự: biến môi trường của shell, rồi file `.env` trong thư mục đang chạy app, rồi file `.env` trong thư mục dữ liệu.
@@ -130,7 +129,7 @@ unzip -l ~/Desktop/GiaSuToan-app.zip
 - Khi app không mở được, đóng app rồi khôi phục bằng lệnh. Tên bản sao lưu xem trong `~/GiaSuToan/backup`:
 
 ```
-cd ~/Documents/GiaSuToan-app
+cd ~/GiaSuToan-app
 TUTOR_DATA="$HOME/GiaSuToan" uv run --frozen --no-dev tutor restore tutor-2026-10-20-093000.db
 ```
 
