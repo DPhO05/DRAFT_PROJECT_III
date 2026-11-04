@@ -54,6 +54,10 @@ def _open_when_up(url: str) -> None:
         time.sleep(0.2)
 
 
+# shortcut: the default catalog ships in data/dummy/bank; move it into src/tutor if the app is ever installed as a
+# wheel.
+DEFAULT_CATALOG = Path(__file__).resolve().parents[2] / "data" / "dummy" / "bank"
+
 FakeLLM = Annotated[bool, typer.Option("--fake-llm", help="Dev / test: không gọi Anthropic, output giả")]
 
 
@@ -92,6 +96,8 @@ def app_cmd(
         except repo.MigrationError as e:
             typer.echo(f"Nâng cấp tutor.db lỗi, giữ bản cũ (sao lưu trong {paths.backup}): {e}")
             raise typer.Exit(1) from None
+        with closing(repo.connect(paths.tutor_db)) as conn:
+            repo.ensure_catalog(conn, DEFAULT_CATALOG / "kc.csv", DEFAULT_CATALOG / "kc_prereq.csv")
         app = create_app(paths, port=port, fake_llm=fake_llm)
         if not no_browser:
             threading.Thread(target=_open_when_up, args=(url,), daemon=True).start()

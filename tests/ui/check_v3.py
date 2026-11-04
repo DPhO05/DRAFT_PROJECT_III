@@ -303,7 +303,6 @@ JS_CATALOG = """() => ({
   open: document.querySelectorAll('#modal-body details[open]').length,
   kinds: document.querySelectorAll('#modal-body .cat-kinds li').length,
 })"""
-EMPTY_CATALOG = "Chưa có kỹ năng nào trong danh mục."
 CATALOG_NOTE = "Danh mục chỉ xem ở đây; người cài đổi được bằng file."
 
 
@@ -318,13 +317,9 @@ def walk_catalog(page, rep: dict, phone: bool, data: bool) -> None:
         rep["missing"].append("gear catalog: the read-only note is missing")
     if (got["topics"], got["open"], got["kinds"]) != (len(topics), 0, len(active)) or len(active) != 18:
         rep["missing"].append(f"gear catalog: page shows {got}, API has {len(topics)} topics, {len(active)} codes (18)")
-    if not data:
-        if kcs or EMPTY_CATALOG not in text:
-            rep["missing"].append(f"gear catalog: an empty catalog should say '{EMPTY_CATALOG}'")
-        return
     first = next((t for t in topics if any(k["parent_id"] == t["id"] for k in kcs)), None)
     if not first:
-        rep["missing"].append("gear catalog: --data has no topic with skills")
+        rep["missing"].append("gear catalog: no topic with skills")
         return
     kids = [k["name"] for k in kcs if k["parent_id"] == first["id"]]
     summary = f"#modal-body details >> nth={topics.index(first)} >> summary"

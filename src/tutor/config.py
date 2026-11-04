@@ -190,7 +190,7 @@ class DataPaths:
         return self.root / "backup"
 
     def ensure(self) -> "DataPaths":
-        for d in (self.root, self.inbox / "bank", self.out, self.logs, self.backup):
+        for d in (self.root, self.inbox / "bank", self.out, self.logs, self.logs / "chat", self.backup):
             d.mkdir(parents=True, exist_ok=True)
         return self
 

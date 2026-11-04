@@ -24,6 +24,12 @@ def test_import_dummy_bank_then_reimport_is_noop(conn):
     assert again["new_kc"] == again["changed_kc"] == again["new_prereq"] == []
 
 
+def test_ensure_catalog_once(conn):
+    assert repo.ensure_catalog(conn, BANK / "kc.csv", BANK / "kc_prereq.csv") == 74
+    assert repo.ensure_catalog(conn, BANK / "kc.csv", BANK / "kc_prereq.csv") == 0
+    assert repo.row_counts(conn)["kc"] == 74
+
+
 def test_cycle_in_csv_is_rejected_with_path(conn):
     kcs = [{"code": c, "name": c, "description": "d", "parent_code": "", "lop": "8"} for c in "ABC"]
     pre = [("A", "B"), ("B", "C"), ("C", "A")]

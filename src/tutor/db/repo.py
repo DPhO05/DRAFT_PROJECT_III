@@ -361,6 +361,14 @@ def read_catalog(kc_csv: str, prereq_csv: str) -> tuple[list[dict], list[tuple[s
     return kcs, pre
 
 
+def ensure_catalog(conn: sqlite3.Connection, kc_csv: Path, prereq_csv: Path) -> int:
+    """First run: load the default catalog into an empty `kc` table. Returns the KC added; 0 when KC exist."""
+    if conn.execute("SELECT 1 FROM kc").fetchone():
+        return 0
+    kcs, pre = read_catalog(kc_csv.read_text("utf-8-sig"), prereq_csv.read_text("utf-8-sig"))
+    return len(import_catalog(conn, kcs, pre, apply=True)["new_kc"])
+
+
 def _find_cycle(edges: dict[str, set[str]], start: str | None = None) -> list[str] | None:
     """kc -> prerequisites. Returns one loop as [a, b, …, a] (searched from `start` first), or None."""
     state: dict[str, int] = {}

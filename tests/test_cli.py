@@ -81,8 +81,10 @@ def running_app(tmp_path):
 def test_app_starts_creates_data_and_serves_health(running_app):
     port, data = running_app
     assert health(port)["db"] == "ok"
-    for name in ("tutor.db", "runner.lock", "inbox/bank", "out", "logs/app.log", "backup"):
+    for name in ("tutor.db", "runner.lock", "inbox/bank", "out", "logs/app.log", "logs/chat", "backup"):
         assert (data / name).exists(), name
+    with closing(sqlite3.connect(data / "tutor.db")) as c:
+        assert c.execute("SELECT count(*) FROM kc").fetchone()[0] == 74
 
 
 def test_second_app_does_not_start_another_process(running_app):
@@ -111,7 +113,7 @@ def test_db_endpoint_under_parallel_requests(running_app):
             return json.load(r)["total"]
 
     with ThreadPoolExecutor(16) as ex:
-        assert list(ex.map(get, range(64))) == [18] * 64
+        assert list(ex.map(get, range(64))) == [166] * 64  # 18 error codes + 74 KC + 74 prerequisites
 
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "submissions"
