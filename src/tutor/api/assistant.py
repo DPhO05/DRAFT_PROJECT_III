@@ -97,6 +97,10 @@ def make_starters(paths: DataPaths, runner: Runner) -> Starters:
             raise ValueError(f"Không có học sinh {student_code(student_id)}") from e
         except ThreadBusy as e:  # propose deletes the old draft, which is being saved
             raise ValueError("Phiếu nháp đang được lưu, thử lại sau ít phút") from e
+        except TimeoutError as e:  # both workers busy: the queued draft still lands later
+            raise ValueError(
+                "Máy đang bận chấm bài khác nên phiếu chưa hiện kịp. Phiếu nháp sẽ có ở mục Phiếu nháp sau ít phút."
+            ) from e
 
     def add_to_worksheet(thread_id: str, refs: list[str]) -> dict:
         try:

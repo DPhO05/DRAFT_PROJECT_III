@@ -28,7 +28,7 @@ from tutor.config import DataPaths
 from tutor.db import repo
 from tutor.graphs.runner import Runner
 from tutor.graphs.state import LaneState, SessionState
-from tutor.services import elo
+from tutor.services import elo, latex
 
 GRAPH = "G1"
 
@@ -54,7 +54,16 @@ def submit(paths: DataPaths, runner: Runner, *, student_id: int, held_on: str, r
     except ValueError as e:
         raise ValueError(f"Ngày học phải dạng YYYY-MM-DD: {held_on}") from e
     held_on = day.isoformat()  # fromisoformat also takes "20261021"; a stored date must sort as text
-    sha = hashlib.sha256(src.read_bytes()).hexdigest()
+    raw = src.read_bytes()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise ValueError("File phải lưu dạng UTF-8") from e
+    if not latex.split_problems(text):  # ingest would fail the same way later, after ① and a thread exist
+        raise ValueError(
+            "File không có \\begin{problem} nào: mỗi bài phải nằm giữa \\begin{problem}[mã bài] và \\end{problem}"
+        )
+    sha = hashlib.sha256(raw).hexdigest()
     rel = src.relative_to(paths.root.resolve()).as_posix()
     with closing(repo.connect(paths.tutor_db)) as conn:
         code = repo.get_student(conn, student_id)["code"]

@@ -88,6 +88,26 @@ def test_path_must_be_a_tex_file_inside_inbox(env, bad):
         session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path=bad)
 
 
+NO_PROBLEM = "File không có \\begin{problem} nào: mỗi bài phải nằm giữa \\begin{problem}[mã bài] và \\end{problem}"
+
+
+def test_file_without_a_problem_is_rejected_before_session_row(env):
+    paths, conn, r, sid, _ = env
+    name = put(paths, "empty.tex", "Bài làm của em, chưa có môi trường nào.\n")
+    with pytest.raises(ValueError) as e:
+        session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path=name)
+    assert str(e.value) == NO_PROBLEM
+    assert repo.row_counts(conn)["session"] == 0 and r.list_threads() == []
+
+
+def test_file_not_utf8_is_rejected_before_session_row(env):
+    paths, conn, r, sid, _ = env
+    (paths.inbox / "latin.tex").write_bytes(b"\xff\xfe")
+    with pytest.raises(ValueError, match="^File phải lưu dạng UTF-8$"):
+        session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path="latin.tex")
+    assert repo.row_counts(conn)["session"] == 0 and r.list_threads() == []
+
+
 def test_failure_after_01_then_rerun_does_not_call_01_again(env, monkeypatch):
     paths, conn, r, sid, fake = env
     real, broken = repo.commit_session_status, [True]

@@ -100,3 +100,12 @@ def test_threads_show_gate_and_failure_with_checkpoints(client):
     assert rows[gate]["checkpoints"] > 0 and rows[bad]["checkpoints"] > 0
     state = client.get(f"/api/threads/{gate}?include=state").json()["state"]
     assert {"session_id", "student_id", "held_on", "source_path", "source_kind", "transcript", "ingest"} <= set(state)
+
+
+def test_submit_file_without_a_problem_is_422_with_words(paths, client):
+    (paths.inbox / "empty.tex").write_text("Chưa có bài nào.\n", encoding="utf-8")
+    sid = add_student(client)
+    r = client.post("/api/sessions", json={"student_id": sid, "held_on": "2026-10-20", "path": "empty.tex"}, headers=W)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "validation_error"
+    assert r.json()["error"]["message"].startswith("File không có \\begin{problem} nào")
+    assert client.get("/api/sessions").json() == []

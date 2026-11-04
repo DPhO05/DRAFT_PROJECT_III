@@ -120,3 +120,15 @@ def test_busy_old_draft_is_words(env):
         running.set_result(None)
     assert out.is_error and json.loads(out.content) == {"error": "Phiếu nháp đang được lưu, thử lại sau ít phút"}
     assert out.card is None and [t["thread_id"] for t in runner.list_threads(graph="G4")] == [old]
+
+
+def test_busy_workers_are_words(env, paths, monkeypatch):
+    def slow(*a, **k):
+        raise TimeoutError
+
+    monkeypatch.setattr(worksheet, "propose", slow)
+    with pytest.raises(ValueError) as e:
+        make_starters(paths, env[1]).propose_worksheet(1, "2026-10-24", [], None, [])
+    assert str(e.value) == (
+        "Máy đang bận chấm bài khác nên phiếu chưa hiện kịp. Phiếu nháp sẽ có ở mục Phiếu nháp sau ít phút."
+    )
