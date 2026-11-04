@@ -1,7 +1,7 @@
 /* Thẻ chấm bài G1 in the Trợ lý tab (api-v3 §3.4): polls its thread through CHAT.poll, PUTs every choice (500 ms debounce)
    and resumes only from the last confirm answer, Lưu kết quả (two resumes, R7) and Chấm lại. Server text goes through U.names / U.esc. */
 (function () {
-  var C = window.CHAT, codes = null, codeReq = null, esc = U.nesc, dm = U.dm, code = U.code, who = U.who, btn = U.btn;
+  var C = window.CHAT, codes = null, codeReq = null, esc = U.nesc, dm = U.dm, code = U.code, who = U.who, btn = U.btn, wire = U.wire;
   var CHANGED = 'Kết quả xem trước vừa thay đổi, xem lại rồi bấm Lưu kết quả';
   var NO_CODES = 'Chưa tải được danh sách loại lỗi. Thử lại sau.';
   var NO_TEXT = 'Viết vài chữ mô tả lỗi trước nhé.';
@@ -25,13 +25,6 @@
   function addsOf(s, seq) { return Object.keys(s.dec).filter(function (k) { return isAdd(s.dec[k]) && s.dec[k].attempt_seq === seq; }); }
   function words(c, fallback) { var x = (codes || []).find(function (y) { return y.code === c; }); return x ? x.description : fallback || ''; }
   function kcName(a, id) { var k = a.kcs.find(function (x) { return x.id === id; }); return k ? k.name : 'không gắn kỹ năng'; }
-  function wire(text) {  // C-40: a name shown or typed in a box goes back as its HS-xx code (chat.js sendBox does it for @)
-    return Object.keys(U.people).filter(function (c) { return U.people[c].trim().split(/\s+/).length >= 2; })  // one-word names stay (S24)
-      .sort(function (a, b) { return U.people[b].length - U.people[a].length; })
-      .reduce(function (t, c) {
-        return t.replace(new RegExp('(?<![\\p{L}\\p{N}])' + U.people[c].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}])', 'gu'), c);
-      }, String(text));
-  }
   function flagOf(s, seq) { return s.card.confirm.find(function (f) { return f.seq === seq; }); }
   function loadCodes() {
     codeReq = codeReq || U.api.get('/catalog/error-codes').then(function (rows) {

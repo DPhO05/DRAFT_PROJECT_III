@@ -2,7 +2,7 @@
    The draft is polled through CHAT.poll; each sentence change PUTs the whole list, and only Duyệt báo cáo and Thử lại resume.
    Server text goes through U.nesc (HS-xx to names, escaped); fact ids are sent back as they came and never shown. */
 (function () {
-  var C = window.CHAT, btn = U.btn, esc = U.nesc;
+  var C = window.CHAT, btn = U.btn, esc = U.nesc, wire = U.wire;
   var KIND = { day: 'Ngày', week: 'Tuần', month: 'Tháng' };
   var OPEN_BOX = 'Lưu hoặc bỏ câu đang sửa trước nhé.';
   var ERR = { already_committed: 'Báo cáo này đã duyệt rồi.', undecided_items: 'Báo cáo cần ít nhất một câu.' };
@@ -32,13 +32,6 @@
   function active() { return students.filter(function (s) { return !s.archived_at; }); }
   function grade(id) { var s = students.find(function (x) { return x.id === id; }); return s && s.grade ? ' · lớp ' + s.grade : ''; }
   function keyOf(el) { return el.id || [el.tagName, el.dataset.act, el.dataset.kind, el.dataset.tid, el.dataset.id, el.dataset.i].join('|'); }
-  function wire(text) {  // C-40: a name typed in a box goes back as its HS-xx code (grading.js wire)
-    return Object.keys(U.people).filter(function (c) { return U.people[c].trim().split(/\s+/).length >= 2; })
-      .sort(function (a, b) { return U.people[b].length - U.people[a].length; })
-      .reduce(function (t, c) {
-        return t.replace(new RegExp('(?<![\\p{L}\\p{N}])' + U.people[c].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}])', 'gu'), c);
-      }, String(text));
-  }
   var IDS = 'F\\d\\d(?:\\s*,\\s*F\\d\\d)*', WORD = '[\\p{L}\\p{N}_]';
   var ID_MARK = new RegExp('\\s*(?:\\[' + IDS + '\\]|\\(' + IDS + '\\)|(?<!' + WORD + ')' + IDS + '(?!' + WORD + '))', 'gu');  // reporter.py _ID_MARK: [F01], (F01, F03), a bare F01
   function clean(t) { return t.replace(ID_MARK, '').replace(/\s+/g, ' ').trim(); }  // the server drops typed fact ids the same way (C-44)

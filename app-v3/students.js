@@ -1,7 +1,7 @@
 /* Tab Học sinh (api-v3 §4, IA-app §2): the list with add / edit / archive, and one student's profile.
    Levels show as words only; ids, codes and numbers go to the API and never on screen. Server text goes through U.nesc. */
 (function () {
-  var C = window.CHAT, btn = U.btn, esc = U.nesc;
+  var C = window.CHAT, btn = U.btn, esc = U.nesc, norm = U.norm;
   var LEVELS = ['vững', 'đang hình thành', 'chưa vững'], CLS = { 'vững': 'vung', 'đang hình thành': 'dang', 'chưa vững': 'chua' };
   var TREND = { 'tiến bộ': ['↑ tiến bộ', 'chip-ok'], 'giữ': ['→ giữ', ''], 'cần ôn': ['↓ cần ôn', 'chip-warn'] };
   var SHOWN = 8, LOADING = '<p class="tool-line" role="status">Đang tải…</p>', FAIL = '<p class="muted">Chưa tải được. Thử lại sau.</p>';
@@ -10,7 +10,6 @@
   var view = 0, prof = null, chartKc = 'all', asTable = false, more = {};  // view = the student whose profile is open, 0 = the list
 
   function $(id) { return document.getElementById(id); }
-  function norm(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/đ/g, 'd'); }  // lower first: Đ has no decomposition
   function D(iso) { return U.esc(U.d(iso)); }  // dates and level words come from the server: escaped like any other text
   function DM(iso) { return U.esc(U.dm(iso)); }
   function WD(iso) { return U.esc(U.wd(iso)); }

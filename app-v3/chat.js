@@ -2,7 +2,7 @@
    Grading and worksheet cards register in CHAT.cards from grading.js / worksheet.js. Every server string goes through U.names / U.md / U.esc. */
 (function () {
   var C = window.CHAT = { cards: {} };
-  var dm = U.dm, code = U.code, btn = U.btn;
+  var dm = U.dm, code = U.code, btn = U.btn, norm = U.norm;
   var panel = null, students = [], pending = null, convs = [], cur = { id: null }, busy = false, remindOpen = true;
   var inbox = [], attached = null, mentionMap = {}, pop = { open: false, items: [], i: -1, start: 0 };
   var retries = {}, turnSeq = 0;
@@ -16,7 +16,6 @@
 
   function $(sel) { return panel && panel.querySelector(sel); }
   function noop() { /* a failed refresh keeps what is on screen; the next one tries again */ }
-  function norm(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/đ/g, 'd'); }
   function nameOf(id) { return U.people[code(id)] || code(id); }
   function active() { return students.filter(function (s) { return !s.archived_at; }); }
   function scrollEnd(force) {

@@ -27,6 +27,14 @@ var U = {};
     return String(text).replace(/\bHS-(\d{2,})\b/gi, function (m, n) { return U.people['HS-' + n.padStart(2, '0')] || m; });
   };
   U.nesc = function (s) { return U.esc(U.names(s == null ? '' : s)); };  // server text: codes to names, then escaped
+  U.wire = function (text) {  // C-40: a name shown or typed in a box goes back as its HS-xx code (chat.js sendBox does it for @)
+    return Object.keys(U.people).filter(function (c) { return U.people[c].trim().split(/\s+/).length >= 2; })  // one-word names stay (S24)
+      .sort(function (a, b) { return U.people[b].length - U.people[a].length; })
+      .reduce(function (t, c) {
+        return t.replace(new RegExp('(?<![\\p{L}\\p{N}])' + U.people[c].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}])', 'gu'), c);
+      }, String(text));
+  };
+  U.norm = function (s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/đ/g, 'd'); };  // lower first: Đ has no decomposition
   U.code = function (id) { return 'HS-' + String(id).padStart(2, '0'); };
   U.who = function (id) { return U.people[U.code(id)] || 'học sinh'; };
   U.dm = function (iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); };
