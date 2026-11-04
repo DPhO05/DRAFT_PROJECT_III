@@ -40,6 +40,7 @@ def install(app: FastAPI) -> None:
         runner.AlreadyCommitted: lambda e: (409, "already_committed", None),
         runner.NotResumable: lambda e: (409, "not_ready", {"reason": str(e)}),
         runner.UndecidedItems: lambda e: (409, "undecided_items", {"n": e.n}),
+        threads.Unfinished: lambda e: (409, "not_ready", {"reason": "unfinished", "threads": e.threads}),
         threads.ThreadLocked: lambda e: (409, "date_order_locked", {"blocking_thread_id": e.blocking_thread_id}),
         repo.WorksheetExists: lambda e: (409, "worksheet_exists", {"for_date": e.for_date,
                                                                    "n_problems": e.n_problems}),

@@ -411,3 +411,32 @@ def test_report_not_ready(paths, conn):
     assert "tutor report HS-01 week 2026-10-12" in r.output
     r = CliRunner().invoke(cli.cli, ["report", "HS-01", "year", "2026-10-01", "--data-dir", str(paths.root)])
     assert r.exit_code == 1 and "Loại kỳ" in r.output, r.output
+
+
+def test_restore_while_app_runs_exits_2(running_app):
+    port, data = running_app
+    r = run("restore", "tutor-2026-10-20-120000.db", "--data-dir", str(data))
+    assert r.returncode == 2 and "runner.lock" in r.stdout
+
+
+def test_restore_cli(paths, conn):
+    repo.add_student(conn, name="An", grade=8)
+    b = repo.backup(paths.tutor_db, paths.backup)
+    repo.add_student(conn, name="Bình", grade=8)
+    r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
+    assert r.exit_code == 0, r.output
+    safety = next(p.name for p in paths.backup.glob("tutor-*.db") if p != b)
+    assert r.output.strip() == f"Đã khôi phục {b.name} (bản hiện tại: {safety})"
+    assert repo.row_counts(conn)["student"] == 1
+
+
+def test_restore_cli_refusals(paths, conn):
+    b = repo.backup(paths.tutor_db, paths.backup)
+    r = CliRunner().invoke(cli.cli, ["restore", "../tutor.db", "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and "Không có bản sao lưu" in r.output, r.output
+    rn = Runner(paths, {})
+    rn._set("g1-hs01-20261020", create=True, graph="G1", status="awaiting_review", student_id=1)
+    rn.close()
+    r = CliRunner().invoke(cli.cli, ["restore", b.name, "--data-dir", str(paths.root)])
+    assert r.exit_code == 1 and "g1-hs01-20261020" in r.output and "Duyệt hoặc huỷ trong app trước" in r.output
+    assert list(paths.backup.iterdir()) == [b]  # refused before any safety backup

@@ -177,6 +177,81 @@ def walk_catalog(page, rep: dict, phone: bool, data: bool) -> None:
         rep["missing"].append("gear catalog: a skill code is on screen")
 
 
+JS_BK_ROWS = "() => [...document.querySelectorAll('#modal-body tbody tr')].map(r => [...r.cells].map(c => c.innerText))"
+JS_N_ROWS = "n => document.querySelectorAll('#modal-body tbody tr').length === n"
+JS_RELOADED = "() => window.__robotLoaded === undefined"
+JS_NO_RUNNING = "() => U.api.get('/threads').then(r => !r.some(t => t.running || t.status === 'running'))"
+BK_WHEN = re.compile(r"\d\d/\d\d/\d{4} \d\d:\d\d")
+BK_SIZE = re.compile(r"\d+,\d MB")
+NO_BACKUPS = "Chưa có bản sao lưu."
+UNFINISHED = ("G1", "bài chấm"), ("G4", "phiếu nháp"), ("G2", "lần nạp bài"), ("G5", "báo cáo nháp")
+OPEN_STATES = ("running", "awaiting_review", "failed")
+
+
+def backup_when(name: str) -> str:
+    """tutor-2026-10-20-093000.db -> 20/10/2026 09:30, as the Sao lưu table shows it."""
+    y, mo, d, hm = re.match(r"tutor-(\d{4})-(\d\d)-(\d\d)-(\d{4})", name).groups()
+    return f"{d}/{mo}/{y} {hm[:2]}:{hm[2:]}"
+
+
+def walk_backup(page, rep: dict, phone: bool, data: bool) -> None:
+    """⚙ Sao lưu: the data folder, then every file of data/backup/ as When · Size · Khôi phục (or the empty line)."""
+    if not expect(page, rep, JS_ROOT_HAS, "gear backup: the list did not open", "Thư mục dữ liệu:"):
+        return
+    info = page.evaluate("U.api.get('/backup')")
+    text, rows = page.inner_text("#modal-body"), page.evaluate(JS_BK_ROWS)
+    if f"Thư mục dữ liệu: {info['data_dir']}" not in text:
+        rep["missing"].append(f"gear backup: the data folder {info['data_dir']} is not on screen")
+    want = [backup_when(b["name"]) for b in info["backups"]]
+    if [r[0] for r in rows] != want or not all(BK_SIZE.fullmatch(r[1]) and r[2] == "Khôi phục" for r in rows):
+        rep["missing"].append(f"gear backup: the table shows {rows}, the folder has {want}")
+    if not all(BK_WHEN.fullmatch(w) for w in want) or (NO_BACKUPS in text) != (not rows):
+        rep["missing"].append(f"gear backup: wrong dates or empty line ({rows}, {NO_BACKUPS!r})")
+
+
+def backup_names(page) -> list:
+    return [b["name"] for b in page.evaluate("U.api.get('/backup')")["backups"]]
+
+
+def backup_restore(page, rep: dict, phone: bool) -> None:
+    """Sao lưu ngay adds one row; Khôi phục of that row asks again, then the page reloads (nothing is unfinished)."""
+    before = backup_names(page)
+    press(page, rep, "#gear-btn", "gear")
+    press(page, rep, '[data-sys="backup"]', "gear item backup", JS_ROOT_HAS, "Sao lưu ngay")
+    with step(rep, "backup_restore", commit=TABLES):
+        press(page, rep, '[data-act="backup-now"]', "backup Sao lưu ngay", JS_TOAST_HAS, "Đã sao lưu dữ liệu.")
+        expect(page, rep, JS_N_ROWS, "backup: Sao lưu ngay did not add a row", len(before) + 1)
+        new = sorted(set(backup_names(page)) - set(before))
+        if len(new) != 1:
+            rep["missing"].append(f"backup: Sao lưu ngay added {new}, expected one file")
+            return
+        see(page, rep, "gear backup", phone)
+        press(
+            page,
+            rep,
+            f'[data-act="backup-restore"][data-name="{new[0]}"]',
+            "backup Khôi phục",
+            JS_ROOT_HAS,
+            "Khôi phục bản sao lưu?",
+        )
+        if f"Dữ liệu sẽ quay về lúc {backup_when(new[0])}." not in page.inner_text("#modal-body"):
+            rep["missing"].append("backup: the question does not name the backup's time")
+        page.evaluate("window.__robotLoaded = 1")
+        press(
+            page,
+            rep,
+            '[data-act="confirm-ok"]',
+            "backup Khôi phục (hỏi lại)",
+            JS_TOAST_HAS,
+            f"Đã khôi phục bản {backup_when(new[0])}",
+        )
+        expect(page, rep, JS_RELOADED, "backup: the page did not reload after Khôi phục")
+        if page.evaluate("U.api.get('/health')").get("status") != "ok":
+            rep["missing"].append("backup: the app is not ok after Khôi phục")
+        if len(backup_names(page)) != len(before) + 2:  # the new file, and the safety copy of the data before it
+            rep["missing"].append("backup: Khôi phục did not leave a copy of the data it replaced")
+
+
 def walk_gear(page, rep: dict, phone: bool, data: bool) -> None:
     keys = page.evaluate("[...document.querySelectorAll('[data-sys]')].map(b => b.dataset.sys)")
     if len(keys) != 4:
@@ -188,11 +263,13 @@ def walk_gear(page, rep: dict, phone: bool, data: bool) -> None:
             rep["missing"].append(f"gear menu did not show {key}")
             continue
         press(page, rep, f'[data-sys="{key}"]', f"gear item {key}")
-        if key == "catalog":
+        if key in ("catalog", "backup"):
             if SOON in page.inner_text("#modal-root"):
                 rep["missing"].append(f"gear {key}: still '{SOON}'")
             elif how == "Esc":
-                walk_catalog(page, rep, phone, data)
+                (walk_catalog if key == "catalog" else walk_backup)(page, rep, phone, data)
+            elif key == "backup":
+                expect(page, rep, JS_ROOT_HAS, "gear backup: the list did not open", "Thư mục dữ liệu:")
         elif SOON not in page.inner_text("#modal-root"):
             rep["missing"].append(f"gear {key}: no '{SOON}'")
         see(page, rep, f"gear {key}", phone)
@@ -205,6 +282,8 @@ def walk_gear(page, rep: dict, phone: bool, data: bool) -> None:
             rep["missing"].append(f"{label}: modal did not close")
         elif (focus := page.evaluate("document.activeElement.id")) != "gear-btn":
             rep["missing"].append(f"{label}: focus is on {focus or 'the page'}, not the ⚙ button")
+    if not data:
+        backup_restore(page, rep, phone)
 
 
 def walk_theme(page, rep: dict, base: str) -> None:
@@ -366,6 +445,7 @@ MOVES_ROWS = {
     "rep_resumed",
     "rep_hidden",
     "stu_add",
+    "restore",
 }
 
 
@@ -2945,6 +3025,85 @@ def walk(browser, base: str, vp_name: str, vp: dict, shots: bool, data_dir: str 
     return rep
 
 
+def expected_rows(backup: Path) -> dict:
+    """Row counts tutor.db must have after restoring `backup`: its own, bar the sessions restore drops (R7)."""
+    with closing(sqlite3.connect(f"{backup.as_uri()}?mode=ro", uri=True)) as con:
+        got = {t: con.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in TABLES}
+        got["session"] = con.execute(
+            "SELECT count(*) FROM session WHERE status = 'committed'"
+            " OR EXISTS (SELECT 1 FROM attempt WHERE session_id = session.id)"
+        ).fetchone()[0]
+    return got
+
+
+def walk_restore(browser, base: str, data_dir: str) -> dict:
+    """--data, after both walks (they still need the seeded threads): Khôi phục is refused while work is unfinished,
+    Bỏ các việc này rồi khôi phục drops it, and tutor.db ends with the rows of the chosen backup."""
+    rep = {k: [] for k in ("console_errors", "page_errors", "dead", "missing", "forbidden", "overflow", "shots")}
+    rep["viewport"] = "restore"
+    root = base.removesuffix("v3/")
+    page = browser.new_context(viewport=DESK, color_scheme="light").new_page()
+    page.on(
+        "console",
+        lambda m: m.type == "error" and not m.text.startswith(NET_NOISE) and rep["console_errors"].append(m.text[:300]),
+    )
+    page.on("pageerror", lambda e: rep["page_errors"].append(str(e)[:300]))
+    page.goto(base)
+    with step(rep, "restore", commit=TABLES):
+        expect(page, rep, JS_NO_RUNNING, "restore: a thread is still running before the walk starts")
+        before = backup_names(page)
+        press(page, rep, "#gear-btn", "gear")
+        press(page, rep, '[data-sys="backup"]', "gear item backup", JS_ROOT_HAS, "Sao lưu ngay")
+        press(page, rep, '[data-act="backup-now"]', "backup Sao lưu ngay", JS_TOAST_HAS, "Đã sao lưu dữ liệu.")
+        expect(page, rep, JS_N_ROWS, "backup: Sao lưu ngay did not add a row", len(before) + 1)
+        new = sorted(set(backup_names(page)) - set(before))
+        if len(new) != 1:
+            rep["missing"].append(f"restore: Sao lưu ngay added {new}, expected one file")
+            return rep
+        api(root, "POST", "/students", {"name": "Phạm Robot", "grade": 7})  # a change the backup does not hold
+        open_ = [t for t in api(root, "GET", "/threads") if t["status"] in OPEN_STATES]
+        want = (
+            f"Còn {len(open_)} việc chưa xong ("
+            + ", ".join(f"{sum(t['graph'] == g for t in open_)} {word}" for g, word in UNFINISHED)
+            + ")."
+        )
+        if not open_:
+            rep["missing"].append("restore: --data left nothing unfinished, so the refusal is not tested")
+        press(
+            page,
+            rep,
+            f'[data-act="backup-restore"][data-name="{new[0]}"]',
+            "backup Khôi phục",
+            JS_ROOT_HAS,
+            "Khôi phục bản sao lưu?",
+        )
+        press(page, rep, '[data-act="confirm-ok"]', "backup Khôi phục (hỏi lại)", JS_ROOT_HAS, "Còn ")
+        text = page.inner_text("#modal-root")
+        if want not in text:
+            rep["missing"].append(f"restore: the refusal says {text!r}, expected {want!r}")
+        see(page, rep, "restore refusal", False)
+        if not page.evaluate(JS_ON, '[data-act="backup-drop"]') or "Bỏ các việc này rồi khôi phục" not in text:
+            rep["missing"].append("restore: Bỏ các việc này rồi khôi phục is not an enabled button")
+        page.evaluate("window.__robotLoaded = 1")
+        press(
+            page,
+            rep,
+            '[data-act="backup-drop"]',
+            "backup Bỏ các việc này rồi khôi phục",
+            JS_TOAST_HAS,
+            f"Đã khôi phục bản {backup_when(new[0])}",
+        )
+        expect(page, rep, JS_RELOADED, "restore: the page did not reload after Khôi phục")
+        if left := [t["thread_id"] for t in api(root, "GET", "/threads") if t["status"] in OPEN_STATES]:
+            rep["missing"].append(f"restore: unfinished threads left after Khôi phục: {left}")
+        got, want_rows = counts(data_dir), expected_rows(Path(data_dir, "backup", new[0]))
+        if diff := moved(want_rows, got):
+            rep["missing"].append(f"restore: tutor.db differs from backup {new[0]} (backup, now): {diff}")
+    page.wait_for_timeout(500)  # late errors
+    page.context.close()
+    return rep
+
+
 def fold(text: str) -> str:
     """Lowercase, no diacritics; đ has no decomposition, so it is mapped by hand."""
     plain = unicodedata.normalize("NFD", text.lower())
@@ -2999,6 +3158,8 @@ def check(url: str, args: argparse.Namespace) -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome")
         views = [walk(browser, base, n, vp, args.shots, data_dir) for n, vp in (("desktop", DESK), ("phone", PHONE))]
+        if data_dir:
+            views.append(walk_restore(browser, base, data_dir))
         browser.close()
     if data_dir:
         views.append(finish(data_dir))

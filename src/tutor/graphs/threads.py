@@ -1,4 +1,4 @@
-"""Review queue, date lock (C-28), cancel (C-15) and cleanup over the runner's threads (P3-T03, P3-T08)."""
+"""Review queue, date lock (C-28), cancel (C-15), cleanup and restore over the runner's threads (P3-T03, P3-T08)."""
 
 from contextlib import closing
 from datetime import date
@@ -18,6 +18,14 @@ class ThreadLocked(Exception):
     def __init__(self, reason: str, blocking_thread_id: str):
         super().__init__(reason)
         self.blocking_thread_id = blocking_thread_id
+
+
+class Unfinished(Exception):
+    """409 not_ready: a thread is still running or waiting for the teacher, so tutor.db must not be replaced."""
+
+    def __init__(self, threads: list[dict]):
+        super().__init__(f"Còn {len(threads)} việc chưa xong")
+        self.threads = threads
 
 
 def annotate(rows: list[dict]) -> list[dict]:
@@ -92,3 +100,13 @@ def cleanup(runner: Runner) -> dict:
     for tid in gone:
         runner.delete(tid)
     return {"removed": gone}
+
+
+def restore(runner: Runner, paths: DataPaths, name: str) -> dict:
+    """Restore backup `name` unless a thread is unfinished (R7, R19), then drop the committed threads' checkpoints."""
+    open_ = [{k: t[k] for k in ("thread_id", "graph", "status", "running")} for t in runner.list_threads()
+             if t["running"] or t["status"] in ("running", "awaiting_review", "failed")]  # fmt: skip
+    if open_:
+        raise Unfinished(open_)
+    out = repo.restore(paths.tutor_db, paths.backup, name)
+    return out | {"threads_removed": len(cleanup(runner)["removed"])}

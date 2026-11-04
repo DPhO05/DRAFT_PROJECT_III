@@ -205,6 +205,32 @@ def _prune(backup_dir: Path, keep_recent: int, keep_monthly: bool) -> None:
             p.unlink()
 
 
+def restore(db_path: Path, backup_dir: Path, name: str) -> dict:
+    """Put backup `name` back as tutor.db. Caller holds runner.lock and has checked no thread is unfinished (R7).
+
+    The chosen file is read into memory first: the safety backup below runs `_prune`, which may delete that very file.
+    """
+    src = backup_dir / name
+    if not _BACKUP_RE.fullmatch(name) or not src.is_file():
+        raise NotFound(f"Bản sao lưu {name}")
+    with closing(sqlite3.connect(":memory:")) as mem:
+        with closing(connect(src, readonly=True)) as f:
+            f.backup(mem)
+        safety = backup(db_path, backup_dir)
+        with closing(connect(db_path)) as dst:
+            mem.backup(dst)
+            dst.execute("PRAGMA journal_mode = WAL")  # the copy carries the backup's single-file mode
+    migrate(db_path, backup_dir, backup_first=False)
+    with closing(connect(db_path)) as conn:
+        with write_tx(conn):  # attempts are written only at commit ②, so a session without one has saved nothing
+            dropped = conn.execute(
+                "DELETE FROM session WHERE status <> 'committed'"
+                " AND NOT EXISTS (SELECT 1 FROM attempt WHERE session_id = session.id)"
+            ).rowcount  # fmt: skip
+        rows = sum(row_counts(conn).values())
+    return {"restored": name, "safety_backup": safety.name, "rows": rows, "sessions_dropped": dropped}
+
+
 def row_counts(conn: sqlite3.Connection) -> dict[str, int]:
     return {t: conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in TABLES}
 

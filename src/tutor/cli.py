@@ -675,6 +675,33 @@ def replay_cmd(
         lock.release()
 
 
+@cli.command("restore")
+def restore_cmd(
+    name: Annotated[str, typer.Argument(help="Tên file trong data/backup/, ví dụ tutor-2026-10-20-093000.db")],
+    data_dir: DataDir = None,
+) -> None:
+    """Khôi phục tutor.db từ một bản sao lưu (= ⚙ Sao lưu › Khôi phục). Bản hiện tại được sao lưu trước."""
+    paths = config.paths(data_dir)
+    lock = _hold_lock(paths)
+    try:
+        runner = make_runner(paths)
+        try:
+            out = threads.restore(runner, paths, name)
+        except repo.NotFound:
+            typer.echo(f"Không có bản sao lưu {name} trong {paths.backup}")
+            raise typer.Exit(1) from None
+        except threads.Unfinished as e:
+            for t in e.threads:
+                typer.echo(f"  {t['thread_id']} ({t['graph']}, {t['status']})")
+            typer.echo("Duyệt hoặc huỷ trong app trước")
+            raise typer.Exit(1) from None
+        finally:
+            runner.close()
+        typer.echo(f"Đã khôi phục {name} (bản hiện tại: {out['safety_backup']})")
+    finally:
+        lock.release()
+
+
 @cli.command("seed-dummy")
 def seed_cmd(
     dev: Annotated[bool, typer.Option("--dev", help="Bắt buộc: chỉ cho dev / test (C-32)")] = False,

@@ -129,3 +129,48 @@ def test_cancel_other_graph_leaves_tutor_db_alone_and_cleanup_removes_committed(
         assert [t["thread_id"] for t in r.list_threads()] == ["g4-c"]
     finally:
         r.close()
+
+
+# ---------------------------------------------------------------- restore (P8-T02, R7)
+def test_restore_refused_while_unfinished(env):
+    go, conn, r = env
+    out, _, _ = go(THREE)
+    paths = r._paths_for_test
+    b = repo.backup(paths.tutor_db, paths.backup)
+    before = repo.row_counts(conn)
+    with pytest.raises(threads.Unfinished) as e:
+        threads.restore(r, paths, b.name)
+    assert e.value.threads == [{"thread_id": out["thread_id"], "graph": "G1", "status": "awaiting_review",
+                                "running": False}]  # fmt: skip
+    assert repo.row_counts(conn) == before and list(paths.backup.iterdir()) == [b]  # no safety backup either
+
+
+@pytest.mark.parametrize("status", ["running", "awaiting_review", "failed"])
+def test_restore_refused_for_every_unfinished_status(paths, conn, status):
+    r = rmod.Runner(paths, {})
+    try:
+        r._set("g5-hs01", create=True, graph="G5", status=status)
+        r._set("g5-done", create=True, graph="G5", status="committed")
+        b = repo.backup(paths.tutor_db, paths.backup)
+        with pytest.raises(threads.Unfinished) as e:
+            threads.restore(r, paths, b.name)
+        assert [t["thread_id"] for t in e.value.threads] == ["g5-hs01"]
+    finally:
+        r.close()
+
+
+def test_restore_cleans_committed_threads(paths, conn):
+    r = rmod.Runner(paths, {"G4": gate_graph()})
+    try:
+        r.start("G4", "g4-a", {"x": 0}, {})
+        r.wait("g4-a")
+        r._set("g4-a", status="committed")
+        r.start("G4", "g4-b", {"x": 0}, {})
+        r.wait("g4-b")
+        r._set("g4-b", status="done")
+        b = repo.backup(paths.tutor_db, paths.backup)
+        out = threads.restore(r, paths, b.name)
+        assert out["threads_removed"] == 2 and out["restored"] == b.name and out["sessions_dropped"] == 0
+        assert r.list_threads() == []
+    finally:
+        r.close()
