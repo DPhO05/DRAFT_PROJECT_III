@@ -2,6 +2,8 @@
 
 A problem is {labels: [{step_idx, code, propagates_to}], proposals: [{step_idx, code}], items: {item_id: passed}}.
 Steps a label lists in propagates_to are not required, but flagging them (any code) is not an addition.
+
+Agent 00 (P8b): an answer is {id, expect, forbid, tools, tool_errors, unverified, stopped}; see `passed_00`.
 """
 
 from collections import Counter
@@ -79,3 +81,32 @@ def stability(runs: list[dict[str, dict]]) -> dict:
     pct = _rate(100 * changed, len(items))
     return {"runs": len(runs), "n_items": len(items), "items_changed_pct": pct, "n_problems": len(keys),
             "pass_k": _rate(passed, len(keys))}  # fmt: skip
+
+
+def _tools_ok(a: dict) -> bool:
+    """Expected tools called in order (others may sit between), none forbidden ("*" = any tool), no tool error."""
+    forbidden = bool(a["tools"]) if "*" in a["forbid"] else bool(set(a["forbid"]) & set(a["tools"]))
+    calls = iter(a["tools"])
+    return all(name in calls for name in a["expect"]) and not forbidden and a["tool_errors"] == 0
+
+
+def passed_00(a: dict) -> bool:
+    """Right tools, no unverified number in the reply, and the loop was not cut off."""
+    return _tools_ok(a) and a["unverified"] == 0 and a["stopped"] is None
+
+
+def score_00(answers: list[dict]) -> dict:
+    """One run of agent 00 over the questions that finished."""
+    n = len(answers)
+    return {
+        "n_questions": n,
+        "tools_ok": _rate(sum(map(_tools_ok, answers)), n),
+        "unverified_pct": _rate(100 * sum(a["unverified"] > 0 for a in answers), n),
+        "passed": _rate(sum(map(passed_00, answers)), n),
+    }
+
+
+def pass_k(runs: list[dict[str, bool]]) -> float | None:
+    """runs: {question id: passed} per run. A question missing from a run counts as failed (pass^k, k = runs)."""
+    keys = set().union(*runs)
+    return _rate(sum(all(r.get(k, False) for r in runs) for k in keys), len(keys))

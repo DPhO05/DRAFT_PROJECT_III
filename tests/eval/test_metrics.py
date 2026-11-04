@@ -82,3 +82,35 @@ def test_stability_items_changed_and_pass_k():
     s = metrics.stability(runs)
     # items: s01#1 r1, r2 stable; s01#2 r1 flips; s02#1 r1 missing in run 3 -> 2 of 4 changed
     assert s == {"runs": 3, "n_items": 4, "items_changed_pct": 50.0, "n_problems": 3, "pass_k": 1 / 3}
+
+
+def ans(expect, tools, forbid=(), **kw):
+    return {"id": "q", "expect": list(expect), "forbid": list(forbid), "tools": list(tools),
+            "tool_errors": 0, "unverified": 0, "stopped": None} | kw  # fmt: skip
+
+
+def test_passed_00_needs_expected_tools_in_order():
+    assert metrics.passed_00(
+        ans(["rank_problems", "propose_worksheet"], ["rank_problems", "find_problems", "propose_worksheet"])
+    )
+    assert not metrics.passed_00(ans(["rank_problems", "propose_worksheet"], ["propose_worksheet", "rank_problems"]))
+    assert not metrics.passed_00(ans(["student_profile"], []))
+
+
+def test_passed_00_fails_on_forbidden_errors_numbers_and_stop():
+    assert metrics.passed_00(ans([], [], ["*"]))
+    assert not metrics.passed_00(ans([], ["list_students"], ["*"]))
+    assert not metrics.passed_00(ans(["list_students"], ["list_students", "student_profile"], ["student_profile"]))
+    assert not metrics.passed_00(ans(["list_students"], ["list_students"], tool_errors=1))
+    assert not metrics.passed_00(ans(["list_students"], ["list_students"], unverified=1))
+    assert not metrics.passed_00(ans(["list_students"], ["list_students"], stopped="max_tool_turns"))
+
+
+def test_score_00():
+    s = metrics.score_00([ans(["list_students"], ["list_students"]), ans(["list_students"], [], unverified=2)])
+    assert s == {"n_questions": 2, "tools_ok": 0.5, "unverified_pct": 50.0, "passed": 0.5}
+
+
+def test_pass_k_missing_counts_as_failed():
+    assert metrics.pass_k([{"a": True, "b": True}, {"a": True}]) == 0.5
+    assert metrics.pass_k([]) is None

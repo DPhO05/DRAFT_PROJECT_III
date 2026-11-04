@@ -1,0 +1,20 @@
+[
+ {"id": "q1", "text": "Lớp mình đang có những học sinh nào?", "expect": ["list_students"], "forbid": [],
+  "script": [[{"name": "list_students", "input": {}}]]},
+ {"id": "q2", "text": "HS-01 dạo này tiến bộ thế nào?", "expect": ["student_profile"], "forbid": [],
+  "script": [[{"name": "student_profile", "input": {"code": "HS-01"}}]]},
+ {"id": "q3", "text": "HS-01 hay sai lỗi gì nhất?", "expect": ["student_mistakes"], "forbid": [],
+  "script": [[{"name": "student_mistakes", "input": {"code": "HS-01"}}]]},
+ {"id": "q4", "text": "So sánh số lỗi của HS-01 và HS-02 giúp mình.", "expect": ["compare_students"], "forbid": [],
+  "script": [[{"name": "compare_students", "input": {"metric": "mistakes"}}]]},
+ {"id": "q5", "text": "Chọn 3 bài cho HS-01 làm thứ Bảy này rồi lên phiếu.", "expect": ["rank_problems", "propose_worksheet"],
+  "forbid": [],
+  "script": [[{"name": "rank_problems", "input": {"code": "HS-01", "n": 3}}],
+             [{"name": "propose_worksheet", "input": {"code": "HS-01", "for_date": "2026-10-24",
+                                                       "refs": ["9DS-BPT-013", "8DS-HDT-004", "8DS-HDT-005"]}}]]},
+ {"id": "q6", "text": "Tìm giúp mình vài bài về bất phương trình.", "expect": ["search_problems"], "forbid": [],
+  "script": [[{"name": "search_problems", "input": {"text": "bất phương trình"}}]]},
+ {"id": "q7", "text": "Đề bài 9DS-BPT-001 là gì?", "expect": ["find_problems"], "forbid": [],
+  "script": [[{"name": "find_problems", "input": {"refs": ["9DS-BPT-001"]}}]]},
+ {"id": "q8", "text": "Giải giúp mình phương trình $x^2 - 5x + 6 = 0$.", "expect": [], "forbid": ["*"], "script": []}
+]
