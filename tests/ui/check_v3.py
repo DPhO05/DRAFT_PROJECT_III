@@ -310,7 +310,16 @@ SAVE_IMPORT = ("problem", "problem_kc", "rubric")
 # rubric :488
 SEED_LOG = FIX.parent / "llm.jsonl"  # check.seed() copies it to logs/llm.jsonl: the app's own calls come after it
 # steps that must move rows, or the counts are blind (the Sửa save of a bank problem may only update a row)
-MOVES_ROWS = {"chat_attach", "grade_save", "ws_create", "ws_replace", "bank_import", "rep_approve", "rep_resumed"}
+MOVES_ROWS = {
+    "chat_attach",
+    "grade_save",
+    "ws_create",
+    "ws_replace",
+    "bank_import",
+    "rep_approve",
+    "rep_resumed",
+    "rep_hidden",
+}
 
 
 def counts(data_dir: str) -> dict:
@@ -1237,6 +1246,10 @@ REP_AGAIN = "Mỗi kỳ chỉ duyệt một lần."
 REP_EMPTY = "Chọn một báo cáo bên trái, hoặc tạo báo cáo mới"
 REP_NOT_READY = "chưa có buổi nào đã duyệt"
 REP_WAITING = "(bài 23/10 còn chờ duyệt)"
+REP_BUSY = "Báo cáo đang được xử lý. Thử lại sau giây lát."
+REP_STALE = "Có buổi mới được duyệt trong kỳ này. Bỏ bản nháp rồi tạo lại."
+REP_GONE = "Việc này đã xong"
+REP_NEED_ONE = "Cần ít nhất một câu."
 MAKE = '[data-act="rep-make"]'
 APPROVE = '[data-act="rep-approve"]'
 SENT_EDIT = '#rep-doc [data-act="sent-edit"], #rep-doc [data-act="sent-del"], #rep-doc [data-act="sent-add"]'
@@ -1256,6 +1269,10 @@ JS_REP_COLS = "() => getComputedStyle(document.querySelector('.rep-layout')).gri
 JS_REP_SENTS = "() => [...document.querySelectorAll('#rep-doc .rep-s')].map(e => e.innerText.trim())"
 JS_REP_ITEM = 't => !!document.querySelector(`.rep-item[data-tid="${t}"]`)'
 JS_REP_NO_ITEM = 't => !document.querySelector(`.rep-item[data-tid="${t}"]`)'
+JS_REP_NAME = """n => { const s = document.getElementById('rep-student');
+  return !!s && !s.disabled && s.selectedOptions[0]?.textContent === n; }"""
+JS_REP_KIND_FOCUS = "() => document.activeElement?.dataset?.act === 'rep-kind'"
+JS_REP_DELS = "n => document.querySelectorAll('#rep-doc [data-act=\"sent-del\"]').length === n"
 JS_PRINT_HAS = "t => document.getElementById('print-root').textContent.includes(t)"
 JS_PRINTED = "() => window.__printed > 0"
 # POST /api/reports answers "no session in the week, bài 23/10 waits" (the form's weeks slide with today's date)
@@ -1450,20 +1467,114 @@ def rep_resumed(page, rep: dict, data_dir: str, root: str, reqs: list, sid: int)
     see_rep(page, rep, "report resumed", False)
 
 
-@counted()
-def rep_discard(page, rep: dict, root: str, sid: int, phone: bool) -> None:
-    """A draft of another period (API): Bỏ bản nháp asks, drops it from the list, the thread is gone, tutor.db as is."""
+def gets(reqs: list, tid: str) -> int:
+    return sum(m == "GET" and f"/api/threads/{tid}?view=teacher" in u for m, u, _ in reqs)
+
+
+def rep_week_draft(page, rep: dict, root: str, sid: int) -> str | None:
+    """A week draft made over the API, opened from Bản nháp chờ duyệt; its thread id (None when it is not listed)."""
     tid = api(root, "POST", "/reports", {"student_id": sid, "period_kind": "week", "period_start": REP_WEEK})[
         "thread_id"
     ]
     wait_idle(root, tid)
     press(page, rep, "#tab-tro-ly", "tab tro-ly")
     rep_open(page, rep)
-    item = f'.rep-item[data-tid="{tid}"]'
     if not expect(page, rep, JS_REP_ITEM, "report: the week draft is not in Bản nháp chờ duyệt", tid):
+        return None
+    press(page, rep, f'.rep-item[data-tid="{tid}"]', "report mở bản nháp tuần", JS_REP_DRAFT, 1)
+    return tid
+
+
+def rep_pause(page, rep: dict, root: str, reqs: list, tid: str, approve: bool) -> None:
+    """A draft on a hidden tab stops polling; back on the tab it polls again and sees an approval made meanwhile."""
+    press(page, rep, "#tab-tro-ly", "tab tro-ly")
+    page.wait_for_timeout(1600)  # the poll already in flight finishes, then stops
+    seen = gets(reqs, tid)
+    page.wait_for_timeout(3000)
+    if n := gets(reqs, tid) - seen:
+        rep["missing"].append(f"report pause: {n} polls of the open draft while its tab is hidden, want 0")
+    puts = len(sent_puts(reqs, tid))
+    if approve:
+        api(root, "POST", f"/threads/{tid}/resume")  # approved elsewhere while the tab is hidden
+    seen = gets(reqs, tid)
+    press(page, rep, "#tab-bao-cao", "tab bao-cao")
+    if approve:
+        expect(page, rep, JS_REP_DONE, "report pause: the hidden draft did not turn green once the tab came back")
+        if page.locator(SENT_EDIT).count() or len(sent_puts(reqs, tid)) != puts:
+            rep["missing"].append("report pause: an approved draft still has Sửa / Bỏ / + Thêm câu, or sent a PUT")
+    else:
+        page.wait_for_timeout(2500)
+        if gets(reqs, tid) - seen < 2:
+            rep["missing"].append("report pause: the draft did not poll again after its tab came back")
+
+
+@counted()
+def rep_prefill(page, rep: dict, root: str, sid: int, name: str, phone: bool) -> None:
+    """A cold page: REPORTS.prefill(id) before the tab was ever opened still shows that student once the list is in."""
+    page.goto(f"{root}v3/?cold={'phone' if phone else 'desk'}#tro-ly")
+    page.evaluate("id => REPORTS.prefill(id)", sid)
+    expect(page, rep, JS_REP_NAME, f"report prefill: the form does not show {name} after a cold prefill", name)
+    expect(page, rep, JS_REP_KIND_FOCUS, "report prefill: the Kỳ buttons took no focus")
+    see_rep(page, rep, "report prefill", phone)
+
+
+def refuse(body: dict, route, _request) -> None:
+    route.fulfill(status=409, json=body)
+
+
+@counted()
+def rep_refused(page, rep: dict, reqs: list) -> None:
+    """Duyệt báo cáo refused with 409: a raw server text never shows, the stale-draft words do, the draft stays."""
+    tid = page.get_attribute("#rep-doc .rep-doc", "data-thread")
+    again = re.compile(rf"/api/threads/{tid}/resume$")
+    for said, want in ((tid, REP_BUSY), (REP_STALE, REP_STALE)):
+        body = {"error": {"code": "not_ready", "message": said, "detail": {"reason": said}}}
+        page.route(again, functools.partial(refuse, body))
+        press(page, rep, APPROVE, "report Duyệt khi bị từ chối", JS_ROOT_HAS, "Vẫn duyệt?")
+        press(page, rep, '[data-act="confirm-ok"]', "report Vẫn duyệt bị từ chối", JS_TOAST_HAS, want)
+        page.unroute(again)
+        if tid in page.inner_text("#toasts"):
+            rep["missing"].append(f"report refused: a toast shows the thread id {tid}")
+    if page.locator("#rep-doc .rep-doc.is-draft .sent").count() < 1:
+        rep["missing"].append("report refused: the draft is gone after a refused Duyệt")
+
+
+@counted(commit=("report",))
+def rep_hidden(page, rep: dict, root: str, reqs: list, sid: int, phone: bool) -> None:
+    """The last free period: a draft open at 390 px, its tab hidden, approved over the API meanwhile."""
+    if not (tid := rep_week_draft(page, rep, root, sid)):
         return
-    press(page, rep, item, "report mở bản nháp tuần", JS_REP_DRAFT, 1)
     see_rep(page, rep, "report week draft", phone)
+    rep_pause(page, rep, root, reqs, tid, True)
+    see_rep(page, rep, "report hidden approved", phone)
+
+
+@counted()
+def rep_gone(page, rep: dict, root: str, sid: int, phone: bool) -> None:
+    """A draft dropped elsewhere while it is open: the right side empties and the list drops it, no stale card."""
+    if not (tid := rep_week_draft(page, rep, root, sid)):
+        return
+    api(root, "POST", f"/threads/{tid}/cancel")
+    expect(page, rep, JS_REP_HAS, f"report gone: the right side did not go back to '{REP_EMPTY}'", REP_EMPTY)
+    expect(page, rep, JS_REP_NO_ITEM, "report gone: the dropped draft is still in the list", tid)
+    if REP_GONE in page.inner_text("#panel-bao-cao"):
+        rep["missing"].append(f"report gone: '{REP_GONE}' and a stale button are on the tab")
+    see_rep(page, rep, "report gone", phone)
+
+
+@counted()
+def rep_discard(page, rep: dict, root: str, reqs: list, sid: int, phone: bool) -> None:
+    """A draft of another period (API): hidden tab, no sentence left (Duyệt báo cáo off), then Bỏ bản nháp."""
+    if not (tid := rep_week_draft(page, rep, root, sid)):
+        return
+    see_rep(page, rep, "report week draft", phone)
+    rep_pause(page, rep, root, reqs, tid, False)
+    n = page.locator('#rep-doc [data-act="sent-del"]').count()
+    for k in range(n):
+        press(page, rep, '#rep-doc [data-act="sent-del"] >> nth=0', "report Bỏ câu", JS_REP_DELS, n - k - 1)
+    expect(page, rep, JS_OFF, "report discard: Duyệt báo cáo stayed on with no sentence", APPROVE)
+    if REP_NEED_ONE not in page.inner_text("#rep-doc") or (sent_puts(reqs, tid) or [{}])[-1].get("sentences") != []:
+        rep["missing"].append(f"report discard: want '{REP_NEED_ONE}' and a last PUT with no sentence")
     press(page, rep, '[data-act="rep-discard"]', "report Bỏ bản nháp", JS_ROOT_HAS, "Bỏ bản nháp")
     press(page, rep, '[data-act="confirm-ok"]', "report đồng ý bỏ", JS_REP_NO_ITEM, tid)
     if REP_EMPTY not in page.inner_text("#rep-doc"):
@@ -1474,23 +1585,27 @@ def rep_discard(page, rep: dict, root: str, sid: int, phone: bool) -> None:
 
 
 def walk_reports(page, rep: dict, phone: bool, data_dir: str, root: str) -> None:
-    """The Báo cáo tab, after An's 20/10 session is saved. The phone walks the approved period and a discard."""
+    """The Báo cáo tab, after An's 20/10 session is saved. The phone walks the approved period and a hidden draft."""
     reqs: list = []
     page.on("request", lambda r: reqs.append((r.method, r.url, r.post_data)))
-    sid = {s["name"]: s["id"] for s in api(root, "GET", "/students?archived=true")}[PEOPLE[0]]
+    ids = {s["name"]: s["id"] for s in api(root, "GET", "/students?archived=true")}
+    sid = ids[PEOPLE[0]]
+    rep_prefill(page, rep, root, ids[PEOPLE[1]], PEOPLE[1], phone)
     if phone:
         rep_again(page, rep, phone)
-        rep_discard(page, rep, root, sid, phone)
+        rep_hidden(page, rep, root, reqs, sid, phone)
         return
     if not rep_make(page, rep, phone) or not rep_edit(page, rep, reqs, phone):
         return
+    rep_refused(page, rep, reqs)
     if not rep_approve(page, rep, data_dir, reqs, phone):
         return
     rep_pdf(page, rep, phone)
     rep_again(page, rep, phone)
     rep_empty(page, rep, phone)
     rep_resumed(page, rep, data_dir, root, reqs, sid)
-    rep_discard(page, rep, root, sid, phone)
+    rep_gone(page, rep, root, sid, phone)
+    rep_discard(page, rep, root, reqs, sid, phone)
 
 
 BANK_LABELS = ("Tìm", "Chủ đề", "Lớp", "Kỹ năng", "Mức", "Xoá lọc")
