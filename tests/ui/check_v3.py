@@ -1219,7 +1219,7 @@ def llm_lines(data_dir: str, agent: str) -> int:
 
 @counted(may=START_GRADING)
 def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list, before: tuple) -> None:
-    """📎 lists data/inbox/; the chosen file rides with the message; ask_grading pre-fills the guess.
+    """📎 lists the inbox and names its real folder; the chosen file rides with the message; ask_grading pre-fills the guess.
 
     The desktop then grades the file for real (the grading walk uses its card); the phone has its own file and day."""
     day = 26 if phone else 25
@@ -1233,7 +1233,7 @@ def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list, before:
     modal = page.inner_text("#modal-body")
     rep["missing"] += [
         f"chat 📎: no '{w}'"
-        for w in (f"Bài của {PEOPLE[0]} · {day}/10/2026", "Chưa rõ học sinh, ngày học")
+        for w in (f"Bài của {PEOPLE[0]} · {day}/10/2026", "Chưa rõ học sinh, ngày học", f"{data_dir}/inbox/")
         if w not in modal
     ]
     for name, label in (("s01.tex", "đã chấm"), ("bai-scan.pdf", "chưa nhận PDF")):
@@ -3486,6 +3486,8 @@ def bank_import(page, rep: dict, phone: bool, data_dir: str, reqs: list, files: 
         return
     if "<u>thử</u>" not in (listed := page.inner_text("#modal-body")) or bad not in listed:
         rep["missing"].append("bank import: a file name or title with HTML is not shown as plain text")
+    if f"{data_dir}/inbox/bank/" not in listed:
+        rep["missing"].append(f"bank import: the files list does not name the real folder {data_dir}/inbox/bank/")
     see(page, rep, "bank import files", phone)
     Path(data_dir, "inbox", "bank", bad).write_text("% Hỏng\nkhông còn bài nào\n", encoding="utf-8")
     press(page, rep, f'{file_row(bad)} [data-act="imp-read"]', f"bank đọc {bad}", JS_ROOT_HAS, f"Không nạp được {bad}")
@@ -3593,6 +3595,9 @@ def walk_bank(page, rep: dict, phone: bool, data_dir: str | None, files: tuple[s
         rep["missing"].append(f"bank: an empty bank should say '0 bài khớp' and '{NO_MATCH}'")
     if loaded and not data_dir:
         press(page, rep, '[data-act="b-import"]', "bank Nạp bài mới", JS_ROOT_HAS, "Chưa có file .tex nào")
+        real = page.evaluate("U.api.get('/backup')")["data_dir"] + "/inbox/bank/"
+        if real not in page.inner_text("#modal-body"):
+            rep["missing"].append(f"bank import: the empty list does not name the real folder {real}")
         page.keyboard.press("Escape")
         expect(page, rep, JS_NO_MODAL, "bank import: Esc did not close")
 

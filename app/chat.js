@@ -245,9 +245,9 @@
   }
   ACT['c-attach-clear'] = function () { attached = null; renderAttach(); };
   ACT['c-attach'] = function () {
-    U.api.get('/sessions/inbox').then(function (files) {
-      inbox = files;
-      U.modal({ title: 'Đính kèm bài làm', body: '<p>Bài nộp nằm trong thư mục <b>data/inbox/</b>:</p>' + (files.length ? '<div class="stack">' + files.map(function (f, i) {
+    Promise.all([U.api.get('/sessions/inbox'), U.api.get('/backup')]).then(function (r) {
+      var files = inbox = r[0];
+      U.modal({ title: 'Đính kèm bài làm', body: '<p>Bài nộp nằm trong thư mục <b>' + U.esc(r[1].data_dir) + '/inbox/</b>:</p>' + (files.length ? '<div class="stack">' + files.map(function (f, i) {
         var g = f.guess, label = f.submitted_by.length ? 'đã chấm' : f.kind === 'pdf' ? 'chưa nhận PDF' : 'Chọn';
         return '<div class="file-row"><span class="grow">📄 <b>' + U.esc(f.path) + '</b><br><span class="small muted">' +
           (g ? 'Bài của ' + U.esc(nameOf(g.student_id)) + ' · ' + U.esc(U.d(g.held_on)) : 'Chưa rõ học sinh, ngày học') + '</span></span>' +

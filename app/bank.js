@@ -199,7 +199,7 @@
   };
 
   // ---- import (G2): pick a file, read it, fill the missing skills, save ----
-  var imp = null, IMP_422 = 'File cần là .tex trong thư mục data/inbox/bank/ và có ít nhất một khối \\begin{problem}.';
+  var imp = null, IMP_422 = 'File cần là .tex trong thư mục inbox/bank và có ít nhất một khối \\begin{problem}.';
 
   function live(s) { return s === imp && s.root.isConnected; }
   function impDraw(s, focusSel) {
@@ -218,8 +218,9 @@
   function filesHTML(s) {
     if (s.files === null) return '<p class="muted" role="status">Đang tải…</p>';
     if (!s.files) return '<p class="err" role="alert">Không đọc được thư mục bài. Thử lại sau.</p>';
-    if (!s.files.length) return '<div class="empty">Chưa có file .tex nào trong thư mục <b>data/inbox/bank/</b>.</div>';
-    return '<p>File .tex trong thư mục <b>data/inbox/bank/</b>:</p><div class="stack" style="gap:6px">' + s.files.map(function (b, i) {
+    var dir = '<b>' + U.esc(s.dir) + '/inbox/bank/</b>';
+    if (!s.files.length) return '<div class="empty">Chưa có file .tex nào trong thư mục ' + dir + '.</div>';
+    return '<p>File .tex trong thư mục ' + dir + ':</p><div class="stack" style="gap:6px">' + s.files.map(function (b, i) {
       var off = b.status === 'imported' || b.status === 'empty';
       return '<div class="file-row"><span class="grow"><b>' + U.esc(b.file) + '</b><br><span class="small muted">' + U.esc(b.title || 'Chưa có tiêu đề') + ' · ' + b.n_problems + ' bài' +
         (b.status === 'partly' ? ' (' + b.n_new + ' bài mới)' : '') + (b.imported_at ? ' · đã nạp ' + U.esc(U.d(b.imported_at)) : '') + '</span></span>' +
@@ -277,9 +278,9 @@
 
   function impFiles(s) {
     s.stage = 'files'; s.files = null; impDraw(s);
-    U.api.get('/bank/inbox').catch(function () { return false; }).then(function (l) {
+    Promise.all([U.api.get('/bank/inbox'), U.api.get('/backup')]).catch(function () { return [false]; }).then(function (r) {
       if (!live(s) || s.stage !== 'files') return;
-      s.files = l; impDraw(s, '[data-act="imp-read"]:not(:disabled)');
+      s.files = r[0]; s.dir = r[1] && r[1].data_dir; impDraw(s, '[data-act="imp-read"]:not(:disabled)');
     });
   }
   function impFail(s, why, retry) { s.stage = 'error'; s.err = why; s.retry = retry || ''; impDraw(s, '[data-act="imp-retry"], [data-act="imp-back"]'); }
