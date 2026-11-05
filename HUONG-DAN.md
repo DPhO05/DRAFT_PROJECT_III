@@ -75,7 +75,7 @@ Nếu Terminal hiện lỗi, chụp màn hình gửi người cài.
 
 ## 6. Nạp ngân hàng bài
 
-1. Bộ bài mẫu có sẵn trong `GiaSuToan-app/data/dummy/bank` và `GiaSuToan-app/data/dummy/bank-mo-rong`. Chép các file `.tex` trong hai thư mục đó vào `GiaSuToan/inbox/bank`, rồi làm tiếp từ bước 10.
+1. Bộ bài mẫu có sẵn trong `GiaSuToan-app/data/dummy/bank` và `GiaSuToan-app/data/dummy/bank-mo-rong`. Chép các file `.tex` trong hai thư mục đó vào `GiaSuToan/inbox/bank`, rồi làm tiếp từ bước 10. Mỗi file nạp riêng: với từng file, bấm **Nạp bài mới**, **Đọc file**, rồi **Lưu vào ngân hàng**.
 2. Soạn bài trong file `.tex`. Mỗi bài có dạng sau:
 
    ```
