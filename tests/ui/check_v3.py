@@ -807,6 +807,8 @@ JS_LAST_BOT = """() => { const b = [...document.querySelectorAll('#chat-msgs .ms
 JS_LIST_HAS = "() => document.querySelectorAll('#conv-list .conv-item').length > 0"
 JS_IDLE = "() => !document.querySelector('.asst.is-busy')"
 JS_RETRY = "() => !!document.querySelector('#chat-msgs .bubble-err [data-act=\"c-retry\"]')"
+JS_KEYS_BTN = "() => !!document.querySelector('#chat-msgs .bubble-err [data-act=\"c-keys\"]')"
+KEY_REPLY = "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để kiểm tra khoá."
 JS_SOL_OPEN = "() => !document.querySelector('#chat-msgs .pcard .sol').hidden"
 JS_TWO_TEX = "() => document.querySelectorAll('#chat-msgs .pcard mjx-container').length >= 2"
 JS_CARDS_OPEN = "() => !!document.querySelector('.remind-cards')"
@@ -1188,6 +1190,33 @@ def chat_retry(page, rep: dict, phone: bool) -> None:
 
 
 @counted()
+def chat_bad_key(page, rep: dict, phone: bool) -> None:
+    """A refused key ends the stream with code bad_key: the red bubble says what to do and Mở Cài đặt opens ⚙ Cài đặt."""
+
+    def refused(route) -> None:  # the start event keeps the open conversation's id, so later turns stay in it
+        cid = route.request.post_data_json["conversation_id"]
+        events = ({"type": "start", "conversation_id": cid, "message_id": "m-robot"},
+                  {"type": "error", "code": "bad_key", "message": "x"})  # fmt: skip
+        route.fulfill(content_type="application/x-ndjson", body="".join(json.dumps(e) + "\n" for e in events))
+
+    page.route(MSGS, refused)
+    mine = page.locator("#chat-msgs .msg-me").count()
+    page.fill("#chat-input", "thử khoá")
+    page.press("#chat-input", "Enter")
+    expect(page, rep, JS_KEYS_BTN, "chat bad_key: the red bubble has no Mở Cài đặt button")
+    if KEY_REPLY not in page.inner_text("#chat-msgs .bubble-err"):
+        rep["missing"].append(f"chat bad_key: the red bubble says {page.inner_text('#chat-msgs .bubble-err')!r}")
+    see_chat(page, rep, "chat bad_key", phone)
+    press(page, rep, '#chat-msgs .bubble-err [data-act="c-keys"]', "chat bubble Mở Cài đặt", JS_ROOT_HAS, "Lưu cài đặt")
+    close_overlay(page)
+    page.unroute(MSGS)
+    shown = msgs(page)
+    press(page, rep, '[data-act="c-retry"]', "chat Gửi lại (bad_key)", JS_REPLIED, shown - 1)
+    if page.locator(".bubble-err").count() or page.locator("#chat-msgs .msg-me").count() != mine + 1:
+        rep["missing"].append("chat bad_key: Gửi lại left the red bubble or added a second tutor bubble")
+
+
+@counted()
 def chat_reload(page, rep: dict, phone: bool) -> None:
     """After a reload the conversation is in the list and opens with every message; the phone gets a drawer."""
     count = page.locator("#chat-msgs .msg").count()
@@ -1299,6 +1328,7 @@ def walk_chat(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> 
         chat_ask(page, rep, phone)
     chat_keys(page, rep, reqs)
     chat_retry(page, rep, phone)
+    chat_bad_key(page, rep, phone)
     if data_dir:
         chat_reload(page, rep, phone)
         chat_attach(page, rep, phone, data_dir, reqs, before)
