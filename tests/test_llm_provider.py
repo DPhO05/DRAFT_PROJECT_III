@@ -124,3 +124,11 @@ def test_missing_openai_key_points_to_settings():
     with pytest.raises(llm.LLMUnavailable) as e:
         llm.OpenAIBackend()
     assert str(e.value) == "Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại"
+
+
+def test_clients_time_out(monkeypatch):
+    """A hung call ends after CALL_TIMEOUT s, not the SDK's 600 s, and then counts as a network retry."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-" + "c" * 30)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    assert llm.OpenAIBackend().client.timeout == llm.CALL_TIMEOUT == 120
+    assert llm.AnthropicBackend().client.timeout == llm.CALL_TIMEOUT
