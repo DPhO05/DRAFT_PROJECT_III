@@ -97,10 +97,11 @@ def test_rewrite_once_then_drop(ro):
     [
         ((None, None), ["ok", "dropped", "dropped"]),
         ((out(("Em đã làm 2 bài.", "F02")),), ["ok", "rewritten", "dropped"]),
+        ((llm.LLMUnavailable("GPT từ chối: x"),), ["ok", "dropped", "dropped"]),
     ],
 )
 def test_failed_rewrite_drops(ro, again, status):
-    """Rewrite off schema twice: every failed sentence dropped; one sentence short: the missing one dropped."""
+    """Rewrite off schema twice or unavailable: every failed sentence dropped; one sentence short: that one dropped."""
     fake(DRAFT, *again)
     r = reporter.run(session(ro).call, **MONTH, ctx=CTX)
     assert [a["status"] for a in r["audit"]] == status

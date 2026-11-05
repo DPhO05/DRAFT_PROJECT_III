@@ -105,8 +105,8 @@ def run(
         )
         try:
             again = llm.call("09", [INSTRUCTIONS], ReportOut, extra=[*extra, ask], context=ctx).sentences
-        except llm.SchemaFlag:
-            pass  # every failed sentence is dropped
+        except (llm.SchemaFlag, llm.LLMUnavailable):
+            pass  # every failed sentence is dropped; the checked ones keep the paid draft
     redo = {k: check(s) for k, s in zip(failed, again, strict=False)}  # a sentence with no rewrite is dropped
     sentences, audit = [], []
     for k, (s, ids, flag) in enumerate(checked):
