@@ -207,6 +207,16 @@ def test_card_stages(env):
     assert (c["report_id"], c["sentences"], c["n_flagged"]) == (None, [], 0)
     assert (c["student_id"], c["period_kind"], c["period_start"]) == (w["an"], "week", "2026-10-12")
     assert "boom" not in json.dumps(c)
+    assert c["error_words"] == "Gặp lỗi không lường trước."
+
+
+def test_failed_card_names_a_refused_key(env):
+    """Thử lại cannot help with a bad key, so the red box says to open ⚙ Cài đặt."""
+    client, w = env
+    llm.set_backend(FakeLLM({"09": llm.KeyRejected("Khoá API bị từ chối: 401")}))
+    _, tid = start(client, w["an"])
+    c = card(client, tid, "failed")
+    assert c["error_words"] == "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức (mở ⚙ Cài đặt)."
 
 
 @pytest.mark.parametrize(
@@ -223,6 +233,7 @@ def test_card_stage_map(status, draft, stage):
     got = report.card(row, state)
     assert got["stage"] == stage
     assert got["report_id"] == (7 if stage == "saved" else None)
+    assert (got["error_words"] is None) == (stage != "failed")
 
 
 def test_pending_reports(env):

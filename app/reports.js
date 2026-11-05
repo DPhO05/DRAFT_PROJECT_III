@@ -157,7 +157,7 @@
     return '<article class="rep-doc is-draft" aria-label="Báo cáo">' + head(c, '') + (st === 'writing' ? '<p class="tool-line" role="status">Đang viết bản nháp…</p>'
       : st === 'saving' ? '<p class="tool-line" role="status">Đang lưu…</p>'
       : st === 'saved' ? '<p class="tool-line" role="status">Đã duyệt. Báo cáo nằm trong danh sách “Đã duyệt” bên trái.</p>'
-      : '<div class="callout callout-crit" role="alert"><p id="rep-failed" tabindex="-1"><b>Chưa làm xong bản nháp.</b> Chưa có gì được lưu. Thầy/cô bấm Thử lại, hoặc bỏ bản nháp rồi tạo lại.</p><div class="row">' +
+      : '<div class="callout callout-crit" role="alert"><p id="rep-failed" tabindex="-1"><b>Chưa làm xong bản nháp.</b> ' + (c.error_words ? U.esc(c.error_words) + ' ' : '') + 'Chưa có gì được lưu. Thầy/cô bấm Thử lại, hoặc bỏ bản nháp rồi tạo lại.</p><div class="row">' +
         btn('rep-retry', 'Thử lại', s.retrying ? 'disabled' : '', 'btn-primary') + btn('rep-discard', 'Bỏ bản nháp') + '</div></div>') + '</article>';
   }
   function drawDoc(s, focusSel) {

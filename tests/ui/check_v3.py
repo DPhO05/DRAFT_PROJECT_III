@@ -2023,6 +2023,7 @@ REP_NEED_ONE = "Cần ít nhất một câu."
 REP_FACTS, REP_FACTS_CLEAN = "Em làm tốt (F01, F03) và F02 rất đều.", "Em làm tốt và rất đều."
 REP_TYPED = "câu gõ dở chưa lưu"
 REP_FAILED_CHIP = "chưa làm xong"
+REP_KEY_WORDS = "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức (mở ⚙ Cài đặt)."
 MAKE = '[data-act="rep-make"]'
 APPROVE = '[data-act="rep-approve"]'
 SENT_EDIT = '#rep-doc [data-act="sent-edit"], #rep-doc [data-act="sent-del"], #rep-doc [data-act="sent-add"]'
@@ -2389,7 +2390,7 @@ def failed_poll(route) -> None:
     r = route.fetch()
     j = r.json()
     if j.get("card", {}).get("kind") == "report":
-        j["card"]["stage"] = "failed"
+        j["card"] |= {"stage": "failed", "error_words": REP_KEY_WORDS}
     route.fulfill(response=r, json=j)
 
 
@@ -2418,6 +2419,7 @@ def rep_retry(page, rep: dict, root: str, sid: int, phone: bool) -> None:
         page.route(REP_LIST, failed_list)
         page.route(resume, lambda r: r.fulfill(status=202, json={}))
         expect(page, rep, JS_REP_HAS, "report retry: the failed draft has no Thử lại", "Thử lại")
+        expect(page, rep, JS_REP_HAS, "report retry: the red box does not show error_words", REP_KEY_WORDS)
         want = f"report retry: the list chip does not say '{REP_FAILED_CHIP}'"
         expect(page, rep, JS_REP_ITEM_HAS, want, [tid, REP_FAILED_CHIP])
         see_rep(page, rep, "report failed draft", phone)

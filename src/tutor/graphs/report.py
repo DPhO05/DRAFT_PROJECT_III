@@ -145,6 +145,7 @@ def card(row: dict, state: dict) -> dict:
         "period_start": state["period_start"],
         "n_flagged": sum(s["flag"] is not None for s in shown),
         "report_id": rc["report_id"] if stage == "saved" and rc else None,
+        "error_words": f"{session._reason(row.get('error') or '')}." if stage == "failed" else None,
         "sentences": [{k: s[k] for k in ("text", "flag", "why", "facts")} for s in shown],
     }
 
