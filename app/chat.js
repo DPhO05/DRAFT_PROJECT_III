@@ -11,7 +11,7 @@
     not_ready: 'Trợ lý đang trả lời tin trước. Chờ một lát rồi bấm Gửi lại.',
     validation_error: 'Tin này chưa gửi được. Kiểm tra lại học sinh đã chọn rồi bấm Gửi lại.',
     not_found: 'Hội thoại này không còn nữa. Bấm Mới để bắt đầu lại.',
-    bad_key: 'Khoá API sai, hết hạn hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để nhập khoá khác.'
+    bad_key: 'Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để kiểm tra khoá.'
   };
   var UNAVAILABLE = 'Chưa trả lời được, thử lại';
 

@@ -5,6 +5,7 @@ import logging
 import threading
 from contextlib import closing
 from datetime import date
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -135,10 +136,17 @@ def test_busy_released_after_error(paths, client, w):
     assert [r["id"] for r in got] == ["m1", "m2", "m3", "m4", "m5", "m6"]
 
 
+BAD_KEY = "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để kiểm tra khoá."
+
+
 def test_refused_key_has_its_own_code(paths, client, w):
     script(llm.KeyRejected("x"), llm.LLMUnavailable("x"))
-    assert lines(send(client, "Hỏi"))[-1] == {"type": "error", "code": "bad_key", "message": assistant.BAD_KEY}
+    assert lines(send(client, "Hỏi"))[-1] == {"type": "error", "code": "bad_key", "message": BAD_KEY}
     assert lines(send(client, "Hỏi lại"))[-1]["code"] == "llm_unavailable"
+
+
+def test_chat_card_and_server_share_the_key_text():
+    assert f"bad_key: '{BAD_KEY}'" in (Path(__file__).parents[2] / "app" / "chat.js").read_text(encoding="utf-8")
 
 
 def real_llm(monkeypatch, paths, models, client=None):

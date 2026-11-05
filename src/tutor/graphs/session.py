@@ -280,7 +280,7 @@ _CODE = re.compile(rf"\b(?:{'|'.join(repo.ERROR_CATEGORIES)})\.\w+")
 _DROPPED = "Máy bỏ {n} lỗi đề xuất không hợp lệ."
 _FLAG_WORDS = {
     "grade": {
-        "schema": "Máy chưa chấm được bài này: điểm đang là 0, thầy/cô chấm lại tay.",
+        "schema": "Máy chưa chấm được bài này: điểm đang là 0. Muốn máy chấm lại, bấm Huỷ buổi chấm rồi nộp lại file.",
         "missing_item": "Có ý máy chưa chấm, đang tính là không đạt.",
         "score_mismatch": "Điểm máy ghi khác tổng các ý đạt, đã lấy tổng các ý.",
         "no_evidence": "Có ý chấm đạt mà không chỉ ra chỗ trong bài.",
@@ -308,7 +308,7 @@ def _stage(row: dict, state: dict) -> str:
 
 def _reason(error: str) -> str:
     if re.search(r"Khoá API bị từ chối|Thiếu OPENAI_API_KEY", error):  # before 429: no quota arrives as a 429
-        return "Khoá API sai, hết hạn hoặc chưa có (mở ⚙ Cài đặt)"
+        return "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức (mở ⚙ Cài đặt)"
     if "Tiến trình dừng giữa chừng" in error:
         return "App bị tắt"
     if re.search(r"\b(?:429|529)\b|overloaded|rate.?limit", error, re.I):

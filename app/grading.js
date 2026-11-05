@@ -163,7 +163,7 @@
     if (a.skipped) return h + '<p class="muted">Thầy/cô đã bỏ bài này, không chấm.</p></div></div>';
     if (a.warnings.length) h += '<div class="callout callout-warn">' + a.warnings.map(function (w) { return '<p class="small">' + U.esc(w) + '</p>'; }).join('') + '</div>';
     if (open) h += workHTML(s, a, adds);
-    if (!a.mistakes.length && !adds.length) h += '<p class="muted">Không thấy lỗi nào trong bài này.</p>';
+    if (!a.mistakes.length && !adds.length && !a.warnings.length) h += '<p class="muted">Không thấy lỗi nào trong bài này.</p>';
     h += a.mistakes.map(function (m) { return mistakeHTML(s, a, m, ro); }).join('') + adds.map(function (k) { return addedHTML(s, a, k, ro); }).join('');
     if (!ro) h += s.add && s.add.seq === a.seq ? formHTML(a, s.add, 'add') : '<div class="row">' + btn('g-add', '+ Thêm lỗi', sq) + '</div>';
     return h + '</div></div>';

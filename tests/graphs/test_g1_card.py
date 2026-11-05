@@ -24,7 +24,7 @@ FORBIDDEN = re.compile(
     r"|g[1-5]-hs|\bnode\b|\b\d[A-Z]{2}-[A-Z0-9]+-\d\d\b"
 )
 TAIL = "Bài làm vẫn còn nguyên, chưa có gì được lưu."
-KEY = "Khoá API sai, hết hạn hoặc chưa có (mở ⚙ Cài đặt)"
+KEY = "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức (mở ⚙ Cài đặt)"
 
 
 def row_of(r, tid) -> dict:
@@ -328,7 +328,7 @@ def test_card_has_no_tech_text(env):
         assert not keys(x) & {"theta", "delta", "confidence", "node", "tech"}
 
 
-GRADE_SCHEMA = "Máy chưa chấm được bài này: điểm đang là 0, thầy/cô chấm lại tay."
+GRADE_SCHEMA = "Máy chưa chấm được bài này: điểm đang là 0. Muốn máy chấm lại, bấm Huỷ buổi chấm rồi nộp lại file."
 DROPPED2 = "Máy bỏ 2 lỗi đề xuất không hợp lệ."
 OTHER = "Máy có cảnh báo ở bài này, nên xem kỹ."
 

@@ -32,7 +32,7 @@ router = APIRouter(prefix="/api/assistant")
 log = logging.getLogger("tutor")
 BUSY = "Trợ lý đang trả lời tin trước"
 UNAVAILABLE = "Chưa trả lời được, thử lại"
-BAD_KEY = "Khoá API sai, hết hạn hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để nhập khoá khác."
+BAD_KEY = "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để kiểm tra khoá."
 INTERNAL = "Lỗi không lường trước, chi tiết ở data/logs/app.log"
 _ID = re.compile(r"\d{4}-\d{2}-\d{2}-\d+")
 _AT = re.compile(r"@HS-(\d+)", re.IGNORECASE)

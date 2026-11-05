@@ -16,7 +16,7 @@ Cần Mac chip Apple (M1 trở lên).
 4. Trình duyệt tự mở app. Nếu không, gõ `http://127.0.0.1:8000/` vào thanh địa chỉ.
 5. Bấm chuột phải vào `Mo-tro-ly.command`, chọn **Tạo bí danh** (Make Alias). Kéo bí danh ra Desktop hoặc Dock để lần sau bấm đúp ở đó.
 6. Bấm ⚙ ở góc trên bên phải, chọn **Cài đặt**. Dán khoá người cài gửi vào ô **Khoá OpenAI**, rồi bấm **Lưu cài đặt**. Nếu app ghi tên nhà cung cấp khác, dán vào ô đó.
-7. Hỏi trợ lý một câu để thử. Nếu thấy "Trợ lý chưa có khoá API" hoặc "Khoá API sai, hết hạn hoặc tài khoản hết hạn mức", bấm **Mở Cài đặt** và làm lại bước 6.
+7. Hỏi trợ lý một câu để thử. Nếu thấy "Trợ lý chưa có khoá API" hoặc "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức", bấm **Mở Cài đặt** và làm lại bước 6.
 
 Nếu macOS không cho mở file, mở Cài đặt hệ thống › Quyền riêng tư & Bảo mật, kéo xuống rồi bấm **Vẫn mở**. Nhập mật khẩu máy nếu được hỏi.
 
