@@ -455,8 +455,8 @@ def _mask(text: str, redact: dict[str, str]) -> tuple[str, bool]:
     for name, code in redact.items():
         key = "".join(_fold(c) for c in unicodedata.normalize("NFC", name.strip()))
         if key:
-            # a line break, double space or LaTeX spacing (~, backslash-space, backslash-comma) inside a name still hits
-            pattern = r"(?:\s|~|\\[ ,])+".join(map(re.escape, key.split()))
+            # line break, double space, LaTeX spacing (~, "\ ", "\,") or {} between words still hits
+            pattern = r"(?:\s|~|\\[ ,]|[{}])+".join(map(re.escape, key.split()))
             spans += [(m.start(), m.end(), code) for m in re.finditer(rf"(?<!\w){pattern}(?!\w)", folded)]
     kept = []
     for start, end, code in sorted(spans, key=lambda x: (x[0] - x[1], x[0])):  # longest first: nested names lose

@@ -49,3 +49,10 @@ def test_mask_latex_spaced_names():
     for text in ("Nguyễn~Văn~An", "Nguyễn\\ Văn\\ An", "Nguyễn\\,Văn~An", "nguyen~van an"):
         assert llm.mask(text, redact) == "HS-01"
     assert llm.mask("An~ và Nguyễn~", redact) == "An~ và Nguyễn~"
+
+
+def test_mask_name_split_by_braces():
+    redact = {"Nguyễn Văn An": "HS-01"}
+    for text in ("\\textbf{Nguyễn} Văn An", "{Nguyễn}{Văn}{An}"):
+        out = llm.mask(text, redact)
+        assert "HS-01" in out and "Nguyễn" not in out
