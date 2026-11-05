@@ -216,3 +216,13 @@ def test_no_grade_or_no_bank_of_that_grade_keeps_whole_pool(conn, grade):
     w["new"] = repo.add_student(conn, name="Học Sinh Mới", grade=grade)
     refs = [i["ref"] for i in rank(conn, w, who="new")["items"]]
     assert refs == ["8DS-HDT-004", "8DS-HDT-005", "8DS-HDT-006", "8DS-HDT-017", "8DS-HSBN-004", "8DS-HDT-007"]
+
+
+def test_used_up_grade_gives_short_sheet_not_other_grade(conn):
+    w = world(conn)
+    nine, eight = by_kc(conn, w["kc_swap"]), by_kc(conn, 2)
+    only(conn, nine + eight, delta=0)
+    for pid in nine:
+        did(conn, w["an"], pid, w["today"] - timedelta(days=1))
+    r = rank(conn, w)
+    assert r["items"] == [] and r["warnings"] == ["Chỉ tìm được 0 bài hợp"]

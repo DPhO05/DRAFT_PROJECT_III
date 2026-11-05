@@ -71,8 +71,17 @@ def rank_problems(
         if kc is not None
     ]
     grade = (conn.execute("SELECT grade FROM student WHERE id = ?", (student_id,)).fetchone() or (None,))[0]
-    # a ref starts with its grade digit, as in a01_ingest; no candidate of that grade -> the whole pool
-    pool = [c for c in pool if grade is None or c["ref"].startswith(str(grade))] or pool
+    # a ref starts with its grade digit, as in a01_ingest. The bank, not the recency-filtered pool, decides
+    # the fallback: a grade used up in the window gets a short sheet, never another grade's problems.
+    if (
+        grade is not None
+        and conn.execute(
+            "SELECT 1 FROM problem p WHERE p.ref LIKE ? AND EXISTS (SELECT 1 FROM rubric r WHERE r.problem_id = p.id)"
+            f" AND {_MAIN} IS NOT NULL LIMIT 1",
+            (f"{grade}%",),
+        ).fetchone()
+    ):
+        pool = [c for c in pool if c["ref"].startswith(str(grade))]
     chosen: list[dict] = []
     taken: set[int] = set()
     kcs: set[int] = set()  # main skills already on the sheet
