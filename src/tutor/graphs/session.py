@@ -277,6 +277,21 @@ _WHY = {"awaiting_review": "earlier_pending", "failed": "earlier_failed", "runni
 _STEP = {"ingest": "đọc bài", "prepare": "đọc bài", "lane": "chấm bài", "profile": "tính tiến bộ",
          "commit": "lưu kết quả"}  # fmt: skip
 _CODE = re.compile(rf"\b(?:{'|'.join(repo.ERROR_CATEGORIES)})\.\w+")
+_DROPPED = "Máy bỏ {n} lỗi đề xuất không hợp lệ."
+_FLAG_WORDS = {
+    "grade": {
+        "schema": "Máy chưa chấm được bài này: điểm đang là 0, thầy/cô chấm lại tay.",
+        "missing_item": "Có ý máy chưa chấm, đang tính là không đạt.",
+        "score_mismatch": "Điểm máy ghi khác tổng các ý đạt, đã lấy tổng các ý.",
+        "no_evidence": "Có ý chấm đạt mà không chỉ ra chỗ trong bài.",
+        "alt_method": "Em làm cách khác lời giải mẫu, nên xem kỹ.",
+    },
+    "diagnosis": {
+        "schema": "Máy chưa tìm lỗi được bài này: thầy/cô xem bài làm và thêm lỗi nếu có.",
+        "bad_code": _DROPPED, "bad_kc": _DROPPED, "bad_step": _DROPPED,
+    },
+}  # fmt: skip
+_FLAG_OTHER = "Máy có cảnh báo ở bài này, nên xem kỹ."
 
 
 def _stage(row: dict, state: dict) -> str:
@@ -337,6 +352,14 @@ def _confirm(state: dict, statements: dict[str, str]) -> list[dict]:
     return out
 
 
+def _warnings(lane: dict | None) -> list[str]:
+    """One line per distinct fallback in the lane's grade then diagnosis flags; `detail` names agents, never shown."""
+    texts = []
+    for part, words in _FLAG_WORDS.items():
+        texts += [words.get(f["type"], _FLAG_OTHER) for f in (lane or {}).get(part, {}).get("flags", [])]
+    return [t.format(n=texts.count(_DROPPED)) for t in dict.fromkeys(texts)]
+
+
 def _mistake(p: dict, kc_names: dict[int, str], code_words: dict[str, str], low: float) -> dict:
     """One 03 proposal as the card shows it; `code` and `suggested_code` are only there to be sent back."""
     kc = None if p["kc_id"] is None else {"id": p["kc_id"], "name": kc_names[p["kc_id"]]}
@@ -383,6 +406,7 @@ def card(paths: DataPaths, row: dict, state: dict, progress: int | None) -> dict
             "kcs": [{"id": k["id"], "name": k["name"]} for k in pr["kcs"]] if pr else [],
             "steps": [{"idx": s["idx"], "latex": s["latex"]} for s in a["steps"]],
             "mistakes": [_mistake(p, kc_names, code_words, low) for p in proposals if p["attempt_seq"] == a["seq"]],
+            "warnings": _warnings(lanes.get(a["seq"])),
         })  # fmt: skip
     decided, shown = None, state.get("preview") if at == "preview" else None
     if at == "review":

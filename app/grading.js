@@ -161,6 +161,7 @@
       (a.rubric_draft ? '<span class="chip chip-warn">cách chấm nháp</span>' : '') + '</div>' +
       (a.skipped ? '' : btn('g-work', open ? 'Ẩn đề & bài làm' : 'Xem đề & bài làm', sq + ' aria-expanded="' + open + '"', 'btn-ghost')) + '</div><div class="gprob-body">';
     if (a.skipped) return h + '<p class="muted">Thầy/cô đã bỏ bài này, không chấm.</p></div></div>';
+    if (a.warnings.length) h += '<div class="callout callout-warn">' + a.warnings.map(function (w) { return '<p class="small">' + U.esc(w) + '</p>'; }).join('') + '</div>';
     if (open) h += workHTML(s, a, adds);
     if (!a.mistakes.length && !adds.length) h += '<p class="muted">Không thấy lỗi nào trong bài này.</p>';
     h += a.mistakes.map(function (m) { return mistakeHTML(s, a, m, ro); }).join('') + adds.map(function (k) { return addedHTML(s, a, k, ro); }).join('');

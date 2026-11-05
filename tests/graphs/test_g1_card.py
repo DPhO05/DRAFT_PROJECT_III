@@ -1,5 +1,6 @@
 """P6-T11 (Task 10): the G1 grading card for the chat (api-v3 §3.4), its reminder (§3.3), lane progress (R24)."""
 
+import copy
 import json
 import re
 
@@ -154,6 +155,7 @@ def test_confirm_low_match(env):
     r.wait(tid)
     c = card_of(r, tid)
     assert (c["stage"], c["confirm"], c["progress"]) == ("review", [], {"done": 1, "total": 1})
+    assert [a["warnings"] for a in c["attempts"]] == [[], []]  # a skipped problem has no lane
     assert [(a["seq"], a["skipped"]) for a in c["attempts"]] == [(1, False), (2, True)]
 
 
@@ -324,6 +326,50 @@ def test_card_has_no_tech_text(env):
     for x in cards:
         assert not FORBIDDEN.search(json.dumps(scrub(x), ensure_ascii=False))
         assert not keys(x) & {"theta", "delta", "confidence", "node", "tech"}
+
+
+GRADE_SCHEMA = "Máy chưa chấm được bài này: điểm đang là 0, thầy/cô chấm lại tay."
+DROPPED2 = "Máy bỏ 2 lỗi đề xuất không hợp lệ."
+OTHER = "Máy có cảnh báo ở bài này, nên xem kỹ."
+
+
+def flagged(r, tid, grade, diagnosis) -> list[list[str]]:
+    """`warnings` of each attempt after lane 1 is given these flags (types only; `detail` carries agent numbers)."""
+    state = copy.deepcopy(r.state(tid))
+    lane = next(x for x in state["lanes"] if x["seq"] == 1)
+    lane["grade"]["flags"] = [{"type": t, "detail": f"02 và 03 [F01] {t}"} for t in grade]
+    lane["diagnosis"]["flags"] = [{"type": t, "detail": f"03 và 02 [F02] {t}"} for t in diagnosis]
+    c = session.card(r._paths_for_test, row_of(r, tid), state, None)
+    assert not FORBIDDEN.search(json.dumps(scrub(c["attempts"]), ensure_ascii=False))
+    return [a["warnings"] for a in c["attempts"]]
+
+
+def test_warnings_say_which_lane_fell_back(env):
+    go, conn, r = env
+    out, _, _ = go(THREE)
+    tid = out["thread_id"]
+    assert [a["warnings"] for a in card_of(r, tid)["attempts"]] == [[], [], []]
+    got = flagged(r, tid, ["schema"], ["bad_kc", "bad_kc"])
+    assert got == [[GRADE_SCHEMA, DROPPED2], [], []]
+    assert not re.search(r"\b0[23]\b|schema|bad_|F0\d", json.dumps(got, ensure_ascii=False))
+
+
+@pytest.mark.parametrize(("grade", "diagnosis", "want"), [
+    (["missing_item"], [], ["Có ý máy chưa chấm, đang tính là không đạt."]),
+    (["score_mismatch"], [], ["Điểm máy ghi khác tổng các ý đạt, đã lấy tổng các ý."]),
+    (["no_evidence"], [], ["Có ý chấm đạt mà không chỉ ra chỗ trong bài."]),
+    (["alt_method"], [], ["Em làm cách khác lời giải mẫu, nên xem kỹ."]),
+    ([], ["schema"], ["Máy chưa tìm lỗi được bài này: thầy/cô xem bài làm và thêm lỗi nếu có."]),
+    ([], ["bad_code", "bad_kc", "bad_step"], ["Máy bỏ 3 lỗi đề xuất không hợp lệ."]),
+    (["new_type", "other"], ["other"], [OTHER]),
+    (["no_evidence", "alt_method", "no_evidence"], ["schema"], [
+        "Có ý chấm đạt mà không chỉ ra chỗ trong bài.", "Em làm cách khác lời giải mẫu, nên xem kỹ.",
+        "Máy chưa tìm lỗi được bài này: thầy/cô xem bài làm và thêm lỗi nếu có."]),  # grade first, distinct lines
+])  # fmt: skip
+def test_warning_words(env, grade, diagnosis, want):
+    go, conn, r = env
+    out, _, _ = go(THREE)
+    assert flagged(r, out["thread_id"], grade, diagnosis)[0] == want
 
 
 def test_preview_only_when_decided(env):
