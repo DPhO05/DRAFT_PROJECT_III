@@ -53,6 +53,8 @@ def submit(paths: DataPaths, runner: Runner, *, student_id: int, held_on: str, r
         day = date.fromisoformat(held_on)
     except ValueError as e:
         raise ValueError(f"Ngày học phải dạng YYYY-MM-DD: {held_on}") from e
+    if day > date.today():  # once saved, a typo year would refuse every later real session as earlier
+        raise ValueError(f"Ngày học {day:%d/%m/%Y} là ngày sau hôm nay, không chấm được.")
     held_on = day.isoformat()  # fromisoformat also takes "20261021"; a stored date must sort as text
     raw = src.read_bytes()
     try:

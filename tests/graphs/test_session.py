@@ -1,6 +1,7 @@
 """P1-T10: G1 first part — ① session row, 01 Ingest, gate confirm_match."""
 
 import json
+from datetime import date, timedelta
 
 import pytest
 
@@ -105,6 +106,17 @@ def test_file_not_utf8_is_rejected_before_session_row(env):
     (paths.inbox / "latin.tex").write_bytes(b"\xff\xfe")
     with pytest.raises(ValueError, match="^File phải lưu dạng UTF-8$"):
         session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path="latin.tex")
+    assert repo.row_counts(conn)["session"] == 0 and r.list_threads() == []
+
+
+def test_future_day_is_rejected_before_session_row(env):
+    """A typo year, once saved, would refuse every real session of the student as earlier (date order)."""
+    paths, conn, r, sid, _ = env
+    name = put(paths, "s.tex", WITH_IDS)
+    day = date.today() + timedelta(days=1)
+    with pytest.raises(ValueError) as e:
+        session.submit(paths, r, student_id=sid, held_on=day.isoformat(), rel_path=name)
+    assert str(e.value) == f"Ngày học {day:%d/%m/%Y} là ngày sau hôm nay, không chấm được."
     assert repo.row_counts(conn)["session"] == 0 and r.list_threads() == []
 
 
