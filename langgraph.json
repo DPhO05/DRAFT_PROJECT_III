@@ -1,0 +1,12 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "G1_session": "./studio.py:g1",
+    "G2_bank": "./studio.py:g2",
+    "G4_worksheet": "./studio.py:g4",
+    "G5_report": "./studio.py:g5"
+  },
+  "env": {
+    "LANGSMITH_TRACING": "false"
+  }
+}
