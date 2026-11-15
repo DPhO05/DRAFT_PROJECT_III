@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS tutor_thread (
   node           TEXT,
   error          TEXT,
   decisions_json TEXT,
+  input_json     TEXT,
   created_at     TEXT NOT NULL,
   updated_at     TEXT NOT NULL
 )"""
@@ -73,6 +74,8 @@ class Runner:
         self._lock = threading.Lock()  # one statement at a time on _conn; also guards _futures
         with self._lock:
             self._conn.execute(_SCHEMA)
+            if "input_json" not in [c[1] for c in self._conn.execute("PRAGMA table_info(tutor_thread)")]:
+                self._conn.execute("ALTER TABLE tutor_thread ADD COLUMN input_json TEXT")
         self.graphs = {name: g.compile(checkpointer=self.saver) for name, g in graphs.items()}
         self._pool = ThreadPoolExecutor(max_workers, thread_name_prefix="graph")
         self._futures: dict[str, Future] = {}
@@ -146,10 +149,19 @@ class Runner:
 
     def state(self, thread_id: str) -> dict:
         row = self.get(thread_id)
-        return self.graphs[row["graph"]].get_state({"configurable": {"thread_id": thread_id}}).values
+        values = self.graphs[row["graph"]].get_state({"configurable": {"thread_id": thread_id}}).values
+        # no checkpoint yet (worker pool busy): readers still need the start input
+        return values or (json.loads(row["input_json"]) if row["input_json"] else {})
 
     def start(self, graph: str, thread_id: str, inp: dict, meta: dict) -> None:
-        self._set(thread_id, create=True, graph=graph, status="running", **{k: meta.get(k) for k in _META})
+        self._set(
+            thread_id,
+            create=True,
+            graph=graph,
+            status="running",
+            input_json=json.dumps(inp, ensure_ascii=False),
+            **{k: meta.get(k) for k in _META},
+        )
         self._submit(graph, thread_id, inp)
 
     def save_decisions(self, thread_id: str, decisions: object) -> int | None:

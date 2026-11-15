@@ -2,6 +2,7 @@
 
 import shutil
 import sqlite3
+import threading
 from contextlib import closing
 from pathlib import Path
 
@@ -284,3 +285,27 @@ def test_one_draft_per_student(g4, paths):
     third = worksheet.propose(paths, r, student_id=sid, for_date="2026-10-31", items=[{"ref": new[0]}])
     assert third["existing"] is True and third["thread_id"] == "g4-hs01-20261031"
     assert [t["thread_id"] for t in r.list_threads(graph="G4")] == [third["thread_id"]]
+
+
+def test_readers_work_before_the_first_checkpoint(paths, conn):
+    w = world(conn)
+    llm.set_backend(FakeLLM({}))
+    r = make_runner(paths, max_workers=1)
+    hold = threading.Event()
+    r._pool.submit(hold.wait, 5)  # the only worker is busy, so the G4 thread has no checkpoint yet
+    try:
+        state = {
+            "student_id": w["an"],
+            "for_date": DAY,
+            "refs": refs(conn, 2),
+            "reasons": {},
+            "warnings": [],
+            "note": None,
+        }
+        r.start("G4", "g4-x", state, {"student_id": w["an"]})
+        row = r.get("g4-x")
+        assert worksheet.reminder(row, r.state("g4-x"))["words"] == "2 bài"
+        assert worksheet.card(row, r.state("g4-x"), conn)["stage"] == "saving"
+    finally:
+        hold.set()
+        r.close()

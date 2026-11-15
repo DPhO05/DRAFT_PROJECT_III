@@ -1,7 +1,9 @@
 """MONO-P1-01: in-process graph runner on a sample graph (2 LLM-like nodes, 1 gate, 1 commit)."""
 
+import sqlite3
 import threading
 from collections import Counter
+from contextlib import closing
 from typing import TypedDict
 
 import pytest
@@ -147,3 +149,34 @@ def test_checkpoints_count_grows_with_the_run(make):
     r.resume("t1")
     assert r.wait("t1")["checkpoints"] > at_gate
     assert {t["thread_id"]: t["checkpoints"] for t in r.list_threads()} == {"t0": 0, "t1": r.get("t1")["checkpoints"]}
+
+
+def test_state_is_the_input_until_the_first_checkpoint(make):
+    r = make(T=sample(Counter(), []))
+    hold = threading.Event()
+    r._pool.submit(hold.wait, 5)  # the only worker is busy, so the thread cannot start yet
+    r.start("T", "t1", {"a": 7}, {})
+    assert r.state("t1") == {"a": 7}
+    hold.set()
+    assert r.wait("t1")["status"] == "awaiting_review"
+    assert r.state("t1")["a"] == 1
+
+
+def test_old_tutor_thread_table_gets_input_json(paths):
+    paths.root.mkdir(parents=True, exist_ok=True)
+    old = rmod._SCHEMA.replace("  input_json     TEXT,\n", "")
+    assert "input_json" not in old
+    with closing(sqlite3.connect(paths.checkpoints_db)) as c:
+        c.execute(old)
+        c.execute(
+            "INSERT INTO tutor_thread (thread_id, graph, status, created_at, updated_at)"
+            " VALUES ('o', 'T', 'done', 'x', 'x')"
+        )
+        c.commit()
+    r = rmod.Runner(paths, {"T": sample(Counter(), [])})
+    try:
+        assert r.get("o")["input_json"] is None
+        r.start("T", "t1", {"a": 3}, {})
+        assert r.wait("t1")["status"] == "awaiting_review"
+    finally:
+        r.close()
