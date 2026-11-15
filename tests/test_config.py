@@ -53,18 +53,34 @@ def test_defaults_match_appendix_c():
 
 
 def test_load_env(tmp_path, monkeypatch, capsys):
-    for k in ("OPENAI_API_KEY", "X_ONE"):
+    for k in ("OPENAI_API_KEY", "X_ONE", "LANGSMITH_TRACING"):
         monkeypatch.setenv(k, "")  # records the original so what load_env sets is undone
         monkeypatch.delenv(k)
-    monkeypatch.setenv("X_KEEP", "old")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "old")
     f = tmp_path / ".env"
-    f.write_text('# c\n\nOPENAI_API_KEY="sk-test"\nexport X_ONE=1\nX_KEEP=new\n', encoding="utf-8")
+    f.write_text(
+        '# c\n\nOPENAI_API_KEY="sk-test"\nexport X_ONE=1\nANTHROPIC_API_KEY=new\nLANGSMITH_TRACING=true\n',
+        encoding="utf-8",
+    )
     assert config.load_env(f) is None
     assert os.environ["OPENAI_API_KEY"] == "sk-test"
-    assert os.environ["X_ONE"] == "1"
-    assert os.environ["X_KEEP"] == "old"
+    assert "X_ONE" not in os.environ  # only the two API keys come from .env
+    assert os.environ["ANTHROPIC_API_KEY"] == "old"
+    assert os.environ["LANGSMITH_TRACING"] == "false"
     config.load_env(tmp_path / "absent.env")
     assert capsys.readouterr() == ("", "")
+
+
+def test_no_tracing_turns_langsmith_off(monkeypatch):
+    from langsmith import utils
+
+    for k in ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2", "LANGSMITH_API_KEY", "LANGSMITH_ENDPOINT"):
+        monkeypatch.setenv(k, "true" if "TRACING" in k else "x")
+    utils.get_env_var.cache_clear()
+    config.no_tracing()
+    utils.get_env_var.cache_clear()
+    assert utils.tracing_is_enabled() is False
+    assert "LANGSMITH_API_KEY" not in os.environ and "LANGSMITH_ENDPOINT" not in os.environ
 
 
 def test_patch_writes_only_changed_keys(tmp_path):

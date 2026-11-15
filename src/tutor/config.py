@@ -56,8 +56,19 @@ _DEFAULTS = {
 ENV_FILE = Path(".env")  # cwd, like the default ./data
 
 
+ENV_KEYS = ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")
+
+
+def no_tracing() -> None:
+    """Force LangSmith tracing off: it would send prompts and student work off the machine."""
+    os.environ["LANGSMITH_TRACING"] = os.environ["LANGCHAIN_TRACING_V2"] = "false"
+    for k in ("LANGSMITH_API_KEY", "LANGCHAIN_API_KEY", "LANGSMITH_ENDPOINT"):
+        os.environ.pop(k, None)
+
+
 def load_env(path: Path) -> None:
-    """Put KEY=VALUE lines of a .env file into os.environ; a variable already set wins. Never prints values."""
+    """Put the API keys of a .env file into os.environ; a variable already set wins. Never prints values."""
+    no_tracing()
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:
@@ -69,7 +80,7 @@ def load_env(path: Path) -> None:
         line = line.strip().removeprefix("export ")
         key, eq, val = line.partition("=")
         key, val = key.strip(), val.strip()
-        if not eq or not key or key.startswith("#"):
+        if not eq or key not in ENV_KEYS:
             continue
         if len(val) > 1 and val[0] == val[-1] and val[0] in "\"'":
             val = val[1:-1]
