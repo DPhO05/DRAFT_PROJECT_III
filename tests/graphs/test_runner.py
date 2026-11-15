@@ -151,15 +151,19 @@ def test_checkpoints_count_grows_with_the_run(make):
     assert {t["thread_id"]: t["checkpoints"] for t in r.list_threads()} == {"t0": 0, "t1": r.get("t1")["checkpoints"]}
 
 
-def test_state_is_the_input_until_the_first_checkpoint(make):
-    r = make(T=sample(Counter(), []))
+def test_state_is_the_input_until_the_first_checkpoint(paths):
+    r = rmod.Runner(paths, {"T": sample(Counter(), [])}, max_workers=1)
     hold = threading.Event()
     r._pool.submit(hold.wait, 5)  # the only worker is busy, so the thread cannot start yet
-    r.start("T", "t1", {"a": 7}, {})
-    assert r.state("t1") == {"a": 7}
-    hold.set()
-    assert r.wait("t1")["status"] == "awaiting_review"
-    assert r.state("t1")["a"] == 1
+    try:
+        r.start("T", "t1", {"a": 7}, {})
+        assert r.state("t1") == {"a": 7}
+        hold.set()
+        assert r.wait("t1")["status"] == "awaiting_review"
+        assert r.state("t1")["a"] == 1
+    finally:
+        hold.set()
+        r.close()
 
 
 def test_old_tutor_thread_table_gets_input_json(paths):
