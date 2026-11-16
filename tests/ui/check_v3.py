@@ -2823,13 +2823,20 @@ def stu_add(page, rep: dict, data_dir: str, phone: bool, name: str) -> bool:
         rep["missing"].append("students add: a one-word name added a row, or the window closed")
     see_stu(page, rep, "students add refused", phone)
     page.fill("#sf-name", name)
-    page.select_option("#sf-grade", "9")
+    if page.input_value("#sf-grade") != "":  # a new student starts on "Chưa ghi", not a grade
+        rep["missing"].append(f"students add: the new form preselects lớp {page.input_value('#sf-grade')!r}")
     page.fill("#sf-note", STU_NOTE)
     press(page, rep, '[data-act="st-save"]', "students Thêm học sinh", JS_STU_CARD_HAS, [name, STU_NOTE])
     if scalar(data_dir, "SELECT count(*) FROM student") != before + 1 or not scalar(
-        data_dir, "SELECT count(*) FROM student WHERE name = ? AND grade = 9 AND note = ?", name, STU_NOTE
+        data_dir, "SELECT count(*) FROM student WHERE name = ? AND grade IS NULL AND note = ?", name, STU_NOTE
     ):
-        rep["missing"].append(f"students add: want 1 new row for {name}, lớp 9, with the note")
+        rep["missing"].append(f"students add: want 1 new row for {name}, grade empty, with the note")
+    for g in ("8", "9"):  # picking a grade stores it; 9 is what the checks below expect
+        press(page, rep, f'#st-cards .st-card:has-text("{name}") [data-act="st-edit"]', "students Sửa", JS_MODAL)
+        page.select_option("#sf-grade", g)
+        press(page, rep, '[data-act="st-save"]', f"students Lớp {g}", JS_STU_CARD_HAS, [name, f"Lớp {g}"])
+        if not scalar(data_dir, "SELECT count(*) FROM student WHERE name = ? AND grade = ?", name, int(g)):
+            rep["missing"].append(f"students add: picking lớp {g} did not store grade {g}")
     if "Lớp 9" not in page.locator("#st-cards .st-card", has_text=name).inner_text():
         rep["missing"].append("students add: the new card lacks 'Lớp 9'")
     find = STU_FIND[rep["viewport"]]

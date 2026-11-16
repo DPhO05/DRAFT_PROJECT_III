@@ -213,7 +213,7 @@
     U.modal({ title: esc(U.who(x.student_id)) + ' · buổi ' + D(x.held_on), wide: true, body: body, foot: '<button type="button" class="btn" data-act="modal-close">Đóng</button>' });
   }
   function studentForm(s) {
-    var g = s ? s.grade : 9, grades = [6, 7, 8, 9, 10, 11, 12];
+    var g = s ? s.grade : null, grades = [6, 7, 8, 9, 10, 11, 12];
     if (g && grades.indexOf(g) < 0) grades.unshift(g);  // the server takes 1 to 12: keep a grade the list lacks instead of saving 6
     U.modal({ title: s ? 'Sửa thông tin học sinh' : 'Thêm học sinh', body:
       '<label class="field"><span>Họ và tên</span><input type="text" id="sf-name" value="' + U.esc(s ? s.name : '') + '" autocomplete="off" required autofocus></label>' +
