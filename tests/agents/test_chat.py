@@ -184,15 +184,64 @@ def test_tool_rounds_stop_at_the_limit_and_flag_resets(make):
     assert r.say("lại", tools=[look])["stopped"] is False
 
 
+def stored(state):
+    """What a checkpoint keeps of the model side; the HumanMessage is masked by the caller."""
+    return json.dumps(
+        [
+            [m.content, getattr(m, "artifact", None), m.additional_kwargs, getattr(m, "tool_calls", None)]
+            for m in state["messages"]
+            if not isinstance(m, HumanMessage)
+        ],
+        ensure_ascii=False,
+        default=str,
+    )
+
+
 def test_names_never_enter_state(make):
     name = "Nguyễn Văn An"
 
     @tool(response_format="content_and_artifact")
     def who(n: int) -> tuple[str, dict]:
         """Who."""
-        return f"học sinh {name}", {}
+        return f"học sinh {name}", {"tutor/card": {"text": name}}
 
     r = make([[use("who", n=1)], [text("xong")]])
     state = r.say("ai?", tools=[who])
-    assert name not in json.dumps([m.content for m in state["messages"]], ensure_ascii=False)
+    assert name not in stored(state)
     assert "HS-01" in [m for m in state["messages"] if isinstance(m, ToolMessage)][0].content
+
+
+def test_pick_student_card_text_is_masked(make):
+    r = make([[use("list_students")], [text("xong")]])
+    state = r.say("xem Nguyễn Văn An giúp")
+    assert "pick_student" in stored(state) and "Nguyễn Văn An" not in stored(state)
+
+
+def test_by_code_reply_is_masked(make):
+    def add(thread_id, refs):
+        raise ValueError("Phiếu của Nguyễn Văn An đã đóng")
+
+    starters = Starters(start_grading=None, start_bank_import=None, propose_worksheet=None, add_to_worksheet=add)
+    r = make([])
+    box = Toolbox(r.conn, settings=config.defaults(), today=r.w["today"], text="8ds-pt1-004", starters=starters)
+    ctx = chat.ChatContext(Turn("8ds-pt1-004", worksheet_thread_id="g4-x"), box, r.w["students"], r.w["redact"])
+    agent = chat.build(llm.model("00"), [], r.saver, max_tool_turns=2)
+    cfg = {"configurable": {"thread_id": "bc"}}
+    agent.invoke({"messages": [HumanMessage("8ds-pt1-004")]}, cfg, context=ctx)
+    state = agent.get_state(cfg).values
+    assert "đã đóng" in stored(state) and "Nguyễn Văn An" not in stored(state)
+
+
+def test_parallel_starts_run_once(make):
+    starts = []
+
+    def grading(sid, file, held_on):
+        starts.append(file)
+        return {"status": "queued", "thread_id": "g1-x"}
+
+    starters = Starters(start_grading=grading, start_bank_import=None, propose_worksheet=None, add_to_worksheet=None)
+    go = use("start_grading", code="HS-01", file="a.tex", held_on="2026-10-21")
+    r = make([[go, go], [text("xong")]])
+    state = r.say("chấm", starters=starters)
+    statuses = sorted(m.status for m in state["messages"] if isinstance(m, ToolMessage))
+    assert statuses == ["error", "success"] and len(starts) == 1

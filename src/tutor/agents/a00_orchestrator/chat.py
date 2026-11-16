@@ -5,6 +5,7 @@ State a code path (`by_code`) leaves, in order: per tool run an AIMessage with o
 code had no text) and `additional_kwargs["tutor/cards"]` = the cards to show, tool cards included.
 """
 
+import threading
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import NotRequired
@@ -46,6 +47,11 @@ class ChatContext:
     students: dict[int, dict]
     redact: dict[str, str]
     started: Counter = field(default_factory=Counter)
+    lock: threading.Lock = field(default_factory=threading.Lock)  # ToolNode runs one message's calls in parallel
+
+
+def _mask_deep(x, redact: dict[str, str]):
+    return llm._mask_all(x, orchestrator._names(redact))[0]
 
 
 def _is_error(m: ToolMessage) -> bool:
@@ -86,11 +92,12 @@ def by_code(state: ChatState, runtime) -> dict:
                 tool_call_id=cid,
                 name=name,
                 status="error" if is_error else "success",
-                artifact=m | ({"tutor/error": True} if is_error else {}),
+                artifact=_mask_deep(m, ctx.redact) | ({"tutor/error": True} if is_error else {}),
             ),
         ]
     said = "".join(e["delta"] for e in events if e["type"] == "text")
     cards = [e["card"] for e in events if e["type"] == "card"]
+    said, cards = orchestrator.mask(said, ctx.redact), _mask_deep(cards, ctx.redact)
     messages.append(AIMessage(said or CARD_ONLY, additional_kwargs={"tutor/cards": cards}))
     return {"messages": messages, "stopped": False, "jump_to": "end"}
 
@@ -112,10 +119,16 @@ def _limit_turns(max_tool_turns: int):
 def limit_starts(request, handler):
     """H5: each start_* once per message, propose_worksheet twice; a refused call never runs."""
     name, ctx = request.tool_call["name"], request.runtime.context
-    if name in LIMITS and ctx.started[name] >= LIMITS[name]:
-        return _error_message(name, request.tool_call["id"], _REFUSED.get(name, _ONCE))
+    if name not in LIMITS:
+        return handler(request)
+    with ctx.lock:  # the slot is taken before the tool runs, so a parallel twin is refused
+        if ctx.started[name] >= LIMITS[name]:
+            return _error_message(name, request.tool_call["id"], _REFUSED.get(name, _ONCE))
+        ctx.started[name] += 1
     out = handler(request)
-    ctx.started[name] += not (isinstance(out, ToolMessage) and _is_error(out))
+    if isinstance(out, ToolMessage) and _is_error(out):
+        with ctx.lock:
+            ctx.started[name] -= 1
     return out
 
 
@@ -131,7 +144,11 @@ def keep_masked(request, handler):
         return out
     failed = (out.artifact or {}).get("tutor/error") or _is_error(out)
     out = out.model_copy(
-        update={"content": orchestrator.mask(out.content, ctx.redact), "status": "error" if failed else out.status}
+        update={
+            "content": orchestrator.mask(out.content, ctx.redact),
+            "artifact": _mask_deep(out.artifact, ctx.redact),
+            "status": "error" if failed else out.status,
+        }
     )
     if name != "rank_problems" or failed:
         return out
