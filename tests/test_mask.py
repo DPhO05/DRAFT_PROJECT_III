@@ -123,3 +123,19 @@ def test_backend_chat_stream_ends_with_tool_calls(tmp_path):
     assert isinstance(whole, AIMessageChunk) and whole.text == "Để xem nhé."
     assert whole.tool_calls == [{"type": "tool_call", "id": "tu1", "name": "t", "args": {"a": 1}}]
     assert len(chunks) > 2
+
+
+def test_backend_chat_artifact_error_flag_is_error(tmp_path):
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    fake, m, (system, human) = _bound_chat(tmp_path, [[{"type": "text", "text": "Ok"}]])
+    call = {"type": "tool_call", "id": "x1", "name": "t", "args": {}}
+    thread = [
+        system,
+        human,
+        AIMessage("", tool_calls=[call]),
+        ToolMessage("lỗi", tool_call_id="x1", artifact={"tutor/error": True}),
+    ]
+    with llm.scope(llm.CallContext(graph=None, redact=MINH), {"agent": "00"}):
+        m.invoke(thread)
+    assert fake.calls[0]["messages"][2]["content"][0]["is_error"] is True

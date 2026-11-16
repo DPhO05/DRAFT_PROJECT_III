@@ -1025,7 +1025,7 @@ class BackendChat(BaseChatModel):
                 system.append(m.text)
             elif isinstance(m, ToolMessage):
                 block = {"type": "tool_result", "tool_use_id": m.tool_call_id, "content": m.text}
-                if m.status == "error":
+                if m.status == "error" or (m.artifact or {}).get("tutor/error"):
                     block["is_error"] = True
                 if msgs and msgs[-1]["role"] == "user" and msgs[-1]["content"][-1]["type"] == "tool_result":
                     msgs[-1]["content"].append(block)

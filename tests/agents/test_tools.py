@@ -452,3 +452,10 @@ def test_lc_tools_drop_none_args(ro):
         }  # fmt: skip
     )
     assert json.loads(msg.content)["code"] == "HS-01"
+
+
+def test_lc_tools_error_flag_in_artifact(ro):
+    msg = lc(ro)["student_profile"].invoke(
+        {"name": "student_profile", "args": {"code": "HS-99"}, "id": "e1", "type": "tool_call"}
+    )
+    assert msg.artifact["tutor/error"] is True and "error" in json.loads(msg.content)

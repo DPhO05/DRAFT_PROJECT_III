@@ -469,7 +469,7 @@ def lc_tools(box: Toolbox, codes: list[str]) -> list[StructuredTool]:
     def build(d: dict) -> StructuredTool:
         def run(**args) -> tuple[str, dict]:
             out = box.run(d["name"], {k: v for k, v in args.items() if v is not None})
-            return out.content, meta(out)
+            return out.content, meta(out) | ({"tutor/error": True} if out.is_error else {})
 
         return StructuredTool(
             name=d["name"],
