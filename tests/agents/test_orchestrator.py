@@ -30,7 +30,7 @@ def ro(conn, paths):
         yield c, w
 
 
-def say(ro, turn, script=None, *, starters=None, settings=None, redact=None):
+def say(ro, turn, script=None, *, starters=None, settings=None, redact=None, saver=None, resume=None):
     """One tutor message through the chat agent, as the route runs it; returns (events, fake)."""
     c, w = ro
     llm.set_backend(fake := FakeLLM({} if script is None else {"00": script}))
@@ -44,14 +44,14 @@ def say(ro, turn, script=None, *, starters=None, settings=None, redact=None):
     agent = chat.build(
         llm.model("00"),
         lc_tools(box, [x["code"] for x in repo.error_codes(c, active_only=True)]),
-        InMemorySaver(),
+        saver or InMemorySaver(),
         max_tool_turns=settings["assistant"]["max_tool_turns"],
         system=w["fixed"],
     )
     cfg = {"configurable": {"thread_id": "t"}, "recursion_limit": 200}
     cc = llm.CallContext(graph=None, conversation_id="2026-10-21-1", redact=orchestrator._names(redact))
     with chat.scope(cc, w["fixed"], w["tools"]):
-        return list(chat.events(agent, ctx, cfg)), fake
+        return list(chat.events(agent, ctx, cfg, resume=resume)), fake
 
 
 def sent(call) -> list[str]:
@@ -232,3 +232,46 @@ def test_prompt_number_rule_uses_conversation_and_rechecks_after_save():
     assert "(đã tra" not in orchestrator.SYSTEM and "của tin này" not in orchestrator.SYSTEM
     assert "kết quả công cụ còn trong cuộc trò chuyện" in orchestrator.SYSTEM
     assert "Sau khi thầy/cô lưu kết quả, hãy tra lại bằng công cụ trước khi dùng số cũ." in orchestrator.SYSTEM
+
+
+def grading_rig(w):
+    """(starters, calls): start_grading records its arguments; free text asks for it, the model never sees names."""
+    calls = []
+
+    def grading(sid, file, held_on):
+        calls.append((sid, file, held_on))
+        return {"thread_id": "g1-hs01-20251115", "session_id": 1, "status": "running"}
+
+    return Starters(start_grading=grading, start_bank_import=None, propose_worksheet=None, add_to_worksheet=None), calls
+
+
+ASK = [tool("start_grading", code="HS-01", file="s01.tex", held_on="2026-10-15")]
+
+
+def test_free_text_grading_stops_for_approval(ro):
+    c, w = ro
+    starters, calls = grading_rig(w)
+    events, _ = say(ro, "Chấm bài s01.tex cho @HS-01", [ASK], starters=starters)
+    assert events[-1] == {
+        "type": "approval",
+        "name": "start_grading",
+        "args": {"code": "HS-01", "file": "s01.tex", "held_on": "2026-10-15"},
+        "description": "Chấm s01.tex cho HS-01, buổi 15/10?",
+    }
+    assert not of(events, "done") and not of(events, "source") and calls == []
+
+
+@pytest.mark.parametrize("decision", ["approve", "edit", "reject"])
+def test_decision_resumes_the_thread(ro, decision):
+    c, w = ro
+    starters, calls = grading_rig(w)
+    saver = InMemorySaver()
+    say(ro, "Chấm bài s01.tex cho @HS-01", [ASK], starters=starters, saver=saver)
+    edited = {"name": "start_grading", "args": {"code": "HS-01", "file": "s01.tex", "held_on": "2026-10-14"}}
+    d = {"approve": {"type": "approve"}, "edit": {"type": "edit", "edited_action": edited},
+         "reject": {"type": "reject", "message": chat.REJECTED}}[decision]  # fmt: skip
+    events, fake = say(ro, "", [[text("Đã xong.")]], starters=starters, saver=saver, resume=[d])
+    assert calls == {"approve": [(w["an"], "s01.tex", "2026-10-15")], "edit": [(w["an"], "s01.tex", "2026-10-14")],
+                     "reject": []}[decision]  # fmt: skip
+    assert (of(events, "card") != []) is (decision != "reject")
+    assert said(events) == "Đã xong." and events[-1]["type"] == "done"

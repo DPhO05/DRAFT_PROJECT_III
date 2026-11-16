@@ -10,6 +10,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.types import Command
 
 from tests.assistant_fix import world
 from tests.fakes import FakeLLM
@@ -67,14 +68,20 @@ class Rig:
         return agent, ctx, cfg, cc
 
     def events(self, words, *, thread="t", starters=None, tools=(), max_tool_turns=8, turn=None):
+        """Every approval the model asks for is approved, so a start_* behaves as it did before the tutor was asked."""
         agent, ctx, cfg, cc = self._setup(words, thread, starters, tools, max_tool_turns, turn)
         with chat.scope(cc, ["sys"], tool_defs(self.codes)):
-            return list(chat.events(agent, ctx, cfg))
+            out = list(chat.events(agent, ctx, cfg))
+            while out[-1]["type"] == "approval":
+                out += chat.events(agent, ctx, cfg, resume=[{"type": "approve"}] * len(chat.waiting(agent, cfg)))
+        return out
 
     def say(self, words, *, thread="t", starters=None, tools=(), max_tool_turns=8):
         agent, ctx, cfg, cc = self._setup(words, thread, starters, tools, max_tool_turns)
         with chat.scope(cc, ["sys"], tool_defs(self.codes)):
             agent.invoke({"messages": [HumanMessage(words)]}, cfg, context=ctx)
+            while asks := chat.waiting(agent, cfg):
+                agent.invoke(Command(resume={"decisions": [{"type": "approve"}] * len(asks)}), cfg, context=ctx)
         return agent.get_state(cfg).values
 
 
@@ -271,6 +278,7 @@ def test_stopped_message_starts_nothing(make):
     ctx.stop.set()
     with chat.scope(cc, ["sys"], tool_defs(r.codes)):
         agent.invoke({"messages": [HumanMessage("chấm")]}, cfg, context=ctx)
+        agent.invoke(Command(resume={"decisions": [{"type": "approve"}]}), cfg, context=ctx)
     assert starts == []
     [m] = [m for m in agent.get_state(cfg).values["messages"] if isinstance(m, ToolMessage)]
     assert m.status == "error" and m.content == chat._error_message("start_grading", "x", chat.STOPPED).content
@@ -412,3 +420,27 @@ def test_events_number_only_in_trimmed_result_is_unverified(make, holds, warned)
     r = make([[use("fat", n=i)] for i in range(1, 8)] + [[text("Có 4242 bài.")]])
     evs = r.events("hỏi", tools=[fat])
     assert bool([e for e in evs if e["type"] == "warning"]) is warned
+
+
+def test_rejected_start_does_not_count_toward_the_limit(make):
+    """Task 4.7: HITL sits before limit_starts, so a call the tutor rejected leaves the one start of the message."""
+    starts = []
+
+    def grading(sid, file, held_on):
+        starts.append(file)
+        return {"status": "queued", "thread_id": "g1-x"}
+
+    starters = Starters(start_grading=grading, start_bank_import=None, propose_worksheet=None, add_to_worksheet=None)
+    go = use("start_grading", code="HS-01", file="a.tex", held_on="2026-10-21")
+    r = make([[go], [go], [text("xong")]])
+    agent, ctx, cfg, cc = r._setup("chấm", "t", starters, [], 8)
+    with chat.scope(cc, ["sys"], tool_defs(r.codes)):
+        agent.invoke({"messages": [HumanMessage("chấm")]}, cfg, context=ctx)
+        agent.invoke(Command(resume={"decisions": [{"type": "reject", "message": chat.REJECTED}]}), cfg, context=ctx)
+        assert starts == [] and ctx.started["start_grading"] == 0 and len(chat.waiting(agent, cfg)) == 1
+        agent.invoke(Command(resume={"decisions": [{"type": "approve"}]}), cfg, context=ctx)
+    assert starts == ["a.tex"] and ctx.started["start_grading"] == 1
+    assert [m.status for m in agent.get_state(cfg).values["messages"] if isinstance(m, ToolMessage)] == [
+        "error",
+        "success",
+    ]

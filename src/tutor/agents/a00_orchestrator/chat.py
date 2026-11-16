@@ -1,4 +1,4 @@
-"""00 as a LangChain agent: `ChatState` thread, six middleware, per-message tools and context.
+"""00 as a LangChain agent: `ChatState` thread, middleware, per-message tools and context.
 
 State a code path (`by_code`) leaves, in order: per tool run an AIMessage with one tool call and its ToolMessage
 (artifact = `tutor/` meta, plus `tutor/error` on an error), then one AIMessage with the reply text (`CARD_ONLY` when
@@ -9,6 +9,7 @@ import threading
 from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from datetime import date
 from typing import NotRequired
 from uuid import uuid4
 
@@ -18,6 +19,7 @@ from langchain.agents.middleware import (
     AgentState,
     ClearToolUsesEdit,
     ContextEditingMiddleware,
+    HumanInTheLoopMiddleware,
     before_agent,
     before_model,
     wrap_model_call,
@@ -43,6 +45,25 @@ RECHECK = (
     "Thầy/cô vừa lưu kết quả vào hệ thống, nên số liệu cũ trong cuộc trò chuyện có thể đã đổi. "
     "Hãy tra lại bằng công cụ trước khi dùng số cũ."
 )
+
+
+REJECTED = "Thầy/cô không đồng ý bắt đầu việc này nên chưa làm gì. Hỏi thầy/cô cần gì tiếp, đừng gọi lại công cụ này."
+
+
+def _describe(call, state, runtime) -> str:
+    a = call["args"]
+    try:
+        day = f"{date.fromisoformat(a['held_on']):%d/%m}"
+    except (KeyError, ValueError):
+        day = str(a.get("held_on", ""))
+    return f"Chấm {a.get('file', '')} cho {a.get('code', '')}, buổi {day}?"
+
+
+def approval() -> HumanInTheLoopMiddleware:
+    """K29: the tutor approves a start_grading the model chose from free text; `True` would add `respond`."""
+    return HumanInTheLoopMiddleware(
+        interrupt_on={"start_grading": {"allowed_decisions": ["approve", "edit", "reject"], "description": _describe}}
+    )
 
 
 class ChatState(AgentState):
@@ -230,6 +251,7 @@ def build(model, tools, saver, *, max_tool_turns: int, system: list[str] | None 
         middleware=[
             by_code,
             _limit_turns(max_tool_turns),
+            approval(),  # before limit_starts: a rejected call never counts toward the start limit
             one_at_a_time,
             limit_starts,
             keep_masked,
@@ -275,19 +297,30 @@ def _starts(msgs) -> Iterator[dict]:
             yield {"type": "tool", "name": c["name"], "label": LABELS.get(c["name"], ""), "state": "start"}
 
 
-def events(agent, ctx: ChatContext, cfg: dict, history: list | None = None) -> Iterator[dict]:
+def waiting(agent, cfg: dict) -> list[dict]:
+    """The calls the thread waits on the tutor to approve (K29), in order; empty when it is not waiting."""
+    return [r for t in agent.get_state(cfg).tasks for i in t.interrupts for r in i.value["action_requests"]]
+
+
+def events(
+    agent, ctx: ChatContext, cfg: dict, history: list | None = None, resume: list[dict] | None = None
+) -> Iterator[dict]:
     """NDJSON events of one tutor message, as `orchestrator.reply` gives them, without `start` / `error`.
 
     agent: `build(...)`; ctx.resaved: set by the caller; the thread (`cfg`) carries the earlier messages.
     history: messages that go into an empty thread before this one.
+    resume: the decisions (K30) that continue a thread waiting for approval; no new message then.
+    A turn that stops for approval ends with one `approval` event, no `source` or `done`.
     """
     turn, redact = ctx.turn, ctx.redact
     today = orchestrator.today_line(ctx.box.today)
-    human = HumanMessage(orchestrator.mask(f"{today}\n\n{turn.text}", redact))
-    said, streamed, ran, by_code, stopped, sources = [], False, False, False, None, []
-    for mode, data in agent.stream(
-        {"messages": [*(history or []), human]}, cfg, context=ctx, stream_mode=["messages", "updates"]
-    ):
+    if resume is None:
+        human = HumanMessage(orchestrator.mask(f"{today}\n\n{turn.text}", redact))
+        first = {"messages": [*(history or []), human]}
+    else:
+        first = Command(resume={"decisions": resume})
+    said, streamed, ran, by_code, stopped, sources, ask = [], False, False, False, None, [], None
+    for mode, data in agent.stream(first, cfg, context=ctx, stream_mode=["messages", "updates"]):
         if mode == "messages":
             chunk, meta = data
             if meta.get("langgraph_node") != "model" or not (delta := _text(chunk)):
@@ -300,6 +333,8 @@ def events(agent, ctx: ChatContext, cfg: dict, history: list | None = None) -> I
             yield {"type": "text", "delta": delta}
             continue
         for node, upd in data.items():
+            if node == "__interrupt__":
+                ask = upd[0].value["action_requests"][0]
             if not isinstance(upd, dict):
                 continue
             stopped = upd.get("stopped", stopped)
@@ -315,6 +350,9 @@ def events(agent, ctx: ChatContext, cfg: dict, history: list | None = None) -> I
                     sources += [art["tutor/source"]] if "tutor/source" in art else []
                     if "tutor/card" in art and not _is_error(m):
                         yield {"type": "card", "card": art["tutor/card"]}
+            elif node.startswith("HumanInTheLoopMiddleware"):  # a rejected call is answered here, no tool ran
+                for m in (m for m in msgs if isinstance(m, ToolMessage)):
+                    yield _tool_done(m)
             elif node.startswith("by_code") and msgs:
                 by_code = True
                 yield from _starts(msgs)
@@ -326,6 +364,9 @@ def events(agent, ctx: ChatContext, cfg: dict, history: list | None = None) -> I
                     yield {"type": "text", "delta": final.content}
                 for card in final.additional_kwargs.get("tutor/cards", []):
                     yield {"type": "card", "card": card}
+    if ask:
+        yield {"type": "approval", "name": ask["name"], "args": ask["args"], "description": ask["description"]}
+        return
     if ran and not by_code:  # C-41: numbers the model can still see, plus the date line
         known = audit.known_numbers([*ctx.seen, today])
         for w in audit.unverified("".join(said), known):
