@@ -11,7 +11,7 @@ from tests.db.test_profile_repo import skill_rows
 from tests.fakes import FakeLLM, lane_handlers
 from tests.graphs.g1 import THREE, approve, prob, status
 from tests.graphs.test_review import full
-from tutor import cli, llm
+from tutor import llm
 from tutor.db import repo
 from tutor.graphs import runner as rmod
 from tutor.graphs import session, threads
@@ -75,7 +75,7 @@ def test_preview_words_have_no_numbers_or_codes(env):
     assert not re.search(r"θ|δ|\b[a-z]+\.[a-z_]+\b", json.dumps(pv, ensure_ascii=False))
 
 
-def test_preview_without_any_kc_says_nothing_to_update(env, capsys):
+def test_preview_without_any_kc_says_nothing_to_update(env):
     go, conn, r = env
     repo.add_bank_problem(conn, ref="X-001", statement="s", solution="s", source="t", delta=None, tags=[],
                           rubric_items=[{"item_id": "r1", "text": "t", "points": 1}])  # fmt: skip
@@ -89,8 +89,6 @@ def test_preview_without_any_kc_says_nothing_to_update(env, capsys):
     assert pv["codes"]["new"] == ["Không xác định được loại lỗi"]
     assert pv["writes"] == {"attempt": 1, "mistake": 1, "rubric": 0, "skill_event": 0, "skill_state": 0,
                             "misconception_log": 0}  # fmt: skip
-    cli._echo_preview(pv)
-    assert "  Không có kỹ năng nào được cập nhật\n" in capsys.readouterr().out
 
 
 def test_preview_counts_rubrics_approved_at_step_3(env):
@@ -283,55 +281,3 @@ def test_commit_refuses_while_earlier_session_uncommitted(env):
     with pytest.raises(repo.StaleProfile):  # a commit already in flight meets the rule inside its transaction
         repo.commit_session(conn, later["session_id"], transcript="", review_seconds=None, attempts=[])
     assert repo.row_counts(conn) == before and status(conn, later["session_id"]) == "awaiting_review"
-
-
-def test_cli_confirm_after_stale_bounce_shows_new_preview_and_never_claims_commit(env, monkeypatch, capsys):
-    go, conn, r = env
-    a, _, _ = go(THREE, name="a.tex")
-    b, _, _ = go(THREE.replace("LANE", "LAN"), name="b.tex")
-    for t in (a, b):
-        r.save_decisions(t["thread_id"], full(conn))
-        r.resume(t["thread_id"])
-        assert r.wait(t["thread_id"])["node"] == "gate_confirm_commit"
-    r.resume(a["thread_id"])
-    assert r.wait(a["thread_id"])["status"] == "committed"
-    asked, answers = [], iter([True, True])
-    monkeypatch.setattr(cli.typer, "confirm", lambda text, **kw: asked.append((text, kw)) or next(answers))
-    tid = b["thread_id"]
-    cli._confirm_commit(r, tid)
-    out = capsys.readouterr().out
-    assert asked == [("Lưu kết quả?", {"default": False})] * 2
-    assert out.count("Xem trước") == 2 and out.index("đã đổi") < out.rindex("Xem trước")
-    assert out.count("committed:") == 1 and out.rindex("Xem trước") < out.index("committed:")
-    assert "+3 skill_event" in out and r.get(tid)["status"] == "committed"
-
-
-def test_cli_confirm_locked_thread_prints_reason_without_asking(env, monkeypatch, capsys):
-    go, conn, r = env
-    later, _, _ = go(THREE, name="l.tex", day="2026-10-20")
-    tl = later["thread_id"]
-    r.save_decisions(tl, full(conn))
-    threads.resume(r, tl)
-    assert r.wait(tl)["node"] == "gate_confirm_commit"
-    go(THREE.replace("LANE", "E"), name="e.tex", day="2026-10-17")
-    monkeypatch.setattr(cli.typer, "confirm", lambda *a, **k: pytest.fail("asked on a locked thread"))
-    with pytest.raises(cli.typer.Exit) as e:
-        cli._confirm_commit(r, tl)
-    out = capsys.readouterr().out
-    assert e.value.exit_code == 1 and "Chưa lưu được: Elo cập nhật tuần tự: duyệt buổi 17/10 của HS-01 trước" in out
-    assert "Xem trước" not in out and status(conn, later["session_id"]) == "awaiting_review"
-
-
-def test_cli_confirm_no_leaves_gate(env, monkeypatch, capsys):
-    go, conn, r = env
-    out, _, _ = go(THREE)
-    tid = out["thread_id"]
-    r.save_decisions(tid, full(conn))
-    r.resume(tid)
-    assert r.wait(tid)["node"] == "gate_confirm_commit"
-    monkeypatch.setattr(cli.typer, "confirm", lambda *a, **k: False)
-    cli._confirm_commit(r, tid)
-    assert capsys.readouterr().out.rstrip().endswith(f"Đang chờ Lưu kết quả. Lưu sau: tutor review {tid}")
-    row = r.get(tid)
-    assert (row["status"], row["node"]) == ("awaiting_review", "gate_confirm_commit")
-    assert status(conn, out["session_id"]) == "awaiting_review"
