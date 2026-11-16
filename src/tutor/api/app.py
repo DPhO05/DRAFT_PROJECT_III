@@ -81,7 +81,7 @@ def create_app(paths: config.DataPaths, *, port: int, fake_llm: bool = False) ->
         except sqlite3.Error:
             db_ok = False
         return {"status": "ok", "version": __version__, "db": "ok" if db_ok else "error", "llm": llm.status(),
-                "fake_llm": fake_llm}  # fmt: skip
+                "fake_llm": fake_llm, "app": "tutor", "data_dir": str(paths.root.resolve())}  # fmt: skip
 
     for r in (backup, students, catalog, sessions, threads, logs, bank, worksheets, assistant, reports, settings_api):
         app.include_router(r.router)

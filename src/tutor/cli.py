@@ -38,17 +38,24 @@ def _root() -> None:
     config.load_env(config.ENV_FILE)
 
 
-def _alive(url: str) -> bool:
+def _health(url: str) -> dict | None:
     try:
         with urllib.request.urlopen(f"{url}api/health", timeout=1) as r:
-            return json.load(r).get("status") == "ok"
+            body = json.load(r)
     except (OSError, ValueError):
-        return False
+        return None
+    return body if isinstance(body, dict) else None
 
 
-def _open_when_up(url: str) -> None:
+def _alive(url: str, paths: config.DataPaths) -> bool:
+    """True only for the tutor app serving this data folder."""
+    h = _health(url)
+    return bool(h) and h.get("app") == "tutor" and h.get("data_dir") == str(paths.root.resolve())
+
+
+def _open_when_up(url: str, paths: config.DataPaths) -> None:
     for _ in range(50):
-        if _alive(url):
+        if _alive(url, paths):
             webbrowser.open(url)
             return
         time.sleep(0.2)
@@ -82,12 +89,19 @@ def app_cmd(
     try:
         lock.acquire(timeout=0)
     except Timeout:
-        if _alive(url):
+        if _alive(url, paths):
             typer.echo(f"App đang chạy ở {url}")
             if not no_browser:
                 webbrowser.open(url)
             raise typer.Exit(0) from None
-        typer.echo(f"{paths.runner_lock} đang bị giữ: lệnh CLI đang chạy hoặc app mở ở cổng khác. Chờ xong rồi mở lại.")
+        if _health(url):
+            typer.echo(
+                f"Cổng {port} đang có chương trình khác hoặc app mở với dữ liệu ở thư mục khác. Tắt nó rồi mở lại."
+            )
+        else:
+            typer.echo(
+                f"{paths.runner_lock} đang bị giữ: lệnh khác đang chạy hoặc app mở ở cổng khác. Chờ xong rồi mở lại."
+            )
         raise typer.Exit(2) from None
     try:
         paths.ensure()
@@ -100,7 +114,7 @@ def app_cmd(
             repo.ensure_catalog(conn, DEFAULT_CATALOG / "kc.csv", DEFAULT_CATALOG / "kc_prereq.csv")
         app = create_app(paths, port=port, fake_llm=fake_llm)
         if not no_browser:
-            threading.Thread(target=_open_when_up, args=(url,), daemon=True).start()
+            threading.Thread(target=_open_when_up, args=(url, paths), daemon=True).start()
         typer.echo(f"Mở {url}  (Ctrl+C để tắt)")
         uvicorn.run(app, host="127.0.0.1", port=port, workers=1, log_level="warning")
     finally:

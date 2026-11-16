@@ -94,6 +94,64 @@ def test_second_app_does_not_start_another_process(running_app):
     assert "đang chạy" in r.stdout
 
 
+def fake_health(body: dict):
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from threading import Thread
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            raw = json.dumps(body).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+@pytest.mark.parametrize("who", ["other_app", "other_data"])
+def test_port_held_by_someone_else_exits_2_without_browser(tmp_path, monkeypatch, who):
+    data = tmp_path / "data"
+    data.mkdir()
+    body = {"status": "ok"} if who == "other_app" else {"status": "ok", "app": "tutor", "data_dir": str(tmp_path / "x")}
+    srv = fake_health(body)
+    opened = []
+    monkeypatch.setattr(cli.webbrowser, "open", opened.append)
+    try:
+        with FileLock(data / "runner.lock"):
+            port = str(srv.server_address[1])
+            r = CliRunner().invoke(cli.cli, ["app", "--port", port, "--data-dir", str(data)])
+    finally:
+        srv.shutdown()
+    assert r.exit_code == 2 and not opened
+    assert "Traceback" not in r.output and "Cổng" in r.output
+
+
+def test_same_app_same_data_opens_browser(tmp_path, monkeypatch):
+    data = tmp_path / "data"
+    data.mkdir()
+    srv = fake_health({"status": "ok", "app": "tutor", "data_dir": str(data.resolve())})
+    opened = []
+    monkeypatch.setattr(cli.webbrowser, "open", opened.append)
+    try:
+        with FileLock(data / "runner.lock"):
+            r = CliRunner().invoke(cli.cli, ["app", "--port", str(srv.server_address[1]), "--data-dir", str(data)])
+    finally:
+        srv.shutdown()
+    assert r.exit_code == 0 and len(opened) == 1
+
+
+def test_health_names_app_and_data_dir(running_app):
+    port, data = running_app
+    h = health(port)
+    assert h["app"] == "tutor" and h["data_dir"] == str(data.resolve())
+
+
 def test_lock_held_by_cli_command_exits_2(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
