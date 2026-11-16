@@ -6,9 +6,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
+from tutor import config
 from tutor.api import deps
 from tutor.db import repo
-from tutor.graphs import session
+from tutor.graphs import session, threads
 from tutor.services import students
 
 router = APIRouter(prefix="/api/students")
@@ -100,3 +101,24 @@ def profile(student_id: int, request: Request, conn: DB) -> dict:
 def progress(student_id: int, conn: DB) -> dict:
     repo.get_student(conn, student_id)  # 404 first
     return students.progress(conn, student_id)
+
+
+@router.post("/{student_id}/replay")
+def replay(student_id: int, request: Request, conn: DB) -> dict:
+    """Rebuild the skill profile from saved sessions (after a problem's difficulty or a saved mistake changed)."""
+    code = config.student_code(student_id)
+    if repo.get_student(conn, student_id)["archived_at"]:
+        raise ValueError(f"{code} đã lưu trữ")
+    runner, paths = request.app.state.runner, request.app.state.paths
+    waiting = [t for t in runner.list_threads(graph=session.GRAPH, student_id=student_id)
+               if t["status"] in ("running", "awaiting_review", "failed")]  # fmt: skip
+    if waiting:
+        raise threads.Unfinished(waiting)
+    repo.backup(paths.tutor_db, paths.backup)
+    out = repo.replay_student(conn, student_id)
+    names = {k["id"]: k["name"] for k in repo.list_kc(conn)}
+    return {
+        "events": out["events"],
+        "level_changes": [{"kc": names[c["kc_id"]], "before": c["before"], "after": c["after"]}
+                          for c in out["level_changes"]],
+    }  # fmt: skip
