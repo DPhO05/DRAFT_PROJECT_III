@@ -16,7 +16,7 @@ from tests.agents.test_orchestrator import text, tool
 from tests.api.conftest import PORT
 from tests.api.test_bank import ONE
 from tests.api.test_review_api import submit
-from tests.api.test_sessions import W, add_student, poll
+from tests.api.test_sessions import TEX, W, add_student, poll
 from tests.assistant_fix import world
 from tests.bankfix import P1
 from tests.fakes import FakeLLM, openai_client
@@ -278,6 +278,7 @@ def test_no_route_to_commit(client):
         ("GET", "/api/assistant/conversations"),
         ("GET", "/api/assistant/conversations/{conversation_id}"),
         ("GET", "/api/assistant/pending"),
+        ("POST", "/api/assistant/conversations/{conversation_id}/decide"),
     }
 
 
@@ -501,3 +502,116 @@ def test_killed_process_leaves_the_way_back(paths, client, w, monkeypatch):
     f.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows(paths, cid)[:-1]), encoding="utf-8")
     for msg in ("Lại", "Lại nữa"):
         assert lines(send(client, msg, cid=cid))[-1] == {"type": "done", "stopped": None}
+
+
+DAY, EARLIER = "2026-11-15", "2026-11-14"
+
+
+def ask_grading(client, paths, w, *then, day=DAY):
+    """The model picks start_grading from free text; returns (events, conversation id)."""
+    (paths.inbox / "s01.tex").write_text(TEX, encoding="utf-8")
+    script([tool("start_grading", code="HS-01", file="s01.tex", held_on=day)], *then)
+    evs = lines(send(client, "Chấm bài s01.tex cho @HS-01", [w["an"]]))
+    return evs, evs[0]["conversation_id"]
+
+
+def decide(client, cid, decision, args=None):
+    body = {"decision": decision} | ({"args": args} if args else {})
+    return client.post(f"/api/assistant/conversations/{cid}/decide", json=body, headers=W)
+
+
+def g1(client) -> list[str]:
+    return sorted(t["thread_id"] for t in client.app.state.runner.list_threads())
+
+
+def test_free_text_grading_waits_for_the_tutor(paths, client, w):
+    evs, cid = ask_grading(client, paths, w)
+    assert evs[-1] == {
+        "type": "approval",
+        "name": "start_grading",
+        "args": {"code": "HS-01", "file": "s01.tex", "held_on": DAY},
+        "description": "Chấm s01.tex cho HS-01, buổi 15/11?",
+    }
+    assert "done" not in [e["type"] for e in evs] and g1(client) == []
+    bot = rows(paths, cid)[-1]
+    assert bot["role"] == "assistant" and not bot.get("incomplete") and bot["events"][-1]["type"] == "approval"
+
+
+def test_approve_starts_the_thread(paths, client, w):
+    _, cid = ask_grading(client, paths, w, [text("Đã bắt đầu.")])
+    evs = lines(decide(client, cid, "approve"))
+    assert evs[0]["type"] == "start" and evs[0]["conversation_id"] == cid
+    assert [e["card"]["kind"] for e in evs if e["type"] == "card"] == ["grading"]
+    assert evs[-1] == {"type": "done", "stopped": None} and g1(client) == ["g1-hs01-20261115"]
+
+
+def test_edit_runs_with_the_new_date(paths, client, w):
+    _, cid = ask_grading(client, paths, w, [text("Đã bắt đầu.")])
+    args = {"code": "HS-01", "file": "s01.tex", "held_on": EARLIER}
+    [card] = [e["card"] for e in lines(decide(client, cid, "edit", args)) if e["type"] == "card"]
+    assert g1(client) == ["g1-hs01-20261114"] and card["thread_id"] == "g1-hs01-20261114"
+
+
+def test_reject_answers_in_words(paths, client, w):
+    fake = script([tool("start_grading", code="HS-01", file="s01.tex", held_on=DAY)], [text("Mình không chấm nữa.")])
+    (paths.inbox / "s01.tex").write_text(TEX, encoding="utf-8")
+    cid = lines(send(client, "Chấm bài s01.tex cho @HS-01", [w["an"]]))[0]["conversation_id"]
+    evs = lines(decide(client, cid, "reject"))
+    assert g1(client) == [] and "".join(e["delta"] for e in evs if e["type"] == "text") == "Mình không chấm nữa."
+    assert not [e for e in evs if e["type"] == "card"] and len(fake.calls) == 2
+    assert [r["role"] for r in rows(paths, cid)] == ["user", "assistant", "user", "assistant"]
+
+
+def test_waiting_turn_is_not_rewound_or_pruned(paths, client, w):
+    evs, cid = ask_grading(client, paths, w)
+    log = rows(paths, cid)
+    assert assistant._resume(log) is None and assistant._waiting(log)
+    store = client.app.state.chat
+    n = lambda sql: store.conn.execute(sql, (cid,)).fetchone()[0]  # noqa: E731
+    assert n("SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?") == 1
+    assert n("SELECT COUNT(*) FROM writes WHERE thread_id = ? AND channel = '__interrupt__'") == 1
+
+
+def test_waiting_survives_a_new_app(paths, app, w):
+    base = f"http://127.0.0.1:{PORT}"
+    with TestClient(app, base_url=base) as c:
+        _, cid = ask_grading(c, paths, w, [text("Đã bắt đầu.")])
+    with TestClient(create_app(paths, port=PORT), base_url=base) as c:
+        got = c.get("/api/assistant/pending").json()
+        [item] = [i for i in got["items"] if i["kind"] == "approval"]
+        assert item["conversation_id"] == cid and item["description"] == "Chấm s01.tex cho HS-01, buổi 15/11?"
+        assert got["counts"]["assistant"] == 1
+        assert lines(decide(c, cid, "approve"))[-1] == {"type": "done", "stopped": None}
+        assert g1(c) == ["g1-hs01-20261115"]
+        assert not [i for i in c.get("/api/assistant/pending").json()["items"] if i["kind"] == "approval"]
+
+
+def test_edited_args_are_masked_and_checked(paths, client, w):
+    _, cid = ask_grading(client, paths, w, [text("Đã bắt đầu.")])
+    late = {"code": "HS-01", "file": "s01.tex", "held_on": "2999-01-01"}
+    r = decide(client, cid, "edit", late)
+    assert r.status_code == 422 and "sau hôm nay" in r.json()["error"]["message"]
+    named = {"code": "HS-01", "file": "Nguyễn Văn An.tex", "held_on": EARLIER}
+    lines(decide(client, cid, "edit", named))
+    blob = chat_db_bytes(paths) + (paths.logs / "chat" / f"{cid}.jsonl").read_bytes()
+    assert (
+        "Nguyễn Văn An".encode() not in blob and "Nguyễn Văn An".encode() not in (paths.logs / "llm.jsonl").read_bytes()
+    )
+
+
+def test_decide_without_a_waiting_call(paths, client, w):
+    script([text("Chào.")])
+    cid = lines(send(client, "Chào"))[0]["conversation_id"]
+    assert decide(client, cid, "approve").status_code == 409
+    assert decide(client, "2026-01-01-9", "approve").status_code == 404
+    assert (
+        client.post(f"/api/assistant/conversations/{cid}/decide", json={"decision": "edit"}, headers=W).status_code
+        == 422
+    )
+
+
+def test_message_waits_for_the_decision(paths, client, w):
+    _, cid = ask_grading(client, paths, w, [text("Đã bắt đầu.")])
+    r = send(client, "Thôi", cid=cid)
+    assert r.status_code == 409 and "duyệt" in r.json()["error"]["message"]
+    assert lines(decide(client, cid, "approve"))[-1]["type"] == "done"

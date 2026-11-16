@@ -14,7 +14,7 @@ from collections.abc import Callable, Iterator
 from contextlib import closing
 from datetime import date
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
@@ -35,6 +35,8 @@ from tutor.services import facts
 router = APIRouter(prefix="/api/assistant")
 log = logging.getLogger("tutor")
 BUSY = "Trợ lý đang trả lời tin trước"
+WAITING = "Có việc đang chờ thầy/cô duyệt. Bấm Duyệt, Sửa hoặc Bỏ trước khi nhắn tiếp."
+NOT_WAITING = "Không có việc nào đang chờ duyệt."
 UNAVAILABLE = "Chưa trả lời được, thử lại"
 BAD_KEY = "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để kiểm tra khoá."
 INTERNAL = "Lỗi không lường trước, chi tiết ở data/logs/app.log"
@@ -63,6 +65,15 @@ class Message(BaseModel):
     context: Context = Context()
 
 
+class NotReady(Exception):
+    """A message while a call waits for approval, or a decision with nothing waiting: 409."""
+
+
+class Decision(BaseModel):
+    decision: Literal["approve", "edit", "reject"]
+    args: dict | None = None  # edit only: code, file, held_on
+
+
 class ChatStore:
     """data/chat.db: one LangGraph thread per conversation (id = conversation id), one shared connection."""
 
@@ -85,7 +96,7 @@ class ChatStore:
             ):
                 cur.execute(sql, (cid, cid))
         with self.saver.lock:  # give the freed pages and the WAL back, or the files stay at the turn's peak
-            self.conn.execute("PRAGMA incremental_vacuum")
+            self.conn.execute("PRAGMA incremental_vacuum").fetchall()  # it frees one page per row fetched
             self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
     def head(self, cid: str) -> str | None:
@@ -201,6 +212,19 @@ def _resume(rows: list[dict]) -> tuple[str | None] | None:
     return (rows[i]["from"],) if i >= 0 and rows[i]["role"] == "user" and "from" in rows[i] else None
 
 
+def _waiting(rows: list[dict]) -> dict | None:
+    """The approval event the conversation waits on, else None.
+
+    A decision that never finished (no answer row, or an incomplete one) leaves the call waiting."""
+    i = len(rows) - 1
+    while i >= 0 and (rows[i].get("decision") or rows[i].get("incomplete")):
+        i -= 1
+    if i < 0 or rows[i]["role"] != "assistant":
+        return None
+    last = (rows[i].get("events") or [{}])[-1]
+    return last if last.get("type") == "approval" else None
+
+
 def _open(
     paths: DataPaths, cid: str | None, user: dict, head: Callable[[str], str | None]
 ) -> tuple[str, Path, list[dict]] | None:
@@ -223,6 +247,10 @@ def _open(
             if f in _busy:
                 return None
             rows = _read(f)
+            if bool(_waiting(rows)) != ("decision" in user):  # a message waits for the decision; a decision needs one
+                if "decision" in user:
+                    raise NotReady(NOT_WAITING)
+                raise NotReady(WAITING)
         resume = _resume(rows)
         start = resume[0] if resume else (head(cid) if rows else None)
         _write(f, {"id": f"m{len(rows) + 1}"} | user | {"from": start})
@@ -348,6 +376,50 @@ def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn, *, stop: 
                 _write(f, row)
 
 
+def _respond(app, conn, cid: str, f: Path, rows: list[dict], ctx: chat.ChatContext, codes: list[dict],
+             fixed: list[str], *, decision: Decision | None = None) -> StreamingResponse:  # fmt: skip
+    """The NDJSON stream of one turn: a new message, or `decision` on the call the thread waits on."""
+    store, settings = app.state.chat, app.state.settings
+
+    def run() -> Iterator[dict]:  # inside `_stream`'s try: an error here becomes an error event and a log row
+        ctx.resaved = _resaved(app.state.runner, rows)
+        agent = chat.build(
+            llm.model("00"),
+            lc_tools(ctx.box, [c["code"] for c in codes]),
+            store.saver,
+            max_tool_turns=settings["assistant"]["max_tool_turns"],
+            system=fixed,
+        )
+        cfg = {"configurable": {"thread_id": cid}, "recursion_limit": 200}
+        if resume := _resume(rows):  # K12: run from before the unfinished turn
+            if resume[0] is None:
+                store.saver.delete_thread(cid)
+            else:
+                cfg["configurable"]["checkpoint_id"] = resume[0]
+        snap = agent.get_state(cfg)
+        defs = tool_defs([c["code"] for c in codes])
+        cc = llm.CallContext(graph=None, conversation_id=cid, redact=orchestrator._names(ctx.redact))
+        history = [] if snap.values else _history(rows)
+        answers = _decisions(decision, chat.waiting(agent, cfg)) if decision else None
+        yield from _scoped(lambda: chat.scope(cc, fixed, defs, stop=ctx.stop),
+                           chat.events(agent, ctx, cfg, history, answers))  # fmt: skip
+
+    lines = _stream(f, cid, f"m{len(rows) + 2}", run(), conn, stop=ctx.stop,
+                    done=lambda: store.prune(cid))  # fmt: skip
+    first = next(lines)  # inside its try now: a response never read still runs `finally` when dropped
+    return StreamingResponse(itertools.chain([first], lines), media_type="application/x-ndjson")
+
+
+def _decisions(d: Decision, asks: list[dict]) -> list[dict]:
+    """K30: one decision per waiting call. A second call in the same message is rejected: only one start runs."""
+    if not asks:
+        raise NotReady(NOT_WAITING)
+    reject = {"type": "reject", "message": chat.REJECTED}
+    edited = {"type": "edit", "edited_action": {"name": asks[0]["name"], "args": d.args}}
+    first = {"approve": {"type": "approve"}, "edit": edited, "reject": reject}[d.decision]
+    return [first] + [reject] * (len(asks) - 1)
+
+
 @router.post("/messages")
 def message(body: Message, request: Request):
     """One tutor message → NDJSON events (C-51). Errors before the stream are plain JSON: 422, 404, 409."""
@@ -366,6 +438,9 @@ def message(body: Message, request: Request):
         attachment = body.attachment.model_dump() if body.attachment else None
         user = {"role": "user", "ts": repo.now(), "text": text, "mentions": body.mentions, "attachment": attachment}
         opened = _open(paths, body.conversation_id, user, store.head)
+    except NotReady as e:
+        conn.close()
+        return errors.error(409, "not_ready", str(e), {"reason": str(e)})
     except BaseException:
         conn.close()
         raise
@@ -380,33 +455,48 @@ def message(body: Message, request: Request):
         held_on=body.held_on.isoformat() if body.held_on else None,
         worksheet_thread_id=body.context.worksheet_thread_id,
     )
+    return _respond(app, conn, cid, f, rows, chat.ChatContext(turn, box, everyone, redact), codes, fixed)
+
+
+@router.post("/conversations/{conversation_id}/decide")
+def decide(conversation_id: str, body: Decision, request: Request):
+    """The tutor's answer to the call the conversation waits on (api-v3 §3.1): NDJSON like `/messages`."""
+    app = request.app
+    paths, settings, store = app.state.paths, app.state.settings, app.state.chat
+    conn = repo.connect(paths.tutor_db, readonly=True)
+    try:
+        everyone = {s["id"]: s for s in repo.list_students(conn, include_archived=True)}
+        redact = {s["name"]: s["code"] for s in everyone.values()}
+        if body.decision == "edit":  # the same name masking as a typed message (C-40), the same date rule as the form
+            a = chat._mask_deep(body.args or {}, redact)
+            if not all(isinstance(a.get(k), str) and a[k].strip() for k in ("code", "file", "held_on")):
+                raise ValueError("Thiếu học sinh, file hoặc ngày học")
+            session.held_day(a["held_on"])
+            body.args = {k: a[k] for k in ("code", "file", "held_on")}
+        last = next((r for r in reversed(_read(_file(paths, conversation_id))) if r["role"] == "user"
+                     and not r.get("decision")), {})  # fmt: skip
+        text = last.get("text", "")
+        box = Toolbox(conn, settings=settings, today=date.today(), text=text,
+                      starters=make_starters(paths, app.state.runner))  # fmt: skip
+        codes = repo.error_codes(conn, active_only=True)
+        fixed = orchestrator.fixed_parts(repo.list_kc(conn), codes)
+        label = {"approve": "Duyệt", "edit": "Sửa", "reject": "Bỏ"}[body.decision]
+        user = {"role": "user", "ts": repo.now(), "text": "", "mentions": [], "attachment": None,
+                "decision": body.decision, "label": label, "args": body.args}  # fmt: skip
+        opened = _open(paths, conversation_id, user, store.head)
+    except NotReady as e:
+        conn.close()
+        return errors.error(409, "not_ready", str(e), {"reason": str(e)})
+    except BaseException:
+        conn.close()
+        raise
+    if opened is None:
+        conn.close()
+        return errors.error(409, "not_ready", BUSY, {"reason": BUSY})
+    cid, f, rows = opened
+    turn = orchestrator.Turn(text, last.get("mentions", []))
     ctx = chat.ChatContext(turn, box, everyone, redact)
-
-    def run() -> Iterator[dict]:  # inside `_stream`'s try: an error here becomes an error event and a log row
-        ctx.resaved = _resaved(app.state.runner, rows)
-        agent = chat.build(
-            llm.model("00"),
-            lc_tools(box, [c["code"] for c in codes]),
-            store.saver,
-            max_tool_turns=settings["assistant"]["max_tool_turns"],
-            system=fixed,
-        )
-        cfg = {"configurable": {"thread_id": cid}, "recursion_limit": 200}
-        if resume := _resume(rows):  # K12: run from before the unfinished turn
-            if resume[0] is None:
-                store.saver.delete_thread(cid)
-            else:
-                cfg["configurable"]["checkpoint_id"] = resume[0]
-        snap = agent.get_state(cfg)
-        defs = tool_defs([c["code"] for c in codes])
-        cc = llm.CallContext(graph=None, conversation_id=cid, redact=orchestrator._names(redact))
-        history = [] if snap.values else _history(rows)
-        yield from _scoped(lambda: chat.scope(cc, fixed, defs, stop=ctx.stop), chat.events(agent, ctx, cfg, history))
-
-    lines = _stream(f, cid, f"m{len(rows) + 2}", run(), conn, stop=ctx.stop,
-                    done=lambda: store.prune(cid))  # fmt: skip
-    first = next(lines)  # inside its try now: a response never read still runs `finally` when dropped
-    return StreamingResponse(itertools.chain([first], lines), media_type="application/x-ndjson")
+    return _respond(app, conn, cid, f, rows, ctx, codes, fixed, decision=body)
 
 
 @router.get("/conversations")
@@ -436,7 +526,8 @@ def conversation(conversation_id: str, request: Request) -> dict:
 
 @router.get("/pending")
 def pending(request: Request) -> dict:
-    """G1 / G2 / G4 / G5 threads at a gate or failed (C-05), plus running G1 so a reload shows its card."""
+    """G1 / G2 / G4 / G5 threads at a gate or failed (C-05), running G1 so a reload shows its card, and
+    conversations waiting for an approval."""
     paths, r = request.app.state.paths, request.app.state.runner
     items = []
     for row in threads.annotate(r.list_threads()):
@@ -452,7 +543,14 @@ def pending(request: Request) -> dict:
             items.append(worksheet.reminder(row, r.state(row["thread_id"])))
         elif row["graph"] == report.GRAPH:
             items.append(report.reminder(row, r.state(row["thread_id"])))
+    with _lock:
+        logs = [(f.stem, _read(f)) for f in (paths.logs / "chat").glob("*.jsonl") if _ID.fullmatch(f.stem)]
+    items += [{"kind": "approval", "conversation_id": cid, **ask} for cid, rows in sorted(logs)
+              if (ask := _waiting(rows))]  # fmt: skip
     assistant = sum(
-        i["kind"] in ("grading", "worksheet") and i.get("state") not in ("reading", "grading", "saving") for i in items
+        i["kind"] in ("grading", "worksheet")
+        and i.get("state") not in ("reading", "grading", "saving")
+        or i["kind"] == "approval"
+        for i in items
     )
     return {"counts": {"assistant": assistant, "reports": sum(i["kind"] == "report" for i in items)}, "items": items}

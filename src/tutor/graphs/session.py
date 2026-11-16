@@ -46,15 +46,20 @@ def _source(paths: DataPaths, rel_path: str):
     return p
 
 
-def submit(paths: DataPaths, runner: Runner, *, student_id: int, held_on: str, rel_path: str) -> dict:
-    """S1: duplicate check, date check and ① run synchronously; the graph then runs in the background."""
-    src = _source(paths, rel_path)
+def held_day(held_on: str) -> date:
     try:
         day = date.fromisoformat(held_on)
     except ValueError as e:
         raise ValueError(f"Ngày học phải dạng YYYY-MM-DD: {held_on}") from e
     if day > date.today():  # once saved, a typo year would refuse every later real session as earlier
         raise ValueError(f"Ngày học {day:%d/%m/%Y} là ngày sau hôm nay, không chấm được.")
+    return day
+
+
+def submit(paths: DataPaths, runner: Runner, *, student_id: int, held_on: str, rel_path: str) -> dict:
+    """S1: duplicate check, date check and ① run synchronously; the graph then runs in the background."""
+    src = _source(paths, rel_path)
+    day = held_day(held_on)
     held_on = day.isoformat()  # fromisoformat also takes "20261021"; a stored date must sort as text
     raw = src.read_bytes()
     try:
