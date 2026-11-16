@@ -76,10 +76,14 @@ class ChatStore:
 
     def prune(self, cid: str) -> None:
         """Keep the newest checkpoint of the thread. `SqliteSaver.prune` is not implemented (K28)."""
-        newest = "(SELECT MAX(checkpoint_id) FROM checkpoints WHERE thread_id = ?)"
         with self.saver.cursor() as cur:
-            for table in ("writes", "checkpoints"):
-                cur.execute(f"DELETE FROM {table} WHERE thread_id = ? AND checkpoint_id != {newest}", (cid, cid))
+            for sql in (
+                "DELETE FROM writes WHERE thread_id = ? AND checkpoint_id !="
+                " (SELECT MAX(checkpoint_id) FROM checkpoints WHERE thread_id = ?)",
+                "DELETE FROM checkpoints WHERE thread_id = ? AND checkpoint_id !="
+                " (SELECT MAX(checkpoint_id) FROM checkpoints WHERE thread_id = ?)",
+            ):
+                cur.execute(sql, (cid, cid))
         with self.saver.lock:  # give the freed pages and the WAL back, or the files stay at the turn's peak
             self.conn.execute("PRAGMA incremental_vacuum")
             self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -372,14 +376,10 @@ def message(body: Message, request: Request):
                 cfg["configurable"]["checkpoint_id"] = rows[-1]["from"]
         snap = agent.get_state(cfg)
         start["from"] = snap.config["configurable"].get("checkpoint_id") if snap.values else None
-        scope = lambda: chat.scope(  # noqa: E731
-            llm.CallContext(graph=None, conversation_id=cid, redact=orchestrator._names(redact)),
-            fixed,
-            tool_defs([c["code"] for c in codes]),
-            stop=ctx.stop,
-        )
+        defs = tool_defs([c["code"] for c in codes])
+        cc = llm.CallContext(graph=None, conversation_id=cid, redact=orchestrator._names(redact))
         history = [] if snap.values else _history(rows)
-        yield from _scoped(scope, chat.events(agent, ctx, cfg, history))
+        yield from _scoped(lambda: chat.scope(cc, fixed, defs, stop=ctx.stop), chat.events(agent, ctx, cfg, history))
 
     lines = _stream(f, cid, f"m{len(rows) + 2}", run(), conn, stop=ctx.stop, start=start,
                     done=lambda: store.prune(cid))  # fmt: skip

@@ -19,8 +19,8 @@ def write_sql_outside_repo(root: Path) -> list[str]:
             continue
         for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
             v = node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else ""
-            # tutor_thread lives in checkpoints.db (runner), not in tutor.db
-            if WRITE_SQL.search(v) and "tutor_thread" not in v:
+            # tutor_thread lives in checkpoints.db (runner), and checkpoint_id is LangGraph's chat.db: not tutor.db
+            if WRITE_SQL.search(v) and "tutor_thread" not in v and "checkpoint_id" not in v:
                 hits.append(f"{f.relative_to(root.parent)}:{node.lineno}")
     return hits
 
