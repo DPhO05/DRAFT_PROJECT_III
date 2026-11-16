@@ -1,4 +1,4 @@
-"""/api/assistant/messages over MCP (design T7): an aborted stream and a crashing tool, end to end."""
+"""/api/assistant/messages: an aborted stream and a crashing tool, end to end."""
 
 import gc
 import json
@@ -21,7 +21,7 @@ def test_closed_stream_frees_conversation(paths, client, monkeypatch):
     script([text("Chào.")], [tool("list_students")], [text("Lại.")])
     cid = lines(send(client, "Chào"))[0]["conversation_id"]
     streams, real = [], assistant._stream
-    monkeypatch.setattr(assistant, "_stream", lambda *a: streams.append(g := real(*a)) or g)
+    monkeypatch.setattr(assistant, "_stream", lambda *a, **k: streams.append(g := real(*a, **k)) or g)
     before = threading.active_count()
     resp = assistant.message(assistant.Message(conversation_id=cid, text="Ai yếu?"), SimpleNamespace(app=client.app))
     [g] = streams
@@ -52,5 +52,4 @@ def test_tool_crash_is_internal(paths, client, monkeypatch):
     assert evs[-1] == {"type": "error", "code": "internal", "message": assistant.INTERNAL}
     logged = (paths.logs / "app.log").read_text(encoding="utf-8")
     assert "RuntimeError: tool broke" in logged and "in boom" in logged
-    assert "tutor/mcp/client.py" in logged and "tutor/mcp/server.py" in logged  # Session, then the server handler
-    assert "ExceptionGroup" not in logged and "MCPError" not in logged
+    assert "ExceptionGroup" not in logged

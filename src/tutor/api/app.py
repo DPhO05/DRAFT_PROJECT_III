@@ -51,7 +51,9 @@ def create_app(paths: config.DataPaths, *, port: int, fake_llm: bool = False) ->
         if stuck := runner.recover_on_startup():
             log.warning("thread dừng giữa chừng -> failed: %s", stuck)
         app.state.runner = runner
+        app.state.chat = assistant.ChatStore(paths.chat_db)
         yield
+        app.state.chat.close()
         runner.close()
 
     app = FastAPI(

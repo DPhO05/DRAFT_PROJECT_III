@@ -1,5 +1,6 @@
 """P6-T09: POST /api/assistant/messages (NDJSON), conversations, pending (api-v3 §3.1-§3.3, R25, C-39)."""
 
+import gc
 import json
 import logging
 import threading
@@ -9,8 +10,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
 
 from tests.agents.test_orchestrator import text, tool
+from tests.api.conftest import PORT
 from tests.api.test_bank import ONE
 from tests.api.test_review_api import submit
 from tests.api.test_sessions import W, add_student, poll
@@ -18,7 +21,10 @@ from tests.assistant_fix import world
 from tests.bankfix import P1
 from tests.fakes import FakeLLM, openai_client
 from tutor import llm
+from tutor.agents.a00_orchestrator import chat
+from tutor.agents.a00_orchestrator.tools import Outcome, Toolbox
 from tutor.api import assistant
+from tutor.api.app import create_app
 from tutor.db import repo
 from tutor.graphs import worksheet
 
@@ -72,11 +78,11 @@ def test_stream_shape(paths, client, w):
 def test_logs_have_no_names(paths, client, w):
     fake = script([text("Ừ.")])
     lines(send(client, "Nguyễn Văn An với lê văn cường hay sai gì?"))
-    assert "HS-01 với HS-03" in fake.calls[0]["messages"][-1]["content"]
+    assert "HS-01 với HS-03" in sent_texts(fake.calls[0])[-1]
     for f in (paths.logs / "chat" / f"{date.today().isoformat()}-1.jsonl", paths.logs / "llm.jsonl"):
         got = "".join(llm._fold(c) for c in f.read_text(encoding="utf-8"))
         assert "nguyen van an" not in got and "le van cuong" not in got
-        assert "hs-01" in got and "hs-03" in got
+        assert f.name == "llm.jsonl" or "hs-01" in got and "hs-03" in got  # llm.jsonl keeps no request text
 
 
 def test_readonly_chat_keeps_db(paths, client, w, monkeypatch):
@@ -153,6 +159,11 @@ def real_llm(monkeypatch, paths, models, client=None):
     """Route agent 00 through the real llm.py, with the provider (if any) over a mock transport."""
     if client:
         monkeypatch.setitem(llm.PROVIDERS, "openai", lambda: llm.OpenAIBackend(client))
+        shared = dict(api_key="test", use_responses_api=True, store=False, max_retries=0,
+                      root_client=client, client=client.chat.completions)  # fmt: skip
+        monkeypatch.setattr(
+            llm, "_chat", {m: llm.GuardedOpenAI(model=m.split(":")[1], **shared) for m in models.values()}
+        )  # what llm.model builds, over the mock client
     monkeypatch.setattr(llm, "_live", {})
     llm.set_backend(None)
     llm.configure(paths.logs / "llm.jsonl", models)
@@ -280,3 +291,139 @@ def test_chat_locks_are_reentrant():
         with lock:
             assert lock.acquire(timeout=1)
             lock.release()
+
+
+def chat_db_bytes(paths) -> bytes:
+    return b"".join(f.read_bytes() for f in sorted(paths.root.glob("chat.db*")))
+
+
+def sent_blocks(call, kind) -> list[dict]:
+    return [b for m in call["messages"] if isinstance(m["content"], list) for b in m["content"] if b["type"] == kind]
+
+
+def sent_texts(call) -> list[str]:
+    return [m["content"] if isinstance(m["content"], str) else "".join(b.get("text", "") for b in m["content"])
+            for m in call["messages"]]  # fmt: skip
+
+
+def test_chat_db_stays_small(paths, client, w, monkeypatch):
+    """K28: every turn keeps only the newest checkpoint; 30 tool turns of 6000 chars stay under 1 MB."""
+    monkeypatch.setattr(Toolbox, "run", lambda self, name, args: Outcome("x" * 6000, summary="s"))
+
+    def auto(messages):
+        last = messages[-1]["content"]
+        done = isinstance(last, list) and last[-1]["type"] == "tool_result"
+        return [text("Xong.")] if done else [tool("student_profile", code="HS-01")]
+
+    llm.set_backend(FakeLLM({"00": auto}))
+    cid = None
+    for i in range(30):
+        cid = lines(send(client, f"Tin {i}", cid=cid))[0]["conversation_id"]
+    assert sum(f.stat().st_size for f in paths.root.glob("chat.db*")) < 1_000_000
+    assert lines(send(client, "Tin 31", cid=cid))[-1] == {"type": "done", "stopped": None}
+
+
+def test_thread_survives_a_new_app(paths, app, w):
+    fake = script([tool("student_profile", code="HS-01")], [text("Một.")], [text("Hai.")])
+    base = f"http://127.0.0.1:{PORT}"
+    with TestClient(app, base_url=base) as c:
+        cid = lines(send(c, "@HS-01 thế nào?", [w["an"]]))[0]["conversation_id"]
+    with TestClient(create_app(paths, port=PORT), base_url=base) as c:
+        lines(send(c, "Tiếp nhé", cid=cid))
+    assert sent_blocks(fake.calls[2], "tool_result")  # the tool context of message 1, not just its words
+
+
+@pytest.mark.parametrize("first_ok", [False, True])
+def test_failed_turn_leaves_no_dangling_call(paths, client, w, first_ok):
+    """K12/K13: the turn after a failed one starts from the checkpoint before it."""
+    first = [[text("Chào.")]] if first_ok else []
+    fake = script(*first, [tool("student_profile", code="HS-01")], llm.LLMUnavailable("00: overloaded"),
+                  [text("Được.")])  # fmt: skip
+    cid = lines(send(client, "Chào"))[0]["conversation_id"] if first_ok else None
+    evs = lines(send(client, "Hỏi gì đó", cid=cid))
+    cid = evs[0]["conversation_id"]
+    assert evs[-1]["type"] == "error"
+    assert lines(send(client, "Hỏi lại", cid=cid))[-1] == {"type": "done", "stopped": None}
+    last = fake.calls[-1]
+    assert {b["id"] for b in sent_blocks(last, "tool_use")} == {
+        b["tool_use_id"] for b in sent_blocks(last, "tool_result")
+    }
+    assert not any("Hỏi gì đó" in t for t in sent_texts(last))  # the failed message left the context
+    assert [r.get("incomplete") for r in rows(paths, cid) if r["role"] == "assistant"] == [
+        *([None] if first_ok else []), True, None,
+    ]  # fmt: skip
+
+
+def test_closed_after_a_tool_call_leaves_no_dangling_call(paths, client, w, monkeypatch):
+    """K11/K13: the browser leaves right after the tool call began; the thread holds a call with no result."""
+    fake = script([text("Chào.")], [tool("student_profile", code="HS-01")], [text("Được.")])
+    cid = lines(send(client, "Chào"))[0]["conversation_id"]
+    monkeypatch.setattr(assistant, "StreamingResponse", lambda it, media_type: it)  # read the lines here
+    stream = assistant.message(
+        assistant.Message(conversation_id=cid, text="Tra HS-01"), SimpleNamespace(app=client.app)
+    )
+    for line in stream:
+        if json.loads(line).get("state") == "start":
+            break
+    del stream  # the generator behind it is closed here, as when the connection drops
+    gc.collect()
+    monkeypatch.undo()
+    assert lines(send(client, "Lại", cid=cid))[-1] == {"type": "done", "stopped": None}
+    last = fake.calls[-1]
+    assert {b["id"] for b in sent_blocks(last, "tool_use")} == {
+        b["tool_use_id"] for b in sent_blocks(last, "tool_result")
+    }
+    assert not any("Tra HS-01" in t for t in sent_texts(last))
+    assert [r.get("incomplete") for r in rows(paths, cid) if r["role"] == "assistant"] == [None, True, None]
+
+
+def test_dropped_stream_is_incomplete(paths, client, w):
+    script([text("A.")], [text("B.")])
+    cid = lines(send(client, "Chào"))[0]["conversation_id"]
+    resp = assistant.message(assistant.Message(conversation_id=cid, text="Bỏ đi"), SimpleNamespace(app=client.app))
+    del resp
+    gc.collect()
+    assert [r.get("incomplete") for r in rows(paths, cid) if r["role"] == "assistant"] == [None, True]
+
+
+def test_history_from_log_when_thread_is_empty(paths, client, w):
+    """A log with no thread (old conversation): the last 20 text messages, never an incomplete turn."""
+    cid = f"{date.today().isoformat()}-1"
+    log = [r for i in range(15) for r in (
+        {"id": "u", "role": "user", "ts": "t", "text": f"u{i}"},
+        {"id": "a", "role": "assistant", "ts": "t", "text": f"a{i}"} | ({"incomplete": True} if i == 14 else {}),
+    )]  # fmt: skip
+    f = paths.logs / "chat" / f"{cid}.jsonl"
+    f.write_text("".join(json.dumps(r) + "\n" for r in log), encoding="utf-8")
+    fake = script([text("Ừ.")])
+    lines(send(client, "Tin mới", cid=cid))
+    got = sent_texts(fake.calls[0])
+    assert len(got) == 21 and got[0] == "u4" and got[-1].endswith("Tin mới")
+    assert not any(t in ("u14", "a14") for t in got)
+
+
+@pytest.mark.parametrize(("status", "stamp", "recheck"), [
+    ("committed", "9999-01-01T00:00:00Z", True),
+    ("committed", "2000-01-01T00:00:00Z", False),  # saved before the last answer: said already
+    ("awaiting_review", "9999-01-01T00:00:00Z", False),
+])  # fmt: skip
+def test_save_since_last_answer_asks_for_a_recheck(paths, client, w, monkeypatch, status, stamp, recheck):
+    cid = f"{date.today().isoformat()}-1"
+    card = {"type": "card", "card": {"kind": "grading", "thread_id": "g1-x"}}
+    log = [
+        {"id": "m1", "role": "user", "ts": "2026-11-01T00:00:00Z", "text": "Chấm"},
+        {"id": "m2", "role": "assistant", "ts": "2026-11-01T00:00:01Z", "text": "Xong", "events": [card]},
+    ]
+    (paths.logs / "chat" / f"{cid}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in log), encoding="utf-8")
+    monkeypatch.setattr(client.app.state.runner, "get", lambda tid: {"status": status, "updated_at": stamp})
+    fake = script([text("Ừ.")])
+    lines(send(client, "Tiếp", cid=cid))
+    assert (chat.RECHECK in json.dumps(fake.calls[0]["system"], ensure_ascii=False)) is recheck
+
+
+def test_chat_db_has_no_names(paths, client, w):
+    script([tool("student_profile", code="HS-01")], [text("Ừ.")])
+    lines(send(client, "Nguyễn Văn An dạo này thế nào?"))
+    blob = chat_db_bytes(paths)
+    assert b"HS-01" in blob
+    assert "Nguyễn Văn An".encode() not in blob and b"Nguyen Van An" not in blob

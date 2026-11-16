@@ -1,14 +1,16 @@
 """/api/assistant: agent 00 over NDJSON, the conversation log, pending work (api-v3 §3.1-§3.3, MONO-P6-01).
 
 No resume and no commit here (C-39): tutor.db is opened read-only for a reply; the only writes are what the
-`start_*` wrappers start, the same functions as the matching routes (C-38), and data/logs/chat/ (C-42)."""
+`start_*` wrappers start, the same functions as the matching routes (C-38), data/logs/chat/ (C-42) and the chat
+thread in data/chat.db."""
 
 import itertools
 import json
 import logging
 import re
+import sqlite3
 import threading
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import closing
 from datetime import date
 from pathlib import Path
@@ -16,16 +18,18 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.checkpoint.sqlite import SqliteSaver
 from pydantic import BaseModel
 
-from tutor.agents.a00_orchestrator import orchestrator
-from tutor.agents.a00_orchestrator.tools import Starters, Toolbox
+from tutor import llm
+from tutor.agents.a00_orchestrator import chat, orchestrator
+from tutor.agents.a00_orchestrator.tools import Starters, Toolbox, lc_tools, tool_defs
 from tutor.api import errors
 from tutor.config import DataPaths, student_code
 from tutor.db import repo
 from tutor.graphs import bank, report, session, threads, worksheet
 from tutor.graphs.runner import Runner, ThreadBusy, ThreadNotFound
-from tutor.mcp import client, server
 from tutor.services import facts
 
 router = APIRouter(prefix="/api/assistant")
@@ -39,6 +43,7 @@ _AT = re.compile(r"@HS-(\d+)", re.IGNORECASE)
 # RLock: a dropped stream's `finally` runs in GC, possibly inside a section that already holds the lock
 _lock = threading.RLock()  # every chat-log read / write and the busy set (R25)
 _busy: set[Path] = set()  # log files of the conversations answering right now
+HISTORY_MESSAGES = 20
 
 
 class Attachment(BaseModel):
@@ -56,6 +61,31 @@ class Message(BaseModel):
     attachment: Attachment | None = None
     held_on: date | None = None
     context: Context = Context()
+
+
+class ChatStore:
+    """data/chat.db: one LangGraph thread per conversation (id = conversation id), one shared connection."""
+
+    def __init__(self, path: Path):
+        self.conn = sqlite3.connect(path, check_same_thread=False)
+        self.conn.execute("PRAGMA journal_mode = WAL")
+        self.conn.execute("PRAGMA auto_vacuum = INCREMENTAL")  # takes effect with the VACUUM below
+        self.conn.execute("VACUUM")  # prune frees pages but never shrinks the file; once per start is enough
+        self.saver = SqliteSaver(self.conn)
+        self.saver.setup()
+
+    def prune(self, cid: str) -> None:
+        """Keep the newest checkpoint of the thread. `SqliteSaver.prune` is not implemented (K28)."""
+        newest = "(SELECT MAX(checkpoint_id) FROM checkpoints WHERE thread_id = ?)"
+        with self.saver.cursor() as cur:
+            for table in ("writes", "checkpoints"):
+                cur.execute(f"DELETE FROM {table} WHERE thread_id = ? AND checkpoint_id != {newest}", (cid, cid))
+        with self.saver.lock:  # give the freed pages and the WAL back, or the files stay at the turn's peak
+            self.conn.execute("PRAGMA incremental_vacuum")
+            self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+    def close(self) -> None:
+        self.conn.close()
 
 
 def _dm(day: str) -> str:
@@ -189,9 +219,65 @@ def _line(ev: dict) -> str:
     return json.dumps(ev, ensure_ascii=False) + "\n"
 
 
-def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn) -> Iterator[str]:
-    """NDJSON lines. `finally` logs the answer so far and frees the conversation, also after an error or an abort."""
+def _history(rows: list[dict]) -> list:
+    """The thread's start when it has none: the last 20 text messages of the log, an incomplete turn left out.
+
+    An old answer = its text + one "(đã tra: …)" line per tool. The user row before an incomplete answer goes too,
+    so the log and a thread resumed before that turn agree."""
+    kept: list[tuple[str, str]] = []
+    for r in rows:
+        if r["role"] == "assistant" and r.get("incomplete"):
+            if kept and kept[-1][0] == "user":
+                kept.pop()
+            continue
+        if not r.get("text"):
+            continue  # attachment only or a turn that said nothing: the API rejects empty content (S13)
+        tried = "\n".join(f"(đã tra: {t['summary']})" for t in r.get("tools") or [])
+        kept.append((r["role"], f"{r['text']}\n\n{tried}" if tried else r["text"]))
+    kept = kept[-HISTORY_MESSAGES:]
+    while kept and kept[0][0] != "user":
+        kept.pop(0)
+    return [(HumanMessage if role == "user" else AIMessage)(text) for role, text in kept]
+
+
+def _resaved(runner: Runner, rows: list[dict]) -> bool:
+    """A G1 thread this conversation started was saved since the last answer (rows = the log before this message)."""
+    last = max((r["ts"] for r in rows if r["role"] == "assistant"), default="")
+    ids = {e["card"]["thread_id"] for r in rows for e in r.get("events", [])
+           if e["type"] == "card" and e["card"].get("kind") == "grading"}  # fmt: skip
+    for tid in ids:
+        try:
+            t = runner.get(tid)
+        except ThreadNotFound:
+            continue
+        if t["status"] == "committed" and t["updated_at"] >= last:
+            return True
+    return False
+
+
+def _scoped(scope: Callable, events: Iterator[dict]) -> Iterator[dict]:
+    """`llm.scope` is a ContextVar: each `next` may run in another worker thread, so it is opened per event."""
+    try:
+        while True:
+            with scope():
+                try:
+                    ev = next(events)
+                except StopIteration:
+                    return
+            yield ev
+    finally:
+        with scope():
+            events.close()
+
+
+def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn, *, stop: threading.Event, start: dict,
+            done: Callable[[], None]) -> Iterator[str]:  # fmt: skip
+    """NDJSON lines. `finally` logs the answer so far and frees the conversation, also after an error or an abort.
+
+    start["from"]: the checkpoint the turn ran from; an incomplete turn logs it so the next one runs from there.
+    done: after a turn that ended cleanly."""
     said, kept, tools = [], [], []
+    finished = False
     try:
         yield _line({"type": "start", "conversation_id": cid, "message_id": mid})
         err = None
@@ -204,6 +290,8 @@ def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn) -> Iterat
                         tools.append({"name": ev["name"], "summary": ev.pop("summary")})
                     kept.append(ev)
                 yield _line(ev)
+            finished = True
+            done()
         except orchestrator.KeyRejected as e:
             log.warning("assistant %s: %s", cid, e)
             err = {"type": "error", "code": "bad_key", "message": BAD_KEY}
@@ -217,28 +305,36 @@ def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn) -> Iterat
             kept.append(err)
             yield _line(err)
     finally:
-        conn.close()
-        with _lock:
-            _busy.discard(f)
-            _write(f, {"id": mid, "role": "assistant", "ts": repo.now(), "text": "".join(said), "events": kept,
-                       "tools": tools})  # fmt: skip
+        if not finished:
+            stop.set()  # K11: the model call keeps going until it sees this
+        try:
+            events.close()
+        finally:
+            conn.close()
+            row = {"id": mid, "role": "assistant", "ts": repo.now(), "text": "".join(said), "events": kept,
+                   "tools": tools}  # fmt: skip
+            if not finished:
+                row |= {"incomplete": True} | ({"from": start["from"]} if "from" in start else {})
+            with _lock:
+                _busy.discard(f)
+                _write(f, row)
 
 
 @router.post("/messages")
 def message(body: Message, request: Request):
     """One tutor message → NDJSON events (C-51). Errors before the stream are plain JSON: 422, 404, 409."""
-    paths, settings, today = request.app.state.paths, request.app.state.settings, date.today()
+    app = request.app
+    paths, settings, today, store = app.state.paths, app.state.settings, date.today(), app.state.chat
     conn = repo.connect(paths.tutor_db, readonly=True)  # the reply's only tutor.db connection (C-39)
     try:
         everyone = {s["id"]: s for s in repo.list_students(conn, include_archived=True)}
         redact = {s["name"]: s["code"] for s in everyone.values()}  # archived too; one-word names skipped (S24)
         text = orchestrator.mask(body.text, redact)
         _check(text, body, everyone)
-        starters = make_starters(paths, request.app.state.runner)
-        # this sync route runs in a worker thread, so the Session's anyio.run is safe here (design §11 M8, M10)
-        s = client.connect("00", Toolbox(conn, settings=settings, today=today, text=text, starters=starters))
-        fixed = orchestrator.fixed_parts(json.loads(s.resource(server.KCS)), json.loads(s.resource(server.ERROR_CODES)))
-        tools = s.tools()
+        starters = make_starters(paths, app.state.runner)
+        box = Toolbox(conn, settings=settings, today=today, text=text, starters=starters)
+        codes = repo.error_codes(conn, active_only=True)
+        fixed = orchestrator.fixed_parts(repo.list_kc(conn), codes)
         attachment = body.attachment.model_dump() if body.attachment else None
         user = {"role": "user", "ts": repo.now(), "text": text, "mentions": body.mentions, "attachment": attachment}
         opened = _open(paths, body.conversation_id, user)
@@ -256,21 +352,37 @@ def message(body: Message, request: Request):
         held_on=body.held_on.isoformat() if body.held_on else None,
         worksheet_thread_id=body.context.worksheet_thread_id,
     )
-    events = orchestrator.reply(
-        turn,
-        history=orchestrator.history_messages(rows),
-        conn=conn,
-        starters=starters,
-        settings=settings,
-        today=today,
-        redact=redact,
-        students=everyone,
-        conversation_id=cid,
-        fixed=fixed,
-        tools=tools,
-        call=s.call,
-    )
-    lines = _stream(f, cid, f"m{len(rows) + 2}", events, conn)
+    ctx = chat.ChatContext(turn, box, everyone, redact)
+    start: dict = {}
+
+    def run() -> Iterator[dict]:  # inside `_stream`'s try: an error here becomes an error event and a log row
+        ctx.resaved = _resaved(app.state.runner, rows)
+        agent = chat.build(
+            llm.model("00"),
+            lc_tools(box, [c["code"] for c in codes]),
+            store.saver,
+            max_tool_turns=settings["assistant"]["max_tool_turns"],
+            system=fixed,
+        )
+        cfg = {"configurable": {"thread_id": cid}, "recursion_limit": 200}
+        if rows and rows[-1].get("incomplete") and "from" in rows[-1]:  # K12: run from before the failed turn
+            if rows[-1]["from"] is None:
+                store.saver.delete_thread(cid)
+            else:
+                cfg["configurable"]["checkpoint_id"] = rows[-1]["from"]
+        snap = agent.get_state(cfg)
+        start["from"] = snap.config["configurable"].get("checkpoint_id") if snap.values else None
+        scope = lambda: chat.scope(  # noqa: E731
+            llm.CallContext(graph=None, conversation_id=cid, redact=orchestrator._names(redact)),
+            fixed,
+            tool_defs([c["code"] for c in codes]),
+            stop=ctx.stop,
+        )
+        history = [] if snap.values else _history(rows)
+        yield from _scoped(scope, chat.events(agent, ctx, cfg, history))
+
+    lines = _stream(f, cid, f"m{len(rows) + 2}", run(), conn, stop=ctx.stop, start=start,
+                    done=lambda: store.prune(cid))  # fmt: skip
     first = next(lines)  # inside its try now: a response never read still runs `finally` when dropped
     return StreamingResponse(itertools.chain([first], lines), media_type="application/x-ndjson")
 
@@ -290,11 +402,14 @@ def conversations(request: Request, limit: Annotated[int, Query(ge=1, le=500)] =
 
 @router.get("/conversations/{conversation_id}")
 def conversation(conversation_id: str, request: Request) -> dict:
-    """The log rows without `tools`: their summaries may hold error codes (S10)."""
+    """The log rows without `tools` (their summaries may hold error codes, S10) and `from` (a checkpoint id)."""
     f = _file(request.app.state.paths, conversation_id)
     with _lock:
         rows = _read(f)
-    return {"id": conversation_id, "messages": [{k: v for k, v in r.items() if k != "tools"} for r in rows]}
+    return {
+        "id": conversation_id,
+        "messages": [{k: v for k, v in r.items() if k not in ("tools", "from")} for r in rows],
+    }
 
 
 @router.get("/pending")
