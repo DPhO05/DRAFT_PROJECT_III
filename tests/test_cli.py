@@ -127,6 +127,48 @@ def test_port_held_by_someone_else_exits_2_without_browser(tmp_path, monkeypatch
     assert "Traceback" not in r.output and "Cổng" in r.output
 
 
+def test_port_taken_with_lock_free_exits_2_in_words(tmp_path, monkeypatch):
+    srv = fake_health({"status": "ok", "app": "tutor", "data_dir": str(tmp_path / "elsewhere")})
+    opened = []
+    monkeypatch.setattr(cli.webbrowser, "open", opened.append)
+    try:
+        r = CliRunner().invoke(
+            cli.cli, ["app", "--port", str(srv.server_address[1]), "--data-dir", str(tmp_path / "d")]
+        )
+    finally:
+        srv.shutdown()
+    assert r.exit_code == 2 and not opened and "Cổng" in r.output and "Traceback" not in r.output
+    assert not (tmp_path / "d" / "tutor.db").exists()
+    assert FileLock(tmp_path / "d" / "runner.lock").acquire(timeout=0)  # the lock was released
+
+
+def test_port_with_non_http_service_exits_2_in_words(tmp_path, monkeypatch):
+    import socket as sk
+    from threading import Thread
+
+    srv = sk.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen()
+
+    def junk():
+        while True:
+            try:
+                c, _ = srv.accept()
+            except OSError:
+                return
+            c.sendall(b"junk\r\n\r\n")
+            c.close()
+
+    Thread(target=junk, daemon=True).start()
+    monkeypatch.setattr(cli.webbrowser, "open", lambda u: pytest.fail("opened a browser"))
+    try:
+        r = CliRunner().invoke(cli.cli, ["app", "--port", str(srv.getsockname()[1]), "--data-dir", str(tmp_path / "d")])
+    finally:
+        srv.close()
+    assert r.exit_code == 2 and "Cổng" in r.output
+    assert "Traceback" not in r.output
+
+
 def test_same_app_same_data_opens_browser(tmp_path, monkeypatch):
     data = tmp_path / "data"
     data.mkdir()

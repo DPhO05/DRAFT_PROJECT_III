@@ -1,6 +1,8 @@
 """CLI `tutor`: commands equivalent to the app's buttons (SDD monolith §5.5)."""
 
+import http.client
 import json
+import socket
 import threading
 import time
 import urllib.request
@@ -32,9 +34,18 @@ def _health(url: str) -> dict | None:
     try:
         with urllib.request.urlopen(f"{url}api/health", timeout=1) as r:
             body = json.load(r)
-    except (OSError, ValueError):
+    except (OSError, ValueError, http.client.HTTPException):
         return None
     return body if isinstance(body, dict) else None
+
+
+def _taken(port: int) -> bool:
+    with socket.socket() as sk:
+        sk.settimeout(1)
+        return sk.connect_ex(("127.0.0.1", port)) == 0
+
+
+PORT_TAKEN = "Cổng {port} đang có chương trình khác hoặc app mở với dữ liệu ở thư mục khác. Tắt nó rồi mở lại."
 
 
 def _alive(url: str, paths: config.DataPaths) -> bool:
@@ -84,16 +95,17 @@ def app_cmd(
             if not no_browser:
                 webbrowser.open(url)
             raise typer.Exit(0) from None
-        if _health(url):
-            typer.echo(
-                f"Cổng {port} đang có chương trình khác hoặc app mở với dữ liệu ở thư mục khác. Tắt nó rồi mở lại."
-            )
+        if _taken(port):
+            typer.echo(PORT_TAKEN.format(port=port))
         else:
             typer.echo(
                 f"{paths.runner_lock} đang bị giữ: lệnh khác đang chạy hoặc app mở ở cổng khác. Chờ xong rồi mở lại."
             )
         raise typer.Exit(2) from None
     try:
+        if _taken(port):  # a bind error from uvicorn would be English and exit 3
+            typer.echo(PORT_TAKEN.format(port=port))
+            raise typer.Exit(2)
         paths.ensure()
         try:
             repo.init_db(paths.tutor_db, paths.backup)
