@@ -6,7 +6,7 @@
   var panel = null, students = [], pending = null, convs = [], cur = { id: null }, busy = false, remindOpen = true;
   var inbox = [], attached = null, mentionMap = {}, pop = { open: false, items: [], i: -1, start: 0 };
   var retries = {}, turnSeq = 0, KEEP = 'tutor.chatConv';
-  var GROUPS = [['grading', 'Bài chờ duyệt'], ['report', 'Báo cáo nháp'], ['worksheet', 'Phiếu nháp'], ['bank_import', 'Bài mới chờ nạp']];
+  var GROUPS = [['approval', 'Chờ thầy/cô duyệt'], ['grading', 'Bài chờ duyệt'], ['report', 'Báo cáo nháp'], ['worksheet', 'Phiếu nháp'], ['bank_import', 'Bài mới chờ nạp']];
   var ERR = {
     not_ready: 'Trợ lý đang trả lời tin trước. Chờ một lát rồi bấm Gửi lại.',
     validation_error: 'Tin này chưa gửi được. Kiểm tra lại học sinh đã chọn rồi bấm Gửi lại.',
@@ -36,6 +36,7 @@
     });
   }
   function remindRow(it) {
+    if (it.kind === 'approval') return '<div class="remind-item"><span>' + U.esc(U.names(it.description)) + '</span>' + btn('c-open', 'Mở', 'data-tid="' + U.esc(it.conversation_id) + '" data-kind="approval"') + '</div>';
     var when = it.kind === 'report' ? REPORTS.label(it.period_kind, it.period_start) : it.date ? (it.kind === 'worksheet' ? 'buổi ' : '') + dm(it.date) : '';
     var rest = [when, it.words].filter(Boolean).join(' · ');
     return '<div class="remind-item"><span><b>' + U.esc(it.kind === 'bank_import' ? it.file : nameOf(it.student_id)) + '</b> · ' + U.esc(rest) + '</span>' +
@@ -70,6 +71,7 @@
     if (k === 'grading' || k === 'worksheet') C.openThread(el.dataset.tid, k);
     else if (k === 'report') REPORTS.open(el.dataset.tid);
     else if (k === 'bank_import') U.tab('ngan-hang');
+    else if (k === 'approval') openConv(el.dataset.tid, false);
   };
   ACT['c-tab'] = function (el) { U.tab(el.dataset.tab); };
 
@@ -159,14 +161,15 @@
     if (ev.type === 'text') { m.text += ev.delta; drawText(m); }
     else if (ev.type === 'tool') { if (ev.state === 'start') m.busy[ev.name] = ev.label; else delete m.busy[ev.name]; drawTools(m); }
     else if (ev.type === 'card') addCard(m, ev.card);
+    else if (ev.type === 'approval') { m.busy = {}; drawTools(m); addCard(m, { kind: 'approval', ev: ev, settled: m.settled }); }
     else if (ev.type === 'warning') { m.warnings.push(ev); drawText(m); }
     else if (ev.type === 'source') { m.source = ev; drawEnd(m); }
     else if (ev.type === 'done') { m.done = true; m.stopped = ev.stopped; m.busy = {}; drawText(m); drawTools(m); drawEnd(m); }
     else if (ev.type === 'error') { m.error = ev; m.bubble.classList.add('bubble-err'); drawText(m); drawEnd(m); }
   }
-  function replay(row) {
+  function replay(row, waiting) {
     var m = botMsg();
-    m.text = row.text || ''; m.done = true;
+    m.text = row.text || ''; m.done = true; m.settled = !waiting;  // an approval card is live only while the conversation still waits on it
     (row.events || []).forEach(function (ev) { apply(m, ev); });
     m.busy = {}; drawTools(m); drawText(m); drawEnd(m);
   }
@@ -234,6 +237,47 @@
   }
   ACT['c-send'] = sendBox;
   ACT['c-retry'] = function (el) { go(retries[el.dataset.turn]); };
+
+  // ---- the tutor's answer to a call the assistant waits on (api-v3 §3.1 `approval`) ----
+  function settle(host, note) {
+    host.innerHTML = '<p class="small muted">' + U.esc(note) + '</p>';
+  }
+  C.cards.approval = function (host, card) {
+    var a = card.ev.args, who = [].find.call(students, function (s) { return s.code === a.code; });
+    if (card.settled) { host.innerHTML = '<p>' + U.esc(U.names(card.ev.description)) + '</p><p class="small muted">Thầy/cô đã trả lời việc này.</p>'; return; }
+    host.dataset.args = JSON.stringify(a); host.dataset.said = card.ev.description;
+    host.innerHTML = '<div class="stack"><p><b>' + U.esc(U.names(card.ev.description)) + '</b></p><div class="row">' +
+      btn('c-yes', 'Duyệt', '', 'btn-primary') + btn('c-fix', 'Sửa') + btn('c-no', 'Bỏ') + '</div>' +
+      '<div class="row" data-edit hidden><select aria-label="Học sinh">' + active().map(function (s) {
+        return '<option value="' + U.esc(s.code) + '"' + (who && who.id === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>';
+      }).join('') + '</select><input type="date" aria-label="Ngày học" value="' + U.esc(a.held_on) + '">' + btn('c-fix-go', 'Chấm bài này', '', 'btn-primary') + '</div></div>';
+  };
+  function decide(el, body, note) {
+    if (busy) { U.toast('Trợ lý đang trả lời, chờ một lát.', 'info'); return; }
+    var host = el.closest('.card-host'), id = cur.id, turn = { conv: cur, shown: '', map: {}, chip: null }, m;
+    setBusy(true); settle(host, note);
+    m = botMsg(); drawText(m); scrollEnd(true);
+    U.ndjson('/assistant/conversations/' + encodeURIComponent(id) + '/decide', body, function (ev) {
+      try {
+        var s = $('.chat-scroll'), stick = s && s.scrollHeight - s.scrollTop - s.clientHeight < 120;
+        if (ev.type === 'error') lose(turn, m, ev.code); else apply(m, ev);
+        if (stick) scrollEnd(true);
+      } catch (e) { console.error(e); }
+    }).then(function () {
+      if (!m.done && !m.error) lose(turn, m, '');
+    }, function (e) {
+      m.el.remove();  // nothing started: the card comes back with the server's words
+      if (host.isConnected) C.cards.approval(host, { ev: { args: JSON.parse(host.dataset.args), description: host.dataset.said }, settled: false });
+      U.toast(e.status === 422 ? e.message : 'Chưa gửi được, thử lại.', 'warn');
+    }).then(function () { setBusy(false); C.refreshPending(); loadConvs(); });
+  }
+  ACT['c-yes'] = function (el) { decide(el, { decision: 'approve' }, 'Đã duyệt.'); };
+  ACT['c-no'] = function (el) { decide(el, { decision: 'reject' }, 'Đã bỏ.'); };
+  ACT['c-fix'] = function (el) { var e = el.closest('.card-host').querySelector('[data-edit]'); e.hidden = !e.hidden; };
+  ACT['c-fix-go'] = function (el) {
+    var host = el.closest('.card-host'), a = JSON.parse(host.dataset.args), box = host.querySelector('[data-edit]');
+    decide(el, { decision: 'edit', args: { code: box.querySelector('select').value, file: a.file, held_on: box.querySelector('input').value } }, 'Đã sửa.');
+  };
 
   // ---- the box: autosize, Gửi on/off, 📎 chip, @ list ----
   function autosize(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(160, ta.scrollHeight + 2) + 'px'; canSend(); }
@@ -321,7 +365,10 @@
     return U.api.get('/assistant/conversations/' + encodeURIComponent(id)).then(function (r) {
       cur = { id: id }; keep(id);
       $('#chat-msgs').innerHTML = '';
-      r.messages.forEach(function (row) { if (row.role === 'user') addUser(row); else replay(row); });
+      r.messages.forEach(function (row, i) {
+        if (row.decision) return;  // the tutor's Duyệt / Sửa / Bỏ is the card, not a bubble
+        if (row.role === 'user') addUser(row); else replay(row, i === r.messages.length - 1);
+      });
       drawConvs(); scrollEnd(true);
       if (!quiet) { closeDrawer(); $('#chat-input').focus(); }
     }, function (e) {

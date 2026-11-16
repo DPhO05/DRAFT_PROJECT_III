@@ -100,6 +100,10 @@ def _chat_turn(messages: list[dict]) -> list[dict]:
         calls, say = [("student_profile", {"code": code})], f"Tháng này {code} làm đúng 97 bài."
     elif "yếu gì" in low:
         calls, say = [("student_profile", {"code": code})], f"Mình đã xem hồ sơ của {code}, chi tiết ở nguồn bên dưới."
+    elif tex := re.search(r"chấm bài (\S+\.tex)", asked, re.IGNORECASE):
+        today = re.search(r"Hôm nay: (\d{4}-\d{2}-\d{2})", asked).group(1)
+        calls = [("start_grading", {"code": code, "file": tex.group(1), "held_on": today})]
+        say = "Mình đã bắt đầu chấm bài. Thầy/cô xem thẻ chấm bài bên dưới."
     elif "báo cáo" in low:
         today = date.fromisoformat(re.search(r"Hôm nay: (\d{4}-\d{2}-\d{2})", asked).group(1))
         kind, start = _report_period(low, today)

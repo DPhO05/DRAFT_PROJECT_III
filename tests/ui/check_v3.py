@@ -29,6 +29,7 @@ import unicodedata
 import urllib.request
 from collections import Counter
 from contextlib import closing, contextmanager
+from datetime import date
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -827,6 +828,7 @@ JS_N_MSGS = "n => document.querySelectorAll('#chat-msgs .msg').length === n"
 JS_FEED = """() => { window.__ndjson = U.ndjson;
   U.ndjson = (path, body, onEvent) => new Promise(done => { window.__emit = onEvent; window.__end = done; }); }"""
 JS_UNFEED = "() => { U.ndjson = window.__ndjson; }"
+JS_APPROVE = """() => ['c-yes', 'c-fix', 'c-no'].every(a => !!document.querySelector(`#chat-msgs [data-act="${a}"]`))"""
 JS_ASK_GRADE = """() => { const c = document.querySelector('.ask-grade'); if (!c) return null;
   const s = c.querySelector('select');
   return [s.options[s.selectedIndex].text, c.querySelector('input[type=date]').value,
@@ -1364,6 +1366,33 @@ def chat_reload_grading(page, rep: dict) -> None:
         rep["missing"].append("chat reload: the welcome shows over the reopened conversation")
 
 
+@counted(may=START_GRADING)
+def chat_approval(page, rep: dict, phone: bool, data_dir: str) -> None:
+    """Free text asks for grading: the assistant stops on a card (no session yet); Duyệt starts it and the grading card shows."""
+    today = date.today()
+    tid = f"g1-hs01-{today:%Y%m%d}"
+    Path(data_dir, "inbox", "s01.tex").write_bytes(
+        (FIX / "s01.tex").read_bytes() + b"\n% robot approval\n"
+    )  # new sha: not graded yet
+    new_chat(page, rep, phone)
+    pick_mention(page, rep, "Chấm bài s01.tex cho ", PEOPLE[0].split()[0], PEOPLE[0])
+    n, before = msgs(page), counts(data_dir)
+    page.press("#chat-input", "Enter")
+    expect(page, rep, JS_REPLIED, "chat approval: no answer to the free text", n)
+    if not expect(page, rep, JS_APPROVE, "chat approval: no card with Duyệt, Sửa, Bỏ", None):
+        return
+    if counts(data_dir) != before:
+        rep["missing"].append("chat approval: a session started before the tutor pressed Duyệt")
+    want = f"Chấm s01.tex cho {PEOPLE[0]}, buổi {today:%d/%m}?"
+    if want not in page.inner_text("#chat-msgs"):
+        rep["missing"].append(f"chat approval: the card does not say {want!r}")
+    see_chat(page, rep, "chat approval", phone)
+    press(page, rep, '#chat-msgs [data-act="c-yes"]', "chat Duyệt", JS_HOST_SEL, [tid, ".gcard-head"])
+    Path(data_dir, "inbox", "s01.tex").write_bytes(
+        (FIX / "s01.tex").read_bytes()
+    )  # the inbox listing keeps its graded sha
+
+
 def walk_chat(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> None:
     """The Trợ lý tab (the app is on it already). With --data the walk must leave tutor.db and the decisions alone."""
     reqs: list = []
@@ -1698,6 +1727,7 @@ def walk_grading(page, rep: dict, phone: bool, data_dir: str) -> None:
         grade_save(page, rep, data_dir, reqs)
     grade_stale(page, rep, reqs)
     grade_routes(page, rep, reqs)
+    chat_approval(page, rep, False, data_dir)
 
 
 WS_ASK = "Gợi ý 6 bài cho "
