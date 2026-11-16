@@ -20,6 +20,18 @@ from tutor.services import facts, search, students
 
 log = logging.getLogger("tutor")
 MAX_CONTENT = 6000  # chars of tool result sent to the model
+LIMITS: dict[str, int] = {
+    "start_grading": 1,
+    "start_bank_import": 1,
+    "propose_worksheet": 2,
+    "start_report": 1,
+}  # H5, per message
+_ONCE = "Mỗi tin chỉ bắt đầu việc này một lần. Thầy/cô nhắn tin mới nếu cần làm thêm."
+_REFUSED = {  # no digits: H8 checks the numbers in every tool result; a LIMITS entry without one gets _ONCE
+    "start_grading": _ONCE,
+    "start_bank_import": _ONCE,
+    "propose_worksheet": "Mỗi tin chỉ soạn phiếu nháp tối đa hai lần.",
+}
 
 
 @dataclass

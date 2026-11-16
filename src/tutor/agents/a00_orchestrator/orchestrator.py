@@ -136,6 +136,45 @@ def _ask_grading(turn: Turn, students: dict[int, dict]) -> dict:
     return {"kind": "ask_grading", "attachment": turn.attachment, "guess": guess if ok else None}
 
 
+def _refs_reply(turn: Turn, run: Call, starters: Starters | None) -> Iterator[dict]:
+    refs = [r.upper() for r in re.findall(_REF, turn.text, re.IGNORECASE)]  # every bank ref is uppercase
+    last: Result | None = None
+
+    def find(name: str, args: dict) -> Result:
+        nonlocal last
+        last = run(name, args)
+        return last
+
+    yield from _by_code(find, "find_problems", {"refs": refs}, card=not turn.worksheet_thread_id)
+    if turn.worksheet_thread_id and not last[1]:
+        try:
+            w = starters.add_to_worksheet(turn.worksheet_thread_id, refs)
+        except ValueError as e:
+            yield {"type": "text", "delta": str(e)}
+        else:
+            card = {"kind": "worksheet", "thread_id": w["thread_id"], "added": w["added"], "invalid": w["invalid"]}
+            yield {"type": "card", "card": card}
+
+
+def _attachment_reply(turn: Turn, run: Call, students: dict[int, dict]) -> Iterator[dict]:
+    if len(turn.mentions) == 1 and turn.held_on:
+        args = {"code": student_code(turn.mentions[0]), "file": turn.attachment, "held_on": turn.held_on}
+        yield from _by_code(run, "start_grading", args)
+    else:
+        yield {"type": "card", "card": _ask_grading(turn, students)}
+
+
+def direct(turn: Turn, run: Call, *, starters: Starters | None, students: dict[int, dict]) -> Iterator[dict] | None:
+    """Events of a reply code gives without the model (confirm, problem codes, attachment); None = ask the model."""
+    if _confirm_only(turn.text):
+        return iter([{"type": "text", "delta": SAVED_NOTHING}])
+    if _REFS_ONLY.match(turn.text):
+        return _refs_reply(turn, run, starters)
+    if turn.attachment:
+        return _attachment_reply(turn, run, students)
+    return None
+
+
 def _chat(
     turn: Turn, call: Call, done: list[Result], *, history, today, redact, conversation_id, fixed, tools, settings
 ) -> Generator[dict, None, tuple[str | None, list[dict]]]:
@@ -201,25 +240,8 @@ def reply(
         return r
 
     stopped, warnings = None, []
-    if _confirm_only(turn.text):
-        yield {"type": "text", "delta": SAVED_NOTHING}
-    elif _REFS_ONLY.match(turn.text):
-        refs = [r.upper() for r in re.findall(_REF, turn.text, re.IGNORECASE)]  # every bank ref is uppercase
-        yield from _by_code(run, "find_problems", {"refs": refs}, card=not turn.worksheet_thread_id)
-        if turn.worksheet_thread_id and not done[-1][1]:
-            try:
-                w = starters.add_to_worksheet(turn.worksheet_thread_id, refs)
-            except ValueError as e:
-                yield {"type": "text", "delta": str(e)}
-            else:
-                card = {"kind": "worksheet", "thread_id": w["thread_id"], "added": w["added"], "invalid": w["invalid"]}
-                yield {"type": "card", "card": card}
-    elif turn.attachment:
-        if len(turn.mentions) == 1 and turn.held_on:
-            args = {"code": student_code(turn.mentions[0]), "file": turn.attachment, "held_on": turn.held_on}
-            yield from _by_code(run, "start_grading", args)
-        else:
-            yield {"type": "card", "card": _ask_grading(turn, students)}
+    if (events := direct(turn, run, starters=starters, students=students)) is not None:
+        yield from events
     else:
         stopped, warnings = yield from _chat(
             turn,

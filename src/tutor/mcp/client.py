@@ -8,21 +8,8 @@ import anyio
 from mcp import Client, MCPError
 from mcp.server import Server
 
-from tutor.agents.a00_orchestrator.tools import Toolbox
+from tutor.agents.a00_orchestrator.tools import _ONCE, _REFUSED, LIMITS, Toolbox
 from tutor.mcp import server
-
-LIMITS: dict[str, int] = {
-    "start_grading": 1,
-    "start_bank_import": 1,
-    "propose_worksheet": 2,
-    "start_report": 1,
-}  # H5, per message
-_ONCE = "Mỗi tin chỉ bắt đầu việc này một lần. Thầy/cô nhắn tin mới nếu cần làm thêm."
-_REFUSED = {  # no digits: H8 checks the numbers in every tool result; a LIMITS entry without one gets _ONCE
-    "start_grading": _ONCE,
-    "start_bank_import": _ONCE,
-    "propose_worksheet": "Mỗi tin chỉ soạn phiếu nháp tối đa hai lần.",
-}
 
 
 def _origin(e: BaseException) -> BaseException:
