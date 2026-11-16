@@ -646,7 +646,13 @@ def walk_nokey(page, rep: dict, phone: bool) -> None:
     page.reload()
 
 
-GEAR_OPENS = {"backup": "Sao lưu ngay", "catalog": "Loại lỗi", "settings": "Lưu cài đặt", "cost": "USD"}
+GEAR_OPENS = {
+    "backup": "Sao lưu ngay",
+    "catalog": "Loại lỗi",
+    "settings": "Lưu cài đặt",
+    "cost": "USD",
+    "replay": "Dựng lại hồ sơ học sinh",
+}
 COST_API = "**/api/logs/cost*"
 COST_LABELS = ["Chấm bài", "Trợ lý", "Báo cáo", "Khác"]
 COST_LINE = re.compile(r"Khoảng (\d+),(\d+) USD trên (\S+) USD \(giả định\)")
@@ -729,8 +735,8 @@ def walk_cost_warning(page, rep: dict, phone: bool) -> None:
 
 def walk_gear(page, rep: dict, phone: bool, data: bool, home: str | None) -> None:
     keys = page.evaluate("[...document.querySelectorAll('[data-sys]')].map(b => b.dataset.sys)")
-    if len(keys) != 4:
-        rep["missing"].append(f"gear menu has {len(keys)} items, expected 4")
+    if len(keys) != 5:
+        rep["missing"].append(f"gear menu has {len(keys)} items, expected 5")
     for key, how in [(k, h) for k in keys for h in ("Esc", "×")]:
         label = f"gear {key} closed by {how}"
         press(page, rep, "#gear-btn", "gear")
@@ -744,7 +750,7 @@ def walk_gear(page, rep: dict, phone: bool, data: bool, home: str | None) -> Non
             walk_settings(page, rep, phone, home)
         elif how == "Esc" and key == "cost":
             walk_cost(page, rep, phone)
-        elif how == "Esc":
+        elif how == "Esc" and key != "replay":
             (walk_catalog if key == "catalog" else walk_backup)(page, rep, phone, data)
         see(page, rep, f"gear {key}", phone)
         if how == "Esc":
@@ -3694,6 +3700,21 @@ def expected_rows(backup: Path) -> dict:
     return got
 
 
+def walk_replay(page, rep: dict, base: str) -> None:
+    """⚙ Dựng lại hồ sơ học sinh on a fresh student (no unfinished grading): ask again, then the result line."""
+    with step(rep, "replay", commit=("student",)):
+        api(base, "POST", "/students", {"name": "Lê Dựng Lại", "grade": 7})
+        page.reload()
+        press(page, rep, "#gear-btn", "gear")
+        press(page, rep, '[data-sys="replay"]', "gear item replay", JS_ROOT_HAS, "Dựng lại hồ sơ học sinh")
+        page.select_option("#replay-student", label="Lê Dựng Lại")
+        press(page, rep, '[data-act="replay-ask"]', "replay Dựng lại", JS_ROOT_HAS, "Dựng lại hồ sơ?")
+        press(page, rep, '[data-act="confirm-ok"]', "replay Dựng lại (hỏi lại)", JS_ROOT_HAS, "Đã dựng lại hồ sơ của")
+        if "Lê Dựng Lại: 0 lần làm bài" not in page.inner_text("#replay-result"):
+            rep["missing"].append(f"replay: the result line says {page.inner_text('#replay-result')!r}")
+        close_overlay(page)
+
+
 def walk_restore(browser, base: str, data_dir: str) -> dict:
     """--data, after both walks (they still need the seeded threads): Khôi phục is refused while work is unfinished,
     Bỏ các việc này rồi khôi phục drops it, and tutor.db ends with the rows of the chosen backup."""
@@ -3706,6 +3727,7 @@ def walk_restore(browser, base: str, data_dir: str) -> dict:
     )
     page.on("pageerror", lambda e: rep["page_errors"].append(str(e)[:300]))
     page.goto(base)
+    walk_replay(page, rep, base)
     with step(rep, "restore", commit=TABLES):
         expect(page, rep, JS_NO_RUNNING, "restore: a thread is still running before the walk starts")
         before = backup_names(page)

@@ -101,6 +101,33 @@
     }, Promise.resolve()).then(restore).catch(function () { U.toast('Chưa bỏ được các việc này. Thử lại sau.', 'warn'); });
   };
 
+  // ---- Dựng lại hồ sơ: one student's skills rebuilt from the saved sessions (tutor.db is backed up first) ----
+  SYS.replay = function (done) {
+    U.api.get('/students').then(function (list) {
+      var opts = list.map(function (s) {
+        return '<option value="' + s.id + '"' + (done && done.id === s.id ? ' selected' : '') + '>' + U.esc(s.name) + '</option>';
+      }).join('');
+      show({ title: 'Dựng lại hồ sơ học sinh', body:
+        '<p>Dùng sau khi sửa độ khó của bài hoặc lỗi đã lưu, để hồ sơ kỹ năng tính lại từ các buổi đã lưu.</p>' +
+        (opts ? '<label class="field"><span>Học sinh</span><select id="replay-student">' + opts + '</select></label>' : '<p class="muted">Chưa có học sinh.</p>') +
+        '<p id="replay-result" role="status">' + (done ? done.text : '') + '</p>',
+        foot: CLOSE + (opts ? '<button type="button" class="btn btn-primary" data-act="replay-ask">Dựng lại</button>' : '') });
+    }).catch(function () { U.toast('Chưa mở được danh sách học sinh. Thử lại sau.', 'warn'); });
+  };
+
+  ACT['replay-ask'] = function () {
+    var sel = document.getElementById('replay-student'), id = Number(sel.value), name = sel.options[sel.selectedIndex].text;
+    U.confirm('Dựng lại hồ sơ?', 'Hồ sơ kỹ năng của <b>' + U.esc(name) + '</b> sẽ được tính lại từ các buổi đã lưu (dữ liệu được sao lưu trước).',
+      'Dựng lại', function () {
+        U.api.send('POST', '/students/' + id + '/replay').then(function (r) {
+          var n = r.level_changes.length;
+          SYS.replay({ id: id, text: 'Đã dựng lại hồ sơ của ' + U.esc(name) + ': ' + r.events + ' lần làm bài, ' + (n ? n + ' kỹ năng đổi mức.' : 'không kỹ năng nào đổi mức.') });
+        }).catch(function (e) {
+          U.toast(e.status === 409 ? 'Em này còn buổi chấm chưa lưu. Lưu hoặc huỷ buổi đó trước.' : e.status === 422 ? 'Em này đã lưu trữ.' : 'Chưa dựng lại được. Thử lại sau.', 'warn');
+        });
+      });
+  };
+
   // ---- Cài đặt: three numbers and one box per provider in use. A key goes to the server and no further: no answer holds it ----
   var PROVIDER = { anthropic: 'Anthropic', openai: 'OpenAI' };
   var FIELDS = [
