@@ -88,6 +88,10 @@ class ChatStore:
             self.conn.execute("PRAGMA incremental_vacuum")
             self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
+    def head(self, cid: str) -> str | None:
+        t = self.saver.get_tuple({"configurable": {"thread_id": cid}})
+        return t.config["configurable"]["checkpoint_id"] if t else None
+
     def close(self) -> None:
         self.conn.close()
 
@@ -185,8 +189,25 @@ def _write(f: Path, row: dict) -> None:
         out.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def _open(paths: DataPaths, cid: str | None, user: dict) -> tuple[str, Path, list[dict]] | None:
+def _resume(rows: list[dict]) -> tuple[str | None] | None:
+    """(checkpoint id,) the next turn must run from when the last turn never finished, else None.
+
+    A turn is unfinished when its user row has no assistant row (the process died) or an incomplete one."""
+    i = len(rows) - 1
+    if i >= 0 and rows[i]["role"] == "assistant":
+        if not rows[i].get("incomplete"):
+            return None
+        i -= 1
+    return (rows[i]["from"],) if i >= 0 and rows[i]["role"] == "user" and "from" in rows[i] else None
+
+
+def _open(
+    paths: DataPaths, cid: str | None, user: dict, head: Callable[[str], str | None]
+) -> tuple[str, Path, list[dict]] | None:
     """Claim the conversation and log the tutor's row before any model call (R25); None = still answering.
+
+    The row carries `from`: the checkpoint this turn runs from (None = empty thread), written now so a killed
+    process still leaves the way back (P4-11). head(cid) = newest checkpoint id of the thread.
 
     Returns (id, log file, rows before this one): history is read first so the model gets the message once (S12).
     A new id is the highest n of today + 1."""
@@ -202,7 +223,9 @@ def _open(paths: DataPaths, cid: str | None, user: dict) -> tuple[str, Path, lis
             if f in _busy:
                 return None
             rows = _read(f)
-        _write(f, {"id": f"m{len(rows) + 1}"} | user)
+        resume = _resume(rows)
+        start = resume[0] if resume else (head(cid) if rows else None)
+        _write(f, {"id": f"m{len(rows) + 1}"} | user | {"from": start})
         _busy.add(f)
     return cid, f, rows
 
@@ -229,6 +252,8 @@ def _history(rows: list[dict]) -> list:
     An old answer = its text + one "(đã tra: …)" line per tool. The user row before an incomplete answer goes too,
     so the log and a thread resumed before that turn agree."""
     kept: list[tuple[str, str]] = []
+    if rows and rows[-1]["role"] == "user":
+        rows = rows[:-1]  # its turn never got an answer row: the process died
     for r in rows:
         if r["role"] == "assistant" and r.get("incomplete"):
             if kept and kept[-1][0] == "user":
@@ -274,11 +299,10 @@ def _scoped(scope: Callable, events: Iterator[dict]) -> Iterator[dict]:
             events.close()
 
 
-def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn, *, stop: threading.Event, start: dict,
+def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn, *, stop: threading.Event,
             done: Callable[[], None]) -> Iterator[str]:  # fmt: skip
     """NDJSON lines. `finally` logs the answer so far and frees the conversation, also after an error or an abort.
 
-    start["from"]: the checkpoint the turn ran from; an incomplete turn logs it so the next one runs from there.
     done: after a turn that ended cleanly."""
     said, kept, tools = [], [], []
     finished = False
@@ -318,7 +342,7 @@ def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn, *, stop: 
             row = {"id": mid, "role": "assistant", "ts": repo.now(), "text": "".join(said), "events": kept,
                    "tools": tools}  # fmt: skip
             if not finished:
-                row |= {"incomplete": True} | ({"from": start["from"]} if "from" in start else {})
+                row["incomplete"] = True
             with _lock:
                 _busy.discard(f)
                 _write(f, row)
@@ -341,7 +365,7 @@ def message(body: Message, request: Request):
         fixed = orchestrator.fixed_parts(repo.list_kc(conn), codes)
         attachment = body.attachment.model_dump() if body.attachment else None
         user = {"role": "user", "ts": repo.now(), "text": text, "mentions": body.mentions, "attachment": attachment}
-        opened = _open(paths, body.conversation_id, user)
+        opened = _open(paths, body.conversation_id, user, store.head)
     except BaseException:
         conn.close()
         raise
@@ -357,7 +381,6 @@ def message(body: Message, request: Request):
         worksheet_thread_id=body.context.worksheet_thread_id,
     )
     ctx = chat.ChatContext(turn, box, everyone, redact)
-    start: dict = {}
 
     def run() -> Iterator[dict]:  # inside `_stream`'s try: an error here becomes an error event and a log row
         ctx.resaved = _resaved(app.state.runner, rows)
@@ -369,19 +392,18 @@ def message(body: Message, request: Request):
             system=fixed,
         )
         cfg = {"configurable": {"thread_id": cid}, "recursion_limit": 200}
-        if rows and rows[-1].get("incomplete") and "from" in rows[-1]:  # K12: run from before the failed turn
-            if rows[-1]["from"] is None:
+        if resume := _resume(rows):  # K12: run from before the unfinished turn
+            if resume[0] is None:
                 store.saver.delete_thread(cid)
             else:
-                cfg["configurable"]["checkpoint_id"] = rows[-1]["from"]
+                cfg["configurable"]["checkpoint_id"] = resume[0]
         snap = agent.get_state(cfg)
-        start["from"] = snap.config["configurable"].get("checkpoint_id") if snap.values else None
         defs = tool_defs([c["code"] for c in codes])
         cc = llm.CallContext(graph=None, conversation_id=cid, redact=orchestrator._names(redact))
         history = [] if snap.values else _history(rows)
         yield from _scoped(lambda: chat.scope(cc, fixed, defs, stop=ctx.stop), chat.events(agent, ctx, cfg, history))
 
-    lines = _stream(f, cid, f"m{len(rows) + 2}", run(), conn, stop=ctx.stop, start=start,
+    lines = _stream(f, cid, f"m{len(rows) + 2}", run(), conn, stop=ctx.stop,
                     done=lambda: store.prune(cid))  # fmt: skip
     first = next(lines)  # inside its try now: a response never read still runs `finally` when dropped
     return StreamingResponse(itertools.chain([first], lines), media_type="application/x-ndjson")

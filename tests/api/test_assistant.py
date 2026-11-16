@@ -69,7 +69,7 @@ def test_stream_shape(paths, client, w):
     assert all("summary" not in e for e in evs)  # S10
     user, bot = rows(paths, cid)
     assert user == {"id": "m1", "role": "user", "ts": user["ts"], "text": "Tháng này @HS-01 yếu gì?",
-                    "mentions": [w["an"]], "attachment": None}  # fmt: skip
+                    "mentions": [w["an"]], "attachment": None, "from": None}  # fmt: skip
     assert (bot["id"], bot["role"], bot["text"]) == ("m2", "assistant", "HS-01 còn lỗi lặp.")
     assert [t["name"] for t in bot["tools"]] == ["student_profile"] and bot["tools"][0]["summary"]
     assert bot["events"] == [e for e in evs if e["type"] not in ("start", "text")]
@@ -392,6 +392,7 @@ def test_history_from_log_when_thread_is_empty(paths, client, w):
     log = [r for i in range(15) for r in (
         {"id": "u", "role": "user", "ts": "t", "text": f"u{i}"},
         {"id": "a", "role": "assistant", "ts": "t", "text": f"a{i}"} | ({"incomplete": True} if i == 14 else {})
+        | ({"text": ""} if i == 5 else {})
         | ({"tools": [{"name": "student_profile", "summary": "S13"}]} if i == 13 else {}),
     )]  # fmt: skip
     f = paths.logs / "chat" / f"{cid}.jsonl"
@@ -399,8 +400,9 @@ def test_history_from_log_when_thread_is_empty(paths, client, w):
     fake = script([text("Ừ.")])
     lines(send(client, "Tin mới", cid=cid))
     got = sent_texts(fake.calls[0])
-    assert len(got) == 21 and got[0] == "u4" and got[-1].endswith("Tin mới")
-    assert not any(t in ("u14", "a14") for t in got)
+    # 27 kept rows (a5 is empty, pair 14 incomplete); the last 20 start on a3, which is dropped: u4 leads
+    assert len(got) == 20 and got[0] == "u4" and got[-1].endswith("Tin mới")
+    assert not any(t in ("u14", "a14", "a5", "") for t in got)
     assert "a13\n\n(đã tra: S13)" in got
 
 
@@ -429,3 +431,64 @@ def test_chat_db_has_no_names(paths, client, w):
     blob = chat_db_bytes(paths)
     assert b"HS-01" in blob
     assert "Nguyễn Văn An".encode() not in blob and b"Nguyen Van An" not in blob
+
+
+def test_meta_never_reaches_the_model(paths, client, w):
+    """C-40: the `tutor/` meta of a tool result stays in the thread's artifact, never in a model call."""
+    fake = script([tool("list_students"), tool("student_profile", code="HS-01")], [text("Ừ.")], [text("Ừ2.")])
+    cid = lines(send(client, "Ai yếu?"))[0]["conversation_id"]
+    lines(send(client, "Tiếp", cid=cid))
+    assert len(fake.calls) == 3 and "tutor/" not in json.dumps(fake.calls, ensure_ascii=False)
+
+
+def orphan_free(call) -> bool:
+    return {b["id"] for b in sent_blocks(call, "tool_use")} == {
+        b["tool_use_id"] for b in sent_blocks(call, "tool_result")
+    }
+
+
+@pytest.mark.parametrize("first_ok", [False, True])
+def test_tool_crash_leaves_no_orphan_call(paths, client, w, monkeypatch, first_ok):
+    """The tool raises, so the thread keeps an AI tool_use with no result; the next turn runs from before it."""
+    calls = []
+    real = Toolbox.tool_list_students
+
+    def boom(self, a):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("tool broke")
+        return real(self, a)
+
+    monkeypatch.setattr(Toolbox, "tool_list_students", boom)
+    fake = script(*([[text("Chào.")]] if first_ok else []), [tool("list_students")], [text("Được.")])
+    cid = lines(send(client, "Chào"))[0]["conversation_id"] if first_ok else None
+    evs = lines(send(client, "Ai yếu?", cid=cid))
+    cid = evs[0]["conversation_id"]
+    assert evs[-1]["code"] == "internal"
+    assert lines(send(client, "Lại", cid=cid))[-1] == {"type": "done", "stopped": None}
+    last = fake.calls[-1]
+    assert orphan_free(last) and not any("Ai yếu?" in t for t in sent_texts(last))
+
+
+def test_killed_process_leaves_the_way_back(paths, client, w, monkeypatch):
+    """P4-11: the process died mid-turn, so there is no assistant row; the user row's `from` is the way back."""
+    monkeypatch.setattr(Toolbox, "tool_list_students", lambda self, a: (_ for _ in ()).throw(RuntimeError("x")))
+    n = []
+
+    def strict(messages):  # a provider that rejects a tool_use with no tool_result, as the real APIs do
+        n.append(1)
+        blocks = [b for m in messages if isinstance(m["content"], list) for b in m["content"]]
+        last = messages[-1]["content"]
+        if {b["id"] for b in blocks if b["type"] == "tool_use"} != {
+            b["tool_use_id"] for b in blocks if b["type"] == "tool_result"
+        } and not (isinstance(last, list) and last[-1]["type"] == "tool_result"):
+            raise llm.LLMUnavailable("00: 400 dangling tool call")
+        return [tool("list_students")] if len(n) == 2 else [text("Ừ.")]
+
+    llm.set_backend(FakeLLM({"00": strict}))
+    cid = lines(send(client, "Chào"))[0]["conversation_id"]
+    lines(send(client, "Ai yếu?", cid=cid))
+    f = paths.logs / "chat" / f"{cid}.jsonl"
+    f.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows(paths, cid)[:-1]), encoding="utf-8")
+    for msg in ("Lại", "Lại nữa"):
+        assert lines(send(client, msg, cid=cid))[-1] == {"type": "done", "stopped": None}
