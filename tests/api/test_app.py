@@ -86,3 +86,14 @@ def test_corrupt_settings_start_with_defaults(paths):
     assert app.state.settings["app"]["port"] == 8000
     assert app.state.settings_error
     assert paths.settings.read_text(encoding="utf-8") == "{oops"
+
+
+def test_create_app_turns_langsmith_tracing_off(paths, monkeypatch):
+    from langsmith import utils
+
+    monkeypatch.setenv("LANGSMITH_TRACING", "true")
+    utils.get_env_var.cache_clear()
+    repo.init_db(paths.tutor_db, paths.backup)
+    create_app(paths, port=8000)
+    utils.get_env_var.cache_clear()
+    assert utils.tracing_is_enabled() is False

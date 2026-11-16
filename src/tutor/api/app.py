@@ -32,6 +32,7 @@ def _log_to(path: Path) -> None:
 
 def create_app(paths: config.DataPaths, *, port: int, fake_llm: bool = False) -> FastAPI:
     """The DB must already be initialised by the runner.lock holder (`tutor app`)."""
+    config.no_tracing()
     paths.ensure()
     _log_to(paths.logs / "app.log")
     try:
