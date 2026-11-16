@@ -3,12 +3,13 @@
 import asyncio
 import json
 import threading
+import time
 import traceback
 
 import httpx2
 import openai
 import pytest
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from tests.fakes import openai_client
 from tutor import llm
@@ -639,3 +640,139 @@ def test_model_openai_cached_and_use_key_drops_it(monkeypatch):
     assert a._get_request_payload([HumanMessage("x")])["max_output_tokens"] == 32000
     llm.use_key("openai", "sk-other")
     assert llm.model("02") is not a
+
+
+def _fn_args(who):
+    return json.dumps({"who": who}, ensure_ascii=False)
+
+
+LEAKS = {
+    "tool_calls": lambda: [
+        HumanMessage("x"),
+        AIMessage("", tool_calls=[{"id": "c1", "name": "t", "args": {"who": NAME}}]),
+        ToolMessage("done", tool_call_id="c1"),
+    ],
+    "invalid_tool_calls": lambda: [
+        HumanMessage("x"),
+        AIMessage(
+            "",
+            invalid_tool_calls=[
+                {"id": "c1", "name": "t", "args": '{"who": "' + NAME, "error": None, "type": "invalid_tool_call"}
+            ],
+        ),
+        ToolMessage("done", tool_call_id="c1"),
+    ],
+    "additional_kwargs": lambda: [
+        HumanMessage("x"),
+        AIMessage(
+            "",
+            additional_kwargs={
+                "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "t", "arguments": _fn_args(NAME)}}]
+            },
+        ),
+        ToolMessage("done", tool_call_id="c1"),
+    ],
+    "content_blocks": lambda: [HumanMessage([{"type": "text", "text": f"Bài của {NAME}"}])],
+    "tool_message": lambda: [
+        HumanMessage("x"),
+        AIMessage("", tool_calls=[{"id": "c1", "name": "t", "args": {}}]),
+        ToolMessage(f"học sinh {NAME}", tool_call_id="c1"),
+    ],
+    "name_field": lambda: [HumanMessage("x", name=NAME)],
+    "ai_text": lambda: [HumanMessage("x"), AIMessage(f"Chào {NAME}"), HumanMessage("y")],
+    "function_call_block": lambda: [
+        HumanMessage("x"),
+        AIMessage(
+            [{"type": "function_call", "call_id": "c1", "id": "fc1", "name": "t", "arguments": _fn_args(NAME)}],
+            tool_calls=[{"id": "c1", "name": "t", "args": {}}],
+        ),
+        ToolMessage("done", tool_call_id="c1"),
+    ],
+}
+
+
+@pytest.mark.parametrize("shape", LEAKS)
+def test_guard_no_name_reaches_the_body(shape, glog):
+    m, bodies = guarded(RESP("ok"))
+    with llm.scope(GCTX, GBASE):
+        try:
+            m.invoke(LEAKS[shape]())
+        except llm.LLMUnavailable:
+            pass  # refusing to send is also clean
+    assert NAME not in json.dumps(bodies, ensure_ascii=False)
+
+
+def test_guard_stop_flag_while_chunks_are_held(glog):
+    flag, read = threading.Event(), {"after": 0, "closed": False}
+    call = {
+        "id": "fc1",
+        "type": "function_call",
+        "call_id": "c1",
+        "name": "t",
+        "arguments": "",
+        "status": "in_progress",
+    }
+
+    def tail(ev):
+        return [ev("response.output_item.added", output_index=1, item=call)] + [
+            ev("response.function_call_arguments.delta", item_id="fc1", output_index=1, delta="x") for _ in range(30)
+        ]
+
+    events = sse_text(tail=tail)
+
+    class Tracked(httpx2.SyncByteStream):
+        def __iter__(self):
+            for i, p in enumerate(events):
+                if i == 3:
+                    flag.set()
+                read["after"] += flag.is_set()
+                yield f"event: {p['type']}\ndata: {json.dumps(p)}\n\n".encode()
+
+        def close(self):
+            read["closed"] = True
+
+    m, _ = guarded(httpx2.Response(200, headers={"content-type": "text/event-stream"}, stream=Tracked()))
+    with llm.scope(GCTX, GBASE, stop=flag), pytest.raises(llm.LLMUnavailable, match="Đã dừng"):
+        list(m.stream("hi"))
+    assert read["after"] <= 3 and read["closed"]
+
+
+def test_guard_astream_cancel_closes_stream_after_pending_chunk():
+    state = {"closed": False}
+
+    class Slow(httpx2.SyncByteStream):
+        def __iter__(self):
+            for p in sse_text("a ", "b ", "c "):
+                time.sleep(0.2)
+                yield f"event: {p['type']}\ndata: {json.dumps(p)}\n\n".encode()
+
+        def close(self):
+            state["closed"] = True
+
+    m, _ = guarded(httpx2.Response(200, headers={"content-type": "text/event-stream"}, stream=Slow()))
+
+    async def consume():
+        with llm.scope(GCTX, GBASE):
+            async for _ in m.astream("hi"):
+                pass
+
+    async def main():
+        t = asyncio.create_task(consume())
+        await asyncio.sleep(0.3)
+        t.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await t
+
+    asyncio.run(main())
+    assert state["closed"]
+
+
+def test_guard_non_transient_stream_error_is_unavailable_and_scrubbed(glog):
+    def tail(ev):
+        return [ev("error", code="invalid_prompt", message="bad key sk-proj-abc123", param=None)]
+
+    m, bodies = guarded(sse_text("xin", tail=tail))
+    with llm.scope(GCTX, GBASE), pytest.raises(llm.LLMUnavailable) as e:
+        list(m.stream("hi"))
+    assert len(bodies) == 1 and "invalid_prompt" in str(e.value)
+    assert "sk-proj" not in str(e.value) and "sk-proj" not in json.dumps(glog())

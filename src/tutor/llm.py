@@ -788,7 +788,7 @@ def _mask_messages(messages: list[BaseMessage], redact: dict[str, str]) -> tuple
     out, hit, left = [], False, False
     for m in messages:
         update = {}
-        for k in ("content", "tool_calls"):
+        for k in ("content", "tool_calls", "invalid_tool_calls"):
             if v := getattr(m, k, None):
                 update[k], h = _mask_all(v, redact)
                 hit |= h
@@ -847,6 +847,8 @@ def _translate(e: Exception) -> Exception:
         return LLMUnavailable(_BAD_REQUEST)
     if isinstance(e, ModelRefusalError):
         return LLMUnavailable(f"GPT từ chối: {text}")
+    if type(e) is ValueError:  # SSE error event / failed response, bare (K18): a non-transient provider failure
+        return LLMUnavailable(text)
     return e
 
 
@@ -909,6 +911,8 @@ class Guard(BaseChatModel):
             gen = super()._stream(msgs, stop=stop, run_manager=run_manager, **kw)
             try:
                 for c in gen:
+                    if sc.stop is not None and sc.stop.is_set():
+                        raise LLMUnavailable("Đã dừng")
                     m = c.message
                     md, raw = m.usage_metadata or md, raw + c.text
                     refused |= _refused(m)
@@ -927,6 +931,8 @@ class Guard(BaseChatModel):
                         sent = True
                         yield r
                 for r in held:
+                    if sc.stop is not None and sc.stop.is_set():
+                        raise LLMUnavailable("Đã dừng")
                     sent = True
                     yield r
                 if refused:
@@ -955,15 +961,31 @@ class Guard(BaseChatModel):
 
     async def _astream(self, messages, stop=None, run_manager=None, **kw):
         it, end = self._stream(messages, stop, None, **kw), object()
+        pending = None
         try:
-            while (c := await asyncio.to_thread(next, it, end)) is not end:
+            while True:
+                pending = asyncio.ensure_future(asyncio.to_thread(next, it, end))
+                c = await asyncio.shield(pending)
+                pending = None
+                if c is end:
+                    return
                 yield c
         finally:
+            if pending is not None:  # cancelled mid-next: the worker thread is still inside the generator
+                await asyncio.wait([pending])
+                if not pending.cancelled():
+                    pending.exception()  # marks it retrieved
             it.close()
 
 
 class GuardedOpenAI(Guard, ChatOpenAI):
-    pass
+    def _get_request_payload(self, *args, **kw):
+        """Last gate: whatever fields langchain_openai serialises, no name may still be in the body."""
+        payload = super()._get_request_payload(*args, **kw)
+        sc = _scope.get()
+        if sc is not None and _mask_all(payload, sc.context.redact)[1]:
+            raise LLMUnavailable("Còn họ tên học sinh trong yêu cầu: không gửi")
+        return payload
 
 
 def model(agent: str) -> BaseChatModel:
