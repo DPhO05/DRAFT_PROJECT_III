@@ -7,10 +7,18 @@ from tutor.api.app import create_app
 from tutor.db import repo
 
 
-def test_health(client):
+def test_health(client, paths):
     r = client.get("/api/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok", "version": __version__, "db": "ok", "llm": "unknown", "fake_llm": False}
+    assert r.json() == {
+        "status": "ok",
+        "version": __version__,
+        "db": "ok",
+        "llm": "unknown",
+        "fake_llm": False,
+        "app": "tutor",
+        "data_dir": str(paths.root.resolve()),
+    }
 
 
 def test_health_reports_db_error(paths, client):
