@@ -636,5 +636,6 @@ def test_model_openai_cached_and_use_key_drops_it(monkeypatch):
     assert isinstance(a, llm.GuardedOpenAI) and llm.model("02") is a
     assert a.store is False and a.max_retries == 0 and a.use_responses_api is True
     assert a.reasoning == {"effort": "medium"}
+    assert a._get_request_payload([HumanMessage("x")])["max_output_tokens"] == 32000
     llm.use_key("openai", "sk-other")
     assert llm.model("02") is not a

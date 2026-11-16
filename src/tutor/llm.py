@@ -992,6 +992,7 @@ def model(agent: str) -> BaseChatModel:
                 max_retries=0,
                 timeout=CALL_TIMEOUT,
                 reasoning={"effort": "medium"},
+                max_tokens=32000,  # sent as max_output_tokens; reasoning tokens count against it
                 api_key=key,
             ),
         )
