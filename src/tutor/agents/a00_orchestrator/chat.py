@@ -157,6 +157,16 @@ def one_at_a_time(request, handler):
         return handler(request)
 
 
+def _started(messages: list, name: str) -> int:
+    """start_* results of this tutor message already in the thread: it holds across a pause and a restart."""
+    n = 0
+    for m in reversed(messages):
+        if isinstance(m, HumanMessage):
+            break
+        n += isinstance(m, ToolMessage) and m.name == name and not _is_error(m)
+    return n
+
+
 @wrap_tool_call
 def limit_starts(request, handler):
     """H5: each start_* once per message, propose_worksheet twice; a refused call never runs."""
@@ -165,14 +175,16 @@ def limit_starts(request, handler):
         return handler(request)
     if ctx.stop.is_set():  # nobody reads this message any more: start nothing
         return _error_message(name, request.tool_call["id"], STOPPED)
-    with ctx.lock:  # the slot is taken before the tool runs, so a parallel twin is refused
-        if ctx.started[name] >= LIMITS[name]:
+    msgs = request.state["messages"]
+    slot = (name, len(msgs))  # calls of one tool step share one state: their slots are taken before the tool runs
+    with ctx.lock:
+        if _started(msgs, name) + ctx.started[slot] >= LIMITS[name]:
             return _error_message(name, request.tool_call["id"], _REFUSED.get(name, _ONCE))
-        ctx.started[name] += 1
+        ctx.started[slot] += 1
     out = handler(request)
     if isinstance(out, ToolMessage) and _is_error(out):
         with ctx.lock:
-            ctx.started[name] -= 1
+            ctx.started[slot] -= 1
     return out
 
 

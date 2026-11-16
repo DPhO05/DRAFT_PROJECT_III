@@ -437,10 +437,42 @@ def test_rejected_start_does_not_count_toward_the_limit(make):
     with chat.scope(cc, ["sys"], tool_defs(r.codes)):
         agent.invoke({"messages": [HumanMessage("chấm")]}, cfg, context=ctx)
         agent.invoke(Command(resume={"decisions": [{"type": "reject", "message": chat.REJECTED}]}), cfg, context=ctx)
-        assert starts == [] and ctx.started["start_grading"] == 0 and len(chat.waiting(agent, cfg)) == 1
+        assert starts == [] and len(chat.waiting(agent, cfg)) == 1
         agent.invoke(Command(resume={"decisions": [{"type": "approve"}]}), cfg, context=ctx)
-    assert starts == ["a.tex"] and ctx.started["start_grading"] == 1
+    assert starts == ["a.tex"]
     assert [m.status for m in agent.get_state(cfg).values["messages"] if isinstance(m, ToolMessage)] == [
         "error",
         "success",
     ]
+
+
+def test_start_limit_holds_across_a_decision(make):
+    """Task 4.7 (P4-13): the limit counts results in the thread, so a pause and a new context do not reset it."""
+    ran = []
+
+    def bank(file):
+        ran.append(file)
+        return {"status": "queued", "thread_id": "g2-x", "existing": 0}
+
+    starters = Starters(
+        start_grading=lambda *a: {"status": "queued", "thread_id": "g1-x"},
+        start_bank_import=bank,
+        propose_worksheet=None,
+        add_to_worksheet=None,
+    )
+    imp, go = (
+        use("start_bank_import", file="b.tex"),
+        use("start_grading", code="HS-01", file="a.tex", held_on="2026-10-21"),
+    )
+    r = make([[imp], [go], [imp], [text("xong")], [imp], [text("lại")]])
+    agent, ctx, cfg, cc = r._setup("nạp rồi chấm", "t", starters, [], 8)
+    with chat.scope(cc, ["sys"], tool_defs(r.codes)):
+        agent.invoke({"messages": [HumanMessage("nạp rồi chấm")]}, cfg, context=ctx)
+        assert len(chat.waiting(agent, cfg)) == 1
+        _, ctx2, _, _ = r._setup("x", "t", starters, [], 8)  # a restart: nothing of the first context survives
+        agent.invoke(Command(resume={"decisions": [{"type": "approve"}]}), cfg, context=ctx2)
+        tools = [m for m in agent.get_state(cfg).values["messages"] if isinstance(m, ToolMessage)]
+        assert [m.status for m in tools] == ["success", "success", "error"] and ran == ["b.tex"]
+        assert "một lần" in tools[-1].content and not re.search(r"\d", tools[-1].content)
+        agent.invoke({"messages": [HumanMessage("nạp tiếp")]}, cfg, context=ctx2)
+    assert ran == ["b.tex", "b.tex"]
