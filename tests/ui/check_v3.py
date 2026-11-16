@@ -1234,14 +1234,19 @@ def chat_reload(page, rep: dict, phone: bool) -> None:
     elif page.locator(".convs").is_hidden():
         rep["missing"].append("chat: the conversation list is hidden at desktop width")
     item = '#conv-list .conv-item:has-text("Tháng này @Nguyễn Văn An") >> nth=0'
-    press(page, rep, item, "chat mở hội thoại", JS_N_MSGS, count)
+    page.click(
+        item
+    )  # not press(): the reload reopened it already, so the click may change nothing on screen but the drawer
+    expect(page, rep, JS_N_MSGS, "chat mở hội thoại: result did not show", count)
     text = page.inner_text("#chat-msgs")
     rep["missing"] += [
         f"chat: reopened conversation has no '{w}'"
         for w in ("Số chưa kiểm: 97", "Nguồn:", SAVED_NOTHING)
         if w not in text
     ]
-    if page.locator(".convs.open").count():
+    try:  # the reload already reopened this conversation, so the message count is met before the click's answer closes the drawer
+        page.wait_for_function("() => !document.querySelector('.convs.open')", timeout=3000)
+    except Exception:
         rep["missing"].append("chat: opening a conversation left the drawer open")
     see_chat(page, rep, "chat reopened", phone)
 
@@ -1271,10 +1276,16 @@ def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list, before:
         for w in (f"Bài của {PEOPLE[0]} · {day}/10/2026", "Chưa rõ học sinh, ngày học", f"{data_dir}/inbox/")
         if w not in modal
     ]
-    for name, label in (("s01.tex", "đã chấm"), ("bai-scan.pdf", "chưa nhận PDF")):
-        b = page.locator(f'#modal-body .file-row:has-text("{name}") button')
-        if b.inner_text().strip() != label or not b.is_disabled():
-            rep["missing"].append(f"chat 📎: {name} should be a disabled '{label}'")
+    b = page.locator('#modal-body .file-row:has-text("bai-scan.pdf") button')
+    if b.inner_text().strip() != "chưa nhận PDF" or not b.is_disabled():
+        rep["missing"].append("chat 📎: bai-scan.pdf should be a disabled 'chưa nhận PDF'")
+    row = page.locator(
+        '#modal-body .file-row:has-text("s01.tex")'
+    )  # graded for HS-01 and HS-02, but its name points to nobody
+    if row.locator("button").inner_text().strip() != "Chọn" or row.locator("button").is_disabled():
+        rep["missing"].append("chat 📎: s01.tex has no student in its name, so it should stay selectable")
+    if f"đã chấm cho {PEOPLE[0]}, {PEOPLE[1]}" not in row.inner_text():
+        rep["missing"].append(f"chat 📎: s01.tex should say 'đã chấm cho {PEOPLE[0]}, {PEOPLE[1]}'")
     see_chat(page, rep, "chat 📎", phone)
     press(page, rep, f'#modal-body .file-row:has-text("{fname}") button', "chat Chọn bài", JS_NO_MODAL)
     if fname not in page.inner_text("#attach-row") or page.locator(SEND).is_disabled():
@@ -1311,6 +1322,48 @@ def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list, before:
         rep["missing"].append(f"chat ask_grading: Chấm bài này sent {sent}, want the file and held_on")
 
 
+@counted()
+def chat_attach_lock(page, rep: dict, phone: bool, data_dir: str) -> None:
+    """A file graded for HS-01 is locked for HS-01 only: named for HS-02 it can be attached, and says who it was graded for."""
+    day = 28 if phone else 27
+    for sid in (1, 2):
+        Path(data_dir, "inbox", f"hs0{sid}-2026-10-{day}.tex").write_bytes(
+            (FIX / "s06.tex").read_bytes()
+        )  # graded for HS-01 (seed)
+    new_chat(page, rep, phone)
+    press(page, rep, '[data-act="c-attach"]', "chat 📎", JS_MODAL)
+    expect(page, rep, JS_FILES, "chat 📎 lock: the inbox is not listed")
+    mine = page.locator(f'#modal-body .file-row:has-text("hs01-2026-10-{day}.tex")')
+    other = page.locator(f'#modal-body .file-row:has-text("hs02-2026-10-{day}.tex")')
+    if mine.locator("button").inner_text().strip() != "đã chấm" or not mine.locator("button").is_disabled():
+        rep["missing"].append("chat 📎 lock: the file named for HS-01 should be a disabled 'đã chấm'")
+    if other.locator("button").inner_text().strip() != "Chọn" or other.locator("button").is_disabled():
+        rep["missing"].append("chat 📎 lock: the file named for HS-02 should be selectable")
+    if f"đã chấm cho {PEOPLE[0]}" not in other.inner_text():
+        rep["missing"].append(f"chat 📎 lock: no 'đã chấm cho {PEOPLE[0]}' under the file named for HS-02")
+    see_chat(page, rep, "chat 📎 lock", phone)
+    press(page, rep, f'#modal-body .file-row:has-text("hs02-2026-10-{day}.tex") button', "chat Chọn bài", JS_NO_MODAL)
+    if f"hs02-2026-10-{day}.tex" not in page.inner_text("#attach-row") or page.locator(SEND).is_disabled():
+        rep["missing"].append("chat 📎 lock: the file for HS-02 is not a chip on the box, or Gửi is off")
+    page.click('[data-act="c-attach-clear"]')
+
+
+@counted()
+def chat_reload_grading(page, rep: dict) -> None:
+    """Reload right after Chấm bài này: the conversation reopens by itself and its grading card is back (desktop only)."""
+    count = page.locator("#chat-msgs .msg").count()
+    tid = page.get_attribute("#chat-msgs .card-host[data-thread]", "data-thread")
+    if not tid:
+        rep["missing"].append("chat reload: no grading card to reload on")
+        return
+    page.reload()
+    expect(page, rep, JS_HOST_SEL, "chat reload: the grading card did not come back by itself", [tid, ".gcard-head"])
+    if page.locator("#chat-msgs .msg").count() != count:
+        rep["missing"].append("chat reload: the reopened conversation has another number of messages")
+    if page.locator(".welcome").count():
+        rep["missing"].append("chat reload: the welcome shows over the reopened conversation")
+
+
 def walk_chat(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> None:
     """The Trợ lý tab (the app is on it already). With --data the walk must leave tutor.db and the decisions alone."""
     reqs: list = []
@@ -1337,7 +1390,10 @@ def walk_chat(page, rep: dict, phone: bool, data_dir: str | None, root: str) -> 
     chat_bad_key(page, rep, phone)
     if data_dir:
         chat_reload(page, rep, phone)
+        chat_attach_lock(page, rep, phone, data_dir)
         chat_attach(page, rep, phone, data_dir, reqs, before)
+        if not phone:
+            chat_reload_grading(page, rep)
 
 
 def host(tid: str) -> str:

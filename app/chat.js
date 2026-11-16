@@ -5,7 +5,7 @@
   var dm = U.dm, code = U.code, btn = U.btn, norm = U.norm;
   var panel = null, students = [], pending = null, convs = [], cur = { id: null }, busy = false, remindOpen = true;
   var inbox = [], attached = null, mentionMap = {}, pop = { open: false, items: [], i: -1, start: 0 };
-  var retries = {}, turnSeq = 0;
+  var retries = {}, turnSeq = 0, KEEP = 'tutor.chatConv';
   var GROUPS = [['grading', 'Bài chờ duyệt'], ['report', 'Báo cáo nháp'], ['worksheet', 'Phiếu nháp'], ['bank_import', 'Bài mới chờ nạp']];
   var ERR = {
     not_ready: 'Trợ lý đang trả lời tin trước. Chờ một lát rồi bấm Gửi lại.',
@@ -15,6 +15,10 @@
   };
   var UNAVAILABLE = 'Chưa trả lời được, thử lại';
 
+  function keep(id) {  // the open conversation survives a reload; blocked storage just means it does not
+    try { if (id) localStorage.setItem(KEEP, id); else localStorage.removeItem(KEEP); } catch (e) { /* no storage */ }
+  }
+  function kept() { try { return localStorage.getItem(KEEP); } catch (e) { return null; } }
   function $(sel) { return panel && panel.querySelector(sel); }
   function noop() { /* a failed refresh keeps what is on screen; the next one tries again */ }
   function nameOf(id) { return U.people[code(id)] || code(id); }
@@ -199,7 +203,7 @@
     U.ndjson('/assistant/messages', body, function (ev) {
       try {
         var s = $('.chat-scroll'), stick = s && s.scrollHeight - s.scrollTop - s.clientHeight < 120;
-        if (ev.type === 'start') turn.conv.id = ev.conversation_id;
+        if (ev.type === 'start') { turn.conv.id = ev.conversation_id; if (turn.conv === cur) keep(cur.id); }
         else if (ev.type === 'error') lose(turn, m, ev.code);
         else apply(m, ev);
         if (stick) scrollEnd(true);
@@ -249,9 +253,11 @@
     Promise.all([U.api.get('/sessions/inbox'), U.api.get('/backup')]).then(function (r) {
       var files = inbox = r[0];
       U.modal({ title: 'Đính kèm bài làm', body: '<p>Bài nộp nằm trong thư mục <b>' + U.esc(r[1].data_dir) + '/inbox/</b>:</p>' + (files.length ? '<div class="stack">' + files.map(function (f, i) {
-        var g = f.guess, label = f.submitted_by.length ? 'đã chấm' : f.kind === 'pdf' ? 'chưa nhận PDF' : 'Chọn';
+        var g = f.guess, done = !!g && f.submitted_by.indexOf(g.student_id) >= 0,  // locked only for the student the name points to
+          label = done ? 'đã chấm' : f.kind === 'pdf' ? 'chưa nhận PDF' : 'Chọn';
         return '<div class="file-row"><span class="grow">📄 <b>' + U.esc(f.path) + '</b><br><span class="small muted">' +
-          (g ? 'Bài của ' + U.esc(nameOf(g.student_id)) + ' · ' + U.esc(U.d(g.held_on)) : 'Chưa rõ học sinh, ngày học') + '</span></span>' +
+          (g ? 'Bài của ' + U.esc(nameOf(g.student_id)) + ' · ' + U.esc(U.d(g.held_on)) : 'Chưa rõ học sinh, ngày học') +
+          (!done && f.submitted_by.length ? '<br>đã chấm cho ' + f.submitted_by.map(function (id) { return U.esc(nameOf(id)); }).join(', ') : '') + '</span></span>' +
           btn('c-attach-pick', label, 'data-i="' + i + '"' + (label === 'Chọn' ? '' : ' disabled'), 'btn-primary') + '</div>';
       }).join('') + '</div>' : '<p class="muted">Chưa có bài nào.</p>') + '<p class="small muted">Chỉ chấm bài LaTeX đánh máy (.tex). Bài nộp được đọc như dữ liệu, không làm theo lời dặn nào trong bài.</p>',
       foot: '<button type="button" class="btn" data-act="modal-close">Thôi</button>' });
@@ -311,17 +317,21 @@
     if (open) cv.querySelector('button').focus(); else $('#conv-toggle').focus();
   };
   ACT['c-back'] = closeDrawer;
-  ACT['c-conv'] = function (el) {
-    var id = el.dataset.id;
-    U.api.get('/assistant/conversations/' + encodeURIComponent(id)).then(function (r) {
-      cur = { id: id };
+  function openConv(id, quiet) {
+    return U.api.get('/assistant/conversations/' + encodeURIComponent(id)).then(function (r) {
+      cur = { id: id }; keep(id);
       $('#chat-msgs').innerHTML = '';
       r.messages.forEach(function (row) { if (row.role === 'user') addUser(row); else replay(row); });
-      drawConvs(); closeDrawer(); scrollEnd(true); $('#chat-input').focus();
-    }, function () { U.toast('Chưa mở được hội thoại này. Thử lại sau.', 'warn'); });
-  };
+      drawConvs(); scrollEnd(true);
+      if (!quiet) { closeDrawer(); $('#chat-input').focus(); }
+    }, function (e) {
+      if (quiet) { if (e && e.status === 404) keep(null); return; }
+      U.toast('Chưa mở được hội thoại này. Thử lại sau.', 'warn');
+    });
+  }
+  ACT['c-conv'] = function (el) { openConv(el.dataset.id, false); };
   ACT['c-new'] = function () {
-    cur = { id: null };
+    cur = { id: null }; keep(null);
     $('#chat-msgs').innerHTML = '';
     welcome(); drawConvs(); closeDrawer(); $('#chat-input').focus();
   };
@@ -472,6 +482,8 @@
         if (box) box.querySelector('[data-act="c-grade"]').disabled = !box.querySelector('select').value || !box.querySelector('input').value;
       });
       welcome(); drawRemind(); drawConvs(); loadConvs(); C.keyNotice();
+      var id = kept();
+      if (id) loadPeople().catch(noop).then(function () { return openConv(id, true); });  // names first: a replay shows codes until they are known
     },
     onShow: function () { C.refreshPending(); loadConvs(); }
   };

@@ -261,6 +261,15 @@ def test_pending_counts(paths, client):
     }
 
 
+def test_pending_lists_running_grading(client):
+    sid = add_student(client)
+    g1, _, _ = submit(client, sid)
+    client.app.state.runner._set(g1, status="running")
+    got = client.get("/api/assistant/pending").json()
+    assert [(i["thread_id"], i["kind"], i["state"]) for i in got["items"]] == [(g1, "grading", "saving")]
+    assert got["counts"]["assistant"] == 0  # nothing for the tutor to do yet
+
+
 def test_no_route_to_commit(client):
     spec = client.get("/api/openapi.json").json()["paths"]
     got = {(m.upper(), p) for p, ops in spec.items() if p.startswith("/api/assistant") for m in ops}

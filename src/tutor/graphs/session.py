@@ -458,6 +458,8 @@ def reminder(paths: DataPaths, row: dict, state: dict) -> dict:
         words = f"{n} lỗi cần xem" if n else "chờ lưu kết quả"
     elif at == "locked":
         words = f"chờ duyệt buổi {date.fromisoformat(row['blocking_held_on']):%d/%m} trước"
+    elif at in ("reading", "grading", "saving"):
+        words = "đang chấm"
     else:
         words = "chấm chưa xong" if at == "failed" else "chờ lưu kết quả"
     return {

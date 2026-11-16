@@ -436,11 +436,13 @@ def conversation(conversation_id: str, request: Request) -> dict:
 
 @router.get("/pending")
 def pending(request: Request) -> dict:
-    """G1 / G2 / G4 / G5 threads at a gate or failed (C-05); a running G1 is no work for the tutor yet."""
+    """G1 / G2 / G4 / G5 threads at a gate or failed (C-05), plus running G1 so a reload shows its card."""
     paths, r = request.app.state.paths, request.app.state.runner
     items = []
     for row in threads.annotate(r.list_threads()):
-        if row["status"] not in ("awaiting_review", "failed"):
+        if row["status"] not in ("awaiting_review", "failed") and not (
+            row["status"] == "running" and row["graph"] == session.GRAPH
+        ):
             continue
         if row["graph"] == session.GRAPH:
             items.append(session.reminder(paths, row, r.state(row["thread_id"])))
@@ -450,5 +452,7 @@ def pending(request: Request) -> dict:
             items.append(worksheet.reminder(row, r.state(row["thread_id"])))
         elif row["graph"] == report.GRAPH:
             items.append(report.reminder(row, r.state(row["thread_id"])))
-    assistant = sum(i["kind"] in ("grading", "worksheet") for i in items)
+    assistant = sum(
+        i["kind"] in ("grading", "worksheet") and i.get("state") not in ("reading", "grading", "saving") for i in items
+    )
     return {"counts": {"assistant": assistant, "reports": sum(i["kind"] == "report" for i in items)}, "items": items}
