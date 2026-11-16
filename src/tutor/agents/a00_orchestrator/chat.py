@@ -38,6 +38,7 @@ CARD_ONLY = (
 )
 
 
+STOPPED = "Tin nhắn này đã bị dừng, việc này chưa được bắt đầu."
 RECHECK = (
     "Thầy/cô vừa lưu kết quả vào hệ thống, nên số liệu cũ trong cuộc trò chuyện có thể đã đổi. "
     "Hãy tra lại bằng công cụ trước khi dùng số cũ."
@@ -57,8 +58,10 @@ class ChatContext:
     redact: dict[str, str]
     seen: list[str] = field(default_factory=list)  # tool results of the last model request, after trimming
     resaved: bool = False  # the route sets it when a thread was saved since the last message
+    stop: threading.Event = field(default_factory=threading.Event)  # the route sets it when the browser leaves
     started: Counter = field(default_factory=Counter)
     lock: threading.Lock = field(default_factory=threading.Lock)  # ToolNode runs one message's calls in parallel
+    running: threading.Lock = field(default_factory=threading.Lock)  # one tool at a time on the shared Toolbox
 
 
 def _mask_deep(x, redact: dict[str, str]):
@@ -127,11 +130,20 @@ def _limit_turns(max_tool_turns: int):
 
 
 @wrap_tool_call
+def one_at_a_time(request, handler):
+    """P4-7: the Toolbox and its sqlite connection are shared. `max_concurrency=1` would do it but hangs `stream`."""
+    with request.runtime.context.running:
+        return handler(request)
+
+
+@wrap_tool_call
 def limit_starts(request, handler):
     """H5: each start_* once per message, propose_worksheet twice; a refused call never runs."""
     name, ctx = request.tool_call["name"], request.runtime.context
     if name not in LIMITS:
         return handler(request)
+    if ctx.stop.is_set():  # nobody reads this message any more: start nothing
+        return _error_message(name, request.tool_call["id"], STOPPED)
     with ctx.lock:  # the slot is taken before the tool runs, so a parallel twin is refused
         if ctx.started[name] >= LIMITS[name]:
             return _error_message(name, request.tool_call["id"], _REFUSED.get(name, _ONCE))
@@ -218,6 +230,7 @@ def build(model, tools, saver, *, max_tool_turns: int, system: list[str] | None 
         middleware=[
             by_code,
             _limit_turns(max_tool_turns),
+            one_at_a_time,
             limit_starts,
             keep_masked,
             recheck,
@@ -231,7 +244,7 @@ def build(model, tools, saver, *, max_tool_turns: int, system: list[str] | None 
     )
 
 
-def scope(context: llm.CallContext, fixed: list[str], tool_defs: list[dict]):
+def scope(context: llm.CallContext, fixed: list[str], tool_defs: list[dict], stop: threading.Event | None = None):
     base = {
         "agent": "00",
         "prompt_version": orchestrator.version(fixed, tool_defs),
@@ -239,7 +252,7 @@ def scope(context: llm.CallContext, fixed: list[str], tool_defs: list[dict]):
         "graph": context.graph,
         "conversation_id": context.conversation_id,
     }
-    return llm.scope(context, base)
+    return llm.scope(context, base, stop=stop)
 
 
 def _text(chunk) -> str:
@@ -262,16 +275,19 @@ def _starts(msgs) -> Iterator[dict]:
             yield {"type": "tool", "name": c["name"], "label": LABELS.get(c["name"], ""), "state": "start"}
 
 
-def events(agent, ctx: ChatContext, cfg: dict) -> Iterator[dict]:
+def events(agent, ctx: ChatContext, cfg: dict, history: list | None = None) -> Iterator[dict]:
     """NDJSON events of one tutor message, as `orchestrator.reply` gives them, without `start` / `error`.
 
     agent: `build(...)`; ctx.resaved: set by the caller; the thread (`cfg`) carries the earlier messages.
+    history: messages that go into an empty thread before this one.
     """
     turn, redact = ctx.turn, ctx.redact
     today = orchestrator.today_line(ctx.box.today)
     human = HumanMessage(orchestrator.mask(f"{today}\n\n{turn.text}", redact))
     said, streamed, ran, by_code, stopped, sources = [], False, False, False, None, []
-    for mode, data in agent.stream({"messages": [human]}, cfg, context=ctx, stream_mode=["messages", "updates"]):
+    for mode, data in agent.stream(
+        {"messages": [*(history or []), human]}, cfg, context=ctx, stream_mode=["messages", "updates"]
+    ):
         if mode == "messages":
             chunk, meta = data
             if meta.get("langgraph_node") != "model" or not (delta := _text(chunk)):

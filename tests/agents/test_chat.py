@@ -3,6 +3,7 @@
 import json
 import re
 import sqlite3
+import time
 from contextlib import closing
 
 import pytest
@@ -254,6 +255,50 @@ def test_parallel_starts_run_once(make):
     state = r.say("chấm", starters=starters)
     statuses = sorted(m.status for m in state["messages"] if isinstance(m, ToolMessage))
     assert statuses == ["error", "success"] and len(starts) == 1
+
+
+def test_stopped_message_starts_nothing(make):
+    """K11: the browser left, so a start_* the model still asks for is refused and never runs."""
+    starts = []
+
+    def grading(sid, file, held_on):
+        starts.append(file)
+        return {"status": "queued", "thread_id": "g1-x"}
+
+    starters = Starters(start_grading=grading, start_bank_import=None, propose_worksheet=None, add_to_worksheet=None)
+    r = make([[use("start_grading", code="HS-01", file="a.tex", held_on="2026-10-21")], [text("xong")]])
+    agent, ctx, cfg, cc = r._setup("chấm", "t", starters, [], 8)
+    ctx.stop.set()
+    with chat.scope(cc, ["sys"], tool_defs(r.codes)):
+        agent.invoke({"messages": [HumanMessage("chấm")]}, cfg, context=ctx)
+    assert starts == []
+    [m] = [m for m in agent.get_state(cfg).values["messages"] if isinstance(m, ToolMessage)]
+    assert m.status == "error" and m.content == chat._error_message("start_grading", "x", chat.STOPPED).content
+
+
+def test_stop_flag_reaches_the_model_guard(make):
+    r = make([[text("xong")]])
+    agent, ctx, cfg, cc = r._setup("chào", "t", None, [], 8)
+    ctx.stop.set()
+    with chat.scope(cc, ["sys"], tool_defs(r.codes), stop=ctx.stop), pytest.raises(llm.LLMUnavailable):
+        list(chat.events(agent, ctx, cfg))
+
+
+def test_tools_of_one_message_run_one_at_a_time(make):
+    inside, worst = [], []
+
+    @tool(response_format="content_and_artifact")
+    def slow(n: int) -> tuple[str, dict]:
+        """Slow."""
+        inside.append(n)
+        worst.append(len(inside))
+        time.sleep(0.05)
+        inside.remove(n)
+        return str(n), {}
+
+    r = make([[use("slow", n=1), use("slow", n=2), use("slow", n=3)], [text("xong")]])
+    r.say("tin", tools=[slow])
+    assert max(worst) == 1
 
 
 @tool(response_format="content_and_artifact")
