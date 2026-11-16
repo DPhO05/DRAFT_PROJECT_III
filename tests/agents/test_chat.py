@@ -349,3 +349,21 @@ def test_resaved_adds_recheck_line_for_next_call(make):
     with chat.scope(cc, ["sys"], tool_defs(r.codes)):
         list(chat.events(agent, ctx, cfg))
     assert "tra lại" in json.dumps(r.fake.calls[0]["system"], ensure_ascii=False)
+
+
+@tool(response_format="content_and_artifact")
+def fat(n: int) -> tuple[str, dict]:
+    """Fat."""
+    return "z" * BIG + (" 4242" if n in HOLDS else ""), {}
+
+
+HOLDS: set[int] = set()
+
+
+@pytest.mark.parametrize(("holds", "warned"), [(1, True), (7, False)])
+def test_events_number_only_in_trimmed_result_is_unverified(make, holds, warned):
+    HOLDS.clear()
+    HOLDS.add(holds)
+    r = make([[use("fat", n=i)] for i in range(1, 8)] + [[text("Có 4242 bài.")]])
+    evs = r.events("hỏi", tools=[fat])
+    assert bool([e for e in evs if e["type"] == "warning"]) is warned

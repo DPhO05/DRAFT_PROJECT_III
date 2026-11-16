@@ -55,6 +55,7 @@ class ChatContext:
     box: Toolbox
     students: dict[int, dict]
     redact: dict[str, str]
+    seen: list[str] = field(default_factory=list)  # tool results of the last model request, after trimming
     resaved: bool = False  # the route sets it when a thread was saved since the last message
     started: Counter = field(default_factory=Counter)
     lock: threading.Lock = field(default_factory=threading.Lock)  # ToolNode runs one message's calls in parallel
@@ -177,6 +178,13 @@ def recheck(request, handler):
     return handler(request.override(system_message=SystemMessage(content=[*blocks, {"type": "text", "text": RECHECK}])))
 
 
+@wrap_model_call
+def record_seen(request, handler):
+    """Placed inside the trimming middleware: keeps what the model actually received (C-41)."""
+    request.runtime.context.seen = [m.content for m in request.messages if isinstance(m, ToolMessage)]
+    return handler(request)
+
+
 class _DropOld(AgentMiddleware[ChatState, ChatContext]):
     """Oldest messages go, cut only just before a HumanMessage: no orphan ToolMessage, the live turn stays (K31)."""
 
@@ -214,6 +222,7 @@ def build(model, tools, saver, *, max_tool_turns: int, system: list[str] | None 
             keep_masked,
             recheck,
             trim_old_tools,
+            record_seen,
             _DropOld(),
         ],
         state_schema=ChatState,
@@ -302,8 +311,7 @@ def events(agent, ctx: ChatContext, cfg: dict) -> Iterator[dict]:
                 for card in final.additional_kwargs.get("tutor/cards", []):
                     yield {"type": "card", "card": card}
     if ran and not by_code:  # C-41: numbers the model can still see, plus the date line
-        seen = agent.get_state(cfg).values["messages"]
-        known = audit.known_numbers([m.content for m in seen if isinstance(m, ToolMessage)] + [today])
+        known = audit.known_numbers([*ctx.seen, today])
         for w in audit.unverified("".join(said), known):
             yield {"type": "warning", "kind": "unverified_number", **w}
     items = list(dict.fromkeys(sources))
