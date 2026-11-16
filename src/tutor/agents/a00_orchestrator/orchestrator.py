@@ -175,12 +175,16 @@ def direct(turn: Turn, run: Call, *, starters: Starters | None, students: dict[i
     return None
 
 
+def today_line(today: date) -> str:
+    return f"Hôm nay: {today.isoformat()} ({_DAYS[today.weekday()]})."
+
+
 def _chat(
     turn: Turn, call: Call, done: list[Result], *, history, today, redact, conversation_id, fixed, tools, settings
 ) -> Generator[dict, None, tuple[str | None, list[dict]]]:
     """The model loop; `call` appends each result to `done`; returns (stopped, warnings) to `reply`."""
-    today_line = f"Hôm nay: {today.isoformat()} ({_DAYS[today.weekday()]})."
-    messages = [*history, {"role": "user", "content": f"{today_line}\n\n{turn.text}"}]
+    today_text = today_line(today)
+    messages = [*history, {"role": "user", "content": f"{today_text}\n\n{turn.text}"}]
 
     def run_tool(name: str, args: dict) -> tuple[str, bool]:
         content, is_error, _ = call(name, args)  # _meta stays here: never in the messages (C-40)
@@ -207,7 +211,7 @@ def _chat(
             end = ev
     warnings = []
     if done:  # R16; known = this turn's tool results, failed ones too, + the date line code wrote (S7, S27)
-        known = audit.known_numbers([content for content, _, _ in done] + [today_line])
+        known = audit.known_numbers([content for content, _, _ in done] + [today_text])
         warnings = [{"type": "warning", "kind": "unverified_number", **w} for w in audit.unverified(end["text"], known)]
     return ("max_tool_turns" if end["stopped"] == "max_tool_turns" else None), warnings  # S9
 

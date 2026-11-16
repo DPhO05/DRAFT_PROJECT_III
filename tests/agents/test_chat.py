@@ -51,9 +51,9 @@ class Rig:
         llm.set_backend(self.fake)
         self.codes = [c["code"] for c in repo.error_codes(conn, active_only=True)]
 
-    def say(self, words, *, thread="t", starters=None, tools=(), max_tool_turns=8):
+    def _setup(self, words, thread, starters, tools, max_tool_turns, turn=None):
         box = Toolbox(self.conn, settings=config.defaults(), today=self.w["today"], text=words, starters=starters)
-        ctx = chat.ChatContext(Turn(words), box, self.w["students"], self.w["redact"])
+        ctx = chat.ChatContext(turn or Turn(words), box, self.w["students"], self.w["redact"])
         agent = chat.build(
             llm.model("00"),
             [*lc_tools(box, self.codes), *tools],
@@ -63,6 +63,15 @@ class Rig:
         )
         cfg = {"configurable": {"thread_id": thread}, "recursion_limit": 200}
         cc = llm.CallContext(graph=None, conversation_id="c", redact=self.w["redact"])
+        return agent, ctx, cfg, cc
+
+    def events(self, words, *, thread="t", starters=None, tools=(), max_tool_turns=8, turn=None):
+        agent, ctx, cfg, cc = self._setup(words, thread, starters, tools, max_tool_turns, turn)
+        with chat.scope(cc, ["sys"], tool_defs(self.codes)):
+            return list(chat.events(agent, ctx, cfg))
+
+    def say(self, words, *, thread="t", starters=None, tools=(), max_tool_turns=8):
+        agent, ctx, cfg, cc = self._setup(words, thread, starters, tools, max_tool_turns)
         with chat.scope(cc, ["sys"], tool_defs(self.codes)):
             agent.invoke({"messages": [HumanMessage(words)]}, cfg, context=ctx)
         return agent.get_state(cfg).values
@@ -245,3 +254,98 @@ def test_parallel_starts_run_once(make):
     state = r.say("chấm", starters=starters)
     statuses = sorted(m.status for m in state["messages"] if isinstance(m, ToolMessage))
     assert statuses == ["error", "success"] and len(starts) == 1
+
+
+@tool(response_format="content_and_artifact")
+def peek(n: int) -> tuple[str, dict]:
+    """Peek."""
+    return f"so {n}", {"tutor/summary": "tóm tắt", "tutor/source": f"nguồn {n}", "tutor/card": {"kind": "k", "n": n}}
+
+
+@tool(response_format="content_and_artifact")
+def boom() -> tuple[str, dict]:
+    """Boom."""
+    return "hỏng", {"tutor/error": True}
+
+
+@tool(response_format="content_and_artifact")
+def start_grading() -> tuple[str, dict]:
+    """Start."""
+    return "ok", {"tutor/summary": "chấm"}
+
+
+def kinds(evs):
+    return [(e["type"], e.get("state") or e.get("kind")) for e in evs]
+
+
+def test_events_order_of_a_two_tool_turn(make):
+    r = make([[text("Xem "), use("peek", n=1)], [use("peek", n=2)], [text("kết quả 1 và 2")]])
+    evs = r.events("hỏi", tools=[peek])
+    assert [e["type"] for e in evs[:2]] == ["text", "tool"]
+    assert kinds([e for e in evs if e["type"] != "text"]) == [
+        ("tool", "start"), ("tool", "done"), ("card", None),
+        ("tool", "start"), ("tool", "done"), ("card", None),
+        ("source", None), ("done", None),
+    ]  # fmt: skip
+    assert "".join(e["delta"] for e in evs if e["type"] == "text") == "Xem \n\nkết quả 1 và 2"
+    assert evs[-2] == {"type": "source", "items": ["nguồn 1", "nguồn 2"]}
+    assert evs[-1] == {"type": "done", "stopped": None}
+    done = [e for e in evs if e["type"] == "tool" and e["state"] == "done"]
+    assert done[0]["summary"] == "tóm tắt"
+
+
+def test_events_two_model_calls_split_by_blank_line(make):
+    r = make([[text("một"), use("peek", n=1)], [text("hai")]])
+    texts = [e["delta"] for e in r.events("hỏi", tools=[peek]) if e["type"] == "text"]
+    assert "".join(texts) == "một\n\nhai"
+
+
+def test_events_tool_error(make):
+    r = make([[use("boom")], [text("lỗi rồi")]])
+    evs = r.events("hỏi", tools=[boom])
+    tool = [e for e in evs if e["type"] == "tool" and e["state"] != "start"]
+    assert [e["state"] for e in tool] == ["error"] and not [e for e in evs if e["type"] == "card"]
+    assert evs[-2] == {"type": "source", "no_student_data": True}
+
+
+def test_events_refused_start_has_no_summary_or_source(make):
+    r = make([[use("start_grading"), use("start_grading")], [text("xong")]])
+    evs = r.events("hỏi", tools=[start_grading])
+    states = sorted(e["state"] for e in evs if e["type"] == "tool" and e["state"] != "start")
+    assert states == ["done", "error"] and evs[-1]["type"] == "done"
+
+
+def test_events_by_code_turn_gives_text_and_cards(make):
+    r = make([])
+    evs = r.events("ok")
+    assert evs == [
+        {"type": "text", "delta": SAVED_NOTHING},
+        {"type": "source", "no_student_data": True},
+        {"type": "done", "stopped": None},
+    ]
+    evs = r.events("8ds-pt1-004", thread="t2")
+    [card] = [e["card"] for e in evs if e["type"] == "card"]
+    assert card["kind"] == "problem" and not [e for e in evs if e["type"] == "text"]
+    assert kinds(evs)[:2] == [("tool", "start"), ("tool", "done")] and r.fake.calls == []
+
+
+def test_events_warn_on_unseen_number_only(make):
+    r = make([[use("peek", n=7)], [text("Có 7 bài và 99 lỗi.")]])
+    evs = r.events("hỏi", tools=[peek])
+    [w] = [e for e in evs if e["type"] == "warning"]
+    assert w["numbers"] == ["99"] and w["kind"] == "unverified_number"
+
+
+def test_events_stopped_at_max_tool_turns(make):
+    r = make(lambda m: [use("peek", n=1)])
+    evs = r.events("hỏi", tools=[peek], max_tool_turns=1)
+    assert evs[-1] == {"type": "done", "stopped": "max_tool_turns"}
+
+
+def test_resaved_adds_recheck_line_for_next_call(make):
+    r = make([[text("ừ")]])
+    agent, ctx, cfg, cc = r._setup("hỏi", "t", None, (), 8)
+    ctx.resaved = True
+    with chat.scope(cc, ["sys"], tool_defs(r.codes)):
+        list(chat.events(agent, ctx, cfg))
+    assert "tra lại" in json.dumps(r.fake.calls[0]["system"], ensure_ascii=False)

@@ -7,6 +7,7 @@ code had no text) and `additional_kwargs["tutor/cards"]` = the cards to show, to
 
 import threading
 from collections import Counter
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import NotRequired
 from uuid import uuid4
@@ -19,6 +20,7 @@ from langchain.agents.middleware import (
     ContextEditingMiddleware,
     before_agent,
     before_model,
+    wrap_model_call,
     wrap_tool_call,
 )
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage, ToolMessage
@@ -27,11 +29,18 @@ from langgraph.types import Command
 from tutor import llm
 from tutor.agents.a00_orchestrator import orchestrator
 from tutor.agents.a00_orchestrator.orchestrator import Turn
-from tutor.agents.a00_orchestrator.tools import _ONCE, _REFUSED, LIMITS, Toolbox
+from tutor.agents.a00_orchestrator.tools import _ONCE, _REFUSED, LABELS, LIMITS, Toolbox
+from tutor.services import audit
 
 MAX_MESSAGES = 40
 CARD_ONLY = (
     "Mình đã hiện kết quả ở thẻ bên dưới."  # a by_code reply with cards and no text: the API rejects empty content
+)
+
+
+RECHECK = (
+    "Thầy/cô vừa lưu kết quả vào hệ thống, nên số liệu cũ trong cuộc trò chuyện có thể đã đổi. "
+    "Hãy tra lại bằng công cụ trước khi dùng số cũ."
 )
 
 
@@ -46,6 +55,7 @@ class ChatContext:
     box: Toolbox
     students: dict[int, dict]
     redact: dict[str, str]
+    resaved: bool = False  # the route sets it when a thread was saved since the last message
     started: Counter = field(default_factory=Counter)
     lock: threading.Lock = field(default_factory=threading.Lock)  # ToolNode runs one message's calls in parallel
 
@@ -157,6 +167,16 @@ def keep_masked(request, handler):
     return Command(update={"messages": [out], "rank": rank})
 
 
+@wrap_model_call
+def recheck(request, handler):
+    """After a save the older tool results may be stale: one more system line for this call."""
+    if not request.runtime.context.resaved:
+        return handler(request)
+    old = request.system_message.content if request.system_message else []
+    blocks = [{"type": "text", "text": old}] if isinstance(old, str) else list(old)
+    return handler(request.override(system_message=SystemMessage(content=[*blocks, {"type": "text", "text": RECHECK}])))
+
+
 class _DropOld(AgentMiddleware[ChatState, ChatContext]):
     """Oldest messages go, cut only just before a HumanMessage: no orphan ToolMessage, the live turn stays (K31)."""
 
@@ -187,7 +207,15 @@ def build(model, tools, saver, *, max_tool_turns: int, system: list[str] | None 
         model,
         tools,
         system_prompt=prompt,
-        middleware=[by_code, _limit_turns(max_tool_turns), limit_starts, keep_masked, trim_old_tools, _DropOld()],
+        middleware=[
+            by_code,
+            _limit_turns(max_tool_turns),
+            limit_starts,
+            keep_masked,
+            recheck,
+            trim_old_tools,
+            _DropOld(),
+        ],
         state_schema=ChatState,
         context_schema=ChatContext,
         checkpointer=saver,
@@ -203,3 +231,81 @@ def scope(context: llm.CallContext, fixed: list[str], tool_defs: list[dict]):
         "conversation_id": context.conversation_id,
     }
     return llm.scope(context, base)
+
+
+def _text(chunk) -> str:
+    c = chunk.content
+    return c if isinstance(c, str) else "".join(b.get("text", "") for b in c if isinstance(b, dict))
+
+
+def _tool_done(m: ToolMessage) -> dict:
+    art = m.artifact if isinstance(m.artifact, dict) else {}
+    name = m.name or ""
+    ev = {"type": "tool", "name": name, "label": LABELS.get(name, "")}
+    if _is_error(m):
+        return ev | {"state": "error"}
+    return ev | {"state": "done", "summary": art.get("tutor/summary", "")}
+
+
+def _starts(msgs) -> Iterator[dict]:
+    for m in msgs:
+        for c in getattr(m, "tool_calls", None) or []:
+            yield {"type": "tool", "name": c["name"], "label": LABELS.get(c["name"], ""), "state": "start"}
+
+
+def events(agent, ctx: ChatContext, cfg: dict) -> Iterator[dict]:
+    """NDJSON events of one tutor message, as `orchestrator.reply` gives them, without `start` / `error`.
+
+    agent: `build(...)`; ctx.resaved: set by the caller; the thread (`cfg`) carries the earlier messages.
+    """
+    turn, redact = ctx.turn, ctx.redact
+    today = orchestrator.today_line(ctx.box.today)
+    human = HumanMessage(orchestrator.mask(f"{today}\n\n{turn.text}", redact))
+    said, streamed, ran, by_code, stopped, sources = [], False, False, False, None, []
+    for mode, data in agent.stream({"messages": [human]}, cfg, context=ctx, stream_mode=["messages", "updates"]):
+        if mode == "messages":
+            chunk, meta = data
+            if meta.get("langgraph_node") != "model" or not (delta := _text(chunk)):
+                continue
+            if said and not streamed:  # text of an earlier model call in this message: a paragraph apart
+                said.append("\n\n")
+                yield {"type": "text", "delta": "\n\n"}
+            said.append(delta)
+            streamed = True
+            yield {"type": "text", "delta": delta}
+            continue
+        for node, upd in data.items():
+            if not isinstance(upd, dict):
+                continue
+            stopped = upd.get("stopped", stopped)
+            msgs = upd.get("messages") or []
+            if node == "model":
+                streamed = False
+                yield from _starts(msgs)
+            elif node == "tools":
+                ran = True
+                for m in (m for m in msgs if isinstance(m, ToolMessage)):
+                    yield _tool_done(m)
+                    art = m.artifact if isinstance(m.artifact, dict) else {}
+                    sources += [art["tutor/source"]] if "tutor/source" in art else []
+                    if "tutor/card" in art and not _is_error(m):
+                        yield {"type": "card", "card": art["tutor/card"]}
+            elif node.startswith("by_code") and msgs:
+                by_code = True
+                yield from _starts(msgs)
+                for m in (m for m in msgs if isinstance(m, ToolMessage)):
+                    yield _tool_done(m)
+                    sources += [m.artifact["tutor/source"]] if "tutor/source" in (m.artifact or {}) else []
+                final = msgs[-1]
+                if final.content != CARD_ONLY:
+                    yield {"type": "text", "delta": final.content}
+                for card in final.additional_kwargs.get("tutor/cards", []):
+                    yield {"type": "card", "card": card}
+    if ran and not by_code:  # C-41: numbers the model can still see, plus the date line
+        seen = agent.get_state(cfg).values["messages"]
+        known = audit.known_numbers([m.content for m in seen if isinstance(m, ToolMessage)] + [today])
+        for w in audit.unverified("".join(said), known):
+            yield {"type": "warning", "kind": "unverified_number", **w}
+    items = list(dict.fromkeys(sources))
+    yield {"type": "source", "items": items} if items else {"type": "source", "no_student_data": True}
+    yield {"type": "done", "stopped": "max_tool_turns" if stopped else None}
