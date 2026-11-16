@@ -177,7 +177,9 @@ def test_rank_survives_to_the_next_message(make):
 def test_tool_rounds_stop_at_the_limit_and_flag_resets(make):
     r = make(lambda m: [use("look", n=1)])
     state = r.say("mãi", tools=[look], max_tool_turns=2)
-    assert state["stopped"] is True and len(r.fake.calls) == 3
+    msgs = state["messages"]
+    assert state["stopped"] is True and len([m for m in msgs if isinstance(m, ToolMessage)]) == 2
+    assert len(r.fake.calls) == 2 and not dangling(msgs)
     r.script, r.fake.handlers["00"] = [[text("xong")]], lambda m: [text("xong")]
     assert r.say("lại", tools=[look])["stopped"] is False
 

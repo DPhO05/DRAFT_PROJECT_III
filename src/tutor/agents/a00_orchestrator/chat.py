@@ -103,7 +103,7 @@ def _limit_turns(max_tool_turns: int):
             if isinstance(m, HumanMessage):
                 break
             rounds += isinstance(m, AIMessage) and bool(m.tool_calls)
-        return {"stopped": True, "jump_to": "end"} if rounds > max_tool_turns else None
+        return {"stopped": True, "jump_to": "end"} if rounds >= max_tool_turns else None
 
     return limit_turns
 
