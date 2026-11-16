@@ -85,8 +85,13 @@ def _report_period(low: str, today: date) -> tuple[str, str]:
 
 def _chat_turn(messages: list[dict]) -> list[dict]:
     """R29 + S15: route on the tutor's last typed message; the tool results after it say which step is next."""
-    k = max(i for i, m in enumerate(messages) if m["role"] == "user" and isinstance(m["content"], str))
-    asked = messages[k]["content"]
+
+    def typed(m: dict) -> str:  # the agent path sends the tutor's text as blocks, tool results as blocks too
+        c = m["content"]
+        return c if isinstance(c, str) else "".join(b.get("text", "") for b in c if b["type"] == "text")
+
+    k = max(i for i, m in enumerate(messages) if m["role"] == "user" and typed(m))
+    asked = typed(messages[k])
     low = asked.lower()
     done = [json.loads(b["content"]) for m in messages[k + 1 :] if m["role"] == "user" for b in m["content"]
             if b["type"] == "tool_result"]  # fmt: skip
