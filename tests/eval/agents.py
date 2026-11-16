@@ -18,11 +18,13 @@ from tests.fakes import FakeLLM
 from tutor import config, llm
 from tutor.agents.a00_orchestrator import orchestrator
 from tutor.agents.a00_orchestrator.tools import Toolbox
+from tutor.agents.a08_recommender import select
 from tutor.agents.a09_reporter import reporter
 from tutor.db import repo
 from tutor.graphs import session
 from tutor.mcp import server
 from tutor.mcp.client import connect
+from tutor.services import facts
 
 QUESTIONS: list[dict] = json.loads((Path(__file__).parent / "questions_00.json").read_text(encoding="utf-8"))
 DONE = "Mình đã tra xong, thầy/cô xem thẻ bên dưới."  # no digits: nothing for the number check to flag
@@ -131,16 +133,14 @@ def evaluate_00(make_backend, *, work: Path, runs: int = 3) -> dict:
 def _report_09(paths, w: dict, p: dict) -> dict:
     """The report of one period, written in a new read-only session."""
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
-        box = Toolbox(conn, settings=config.defaults(), today=w["today"], text="", starters=None)
+        settings, today = config.defaults(), w["today"]
         sid = next(s["id"] for s in repo.list_students(conn, include_archived=True) if s["code"] == p["code"])
         cfg = {"configurable": {"thread_id": f"eval-{p['key']}"}}
         ctx = session.call_context(paths, sid, None, cfg, graph="G5")  # as the app: names masked
+        got = facts.report_facts(conn, sid, p["period_kind"], p["period_start"], today=today,
+                                 low_pass_rate=settings["report"]["low_pass_rate"])  # fmt: skip
         r = reporter.run(
-            connect("09", box).call,
-            code=p["code"],
-            period_kind=p["period_kind"],
-            period_start=p["period_start"],
-            ctx=ctx,
+            got, lambda: select.rank_problems(conn, sid, 3, reco=settings["reco"], today=today)["items"], ctx=ctx
         )
     return {
         "key": p["key"],

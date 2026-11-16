@@ -1,4 +1,4 @@
-"""G5 period report (P7-T05, P7-T06 file): write (09 over MCP) → DỪNG gate_report → commit the report row, then the .md.
+"""G5 period report (P7-T05, P7-T06 file): write (09) → DỪNG gate_report → commit the report row, then the .md.
 
 Row first, file second: a rerun after a file error finds the row with the same text and only writes the file."""
 
@@ -14,14 +14,13 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from tutor import config
-from tutor.agents.a00_orchestrator.tools import Toolbox
+from tutor.agents.a08_recommender import select
 from tutor.agents.a09_reporter import reporter
 from tutor.config import DataPaths, student_code
 from tutor.db import repo
 from tutor.graphs import session
 from tutor.graphs.runner import NotResumable, Runner
 from tutor.graphs.state import ReportState
-from tutor.mcp import client
 from tutor.services import facts
 from tutor.services.audit import check_sentence
 
@@ -231,9 +230,15 @@ def build(paths: DataPaths) -> StateGraph:
         ctx = session.call_context(paths, sid, None, config, graph=GRAPH)  # C-40: every full name masked
         with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
             today = date.fromisoformat(state["today"])  # H7: the day start was given
-            box = Toolbox(conn, settings=_settings(paths), today=today, text="", starters=None)
-            period = {"period_kind": state["period_kind"], "period_start": state["period_start"]}
-            draft = reporter.run(client.connect("09", box).call, code=ctx.student_code, **period, ctx=ctx)
+            settings = _settings(paths)
+            try:
+                got = facts.report_facts(conn, sid, state["period_kind"], state["period_start"], today=today,
+                                         low_pass_rate=settings["report"]["low_pass_rate"])  # fmt: skip
+            except facts.NotReady:
+                raise ValueError("Kỳ này chưa có buổi học nào đã duyệt") from None
+            draft = reporter.run(
+                got, lambda: select.rank_problems(conn, sid, 3, reco=settings["reco"], today=today)["items"], ctx=ctx
+            )
         return {"draft": draft}
 
     def gate_report(state: ReportState) -> dict:

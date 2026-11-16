@@ -172,12 +172,30 @@ def test_stale_draft_not_approved(g5, paths, conn, day, stale):
 
 
 def test_write_uses_start_today(g5, paths, monkeypatch):
-    """H7: write's Toolbox (report_facts, rank_problems) uses the day start was given, not the wall clock."""
+    """H7: write reads report_facts with the day start was given, not the wall clock."""
     r, _, _, sid = g5
-    seen, real = [], report.Toolbox
-    monkeypatch.setattr(report, "Toolbox", lambda conn, **k: seen.append(k["today"]) or real(conn, **k))
+    seen, real = [], facts.report_facts
+    monkeypatch.setattr(facts, "report_facts", lambda *a, **k: seen.append(k["today"]) or real(*a, **k))
     tid = draft(paths, r, sid)["thread_id"]
-    assert r.get(tid)["status"] == "awaiting_review" and seen == [TODAY]
+    assert r.get(tid)["status"] == "awaiting_review" and seen == [TODAY, TODAY]  # start, then write
+
+
+def test_write_empty_period_in_words(g5, paths, monkeypatch):
+    """A period emptied between start and write: the thread fails with the words, not a code."""
+    r, _, _, sid = g5
+    real, n = facts.report_facts, []
+
+    def flaky(*a, **k):
+        if n:
+            raise facts.NotReady({"reason": "no_committed_session"})
+        n.append(1)
+        return real(*a, **k)
+
+    monkeypatch.setattr(facts, "report_facts", flaky)
+    row = r.get(draft(paths, r, sid)["thread_id"])
+    assert (row["status"], row["node"]) == ("failed", "write") and "Kỳ này chưa có buổi học nào đã duyệt" in row[
+        "error"
+    ]
 
 
 def test_not_ready_lists_pending(g5, paths, conn):

@@ -1,6 +1,5 @@
 """09 Reporter (P7-T04): a period report for parents, one cited sentence each; audited, failed ones rewritten once."""
 
-import json
 import re
 from collections.abc import Callable
 from datetime import date
@@ -50,27 +49,14 @@ def _period(r: dict) -> str:
     return f"tuần {lo:%d/%m}–{hi:%d/%m/%Y}" if r["period_kind"] == "week" else f"tháng {lo:%m/%Y}"
 
 
-def run(
-    call: Callable[[str, dict], tuple[str, bool, dict]],
-    *,
-    code: str,
-    period_kind: str,
-    period_start: str,
-    ctx: llm.CallContext,
-) -> dict:
-    """call: a `tutor.mcp` Session's `call` on role 09 (R14). A period with no facts: ValueError in words.
+def run(r: dict, rank: Callable[[], list[dict]], *, ctx: llm.CallContext) -> dict:
+    """r: `facts.report_facts` of the period. rank: the student's top 3 problems, called only for a weak skill.
 
     `audit`: one row per draft sentence (its text, valid fact ids, first flag) and what became of it.
     """
-    args = {"code": code, "period_kind": period_kind, "period_start": period_start}
-    content, is_error, _ = call("report_facts", args)
-    if is_error:
-        raise ValueError(json.loads(content)["error"])
-    r = json.loads(content)
     found = r["facts"]
     if any(f["kind"] == "skill" and f["value"]["after"] == "chưa vững" for f in found):
-        content, is_error, _ = call("rank_problems", {"code": code, "n": 3})
-        if not is_error and (items := json.loads(content)["items"]):
+        if items := rank():
             kcs = list(dict.fromkeys(k for i in items for k in i["kcs"]))
             found.append({
                 "fact_id": f"F{len(found) + 1:02d}",

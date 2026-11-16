@@ -11,6 +11,7 @@ from tests.fakes import FakeLLM
 from tutor import config, llm
 from tutor.agents import CallContext
 from tutor.agents.a00_orchestrator.tools import Toolbox
+from tutor.agents.a08_recommender import select
 from tutor.agents.a09_reporter import reporter
 from tutor.agents.a09_reporter.reporter import ReportOut, Sentence
 from tutor.db import repo
@@ -31,6 +32,19 @@ def ro(conn, paths):
 
 def session(ro):
     return connect("09", Toolbox(ro[0], settings=config.defaults(), today=TODAY, text="", starters=None))
+
+
+def go(ro, *, ctx=CTX, low=0.5, ranked=None, **period):
+    """09 run as G5's `write` does: facts read, `rank` closure on select.rank_problems; `ranked` collects its calls."""
+    p = MONTH | period
+    got = facts.report_facts(ro[0], ro[1]["an"], p["period_kind"], p["period_start"], today=TODAY, low_pass_rate=low)
+
+    def rank():
+        if ranked is not None:
+            ranked.append(1)
+        return select.rank_problems(ro[0], ro[1]["an"], 3, reco=config.defaults()["reco"], today=TODAY)["items"]
+
+    return reporter.run(got, rank, ctx=ctx)
 
 
 def fake(*turns):
@@ -61,7 +75,7 @@ def test_role_09_sees_only_its_tools(ro):
 
 
 def test_report_facts_errors_in_words(ro):
-    """R13: NotReady and a malformed period come back as a tool error in words; 09 then stops before any LLM call."""
+    """R13: NotReady and a malformed period come back as a tool error in words (MCP role 09)."""
     s = session(ro)
     for args, words in [
         (MONTH | {"period_start": "2026-09-01"}, "chưa có buổi học nào đã duyệt"),
@@ -70,13 +84,11 @@ def test_report_facts_errors_in_words(ro):
     ]:
         content, is_error, _ = s.call("report_facts", args)
         assert is_error and words in json.loads(content)["error"]
-    with pytest.raises(ValueError, match="chưa có buổi học nào đã duyệt"):
-        reporter.run(s.call, **MONTH | {"period_start": "2026-09-01"}, ctx=CTX)
 
 
 def test_rewrite_once_then_drop(ro):
     f = fake(DRAFT, out(("Em đã làm 2 bài.", "F02"), ("Em rất chăm chỉ.", "F99")))
-    r = reporter.run(session(ro).call, **MONTH, ctx=CTX)
+    r = go(ro)
     assert f.count["09"] == 2
     assert [(a["i"], a["status"], a["flag"]) for a in r["audit"]] == [
         (0, "ok", None),
@@ -103,7 +115,7 @@ def test_rewrite_once_then_drop(ro):
 def test_failed_rewrite_drops(ro, again, status):
     """Rewrite off schema twice or unavailable: every failed sentence dropped; one sentence short: that one dropped."""
     fake(DRAFT, *again)
-    r = reporter.run(session(ro).call, **MONTH, ctx=CTX)
+    r = go(ro)
     assert [a["status"] for a in r["audit"]] == status
     assert len(r["sentences"]) == status.count("ok") + status.count("rewritten")
 
@@ -111,17 +123,18 @@ def test_failed_rewrite_drops(ro, again, status):
 def test_schema_flag_on_first_call_raises(ro):
     fake(None, None)
     with pytest.raises(llm.SchemaFlag):
-        reporter.run(session(ro).call, **MONTH, ctx=CTX)
+        go(ro)
 
 
 def test_clean_draft_one_call(ro):
     f = fake(out(("Tháng này em học 2 buổi, làm 2 bài.", "F01", "F02"), ("Buổi 07/10 em đạt 1 trong 2 ý.", "F04")))
-    r = reporter.run(session(ro).call, **MONTH, ctx=CTX)
-    assert f.count["09"] == 1 and [a["status"] for a in r["audit"]] == ["ok", "ok"]
+    ranked = []
+    r = go(ro, ranked=ranked)
+    assert f.count["09"] == 1 and [a["status"] for a in r["audit"]] == ["ok", "ok"] and not ranked
     user = f.calls[0]["user"]
     assert all(f"{x['fact_id']} · {x['text']}" in user.split("Số liệu:\n")[1] for x in r["facts"])
     assert all(f"{i['text']} ({', '.join(i['facts'])})" in user.split("Điểm cần nói:\n")[1] for i in r["insights"])
-    assert r["insights"] and not any(x["kind"] == "suggestion" for x in r["facts"])  # no weak skill, no rank call
+    assert r["insights"] and not any(x["kind"] == "suggestion" for x in r["facts"])
 
 
 @pytest.mark.parametrize(
@@ -134,17 +147,14 @@ def test_clean_draft_one_call(ro):
 )
 def test_period_line(ro, kind, start, line):
     f = fake(out(("Em đi học đều.", "F01")))
-    reporter.run(session(ro).call, code="HS-01", period_kind=kind, period_start=start, ctx=CTX)
+    go(ro, period_kind=kind, period_start=start)
     assert line in f.calls[0]["user"].splitlines()
 
 
 def test_low_period_no_praise(ro):
     """R23: 09 is told the result is low, and the audit's tone check rewrites praise all the same (C-41)."""
-    settings = config.defaults()
-    settings["report"]["low_pass_rate"] = 0.6  # 2 of 4 points
-    s = connect("09", Toolbox(ro[0], settings=settings, today=TODAY, text="", starters=None))
     f = fake(out(("Tháng này em học 2 buổi, rất giỏi.", "F01")), out(("Tháng này em học 2 buổi.", "F01")))
-    r = reporter.run(s.call, **MONTH, ctx=CTX)
+    r = go(ro, low=0.6)  # 2 of 4 points
     assert r["low"] is True and "Kết quả kỳ này thấp." in f.calls[0]["user"].splitlines()
     assert [(a["status"], a["flag"]) for a in r["audit"]] == [("rewritten", "tone")]
     assert r["sentences"] == [{"text": "Tháng này em học 2 buổi.", "facts": ["F01"]}]
@@ -160,7 +170,7 @@ def test_fact_ids_never_in_text(ro):
         ("F01 Em học 2 buổi F01.", "F01"),
         (look_alike, "F02"),
     ))  # fmt: skip
-    r = reporter.run(session(ro).call, **MONTH, ctx=CTX)
+    r = go(ro)
     assert f.count["09"] == 1
     assert [s["text"] for s in r["sentences"]] == [
         "Em làm 2 bài.",
@@ -186,7 +196,7 @@ def test_fact_ids_never_in_text(ro):
 def test_fact_line_leftovers(ro, text, kept):
     """H6: a sentence left with no words is dropped, never sent to rewrite; a copied "F01 · " or "· " prefix is cut."""
     f = fake(out((text, "F02")))
-    r = reporter.run(session(ro).call, **MONTH, ctx=CTX)
+    r = go(ro)
     assert f.count["09"] == 1
     assert [s["text"] for s in r["sentences"]] == ([kept] if kept else [])
     assert r["audit"][0]["status"] == ("ok" if kept else "dropped")
@@ -194,15 +204,10 @@ def test_fact_line_leftovers(ro, text, kept):
 
 def test_weak_skill_gets_suggestions(conn, ro):
     conn.execute("UPDATE skill_event SET theta_after = -1 WHERE kc_id = ?", (ro[1]["kc_swap"],))  # level from events
-    s, calls = session(ro), []
-
-    def call(name, args):
-        calls.append((name, args))
-        return s.call(name, args)
-
+    calls = []
     f = fake(out(("Tháng này em học 2 buổi.", "F01")))
-    r = reporter.run(call, **MONTH, ctx=CTX)
-    assert calls == [("report_facts", MONTH), ("rank_problems", {"code": "HS-01", "n": 3})]
+    r = go(ro, ranked=calls)
+    assert calls == [1]
     sug = [x for x in r["facts"] if x["kind"] == "suggestion"]
     assert len(sug) == 1 and sug[0] is r["facts"][-1] and sug[0]["fact_id"] == f"F{len(r['facts']):02d}"
     assert 1 <= sug[0]["value"]["n"] <= 3 and sug[0]["value"]["kcs"]
@@ -217,8 +222,27 @@ def test_payload_masked(conn, ro, tmp_path):
     log = tmp_path / "llm.jsonl"
     llm.configure(log, {})
     f = fake(out(("Tháng này em học 2 buổi.", "F01")))
-    reporter.run(session(ro).call, **MONTH, ctx=CallContext(graph="G5", student_code="HS-01", redact=redact))
+    go(ro, ctx=CallContext(graph="G5", student_code="HS-01", redact=redact))
     assert "Văn An" not in f.calls[0]["user"] and "Ôn cho HS-01" in f.calls[0]["user"]
     rows = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()]
     assert [x["agent"] for x in rows] == ["09"] and rows[0]["prompt_version"].startswith("09-")
     assert "Văn An" not in log.read_text(encoding="utf-8")
+
+
+# what 09 was sent by the MCP path before it was removed, on this world (the plan's "so chuỗi")
+GOLDEN_PLAIN = "Kỳ: tháng 10/2026\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF05 · Buổi 14/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành đang hình thành (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
+GOLDEN_WEAK = "Kỳ: tháng 10/2026\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF05 · Buổi 14/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành chưa vững (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\nF09 · Bài gợi ý luyện thêm: 3 bài về “Tính chất của bất đẳng thức”, “Chứng minh bất đẳng thức đơn giản”, “Bất phương trình đưa về dạng bậc nhất”, “Nghiệm nguyên, nghiệm thoả điều kiện thêm”.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
+GOLDEN_LOW = "Kỳ: tháng 10/2026\nKết quả kỳ này thấp.\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF05 · Buổi 14/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành đang hình thành (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
+
+
+def test_user_text_same_as_mcp_path(conn, ro):
+    f = fake(*[out(("Tháng này em học 2 buổi.", "F01"))] * 3)
+    go(ro)
+    go(ro, low=0.6)
+    conn.execute("UPDATE skill_event SET theta_after = -1 WHERE kc_id = ?", (ro[1]["kc_swap"],))
+    go(ro)
+    assert [c["user"] for c in f.calls] == [GOLDEN_PLAIN, GOLDEN_LOW, GOLDEN_WEAK]
+
+
+def test_prompt_version_unchanged():
+    assert llm.prompt_version("09", [reporter.INSTRUCTIONS]) == "09-841b5710"
