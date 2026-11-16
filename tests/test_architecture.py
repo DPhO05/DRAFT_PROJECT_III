@@ -29,6 +29,7 @@ ASSISTANT_FILES = {
     Path("tutor/agents/a00_orchestrator/tools.py"),
 }  # R21: no resume; nor anywhere under tutor/mcp/ (MCP_DIR)
 MCP_DIR = Path("tutor/mcp")
+PROVIDERS = {"langchain_openai", "langchain_anthropic"}
 
 
 def layer(parts: list[str]) -> str | None:
@@ -58,6 +59,19 @@ def violations(root: Path) -> list[str]:
                 full = base + (node.module.split(".") if node.module else [])
                 targets = [(full, [a.name for a in node.names])]
             for full, names in targets:
+                if rel != Path("tutor/llm.py"):
+                    mods = [full + [n] for n in names] + [full] if full == ["langchain"] else [full]
+                    for m in mods:
+                        hit = (
+                            m[0]
+                            if m[0] in PROVIDERS
+                            else ".".join(m[:2])
+                            if m[:2] == ["langchain", "chat_models"]
+                            else ""
+                        )
+                        if hit:
+                            bad(node, f"only tutor/llm.py may import {hit}")
+                            break
                 if not full or full[0] != "tutor":
                     continue
                 tl = layer(full)
@@ -177,6 +191,23 @@ def test_mcp_rules(tmp_path):
         "tutor/mcp/client.py:2: resume() never from the assistant (C-39)",
         "tutor/mcp/roles.py:1: resume() never from the assistant (C-39)",
         "tutor/mcp/server.py:3: resume() never from the assistant (C-39)",
+    ]
+
+
+def test_provider_imports_only_in_llm(tmp_path):
+    write(tmp_path, "tutor/llm.py", "from langchain_openai import ChatOpenAI\n")
+    write(tmp_path, "tutor/agents/a.py", "import json\nfrom langchain_openai import ChatOpenAI\n")
+    write(tmp_path, "tutor/agents/b.py", "import langchain_anthropic.chat_models\n")
+    write(tmp_path, "tutor/graphs/c.py", "from langchain.chat_models import init_chat_model\n")
+    write(
+        tmp_path, "tutor/api/d.py", "from langchain import chat_models\nfrom langchain_core.messages import AIMessage\n"
+    )
+    msg = "only tutor/llm.py may import"
+    assert violations(tmp_path / "tutor") == [
+        f"tutor/agents/a.py:2: {msg} langchain_openai",
+        f"tutor/agents/b.py:1: {msg} langchain_anthropic",
+        f"tutor/api/d.py:1: {msg} langchain.chat_models",
+        f"tutor/graphs/c.py:1: {msg} langchain.chat_models",
     ]
 
 
