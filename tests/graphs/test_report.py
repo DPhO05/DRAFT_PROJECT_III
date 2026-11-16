@@ -305,3 +305,28 @@ def test_period_errors_are_409():
     got = c.get("/empty")
     assert got.status_code == 409 and got.json()["error"]["code"] == "not_ready"
     assert got.json()["error"]["detail"] == {"reason": "no_committed_session", "previous_start": None}
+
+
+def test_readers_work_before_the_worker_runs(g5, paths, monkeypatch):
+    r, _, _, sid = g5
+    monkeypatch.setattr(r, "_submit", lambda *a, **k: None)  # worker never picks the job
+    out = report.start(paths, r, student_id=sid, **WEEK, today=TODAY)
+    tid = out["thread_id"]
+    row, state = r.get(tid), r.state(tid)
+    assert "draft" not in state and state["period_start"] == WEEK["period_start"]
+
+    assert report.card(row, state) == {
+        "kind": "report", "stage": "writing", "student_id": sid, **WEEK,
+        "n_flagged": 0, "report_id": None, "error_words": None, "sentences": [],
+    }  # fmt: skip
+    assert report.reminder(row, state) == {
+        "kind": "report", "thread_id": tid, "student_id": sid, **WEEK, "words": "chưa làm xong",
+    }  # fmt: skip
+    assert report.drafts(r, sid) == []
+
+    r._set(tid, status="failed", error="x")  # failed before the first node wrote a checkpoint
+    row = r.get(tid)
+    assert report.card(row, r.state(tid))["stage"] == "failed"
+    (got,) = report.drafts(r, sid)
+    assert (got["thread_id"], got["status"], got["n_flagged"]) == (tid, "failed", 0)
+    assert (got["period_kind"], got["period_start"]) == (WEEK["period_kind"], WEEK["period_start"])
