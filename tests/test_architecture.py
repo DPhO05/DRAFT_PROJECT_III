@@ -16,12 +16,10 @@ ALLOWED = {
     "graphs": {"agents", "db", "services", "config", "mcp"},  # R14: G5 is a 09 client
     "mcp": {"agents", "services", "db", "config"},  # R12
     "api": {"graphs", "db", "services", "llm", "config", "devfake", "agents", "mcp"},  # agents: see API_AGENTS
-    # cli runs create_app() for `tutor app`; agents: see CLI_AGENTS
-    "cli": {"api", "graphs", "db", "services", "llm", "config", "devfake", "agents"},
+    "cli": {"api", "graphs", "db", "config"},  # cli runs create_app() for `tutor app`
 }
-LLM_READ_ONLY = {"iter_log", "cost"}  # what api / cli may take from tutor.llm
+LLM_READ_ONLY = {"iter_log", "cost"}  # what api may take from tutor.llm
 API_AGENTS = {"a00_orchestrator"}  # what api/assistant.py, the only api file that imports agents, may take
-CLI_AGENTS = {"a08_recommender"}  # what cli may take: `tutor worksheet` ranks problems with 08
 ORCHESTRATOR = Path("tutor/agents/a00_orchestrator/orchestrator.py")
 ASSISTANT_FILES = {
     Path("tutor/api/assistant.py"),
@@ -79,13 +77,11 @@ def violations(root: Path) -> list[str]:
                 for t in layers:
                     if t != me and t not in ALLOWED[me]:
                         bad(node, f"{me} must not import tutor.{t}")
-                    if me in ("api", "cli") and t == "agents":
+                    if me == "api" and t == "agents":
                         mods = {full[2]} if len(full) > 2 else set(names) if tl else {"agents"}
                         if me == "api" and (rel != Path("tutor/api/assistant.py") or mods - API_AGENTS):
                             bad(node, "api may import only agents.a00_orchestrator, and only in api/assistant.py")
-                        if me == "cli" and mods - CLI_AGENTS:
-                            bad(node, "cli may import only agents.a08_recommender")
-                if tl == "llm" and me in ("api", "cli") and len(full) == 2:
+                if tl == "llm" and me == "api" and len(full) == 2:
                     for n in set(names) - LLM_READ_ONLY:
                         bad(node, f"{me} may only use llm.iter_log / llm.cost, not {n}")
             if isinstance(node, ast.Call):
@@ -127,10 +123,10 @@ def test_commit_and_llm_call_rules(tmp_path):
     write(tmp_path, "tutor/api/s.py", "from tutor.db import repo\nrepo.commit_session(1)\nrepo.add_student('a')\n")
     write(tmp_path, "tutor/graphs/g.py", "from tutor.db import repo\nrepo.commit_session(1)\n")
     write(tmp_path, "tutor/graphs/n.py", "from tutor import llm\nllm.call('03')\n")
-    write(tmp_path, "tutor/cli.py", "from tutor.llm import cost, call\n")
+    write(tmp_path, "tutor/api/x.py", "from tutor.llm import cost, call\n")
     assert violations(tmp_path / "tutor") == [
         "tutor/api/s.py:2: commit_session() only from tutor/graphs/",
-        "tutor/cli.py:1: cli may only use llm.iter_log / llm.cost, not call",
+        "tutor/api/x.py:1: api may only use llm.iter_log / llm.cost, not call",
         "tutor/graphs/n.py:1: graphs must not import tutor.llm",
         "tutor/graphs/n.py:2: llm.call() only from tutor/agents/",
     ]
@@ -211,13 +207,9 @@ def test_provider_imports_only_in_llm(tmp_path):
     ]
 
 
-def test_cli_may_import_only_08(tmp_path):
-    write(
-        tmp_path,
-        "tutor/cli.py",
-        "from tutor.agents.a08_recommender import select\nfrom tutor.agents.a02_grader import grader\n",
-    )
-    assert violations(tmp_path / "tutor") == ["tutor/cli.py:2: cli may import only agents.a08_recommender"]
+def test_cli_imports_no_agents(tmp_path):
+    write(tmp_path, "tutor/cli.py", "from tutor.agents.a08_recommender import select\nfrom tutor.db import repo\n")
+    assert violations(tmp_path / "tutor") == ["tutor/cli.py:1: cli must not import tutor.agents"]
 
 
 def test_one_folder_per_agent():
