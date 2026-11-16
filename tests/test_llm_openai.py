@@ -1,11 +1,14 @@
 """OpenAIBackend: structured call and streaming tool loop on the Responses API, over a mock transport (C-34)."""
 
+import asyncio
 import json
+import threading
 import traceback
 
 import httpx2
 import openai
 import pytest
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from tests.fakes import openai_client
 from tutor import llm
@@ -383,3 +386,255 @@ def test_chat_refusal(use_openai):
     with pytest.raises(llm.LLMUnavailable, match="từ chối"):
         chat()
     assert len(bodies) == 1
+
+
+# GuardedOpenAI: ChatOpenAI under the guard, over the same mock transport
+
+NAME, CODE = "Nguyễn Văn An", "HS-01"
+GCTX = llm.CallContext(graph="g", thread_id="t", student_code=CODE, redact={NAME: CODE})
+GBASE = {"agent": "02", "prompt_version": "p", "model": MODEL, "user": "u"}
+
+
+@pytest.fixture
+def glog(tmp_path, monkeypatch):
+    monkeypatch.setattr(llm, "_log_path", tmp_path / "llm.jsonl")
+
+    def rows():
+        f = tmp_path / "llm.jsonl"
+        return [json.loads(line) for line in f.read_text(encoding="utf-8").splitlines()] if f.exists() else []
+
+    return rows
+
+
+def guarded(*replies, **kw):
+    oc, bodies = openai_client(*replies)
+    m = llm.GuardedOpenAI(
+        model="gpt-5.6-sol",
+        api_key="test",
+        use_responses_api=True,
+        store=False,
+        max_retries=0,
+        root_client=oc,
+        client=oc.chat.completions,
+        **kw,
+    )
+    return m, bodies
+
+
+def ask(m, text="hi", **kw):
+    with llm.scope(GCTX, GBASE, **kw):
+        return m.invoke([SystemMessage("Chấm."), HumanMessage(text)])
+
+
+def sse_text(*deltas, tail=None):
+    n = iter(range(1, 99))
+    ev = lambda t, **k: {"type": t, "sequence_number": next(n), **k}  # noqa: E731
+    msg0 = {"id": "m1", "type": "message", "role": "assistant", "status": "in_progress", "content": []}
+    out = [
+        ev("response.created", response={"id": "r", "status": "in_progress", "output": []}),
+        ev("response.output_item.added", output_index=0, item=msg0),
+        ev(
+            "response.content_part.added",
+            item_id="m1",
+            output_index=0,
+            content_index=0,
+            part={"type": "output_text", "text": "", "annotations": []},
+        ),
+    ]
+    out += [
+        ev("response.output_text.delta", item_id="m1", output_index=0, content_index=0, delta=d, logprobs=[])
+        for d in deltas
+    ]
+    return out + (tail(ev) if tail else [])
+
+
+def sse_error(ev):
+    return [ev("error", code="server_error", message="mid", param=None)]
+
+
+def sse_done(ev, text="xin chao"):
+    done = RESP(text)["output"][0] | {"status": "completed"}
+    resp = RESP(text) | {"id": "r"}
+    return [ev("response.output_item.done", output_index=0, item=done), ev("response.completed", response=resp)]
+
+
+def test_guard_body_masked_store_false(glog):
+    m, bodies = guarded(RESP("ok"))
+    ask(m, f"Bài của {NAME}")
+    text = json.dumps(bodies[0], ensure_ascii=False)
+    assert bodies[0]["store"] is False and NAME not in text and CODE in text
+    assert glog()[0]["name_masked"] is True
+
+
+def test_guard_name_left_after_mask_sends_nothing(glog):
+    m, bodies = guarded(RESP("ok"))
+    ctx = llm.CallContext(graph="g", redact={"An": "học sinh An"})  # the code itself carries the name
+    with llm.scope(ctx, GBASE), pytest.raises(llm.LLMUnavailable):
+        m.invoke("Bài của An")
+    assert bodies == []
+
+
+def test_guard_outside_scope_sends_nothing():
+    m, bodies = guarded(RESP("ok"))
+    with pytest.raises(RuntimeError):
+        m.invoke("hi")
+    with pytest.raises(RuntimeError):
+        asyncio.run(m.ainvoke("hi"))
+    assert bodies == []
+
+
+def test_guard_500_three_tries(glog):
+    m, bodies = guarded(500, 500, 500)
+    with pytest.raises(llm.LLMUnavailable):
+        ask(m)
+    assert len(bodies) == 3 and [r["result"] for r in glog()] == ["retry"] * 3
+    assert all(r["output"] is None for r in glog())
+
+
+def test_guard_401_key_rejected_and_scrubbed(glog):
+    leak = httpx2.Response(
+        401,
+        json={
+            "error": {"message": "Incorrect API key provided: sk-proj-abc123", "type": "x", "code": "invalid_api_key"}
+        },
+    )
+    m, bodies = guarded(leak)
+    with pytest.raises(llm.KeyRejected) as e:
+        ask(m)
+    assert len(bodies) == 1
+    assert "sk-proj" not in str(e.value) and "sk-proj" not in json.dumps(glog()) and glog()[0]["result"] == "error"
+
+
+@pytest.mark.parametrize("status", [400, 404])
+def test_guard_bad_request_one_try(status, glog):
+    m, bodies = guarded(status)
+    with pytest.raises(
+        llm.LLMUnavailable, match="Tên model hoặc yêu cầu không hợp lệ, xem mục models trong settings.json"
+    ):
+        ask(m)
+    assert len(bodies) == 1
+
+
+def test_guard_row_fields_and_usage(glog):
+    m, _ = guarded(RESP(OK))
+    ask(m)
+    (row,) = glog()
+    assert row["agent"] == "02" and row["result"] == "ok" and row["output"] == OK
+    assert (row["input_tokens"], row["cache_read_tokens"], row["cache_write_tokens"]) == (3, 1874, 19)
+    assert llm.status() == "ok"
+
+
+def test_guard_schema_check(glog):
+    m, _ = guarded(RESP("nope"))
+    ask(m, check=lambda raw: False)
+    assert glog()[0]["result"] == "schema_error"
+
+
+def test_guard_stream_error_after_text_no_retry(glog):
+    m, bodies = guarded(sse_text("Xin ", "chao", tail=sse_error))
+    got = []
+    with llm.scope(GCTX, GBASE), pytest.raises(llm.LLMUnavailable):
+        for c in m.stream("hi"):
+            got.append(c.text)
+    assert "".join(got) == "Xin chao" and len(bodies) == 1
+    assert [r["result"] for r in glog()] == ["error"]
+
+
+def test_guard_stream_error_before_text_retries(glog):
+    m, bodies = guarded(sse_text(tail=sse_error), sse_text("xin chao", tail=sse_done))
+    with llm.scope(GCTX, GBASE):
+        text = "".join(c.text for c in m.stream("hi"))
+    assert text == "xin chao" and len(bodies) == 2
+    assert [r["result"] for r in glog()] == ["retry", "ok"]
+
+
+def test_guard_incomplete_drops_tool_calls():
+    call = {
+        "id": "fc1",
+        "type": "function_call",
+        "call_id": "c1",
+        "name": "t",
+        "arguments": '{"code": "HS-0',
+        "status": "incomplete",
+    }
+    r = {
+        "id": "r",
+        "status": "incomplete",
+        "incomplete_details": {"reason": "max_output_tokens"},
+        "output": [call],
+        "usage": U,
+    }
+    m, _ = guarded(r)
+    ai = ask(m)
+    assert ai.tool_calls == [] and ai.invalid_tool_calls == []
+    assert not any(isinstance(b, dict) and b.get("type") == "function_call" for b in ai.content)
+
+
+def test_guard_incomplete_stream_drops_tool_calls():
+    call = {
+        "id": "fc1",
+        "type": "function_call",
+        "call_id": "c1",
+        "name": "t",
+        "arguments": "",
+        "status": "in_progress",
+    }
+
+    def tail(ev):
+        cut = call | {"arguments": '{"code": "HS-0', "status": "incomplete"}
+        r = {
+            "id": "r",
+            "status": "incomplete",
+            "incomplete_details": {"reason": "max_output_tokens"},
+            "output": [cut],
+            "usage": U,
+        }
+        return [
+            ev("response.output_item.added", output_index=1, item=call),
+            ev("response.function_call_arguments.delta", item_id="fc1", output_index=1, delta='{"code": "HS-0'),
+            ev("response.incomplete", response=r),
+        ]
+
+    m, _ = guarded(sse_text("xin", tail=tail))
+    with llm.scope(GCTX, GBASE):
+        agg = None
+        for c in m.stream("hi"):
+            agg = c if agg is None else agg + c
+    assert agg.text == "xin" and agg.tool_calls == [] and agg.tool_call_chunks == []
+
+
+def test_guard_stop_flag_stops_before_next_chunk_and_closes_stream(glog):
+    state = {"closed": False}
+
+    class Tracked(httpx2.SyncByteStream):
+        def __iter__(self):
+            for p in sse_text("a ", "b ", "c ", "d "):
+                yield f"event: {p['type']}\ndata: {json.dumps(p)}\n\n".encode()
+
+        def close(self):
+            state["closed"] = True
+
+    resp = httpx2.Response(200, headers={"content-type": "text/event-stream"}, stream=Tracked())
+    m, _ = guarded(resp)
+    flag, got = threading.Event(), []
+    with llm.scope(GCTX, GBASE, stop=flag), pytest.raises(llm.LLMUnavailable, match="Đã dừng"):
+        for c in m.stream("hi"):
+            got.append(c.text)
+            if c.text == "a ":
+                flag.set()
+    assert got.count("a ") == 1 and "b " not in got and state["closed"]
+    assert glog()[0]["result"] == "error"
+
+
+def test_model_openai_cached_and_use_key_drops_it(monkeypatch):
+    monkeypatch.setattr(llm, "_models", {"02": MODEL})
+    monkeypatch.setattr(llm, "_chat", {})
+    with pytest.raises(llm.LLMUnavailable, match="OPENAI_API_KEY"):
+        llm.model("02")
+    llm.use_key("openai", "sk-test")
+    a = llm.model("02")
+    assert isinstance(a, llm.GuardedOpenAI) and llm.model("02") is a
+    assert a.store is False and a.max_retries == 0 and a.use_responses_api is True
+    assert a.reasoning == {"effort": "medium"}
+    llm.use_key("openai", "sk-other")
+    assert llm.model("02") is not a

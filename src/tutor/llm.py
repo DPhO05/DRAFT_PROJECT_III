@@ -1,5 +1,6 @@
 """The only path to the LLM APIs (SDD §8): prompt framing, name masking, retry, llm.jsonl."""
 
+import asyncio
 import hashlib
 import json
 import os
@@ -9,11 +10,16 @@ import time
 import unicodedata
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import BaseMessage
+from langchain_core.outputs import ChatGenerationChunk
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, ValidationError
 
 OPEN = "<<<BÀI LÀM HỌC SINH (UNTRUSTED INPUT)>>>"
@@ -370,6 +376,7 @@ PROVIDERS: dict[str, Callable[[], Backend]] = {"anthropic": AnthropicBackend, "o
 KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
 _backend: Backend | None = None  # test / --fake-llm override: wins over every provider
 _live: dict[str, Backend] = {}  # real backends, built on first use, one per provider
+_chat: dict[str, BaseChatModel] = {}  # guarded LangChain models, built on first use, one per models setting
 _log_path: Path | None = None
 _models: dict[str, str] = {}
 _log_lock = threading.RLock()  # re-entrant: an abandoned `chat` generator is closed by GC inside `_log`
@@ -396,6 +403,7 @@ def use_key(provider: str, key: str) -> None:
     """Take effect now: the next call builds a new backend with `key` (a test's fake backend stays)."""
     os.environ[KEY_ENV[provider]] = key
     _live.pop(provider, None)
+    _chat.clear()
 
 
 def set_backend(backend: Backend | None) -> None:
@@ -745,3 +753,246 @@ def cost(path: Path, prices: dict, *, month: str, by_model: dict | None = None) 
         "by_agent": dict(sorted(by_agent.items(), key=lambda kv: str(kv[0]))),
         "by_session": list(reversed(by_session.values())),  # newest thread first
     }
+
+
+@dataclass
+class _Scope:
+    context: CallContext
+    base: dict
+    check: Callable[[str], bool] | None
+    stop: threading.Event | None
+
+
+_scope: ContextVar[_Scope | None] = ContextVar("llm_scope", default=None)
+_BAD_REQUEST = "Tên model hoặc yêu cầu không hợp lệ, xem mục models trong settings.json"
+
+
+@contextmanager
+def scope(
+    context: CallContext,
+    base: dict,
+    *,
+    check: Callable[[str], bool] | None = None,
+    stop: threading.Event | None = None,
+):
+    """The only way a guarded model may send: `base` is the log row fields the caller owns."""
+    token = _scope.set(_Scope(context, base, check, stop))
+    try:
+        yield
+    finally:
+        _scope.reset(token)
+
+
+def _mask_messages(messages: list[BaseMessage], redact: dict[str, str]) -> tuple[list[BaseMessage], bool, bool]:
+    """(masked copies, a name was replaced, a name is still there after masking)."""
+    out, hit, left = [], False, False
+    for m in messages:
+        update = {}
+        for k in ("content", "tool_calls"):
+            if v := getattr(m, k, None):
+                update[k], h = _mask_all(v, redact)
+                hit |= h
+        left |= any(_mask_all(v, redact)[1] for v in update.values())
+        out.append(m.model_copy(update=update))
+    return out, hit, left
+
+
+def _lc_usage(md: dict | None) -> dict:
+    """usage_metadata -> _row_tail keys; both providers count cache tokens inside input_tokens (K15)."""
+    if not md:
+        return {}
+    d = md.get("input_token_details") or {}
+    read, written = d.get("cache_read", 0), d.get("cache_creation", 0)
+    return {
+        "input": md.get("input_tokens", 0) - read - written,
+        "output": md.get("output_tokens", 0),
+        "cache_read": read,
+        "cache_write": written,
+    }
+
+
+def _refused(m: BaseMessage) -> bool:
+    blocks = m.content if isinstance(m.content, list) else []
+    reason = (m.response_metadata.get("incomplete_details") or {}).get("reason")
+    return reason == "content_filter" or any(isinstance(b, dict) and b.get("type") == "refusal" for b in blocks)
+
+
+_CALL_BLOCKS = ("function_call", "tool_call", "custom_tool_call")
+
+
+def _drop_calls(m):
+    """A cut-off call's arguments may not parse (K19): the reply keeps its text and reasoning, no calls."""
+    blocks = m.content
+    if isinstance(blocks, list):
+        blocks = [b for b in blocks if not (isinstance(b, dict) and b.get("type") in _CALL_BLOCKS)]
+    update = {"content": blocks, "tool_calls": [], "invalid_tool_calls": []}
+    if hasattr(m, "tool_call_chunks"):
+        update["tool_call_chunks"] = []
+    return m.model_copy(update=update)
+
+
+def _translate(e: Exception) -> Exception:
+    """Provider error -> Retryable | KeyRejected | LLMUnavailable; anything else comes back unchanged."""
+    import openai
+    from langchain_core.exceptions import ModelRefusalError
+
+    text = _scrub(str(e))
+    if getattr(e, "status_code", None) in (401, 403) or getattr(e, "code", None) == "insufficient_quota":
+        return KeyRejected(f"Khoá API bị từ chối: {text}")
+    if isinstance(e, Retryable) or _openai_retryable(e):
+        return Retryable(text)
+    if isinstance(e, ValueError) and any(c in text for c in _OPENAI_RETRY_CODES):  # SSE error / failed response (K18)
+        return Retryable(text)
+    if isinstance(e, openai.BadRequestError | openai.NotFoundError):
+        return LLMUnavailable(_BAD_REQUEST)
+    if isinstance(e, ModelRefusalError):
+        return LLMUnavailable(f"GPT từ chối: {text}")
+    return e
+
+
+def _record(base: dict, md: dict | None, t0: float, raw: str, result: str, err: str | None) -> None:
+    global _last_result
+    row = base | _row_tail(_lc_usage(md), t0, result)
+    _log(row | {"output": raw if result != "retry" else None, **({"error": _scrub(err)} if err else {})})
+    _last_result = "ok" if result in ("ok", "schema_error") else "error"
+
+
+class Guard(BaseChatModel):
+    """Mixin below the provider class: every send is masked, retried and logged here (SDD §8)."""
+
+    def _begin(self, messages: list[BaseMessage]) -> tuple[_Scope, list[BaseMessage], dict]:
+        sc = _scope.get()
+        if sc is None:
+            raise RuntimeError("model gọi ngoài llm.scope: không gửi gì")
+        masked, hit, left = _mask_messages(messages, sc.context.redact)
+        if left:
+            raise LLMUnavailable("Còn họ tên học sinh sau khi che: không gửi")
+        return sc, masked, sc.base | {"name_masked": bool(sc.base.get("name_masked")) or hit}
+
+    def _generate(self, messages, stop=None, run_manager=None, **kw):
+        sc, msgs, base = self._begin(messages)
+        net = 0
+        while True:
+            t0 = time.monotonic()
+            md, raw, result, err = None, "", "ok", None
+            try:
+                res = super()._generate(msgs, stop=stop, run_manager=run_manager, **kw)
+                ai = res.generations[0].message
+                md, raw = ai.usage_metadata, ai.text
+                if _refused(ai):
+                    raise LLMUnavailable("GPT từ chối")
+                if ai.response_metadata.get("status") == "incomplete":
+                    res.generations[0].message = _drop_calls(ai)
+                if sc.check and not sc.check(raw):
+                    result = "schema_error"
+                return res
+            except Exception as e:
+                out = _translate(e)
+                result, err = ("retry" if isinstance(out, Retryable) else "error"), str(out)
+                if result == "error":
+                    if out is e:
+                        raise
+                    raise out from None
+            finally:
+                _record(base, md, t0, raw, result, err)
+            net += 1
+            if net >= NET_TRIES:
+                raise LLMUnavailable(_scrub(err))
+            _sleep(2**net)
+
+    def _stream(self, messages, stop=None, run_manager=None, **kw):
+        sc, msgs, base = self._begin(messages)
+        net = 0
+        while True:
+            t0 = time.monotonic()
+            md, raw, result, err, sent, refused, held = None, "", "ok", None, False, False, []
+            gen = super()._stream(msgs, stop=stop, run_manager=run_manager, **kw)
+            try:
+                for c in gen:
+                    m = c.message
+                    md, raw = m.usage_metadata or md, raw + c.text
+                    refused |= _refused(m)
+                    last = m.response_metadata.get("status")
+                    if not last and (m.tool_call_chunks or (not sent and not c.text)):
+                        # held until text starts (a retry stays clean) or the end (incomplete drops calls, K19)
+                        held.append(c)
+                        continue
+                    ready = [*held, c]
+                    held = []
+                    if last == "incomplete":
+                        ready = [ChatGenerationChunk(message=_drop_calls(r.message)) for r in ready]
+                    for r in ready:
+                        if sc.stop is not None and sc.stop.is_set():
+                            raise LLMUnavailable("Đã dừng")
+                        sent = True
+                        yield r
+                for r in held:
+                    sent = True
+                    yield r
+                if refused:
+                    raise LLMUnavailable("GPT từ chối")
+                if sc.check and not sc.check(raw):
+                    result = "schema_error"
+                return
+            except Exception as e:
+                out = _translate(e)
+                retry = isinstance(out, Retryable) and not sent
+                result, err = ("retry" if retry else "error"), str(out)
+                if not retry:
+                    if out is e:
+                        raise
+                    raise (LLMUnavailable(_scrub(err)) if isinstance(out, Retryable) else out) from None
+            finally:
+                gen.close()
+                _record(base, md, t0, raw, result, err)
+            net += 1
+            if net >= NET_TRIES:
+                raise LLMUnavailable(_scrub(err))
+            _sleep(2**net)
+
+    async def _agenerate(self, messages, stop=None, run_manager=None, **kw):
+        return await asyncio.to_thread(self._generate, messages, stop, None, **kw)
+
+    async def _astream(self, messages, stop=None, run_manager=None, **kw):
+        it, end = self._stream(messages, stop, None, **kw), object()
+        try:
+            while (c := await asyncio.to_thread(next, it, end)) is not end:
+                yield c
+        finally:
+            it.close()
+
+
+class GuardedOpenAI(Guard, ChatOpenAI):
+    pass
+
+
+def model(agent: str) -> BaseChatModel:
+    """The guarded chat model for one agent's models setting; built once per setting."""
+    global _last_result
+    setting = _models.get(agent, "openai:gpt-5.6-sol")
+    try:
+        provider, name = split_model(setting)
+    except ValueError as e:
+        _last_result = "error"
+        raise LLMUnavailable(f"models.{agent}: {e}") from None
+    if provider != "openai":
+        _last_result = "error"
+        raise LLMUnavailable(f"models.{agent}: provider {provider} chưa dùng được")
+    if setting not in _chat:
+        key = os.environ.get(KEY_ENV[provider])
+        if not key:
+            _last_result = "error"
+            raise KeyRejected("Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại")
+        _chat.setdefault(
+            setting,
+            GuardedOpenAI(
+                model=name,
+                use_responses_api=True,
+                store=False,
+                max_retries=0,
+                timeout=CALL_TIMEOUT,
+                reasoning={"effort": "medium"},
+                api_key=key,
+            ),
+        )
+    return _chat[setting]
