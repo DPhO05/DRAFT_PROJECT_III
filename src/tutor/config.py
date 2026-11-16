@@ -177,6 +177,10 @@ class DataPaths:
         return self.root / "checkpoints.db"
 
     @property
+    def chat_db(self) -> Path:
+        return self.root / "chat.db"
+
+    @property
     def settings(self) -> Path:
         return self.root / "settings.json"
 
