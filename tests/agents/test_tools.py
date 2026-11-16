@@ -417,3 +417,38 @@ def test_starter_value_error_is_the_tool_error(ro, name):
     tb = box(ro, starters=st)
     out = tb.run(name, args)
     assert out.is_error and json.loads(out.content) == {"error": words} and out.card is None and out.source is None
+
+
+def lc(ro, codes=("a.b", "c.d")):
+    return {t.name: t for t in tools.lc_tools(box(ro), list(codes))}
+
+
+def test_lc_tools_schema_to_model(ro):
+    from langchain_core.utils.function_calling import convert_to_openai_tool
+
+    by_name = lc(ro)
+    assert list(by_name) == ORDER
+    p = convert_to_openai_tool(by_name["student_mistakes"])["function"]["parameters"]
+    assert p["required"] == ["code", "since", "kind", "kc"] and p["additionalProperties"] is False
+    assert p["properties"]["since"]["type"] == ["string", "null"]
+    assert p["properties"]["kind"]["enum"] == ["a.b", "c.d", None]
+    assert p["properties"]["code"]["type"] == "string"
+
+
+def test_lc_tools_artifact_not_in_model_content(ro):
+    msg = lc(ro)["list_students"].invoke({"name": "list_students", "args": {}, "id": "t1", "type": "tool_call"})
+    assert msg.tool_call_id == "t1" and "pick_student" not in msg.content
+    assert msg.artifact["tutor/card"]["kind"] == "pick_student" and "tutor/source" in msg.artifact
+    assert json.loads(msg.content)["students"]
+
+
+def test_lc_tools_drop_none_args(ro):
+    msg = lc(ro)["student_mistakes"].invoke(
+        {
+            "name": "student_mistakes",
+            "args": {"code": "HS-01", "since": None, "kind": None, "kc": None},
+            "id": "t2",
+            "type": "tool_call",
+        }  # fmt: skip
+    )
+    assert json.loads(msg.content)["code"] == "HS-01"

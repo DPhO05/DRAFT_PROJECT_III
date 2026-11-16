@@ -11,8 +11,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
+from langchain_core.tools import StructuredTool
+
 from tutor.agents.a08_recommender import select
 from tutor.config import student_code
+from tutor.llm import _strict
 from tutor.services import facts, search, students
 
 log = logging.getLogger("tutor")
@@ -458,3 +461,22 @@ class Toolbox:
             summary=f"start_report {code}: {a['period_kind']} {a['period_start']}",
             card={"kind": "report", "thread_id": started["thread_id"]},
         )
+
+
+def lc_tools(box: Toolbox, codes: list[str]) -> list[StructuredTool]:
+    """One StructuredTool per definition for this message: strict schema to the model, `meta` as the artifact."""
+
+    def build(d: dict) -> StructuredTool:
+        def run(**args) -> tuple[str, dict]:
+            out = box.run(d["name"], {k: v for k, v in args.items() if v is not None})
+            return out.content, meta(out)
+
+        return StructuredTool(
+            name=d["name"],
+            description=d["description"],
+            args_schema=_strict(d["input_schema"]),
+            func=run,
+            response_format="content_and_artifact",
+        )
+
+    return [build(d) for d in tool_defs(codes)]
