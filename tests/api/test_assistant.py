@@ -391,7 +391,8 @@ def test_history_from_log_when_thread_is_empty(paths, client, w):
     cid = f"{date.today().isoformat()}-1"
     log = [r for i in range(15) for r in (
         {"id": "u", "role": "user", "ts": "t", "text": f"u{i}"},
-        {"id": "a", "role": "assistant", "ts": "t", "text": f"a{i}"} | ({"incomplete": True} if i == 14 else {}),
+        {"id": "a", "role": "assistant", "ts": "t", "text": f"a{i}"} | ({"incomplete": True} if i == 14 else {})
+        | ({"tools": [{"name": "student_profile", "summary": "S13"}]} if i == 13 else {}),
     )]  # fmt: skip
     f = paths.logs / "chat" / f"{cid}.jsonl"
     f.write_text("".join(json.dumps(r) + "\n" for r in log), encoding="utf-8")
@@ -400,6 +401,7 @@ def test_history_from_log_when_thread_is_empty(paths, client, w):
     got = sent_texts(fake.calls[0])
     assert len(got) == 21 and got[0] == "u4" and got[-1].endswith("Tin mới")
     assert not any(t in ("u14", "a14") for t in got)
+    assert "a13\n\n(đã tra: S13)" in got
 
 
 @pytest.mark.parametrize(("status", "stamp", "recheck"), [

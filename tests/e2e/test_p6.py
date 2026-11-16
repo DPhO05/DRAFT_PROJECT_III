@@ -199,7 +199,7 @@ def test_no_names_anywhere(paths, client, w):
     fake = backend([tool("student_profile", code="HS-01")], [text("Đã xem hồ sơ.")])
     ask = "Nguyễn Văn An với LÊ VĂN CƯỜNG và tran thi binh hay sai gì?"
     evs = lines(send(client, ask))
-    assert "HS-01 với HS-03 và HS-02" in fake.calls[0]["messages"][-1]["content"]
+    assert "HS-01 với HS-03 và HS-02" in fake.calls[0]["messages"][-1]["content"][0]["text"]
     lines(send(client, "", [w["an"]], cid=evs[0]["conversation_id"], attachment={"path": FILE}, held_on="2026-10-21"))
     tid = client.get("/api/threads").json()[0]["thread_id"]
     assert poll(client, tid)["status"] == "awaiting_review"

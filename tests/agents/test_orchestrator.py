@@ -4,13 +4,14 @@ import json
 from contextlib import closing
 
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.assistant_fix import world
 from tests.fakes import FakeLLM
 from tutor import config, llm
-from tutor.agents.a00_orchestrator import orchestrator
-from tutor.agents.a00_orchestrator.orchestrator import Turn, fixed_parts, history_messages, version
-from tutor.agents.a00_orchestrator.tools import Starters, tool_defs
+from tutor.agents.a00_orchestrator import chat, orchestrator
+from tutor.agents.a00_orchestrator.orchestrator import Turn, fixed_parts, version
+from tutor.agents.a00_orchestrator.tools import Starters, Toolbox, lc_tools, tool_defs
 from tutor.db import repo
 
 
@@ -29,25 +30,34 @@ def ro(conn, paths):
         yield c, w
 
 
-def say(ro, turn, script=None, *, history=(), starters=None, settings=None, redact=None):
+def say(ro, turn, script=None, *, starters=None, settings=None, redact=None):
+    """One tutor message through the chat agent, as the route runs it; returns (events, fake)."""
     c, w = ro
     llm.set_backend(fake := FakeLLM({} if script is None else {"00": script}))
-    events = list(
-        orchestrator.reply(
-            turn if isinstance(turn, Turn) else Turn(turn),
-            history=list(history),
-            conn=c,
-            starters=starters,
-            settings=settings or config.defaults(),
-            today=w["today"],
-            redact=w["redact"] if redact is None else redact,
-            students=w["students"],
-            conversation_id="2026-10-21-1",
-            fixed=w["fixed"],
-            tools=w["tools"],
-        )
+    turn, settings, redact = (
+        turn if isinstance(turn, Turn) else Turn(turn),
+        settings or config.defaults(),
+        (w["redact"] if redact is None else redact),
     )
-    return events, fake
+    box = Toolbox(c, settings=settings, today=w["today"], text=turn.text, starters=starters)
+    ctx = chat.ChatContext(turn, box, w["students"], redact)
+    agent = chat.build(
+        llm.model("00"),
+        lc_tools(box, [x["code"] for x in repo.error_codes(c, active_only=True)]),
+        InMemorySaver(),
+        max_tool_turns=settings["assistant"]["max_tool_turns"],
+        system=w["fixed"],
+    )
+    cfg = {"configurable": {"thread_id": "t"}, "recursion_limit": 200}
+    cc = llm.CallContext(graph=None, conversation_id="2026-10-21-1", redact=orchestrator._names(redact))
+    with chat.scope(cc, w["fixed"], w["tools"]):
+        return list(chat.events(agent, ctx, cfg)), fake
+
+
+def sent(call) -> list[str]:
+    """The texts of the messages one model call received."""
+    return ["".join(b.get("text", "") for b in m["content"]) if isinstance(m["content"], list) else m["content"]
+            for m in call["messages"]]  # fmt: skip
 
 
 def tool(name, **inp):
@@ -118,9 +128,7 @@ def test_free_text_calls_scripted_tool(ro, tmp_path):
     assert done["state"] == "done" and done["summary"].startswith("student_profile HS-01")
     assert said(events) == "HS-01 có 2 buổi."
     assert events[-2:] == [{"type": "source", "items": ["hồ sơ của HS-01"]}, {"type": "done", "stopped": None}]
-    assert fake.calls[0]["messages"] == [
-        {"role": "user", "content": "Hôm nay: 2026-10-21 (thứ Tư).\n\nTháng này @HS-01 yếu gì?"}
-    ]
+    assert sent(fake.calls[0]) == ["Hôm nay: 2026-10-21 (thứ Tư).\n\nTháng này @HS-01 yếu gì?"]
     _, w = ro
     rows = [json.loads(x) for x in (tmp_path / "llm.jsonl").read_text(encoding="utf-8").splitlines()]
     assert {r["prompt_version"] for r in rows} == {version(w["fixed"], w["tools"])}
@@ -160,8 +168,8 @@ def test_cards_and_tool_errors_pass_through(ro):
     script = [[tool("list_students"), tool("student_profile", code="HS-99")], [text("Thầy chọn học sinh nhé.")]]
     events, _ = say(ro, "Học sinh nào yếu nhất?", script)
     assert [e["card"]["kind"] for e in of(events, "card")] == ["pick_student"]
-    assert [(e["name"], e["state"]) for e in of(events, "tool")] == [
-        ("list_students", "start"), ("list_students", "done"), ("student_profile", "start"),
+    assert [(e["name"], e["state"]) for e in of(events, "tool")] == [  # both calls start, then both finish
+        ("list_students", "start"), ("student_profile", "start"), ("list_students", "done"),
         ("student_profile", "error")]  # fmt: skip
     assert "summary" not in of(events, "tool")[3]
     assert of(events, "source") == [{"type": "source", "items": ["danh sách học sinh"]}]
@@ -171,32 +179,15 @@ def test_stops_after_max_tool_turns(ro):
     settings = config.defaults()
     settings["assistant"]["max_tool_turns"] = 1
     events, fake = say(ro, "@HS-01?", lambda messages: [tool("student_profile", code="HS-01")], settings=settings)
-    assert len(fake.calls) == 2 and events[-1] == {"type": "done", "stopped": "max_tool_turns"}
+    assert len(fake.calls) == 1 and events[-1] == {"type": "done", "stopped": "max_tool_turns"}
 
 
 def test_names_masked_short_names_kept(ro):
     _, w = ro
     redact = w["redact"] | {"Minh": "HS-09"}  # a legacy one-word name must not mask "chứng minh" (S24)
     _, fake = say(ro, "NGUYEN VAN AN chứng minh sai", [[text("Ừ.")]], redact=redact)
-    assert fake.calls[0]["messages"][-1]["content"].endswith("HS-01 chứng minh sai")
+    assert sent(fake.calls[0])[-1].endswith("HS-01 chứng minh sai")
     assert orchestrator.mask("Nguyễn Văn An chứng minh", redact) == "HS-01 chứng minh"
-
-
-def test_history_last_20(ro):
-    rows = []
-    for k in range(15):
-        rows.append({"id": f"m{2 * k + 1}", "role": "user", "text": f"hỏi {k}", "mentions": [], "attachment": None})
-        rows.append({"id": f"m{2 * k + 2}", "role": "assistant", "text": f"đáp {k}" if k != 13 else "",
-                     "events": [{"type": "source", "items": ["hồ sơ của HS-01"]}],
-                     "tools": [{"name": "student_profile", "summary": f"student_profile HS-01: {k} vững"}],
-                     })  # fmt: skip
-    msgs = history_messages(rows)
-    assert len(msgs) <= 20 and msgs[0]["role"] == "user"
-    assert {"role": "assistant", "content": "đáp 14\n\n(đã tra: student_profile HS-01: 14 vững)"} == msgs[-1]
-    assert "đáp 13" not in json.dumps(msgs, ensure_ascii=False) and all(m["content"] for m in msgs)
-    assert not [m for m in msgs if "{" in m["content"] or "items" in m["content"]]
-    _, fake = say(ro, "còn gì nữa?", [[text("Hết rồi.")]], history=msgs)
-    assert fake.calls[0]["messages"][:-1] == msgs
 
 
 def test_attachment_needs_student_and_date(ro):

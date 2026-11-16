@@ -1,7 +1,7 @@
 """Agent 00 and 09 eval harnesses (P8b), scored over several runs for pass^k.
 
 00: ask the tutor app's chat assistant a fixed question set, score which tools it used. Wiring mirrors
-api/assistant.py: MCP session, fixed prompt parts and tool list from it, `orchestrator.reply`.
+api/assistant.py: fixed prompt parts and tool list from the catalog, `chat.events` on a fresh thread.
 09: write the parent report of a few fixed periods of the same world, score what the audit did to the draft.
 """
 
@@ -11,19 +11,19 @@ from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
+from langgraph.checkpoint.memory import InMemorySaver
+
 from tests.agents.test_tools import recorder
 from tests.assistant_fix import world
 from tests.eval import metrics
 from tests.fakes import FakeLLM
 from tutor import config, llm
-from tutor.agents.a00_orchestrator import orchestrator
-from tutor.agents.a00_orchestrator.tools import Toolbox
+from tutor.agents.a00_orchestrator import chat, orchestrator
+from tutor.agents.a00_orchestrator.tools import Toolbox, lc_tools, tool_defs
 from tutor.agents.a08_recommender import select
 from tutor.agents.a09_reporter import reporter
 from tutor.db import repo
 from tutor.graphs import session
-from tutor.mcp import server
-from tutor.mcp.client import connect
 from tutor.services import facts
 
 QUESTIONS: list[dict] = json.loads((Path(__file__).parent / "questions_00.json").read_text(encoding="utf-8"))
@@ -51,25 +51,21 @@ def _ask_00(paths, w: dict, q: dict) -> tuple[dict, str]:
         everyone = {s["id"]: s for s in repo.list_students(conn, include_archived=True)}
         redact = {s["name"]: s["code"] for s in everyone.values()}
         box = Toolbox(conn, settings=config.defaults(), today=w["today"], text=q["text"], starters=starters)
-        s = connect("00", box)
-        fixed = orchestrator.fixed_parts(json.loads(s.resource(server.KCS)), json.loads(s.resource(server.ERROR_CODES)))
-        tools = s.tools()
-        events = list(
-            orchestrator.reply(
-                orchestrator.Turn(q["text"]),
-                history=[],
-                conn=conn,
-                starters=starters,
-                settings=config.defaults(),
-                today=w["today"],
-                redact=redact,
-                students=everyone,
-                conversation_id="2026-10-21-1",
-                fixed=fixed,
-                tools=tools,
-                call=s.call,
-            )
+        codes = repo.error_codes(conn, active_only=True)
+        fixed = orchestrator.fixed_parts(repo.list_kc(conn), codes)
+        tools = tool_defs([c["code"] for c in codes])
+        ctx = chat.ChatContext(orchestrator.Turn(q["text"]), box, everyone, redact)
+        agent = chat.build(
+            llm.model("00"),
+            lc_tools(box, [c["code"] for c in codes]),
+            InMemorySaver(),
+            max_tool_turns=config.defaults()["assistant"]["max_tool_turns"],
+            system=fixed,
         )
+        cfg = {"configurable": {"thread_id": "eval"}, "recursion_limit": 200}
+        cc = llm.CallContext(graph=None, conversation_id="2026-10-21-1", redact=orchestrator._names(redact))
+        with chat.scope(cc, fixed, tools):
+            events = list(chat.events(agent, ctx, cfg))
     answer = {
         "id": q["id"],
         "expect": q["expect"],
@@ -176,7 +172,8 @@ def evaluate_09(make_backend, *, work: Path, runs: int = 3) -> dict:
 
 def question_of(messages: list[dict]) -> dict:
     """The question a chat call belongs to: the first user message is "Hôm nay: …" + blank line + the text."""
-    text = messages[0]["content"].split("\n\n", 1)[1]
+    first = messages[0]["content"]  # a string, or blocks when the message came through the agent
+    text = (first if isinstance(first, str) else "".join(b["text"] for b in first)).split("\n\n", 1)[1]
     return next(q for q in QUESTIONS if q["text"] == text)
 
 
