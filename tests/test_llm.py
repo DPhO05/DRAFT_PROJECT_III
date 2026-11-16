@@ -93,12 +93,17 @@ def test_three_transient_errors_raise_unavailable(log):
 
 
 def test_other_errors_are_not_retried(log):
-    fake = FakeLLM({"01": ValueError("bad request")})
+    fake = FakeLLM({"01": RuntimeError("bad request")})  # a bare ValueError is a provider failure to Guard (K18)
     llm.set_backend(fake)
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         llm.call("01", ["f"], Out, context=ctx())
     assert fake.count["01"] == 1
     assert lines(log)[0]["result"] == "error"
+
+
+def test_agent_without_handler_raises_key_error(log):
+    with pytest.raises(KeyError):
+        llm.call("01", ["f"], Out, context=ctx())
 
 
 def test_anthropic_401_is_a_refused_key():

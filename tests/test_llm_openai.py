@@ -51,6 +51,15 @@ def use_openai(tmp_path, monkeypatch):
         monkeypatch.setattr(llm, "_live", {})
         llm.set_backend(None)
         llm.configure(tmp_path / "llm.jsonl", models or {"02": MODEL})
+        shared = dict(  # what llm.model builds, over the mock client; `call` reads it from _chat
+            api_key="test", use_responses_api=True, store=False, max_retries=0,
+            root_client=client, client=client.chat.completions,
+        )  # fmt: skip
+        monkeypatch.setattr(
+            llm,
+            "_chat",
+            {m: llm.GuardedOpenAI(model=m.split(":")[1], **shared) for m in (models or {"02": MODEL}).values()},
+        )
         return bodies
 
     return setup
@@ -144,7 +153,7 @@ def test_retry_then_ok(use_openai, tmp_path):
 
 def test_bad_request_is_not_retried(use_openai, tmp_path):
     bodies = use_openai(400)
-    with pytest.raises(openai.BadRequestError):
+    with pytest.raises(llm.LLMUnavailable, match="models trong settings"):
         grade()
     assert len(bodies) == 1 and [r["result"] for r in rows(tmp_path)] == ["error"]
 
@@ -628,6 +637,7 @@ def test_guard_stop_flag_stops_before_next_chunk_and_closes_stream(glog):
 
 
 def test_model_openai_cached_and_use_key_drops_it(monkeypatch):
+    llm.set_backend(None)
     monkeypatch.setattr(llm, "_models", {"02": MODEL})
     monkeypatch.setattr(llm, "_chat", {})
     with pytest.raises(llm.LLMUnavailable, match="OPENAI_API_KEY"):
@@ -776,3 +786,34 @@ def test_guard_non_transient_stream_error_is_unavailable_and_scrubbed(glog):
         list(m.stream("hi"))
     assert len(bodies) == 1 and "invalid_prompt" in str(e.value)
     assert "sk-proj" not in str(e.value) and "sk-proj" not in json.dumps(glog())
+
+
+# --- call over GuardedOpenAI (Task 1.3) ---
+
+
+def test_call_sends_masked_strict_body_and_returns_model(use_openai, tmp_path):
+    bodies = use_openai(RESP(OK))
+    redact = {"Nguyễn Văn An": "HS-03"}
+    out = llm.call(
+        "02", ["HS Nguyễn Văn An"], grader.GradeOut, student_work="bài", context=llm.CallContext(None, redact=redact)
+    )
+    assert isinstance(out, grader.GradeOut)
+    fmt = bodies[0]["text"]["format"]
+    assert fmt["type"] == "json_schema" and fmt["strict"] is True and fmt["name"] == "GradeOut"
+    assert "Văn An" not in json.dumps(bodies, ensure_ascii=False) and "HS-03" in json.dumps(bodies)
+
+
+def test_call_schema_error_once_then_ok(use_openai, tmp_path):
+    bodies = use_openai(RESP("not json"), RESP(OK))
+    assert grade().score == 0
+    a, b = rows(tmp_path)
+    assert len(bodies) == 2 and (a["result"], b["result"]) == ("schema_error", "ok")
+    assert a["output"] == "not json" and a["output_tokens"] == 6
+
+
+def test_call_name_in_fixed_extra_and_work_never_in_body(use_openai):
+    bodies = use_openai(RESP(OK))
+    c = llm.CallContext(None, redact={NAME: CODE})
+    llm.call("02", [f"Hồ sơ {NAME}"], grader.GradeOut, extra=[f"Đề của {NAME}"], student_work=f"{NAME} làm", context=c)
+    sent = json.dumps(bodies, ensure_ascii=False)
+    assert NAME not in sent and sent.count(CODE) == 3

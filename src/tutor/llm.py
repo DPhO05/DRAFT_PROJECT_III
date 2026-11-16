@@ -14,11 +14,12 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatGenerationChunk
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
+from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, ValidationError
 
@@ -376,6 +377,7 @@ PROVIDERS: dict[str, Callable[[], Backend]] = {"anthropic": AnthropicBackend, "o
 KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
 _backend: Backend | None = None  # test / --fake-llm override: wins over every provider
 _live: dict[str, Backend] = {}  # real backends, built on first use, one per provider
+_DEFAULT_MODEL = "openai:gpt-5.6-sol"
 _chat: dict[str, BaseChatModel] = {}  # guarded LangChain models, built on first use, one per models setting
 _log_path: Path | None = None
 _models: dict[str, str] = {}
@@ -522,6 +524,24 @@ def _row_tail(usage: dict, t0: float, result: str) -> dict:
     }
 
 
+class _Schema(dict):
+    """The strict JSON schema of `cls`, carrying the class for a Backend that wants the type."""
+
+    def __init__(self, cls: type[BaseModel]) -> None:
+        from openai.lib._pydantic import to_strict_json_schema  # private: openai is pinned <4 for it
+
+        super().__init__(name=cls.__name__, schema=to_strict_json_schema(cls), strict=True)
+        self.cls = cls
+
+
+def _valid(schema: type[BaseModel], raw: str) -> bool:
+    try:
+        schema.model_validate_json(raw)
+    except ValidationError:
+        return False
+    return True
+
+
 def call[T: BaseModel](
     agent: str,
     fixed: list[str],
@@ -536,8 +556,7 @@ def call[T: BaseModel](
     fixed: cached system blocks, hashed into prompt_version. extra: per-call material (problem, rubric,
     history) sent in the user turn before the framed student work, not part of prompt_version.
     """
-    global _last_result
-    backend, name, setting = _route(agent)
+    chain = model(agent).with_structured_output(_Schema(schema), method="json_schema", strict=True, include_raw=True)
     masked, hits = [], False
     for part in fixed:
         m, h = _mask(part, context.redact)
@@ -556,7 +575,7 @@ def call[T: BaseModel](
     base = {
         "agent": agent,
         "prompt_version": prompt_version(agent, fixed),
-        "model": setting,
+        "model": _models.get(agent, _DEFAULT_MODEL),
         "graph": context.graph,
         "thread_id": context.thread_id,
         "session_id": context.session_id,
@@ -564,38 +583,15 @@ def call[T: BaseModel](
         "name_masked": hits,
         "user": user,  # masked; the system part is identified by prompt_version
     }
-    net = bad = 0
-    while True:
-        t0 = time.monotonic()
-        usage, raw, result, err = {}, "", "ok", None
+    messages = [*(SystemMessage(p) for p in masked), HumanMessage(user)]
+    for _ in range(SCHEMA_TRIES):
+        with scope(context, base, check=lambda raw: _valid(schema, raw)):
+            raw = chain.invoke(messages)["raw"].text
         try:
-            reply = backend(agent=agent, model=name, system=masked, user=user, schema=schema)
-            usage, raw = reply.usage, reply.raw
-            if reply.parsed is None:
-                result = "schema_error"
-        except Retryable as e:
-            result, err = "retry", str(e)
-        except Exception as e:
-            result, err = "error", str(e)
-            raise
-        finally:
-            _log(
-                base
-                | _row_tail(usage, t0, result)
-                | {"output": raw if result != "retry" else None, **({"error": err} if err else {})}
-            )
-            _last_result = "ok" if result in ("ok", "schema_error") else "error"
-        if result == "ok":
-            return reply.parsed
-        if result == "schema_error":
-            bad += 1
-            if bad >= SCHEMA_TRIES:
-                raise SchemaFlag(f"{agent}: output sai schema {bad} lần")
-            continue
-        net += 1
-        if net >= NET_TRIES:
-            raise LLMUnavailable(f"{agent}: {err}")
-        _sleep(2**net)
+            return schema.model_validate_json(raw)
+        except ValidationError:
+            pass
+    raise SchemaFlag(f"{agent}: output sai schema {SCHEMA_TRIES} lần")
 
 
 def chat(
@@ -988,15 +984,63 @@ class GuardedOpenAI(Guard, ChatOpenAI):
         return payload
 
 
+class BackendChat(BaseChatModel):
+    """Any `Backend` (a test fake, --fake-llm, AnthropicBackend) as a chat model: the messages go back to its call."""
+
+    backend: Any
+    model_name: str
+
+    @property
+    def _llm_type(self) -> str:
+        return "backend"
+
+    def _generate(self, messages, stop=None, run_manager=None, **kw):
+        schema = kw.get("backend_schema")
+        if schema is None:
+            raise RuntimeError("BackendChat chỉ chạy qua with_structured_output")
+        system = [m.text for m in messages if isinstance(m, SystemMessage)]
+        user = "".join(m.text for m in messages if isinstance(m, HumanMessage))
+        r = self.backend(
+            agent=_scope.get().base["agent"], model=self.model_name, system=system, user=user, schema=schema
+        )
+        u = r.usage
+        total_in = u["input"] + u["cache_read"] + u["cache_write"]
+        usage = {
+            "input_tokens": total_in,
+            "output_tokens": u["output"],
+            "total_tokens": total_in + u["output"],
+            "input_token_details": {"cache_read": u["cache_read"], "cache_creation": u["cache_write"]},
+        }
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(r.raw, usage_metadata=usage))])
+
+    def with_structured_output(self, schema, *, include_raw=False, **kw):
+        bound = self.bind(backend_schema=getattr(schema, "cls", schema))
+        return bound | RunnableLambda(lambda m: {"raw": m, "parsed": None, "parsing_error": None})
+
+
+class GuardedBackend(Guard, BackendChat):
+    pass
+
+
 def model(agent: str) -> BaseChatModel:
     """The guarded chat model for one agent's models setting; built once per setting."""
     global _last_result
-    setting = _models.get(agent, "openai:gpt-5.6-sol")
+    setting = _models.get(agent, _DEFAULT_MODEL)
     try:
         provider, name = split_model(setting)
     except ValueError as e:
         _last_result = "error"
         raise LLMUnavailable(f"models.{agent}: {e}") from None
+    if _backend is not None:
+        return GuardedBackend(backend=_backend, model_name=name)
+    if provider == "anthropic":
+        try:
+            if "anthropic" not in _live:
+                _live.setdefault("anthropic", PROVIDERS["anthropic"]())
+        except LLMUnavailable:
+            _last_result = "error"
+            raise
+        return GuardedBackend(backend=_live["anthropic"], model_name=name)
     if provider != "openai":
         _last_result = "error"
         raise LLMUnavailable(f"models.{agent}: provider {provider} chưa dùng được")

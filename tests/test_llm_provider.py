@@ -58,13 +58,9 @@ def test_split_model(setup):
 def test_call_routes_by_prefix(setup):
     fa, fo, log = setup({"01": "claude-x", "02": "openai:gpt-y"})
     llm.call("01", ["cố định"], Out, student_work="bài", context=ctx())
-    llm.call("02", ["cố định"], Out, student_work="bài", context=ctx())
-    assert fa.calls[0]["model"] == "claude-x" and len(fa.calls) == 1
-    assert fo.calls[0]["model"] == "gpt-y" and len(fo.calls) == 1
-    assert [json.loads(x)["model"] for x in log.read_text(encoding="utf-8").splitlines()] == [
-        "claude-x",
-        "openai:gpt-y",
-    ]
+    assert fa.calls[0]["model"] == "claude-x" and len(fa.calls) == 1 and fo.calls == []
+    assert json.loads(log.read_text(encoding="utf-8"))["model"] == "claude-x"
+    # an openai call goes to GuardedOpenAI, not PROVIDERS: tests/test_llm_openai.py
 
 
 def test_chat_routes_by_prefix(setup):
@@ -76,12 +72,12 @@ def test_chat_routes_by_prefix(setup):
 
 
 def test_one_backend_per_provider(setup, monkeypatch):
-    fa, fo, _ = setup({"01": "openai:a", "02": "openai:b"})
+    fa, fo, _ = setup({"01": "anthropic:a", "02": "anthropic:b"})
     made = []
-    monkeypatch.setattr(llm, "PROVIDERS", {"openai": lambda: made.append(1) or fo})
+    monkeypatch.setattr(llm, "PROVIDERS", {"anthropic": lambda: made.append(1) or fa})
     llm.call("01", ["cố định"], Out, student_work="bài", context=ctx())
     llm.call("02", ["cố định"], Out, student_work="bài", context=ctx())
-    assert made == [1] and [c["model"] for c in fo.calls] == ["a", "b"]
+    assert made == [1] and [c["model"] for c in fa.calls] == ["a", "b"]
 
 
 def test_unknown_provider_is_unavailable(setup, monkeypatch):
