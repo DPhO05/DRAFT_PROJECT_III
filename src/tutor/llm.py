@@ -17,9 +17,10 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.runnables import RunnableLambda
+from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, ValidationError
 
@@ -994,24 +995,96 @@ class BackendChat(BaseChatModel):
     def _llm_type(self) -> str:
         return "backend"
 
-    def _generate(self, messages, stop=None, run_manager=None, **kw):
-        schema = kw.get("backend_schema")
-        if schema is None:
-            raise RuntimeError("BackendChat chỉ chạy qua with_structured_output")
-        system = [m.text for m in messages if isinstance(m, SystemMessage)]
-        user = "".join(m.text for m in messages if isinstance(m, HumanMessage))
-        r = self.backend(
-            agent=_scope.get().base["agent"], model=self.model_name, system=system, user=user, schema=schema
-        )
-        u = r.usage
+    @staticmethod
+    def _usage_md(u: dict) -> dict:
         total_in = u["input"] + u["cache_read"] + u["cache_write"]
-        usage = {
+        return {
             "input_tokens": total_in,
             "output_tokens": u["output"],
             "total_tokens": total_in + u["output"],
             "input_token_details": {"cache_read": u["cache_read"], "cache_creation": u["cache_write"]},
         }
-        return ChatResult(generations=[ChatGeneration(message=AIMessage(r.raw, usage_metadata=usage))])
+
+    def _generate(self, messages, stop=None, run_manager=None, **kw):
+        schema = kw.get("backend_schema")
+        if schema is None:
+            return self._generate_chat(messages, kw.get("tools"))
+        system = [m.text for m in messages if isinstance(m, SystemMessage)]
+        user = "".join(m.text for m in messages if isinstance(m, HumanMessage))
+        r = self.backend(
+            agent=_scope.get().base["agent"], model=self.model_name, system=system, user=user, schema=schema
+        )
+        return ChatResult(
+            generations=[ChatGeneration(message=AIMessage(r.raw, usage_metadata=self._usage_md(r.usage)))]
+        )
+
+    def _chat_events(self, messages, tools) -> Iterator[dict]:
+        system, msgs = [], []
+        for m in messages:
+            if isinstance(m, SystemMessage):
+                system.append(m.text)
+            elif isinstance(m, ToolMessage):
+                block = {"type": "tool_result", "tool_use_id": m.tool_call_id, "content": m.text}
+                if m.status == "error":
+                    block["is_error"] = True
+                if msgs and msgs[-1]["role"] == "user" and msgs[-1]["content"][-1]["type"] == "tool_result":
+                    msgs[-1]["content"].append(block)
+                else:
+                    msgs.append({"role": "user", "content": [block]})
+            elif isinstance(m, AIMessage):
+                blocks = [{"type": "text", "text": m.text}] if m.text else []
+                blocks += [
+                    {"type": "tool_use", "id": c["id"], "name": c["name"], "input": c["args"]} for c in m.tool_calls
+                ]
+                msgs.append({"role": "assistant", "content": blocks})
+            else:
+                msgs.append({"role": "user", "content": [{"type": "text", "text": m.text}]})
+        return self.backend.chat(
+            agent=_scope.get().base["agent"], model=self.model_name, system=system, tools=tools or [], messages=msgs
+        )
+
+    @staticmethod
+    def _final(ev: dict) -> tuple[list[dict], dict]:
+        calls = [
+            {"type": "tool_call", "id": b["id"], "name": b["name"], "args": b["input"]}
+            for b in ev["content"]
+            if b["type"] == "tool_use"
+        ]
+        return calls, BackendChat._usage_md(ev["usage"])
+
+    def _generate_chat(self, messages, tools):
+        text, final = "", None
+        for ev in self._chat_events(messages, tools):
+            if ev["type"] == "text":
+                text += ev["delta"]
+            else:
+                final = ev
+        calls, usage = self._final(final)
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(text, tool_calls=calls, usage_metadata=usage))])
+
+    def _stream(self, messages, stop=None, run_manager=None, **kw):
+        if kw.get("backend_schema") is not None:
+            raise NotImplementedError("BackendChat streams only tool turns")
+        for ev in self._chat_events(messages, kw.get("tools")):
+            if ev["type"] == "text":
+                yield ChatGenerationChunk(message=AIMessageChunk(content=ev["delta"]))
+            else:
+                calls, usage = self._final(ev)
+                chunks = [
+                    {"name": c["name"], "args": json.dumps(c["args"], ensure_ascii=False), "id": c["id"], "index": i}
+                    for i, c in enumerate(calls)
+                ]
+                yield ChatGenerationChunk(
+                    message=AIMessageChunk(content="", tool_call_chunks=chunks, usage_metadata=usage)
+                )
+
+    def bind_tools(self, tools, **kw):
+        """Tool schemas as `Backend.chat` takes them; args_schema passes through, so `_strict` holds."""
+        specs = [convert_to_openai_tool(t)["function"] for t in tools]
+        defs = [
+            {"name": f["name"], "description": f.get("description", ""), "input_schema": f["parameters"]} for f in specs
+        ]
+        return self.bind(tools=defs, **kw)
 
     def with_structured_output(self, schema, *, include_raw=False, **kw):
         bound = self.bind(backend_schema=getattr(schema, "cls", schema))
