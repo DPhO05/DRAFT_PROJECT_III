@@ -129,7 +129,7 @@ Nếu Terminal hiện lỗi, chụp màn hình gửi người cài.
 6. Bấm đúp lại `Mo-tro-ly.command`. Nếu macOS chặn, làm lại cách ở mục 1.
 7. Lần đầu sau cập nhật, chờ vài phút và cần mạng.
 8. App tự sao lưu trước. Các cuộc trò chuyện của bản mới nằm trong file riêng trong `GiaSuToan`, nên bản cũ vẫn mở được dữ liệu.
-9. Nếu bản mới trục trặc: đóng cửa sổ Terminal. Đổi tên thư mục `GiaSuToan-app` thành `GiaSuToan-app-hong`, đổi `GiaSuToan-app-cu` lại thành `GiaSuToan-app`, rồi bấm đúp `Mo-tro-ly.command` như cũ. Các cuộc trò chuyện tạo bằng bản mới sẽ không hiện ở bản cũ.
+9. Nếu bản mới trục trặc: đóng cửa sổ Terminal. Đổi tên thư mục `GiaSuToan-app` thành `GiaSuToan-app-hong`, đổi `GiaSuToan-app-cu` lại thành `GiaSuToan-app`, rồi bấm đúp `Mo-tro-ly.command` như cũ. Bản cũ vẫn mở được các cuộc trò chuyện và phiếu tạo bằng bản mới. Chỉ các thẻ xin duyệt của bản mới không hiện, và những việc đang chờ duyệt trong đó không làm tiếp được. Hãy duyệt hoặc bỏ hết trước khi lùi.
 10. Dùng bản mới ổn vài tuần thì mới xoá `GiaSuToan-app-cu`.
 
 ## 10. Dành cho người cài
