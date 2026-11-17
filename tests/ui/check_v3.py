@@ -709,7 +709,7 @@ def walk_cost_warning(page, rep: dict, phone: bool) -> None:
     try:
         for warn, words in (("near", NEAR), ("over", OVER)):
             state["patch"] = {"warning": warn}
-            page.reload()
+            page.reload(wait_until="commit")  # the toast lives 4.2 s; "load" waits on the font and MathJax CDNs
             if expect(page, rep, JS_TOAST_HAS, f"cost {warn}: no toast when the app opened", words):
                 page.wait_for_timeout(300)
                 if (n := page.evaluate(JS_TOAST_N, words)) != 1:
