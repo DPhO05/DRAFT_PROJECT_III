@@ -213,7 +213,7 @@ def tool_defs(codes: list[str]) -> list[dict]:
 
 
 def meta(out: Outcome) -> dict:
-    """UI fields of an outcome as MCP `_meta` (R6), empty ones left out."""
+    """UI fields of an outcome (`tutor/` keys, R6), empty ones left out."""
     m = {"tutor/source": out.source, "tutor/summary": out.summary, "tutor/card": out.card}
     return {k: v for k, v in m.items() if v}
 

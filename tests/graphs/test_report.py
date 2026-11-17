@@ -1,4 +1,4 @@
-"""G5 report (P7-T05, P7-T06 file): write (09 over MCP) → DỪNG gate_report → commit the report row, then the .md."""
+"""G5 report (P7-T05, P7-T06 file): write → DỪNG gate_report → commit the report row, then the .md."""
 
 import json
 import re
@@ -59,7 +59,7 @@ def rows(conn):
 
 
 def test_no_write_until_approve(g5, paths):
-    """09 runs over MCP inside the runner's worker thread (anyio.run in a LangGraph node); nothing is written."""
+    """09 runs inside the runner's worker thread; nothing is written until approve."""
     r, conn, fake, sid = g5
     before = repo.row_counts(conn)
     out = draft(paths, r, sid)

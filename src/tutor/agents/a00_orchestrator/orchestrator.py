@@ -92,7 +92,7 @@ def _tool_event(name: str, r: Result | None) -> dict:
 
 
 def _direct(box: Toolbox) -> Call:
-    """Toolbox.run without MCP (R10), as the same triple the MCP server returns."""
+    """Toolbox.run as (content, is_error, UI meta) for the by-code answers (R10)."""
 
     def call(name: str, args: dict) -> Result:
         out = box.run(name, args)

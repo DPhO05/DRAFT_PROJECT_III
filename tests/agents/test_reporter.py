@@ -210,13 +210,13 @@ def test_payload_masked(conn, ro, tmp_path):
     assert "Văn An" not in log.read_text(encoding="utf-8")
 
 
-# what 09 was sent by the MCP path before it was removed, on this world (the plan's "so chuỗi")
+# what 09 is sent on this world, byte for byte (the plan's "so chuỗi")
 GOLDEN_PLAIN = "Kỳ: tháng 10/2026\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF05 · Buổi 14/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành đang hình thành (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
 GOLDEN_WEAK = "Kỳ: tháng 10/2026\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF05 · Buổi 14/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành chưa vững (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\nF09 · Bài gợi ý luyện thêm: 3 bài về “Tính chất của bất đẳng thức”, “Chứng minh bất đẳng thức đơn giản”, “Bất phương trình đưa về dạng bậc nhất”, “Nghiệm nguyên, nghiệm thoả điều kiện thêm”.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
 GOLDEN_LOW = "Kỳ: tháng 10/2026\nKết quả kỳ này thấp.\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF05 · Buổi 14/10: đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành đang hình thành (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
 
 
-def test_user_text_same_as_mcp_path(conn, ro):
+def test_user_text_matches_golden(conn, ro):
     f = fake(*[out(("Tháng này em học 2 buổi.", "F01"))] * 3)
     go(ro)
     go(ro, low=0.6)
