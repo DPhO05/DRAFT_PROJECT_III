@@ -7,6 +7,10 @@ from pathlib import Path
 
 import pytest
 
+from tests.test_llm_openai import GBASE, GCTX, OK, RESP, ask, guarded
+from tests.test_llm_provider import anthropic_model, msg
+from tutor import llm
+
 SAMPLE = Path(__file__).resolve().parents[1] / "fixtures" / "llm.jsonl"
 
 
@@ -131,3 +135,36 @@ def test_empty_log_and_default_month(client):
 def test_bad_month_is_rejected(client):
     assert client.get("/api/logs/cost?month=2026-1").status_code == 422
     assert client.get("/api/logs/calls?month=10-2026").status_code == 422
+
+
+@pytest.fixture
+def two_providers(paths, monkeypatch):
+    """One real GuardedOpenAI call and one real GuardedAnthropic call, each over a mock transport, into llm.jsonl."""
+    log = paths.logs / "llm.jsonl"
+    llm.set_backend(None)
+    monkeypatch.setattr(llm, "_chat", {})
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    llm.configure(log, {"01": "anthropic:claude-x"})
+    m, _ = guarded(RESP(OK))
+    ask(m)
+    a, _ = anthropic_model(msg([{"type": "text", "text": "ok"}]))
+    with llm.scope(GCTX, GBASE | {"agent": "01", "model": "anthropic:claude-x"}):
+        a.invoke("hi")
+    return log
+
+
+def test_log_holds_both_providers_and_month_total_is_hand_computed(two_providers, client):
+    month = datetime.now(UTC).strftime("%Y-%m")
+    items = client.get("/api/logs/calls").json()["items"]
+    assert sorted(i["model"] for i in items) == ["anthropic:claude-x", "openai:gpt-5.6-sol"]
+    # openai (price_by_model 4 / 20 / 0.4 / 5): 3*4 + 6*20 + 1874*0.4 + 19*5 = 976.6 -> 0.000977
+    # anthropic (default 5 / 25 / 0.5 / 6.25): 100*5 + 7*25 + 60*0.5 + 20*6.25 = 830 -> 0.00083
+    assert {i["model"]: i["cost_usd"] for i in items} == {"openai:gpt-5.6-sol": 0.000977, "anthropic:claude-x": 0.00083}
+    assert client.get(f"/api/logs/cost?month={month}").json()["total_usd"] == 0.001807
+
+
+@pytest.mark.parametrize(("share", "warning"), [(0.79, None), (0.8, "near"), (0.99, "near"), (1, "over"), (2, "over")])
+def test_two_provider_cost_warns_at_80_and_100_percent(two_providers, app, client, share, warning):
+    app.state.settings["budget_usd_month"] = 0.001807 / share
+    c = client.get(f"/api/logs/cost?month={datetime.now(UTC).strftime('%Y-%m')}").json()
+    assert c["calls"] == 2 and c["warning"] == warning
