@@ -61,7 +61,7 @@ def fixed_parts(kcs: list[dict], codes: list[dict]) -> list[str]:
 
 
 def version(fixed: list[str], tools: list[dict]) -> str:
-    """prompt_version of 00, as llm.chat logs it: changes with the catalog or the tool set (C-08)."""
+    """prompt_version of 00, as chat.scope logs it: changes with the catalog or the tool set (C-08)."""
     return llm.prompt_version("00", fixed + [json.dumps(tools, sort_keys=True, ensure_ascii=False)])
 
 

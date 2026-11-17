@@ -14,36 +14,22 @@ class Out(BaseModel):
     answer: str
 
 
-ASK = [{"role": "user", "content": "An dạo này thế nào?"}]
-
-
 def fake() -> FakeLLM:
-    return FakeLLM({"01": Out(answer="x"), "02": Out(answer="x"), "00": [[{"type": "text", "text": "Chào"}]]})
+    return FakeLLM({"01": Out(answer="x"), "02": Out(answer="x")})
 
 
 @pytest.fixture
-def setup(tmp_path, monkeypatch):
-    fa, fo = fake(), fake()
+def setup(tmp_path):
     llm.set_backend(None)
-    monkeypatch.setattr(llm, "_live", {})
-    monkeypatch.setattr(llm, "PROVIDERS", {"anthropic": lambda: fa, "openai": lambda: fo})
-    log = tmp_path / "llm.jsonl"
 
     def configure(models):
-        llm.configure(log, models)
-        return fa, fo, log
+        llm.configure(tmp_path / "llm.jsonl", models)
 
     return configure
 
 
 def ctx():
     return llm.CallContext(graph=None)
-
-
-def chat():
-    return list(
-        llm.chat("00", ["cố định"], [], ASK, run_tool=lambda name, inp: ("x", False), context=ctx(), max_tool_turns=1)
-    )
 
 
 def test_split_model(setup):
@@ -60,23 +46,6 @@ def test_call_routes_by_prefix(setup, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     setup({"01": "claude-x"})
     assert isinstance(llm.model("01"), llm.GuardedAnthropic) and llm.model("01").model == "claude-x"
-    # an anthropic call goes to GuardedAnthropic, an openai call to GuardedOpenAI: neither uses PROVIDERS
-
-
-def test_chat_routes_by_prefix(setup):
-    fa, fo, log = setup({"00": "openai:gpt-y"})
-    chat()
-    assert fo.count["00"] == 1 and fa.count["00"] == 0
-    assert fo.calls[0]["model"] == "gpt-y"
-    assert json.loads(log.read_text(encoding="utf-8").splitlines()[0])["model"] == "openai:gpt-y"
-
-
-def test_one_backend_per_provider(setup, monkeypatch):
-    fa, fo, _ = setup({"01": "anthropic:a", "02": "anthropic:b"})
-    made = []
-    monkeypatch.setattr(llm, "PROVIDERS", {"anthropic": lambda: made.append(1) or fa})
-    assert [llm._route(a)[1] for a in ("01", "02")] == ["a", "b"]
-    assert made == [1]
 
 
 def test_unknown_provider_is_unavailable(setup, monkeypatch):
@@ -85,17 +54,16 @@ def test_unknown_provider_is_unavailable(setup, monkeypatch):
     with pytest.raises(llm.LLMUnavailable, match="không biết provider gpt"):
         llm.call("01", ["cố định"], Out, student_work="bài", context=ctx())
     with pytest.raises(llm.LLMUnavailable, match="không biết provider gpt"):
-        chat()
+        llm.model("00")
     assert llm.status() == "error"
 
 
 def test_override_wins(setup):
-    fa, fo, _ = setup({"01": "openai:gpt-y"})
+    setup({"01": "openai:gpt-y"})
     fk = fake()
     llm.set_backend(fk)
     llm.call("01", ["cố định"], Out, student_work="bài", context=ctx())
     assert [c["model"] for c in fk.calls] == ["gpt-y"]
-    assert fa.calls == [] and fo.calls == [] and llm._live == {}
 
 
 def test_providers_from_models():
@@ -104,29 +72,35 @@ def test_providers_from_models():
     assert llm.providers({"00": "openai:a", "01": "openai:b"}) == ["openai"]
 
 
-def test_use_key_resets_real_backend_only(setup):
-    fa, fo, _ = setup({"01": "openai:gpt-y"})
-    llm._live.update(anthropic=fa, openai=fo)
+def test_use_key_resets_cached_models_only(setup, monkeypatch):
+    setup({"01": "openai:gpt-y"})
+    monkeypatch.setattr(llm, "_chat", {"openai:gpt-y": object()})
     llm.use_key("openai", "sk-test-" + "a" * 30)
-    assert llm._live == {"anthropic": fa} and os.environ["OPENAI_API_KEY"] == "sk-test-" + "a" * 30
+    assert llm._chat == {} and os.environ["OPENAI_API_KEY"] == "sk-test-" + "a" * 30
     fk = fake()
     llm.set_backend(fk)
     llm.use_key("openai", "sk-test-" + "b" * 30)
     assert llm._backend is fk and os.environ["OPENAI_API_KEY"] == "sk-test-" + "b" * 30
 
 
-def test_missing_openai_key_points_to_settings():
-    with pytest.raises(llm.LLMUnavailable) as e:
-        llm.OpenAIBackend()
+def test_missing_openai_key_points_to_settings(monkeypatch):
+    llm.set_backend(None)
+    monkeypatch.setattr(llm, "_models", {"02": "openai:gpt-y"})
+    monkeypatch.setattr(llm, "_chat", {})
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(llm.KeyRejected) as e:
+        llm.model("02")
     assert str(e.value) == "Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại"
 
 
-def test_clients_time_out(monkeypatch):
+def test_openai_model_times_out(monkeypatch):
     """A hung call ends after CALL_TIMEOUT s, not the SDK's 600 s, and then counts as a network retry."""
+    llm.set_backend(None)
+    monkeypatch.setattr(llm, "_models", {"02": "openai:gpt-y"})
+    monkeypatch.setattr(llm, "_chat", {})
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-" + "c" * 30)
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
-    assert llm.OpenAIBackend().client.timeout == llm.CALL_TIMEOUT == 120
-    assert llm.AnthropicBackend().client.timeout == llm.CALL_TIMEOUT
+    m = llm.model("02")
+    assert m.root_client.timeout == llm.CALL_TIMEOUT == 120
 
 
 # GuardedAnthropic over httpx2.MockTransport (C-34): the SDK client is swapped in `_client` / `_async_client` (K25).

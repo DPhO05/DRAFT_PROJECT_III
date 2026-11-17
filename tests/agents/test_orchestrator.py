@@ -206,6 +206,13 @@ def test_names_masked_short_names_kept(ro):
     assert orchestrator.mask("Nguyễn Văn An chứng minh", redact) == "HS-01 chứng minh"
 
 
+def test_pasted_tex_with_a_name_is_masked(ro):
+    tex = "Chấm giúp: \\begin{problem}[8DS-PT1-001] Bài làm của Nguyễn Văn An: $4x=20$ \\end{problem}"
+    _, fake = say(ro, tex, [[text("Đã nhận.")]])
+    wire = json.dumps(fake.calls, ensure_ascii=False)
+    assert "Văn An" not in wire and "HS-01" in wire
+
+
 def test_attachment_needs_student_and_date(ro):
     _, w = ro
     events, fake = say(ro, Turn("", attachment="bai-lam-moi.tex"))

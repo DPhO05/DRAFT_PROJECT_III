@@ -158,13 +158,11 @@ def test_chat_card_and_server_share_the_key_text():
 def real_llm(monkeypatch, paths, models, client=None):
     """Route agent 00 through the real llm.py, with the provider (if any) over a mock transport."""
     if client:
-        monkeypatch.setitem(llm.PROVIDERS, "openai", lambda: llm.OpenAIBackend(client))
         shared = dict(api_key="test", use_responses_api=True, store=False, max_retries=0,
                       root_client=client, client=client.chat.completions)  # fmt: skip
         monkeypatch.setattr(
             llm, "_chat", {m: llm.GuardedOpenAI(model=m.split(":")[1], **shared) for m in models.values()}
         )  # what llm.model builds, over the mock client
-    monkeypatch.setattr(llm, "_live", {})
     llm.set_backend(None)
     llm.configure(paths.logs / "llm.jsonl", models)
 

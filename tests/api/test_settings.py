@@ -22,7 +22,7 @@ JSON = W | {"Content-Type": "application/json"}
 
 @pytest.fixture(autouse=True)
 def no_live_backend(monkeypatch):
-    monkeypatch.setattr(llm, "_live", {})
+    monkeypatch.setattr(llm, "_chat", {})
 
 
 def put(client, body):
@@ -183,11 +183,11 @@ def test_unreadable_env_file_is_a_500_that_quotes_nothing(paths, app):
 
 
 def test_second_key_takes_effect(paths, client, monkeypatch):
-    built = object()  # a real backend made with the first (wrong) key
-    monkeypatch.setitem(llm._live, "openai", built)
+    built = object()  # a real model made with the first (wrong) key
+    monkeypatch.setitem(llm._chat, "openai:gpt-x", built)
     assert put(client, {"provider": "openai", "key": KEY}).status_code == 200
-    assert os.environ["OPENAI_API_KEY"] == KEY and "openai" not in llm._live
-    monkeypatch.setitem(llm._live, "openai", built)
+    assert os.environ["OPENAI_API_KEY"] == KEY and "openai:gpt-x" not in llm._chat
+    monkeypatch.setitem(llm._chat, "openai:gpt-x", built)
     assert put(client, {"provider": "openai", "key": KEY2}).json() == {"keys": {"openai": True}}
-    assert os.environ["OPENAI_API_KEY"] == KEY2 and "openai" not in llm._live
+    assert os.environ["OPENAI_API_KEY"] == KEY2 and "openai:gpt-x" not in llm._chat
     assert (paths.root / ".env").read_text(encoding="utf-8").splitlines() == [f"OPENAI_API_KEY={KEY2}"]

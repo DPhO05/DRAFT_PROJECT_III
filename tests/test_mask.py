@@ -27,18 +27,6 @@ def test_nested_names_longest_wins():
     assert llm.mask("Nguyễn Văn Minh làm sai, Văn Minh đúng", redact) == "HS-03 làm sai, HS-02 đúng"
 
 
-def test_chat_masks_pasted_tex(tmp_path):
-    llm.configure(tmp_path / "llm.jsonl", {})
-    fake = FakeLLM({"00": [[{"type": "text", "text": "Đã nhận."}]]})
-    llm.set_backend(fake)
-    tex = "Chấm giúp: \\begin{problem}[8DS-PT1-001] Bài làm của Nguyễn Văn Minh: $4x=20$ \\end{problem}"
-    ctx = llm.CallContext(graph=None, conversation_id="2026-11-01-1", redact=MINH)
-    list(llm.chat("00", ["f"], [], [{"role": "user", "content": tex}], run_tool=lambda n, i: ("", False),
-                  context=ctx, max_tool_turns=8))  # fmt: skip
-    sent = json.dumps(fake.calls, ensure_ascii=False)
-    assert "Văn Minh" not in sent and "HS-03" in sent
-
-
 def test_name_split_by_line_break_or_double_space():
     assert llm.mask("Nguyễn Văn\nAn làm sai", {"Nguyễn Văn An": "HS-01"}) == "HS-01 làm sai"
     assert llm.mask("Nguyễn  Văn   An", {"Nguyễn Văn An": "HS-01"}) == "HS-01"

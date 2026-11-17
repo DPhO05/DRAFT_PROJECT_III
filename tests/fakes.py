@@ -1,4 +1,4 @@
-"""FakeLLM: same backend interface as llm.AnthropicBackend, no network (C-34)."""
+"""FakeLLM: same backend interface as llm.Backend, no network (C-34)."""
 
 import copy
 import json

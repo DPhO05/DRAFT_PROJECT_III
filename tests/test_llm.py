@@ -113,8 +113,27 @@ def test_anthropic_401_is_a_refused_key():
     err = anthropic.AuthenticationError(
         "x", response=httpx2.Response(401, request=httpx2.Request("POST", "http://x")), body=None
     )
-    with pytest.raises(llm.KeyRejected), llm._net_errors():
-        raise err
+    assert isinstance(llm._translate(err), llm.KeyRejected)
+
+
+def test_retryable_covers_errors_inside_a_stream():
+    import anthropic
+    import httpx2
+
+    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+
+    def status(code, kind):
+        body = {"type": "error", "error": {"type": kind, "message": "x"}}
+        return anthropic.APIStatusError("x", response=httpx2.Response(code, request=req), body=body)
+
+    # an SSE error event arrives inside an HTTP 200 stream; a dropped connection mid-read is a raw transport error
+    for e in (status(200, "overloaded_error"), status(200, "api_error"), status(200, "rate_limit_error"),
+              status(529, "overloaded_error"), httpx2.ReadError("peer closed", request=req),
+              anthropic.APIConnectionError(request=req)):  # fmt: skip
+        assert llm._retryable(e), e
+    for e in (status(200, "invalid_request_error"), status(400, "invalid_request_error"), ValueError("x")):
+        assert not llm._retryable(e), e
+    assert isinstance(llm._translate(status(200, "overloaded_error")), llm.Retryable)
 
 
 def test_model_comes_from_settings(log):

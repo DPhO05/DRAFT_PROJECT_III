@@ -76,22 +76,6 @@ class CallContext:
     conversation_id: str | None = None
 
 
-def _system(system: list[str]) -> list[dict]:
-    blocks = [{"type": "text", "text": t} for t in system]
-    if blocks:
-        blocks[-1]["cache_control"] = {"type": "ephemeral"}  # whole fixed part is the cached prefix
-    return blocks
-
-
-def _usage(u) -> dict:
-    return {
-        "input": u.input_tokens,
-        "output": u.output_tokens,
-        "cache_read": u.cache_read_input_tokens or 0,
-        "cache_write": u.cache_creation_input_tokens or 0,
-    }
-
-
 _RETRY_KINDS = {"overloaded_error", "api_error", "rate_limit_error"}
 
 
@@ -106,86 +90,6 @@ def _retryable(e: Exception) -> bool:
         return False
     err = e.body.get("error") if isinstance(e.body, dict) else None
     return e.status_code == 529 or (isinstance(err, dict) and err.get("type") in _RETRY_KINDS)
-
-
-@contextmanager
-def _net_errors(retryable: Callable[[Exception], bool] = _retryable):
-    try:
-        yield
-    except Exception as e:
-        # checked before retryable: a 429 for no quota is not overload
-        if getattr(e, "status_code", None) in (401, 403) or getattr(e, "code", None) == "insufficient_quota":
-            raise KeyRejected(f"Khoá API bị từ chối: {e}") from e
-        if retryable(e):
-            raise Retryable(str(e)) from e
-        raise
-
-
-def chat_request(model: str, system: list[str], tools: list[dict], messages: list[dict]) -> dict:
-    """kwargs for client.beta.messages.stream; tools render before system, so the system breakpoint caches both."""
-    return {
-        "model": model,
-        "max_tokens": 64000,
-        "system": _system(system),
-        "tools": tools,
-        "messages": messages,
-        "thinking": {"type": "adaptive"},
-        "output_config": {"effort": "medium"},  # Opus 5.5 default, stated so a model change keeps it
-        "betas": ["server-side-fallback-2026-07-01"],
-        "fallbacks": "default",
-    }
-
-
-class AnthropicBackend:
-    def __init__(self) -> None:
-        import anthropic
-
-        # retries are counted here (§8.4), not twice
-        self.client = anthropic.Anthropic(max_retries=0, timeout=CALL_TIMEOUT)
-
-    def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply:
-        with _net_errors():
-            r = self.client.beta.messages.parse(
-                model=model,
-                max_tokens=16000,
-                system=_system(system),
-                messages=[{"role": "user", "content": user}],
-                output_format=schema,
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
-            )
-        if r.stop_reason == "refusal":
-            raise LLMUnavailable(f"Claude từ chối: {getattr(r.stop_details, 'category', None)}")
-        raw = next((b.text for b in r.content if b.type == "text"), "")
-        return Reply(r.parsed_output, raw, _usage(r.usage))
-
-    def chat(
-        self, *, agent: str, model: str, system: list[str], tools: list[dict], messages: list[dict]
-    ) -> Iterator[dict]:
-        with _net_errors(), self.client.beta.messages.stream(**chat_request(model, system, tools, messages)) as s:
-            for ev in s:
-                if ev.type == "text":
-                    yield {"type": "text", "delta": ev.text}
-            r = s.get_final_message()
-        if r.stop_reason == "refusal":
-            raise LLMUnavailable(f"Claude từ chối: {getattr(r.stop_details, 'category', None)}")
-        # by_alias: a fallback block's `from_` must go back to the API as `from`
-        content = [b.model_dump(mode="json", exclude_none=True, by_alias=True) for b in r.content]
-        yield {"type": "message", "content": content, "stop_reason": r.stop_reason, "usage": _usage(r.usage)}
-
-
-def openai_usage(u) -> dict:
-    """Responses usage -> shared usage; cached and cache-write tokens are counted inside input_tokens."""
-    if u is None:
-        return dict.fromkeys(("input", "output", "cache_read", "cache_write"), 0)
-    d = u.input_tokens_details
-    cached, written = d.cached_tokens or 0, d.cache_write_tokens or 0
-    return {
-        "input": u.input_tokens - cached - written,
-        "output": u.output_tokens,  # reasoning tokens are in here
-        "cache_read": cached,
-        "cache_write": written,
-    }
 
 
 _OPENAI_RETRY_CODES = {"server_error", "rate_limit_exceeded"}
@@ -213,36 +117,6 @@ def _scrub(text: str) -> str:
     return _KEY_TEXT.sub("sk-***", text)
 
 
-@contextmanager
-def _openai_errors():
-    """_net_errors for the OpenAI SDK, with key fragments scrubbed from the error text first (G4)."""
-    import openai
-
-    with _net_errors(_openai_retryable):
-        try:
-            yield
-        except openai.OpenAIError as e:
-            e.args = (_scrub(str(e)),)  # str(e), its traceback and Retryable(str(e)) all read args
-            raise
-
-
-def _openai_failed(err) -> Exception:
-    """A `failed` response's error or an SSE `error` event: transient code -> Retryable, else LLMUnavailable (R6)."""
-    code = getattr(err, "code", None)
-    text = _scrub(f"GPT lỗi {code}: {getattr(err, 'message', '')}")
-    return (Retryable if code in _OPENAI_RETRY_CODES else LLMUnavailable)(text)
-
-
-def _openai_check(r) -> None:
-    """Raise for a failed (G3) or refused (R5) response; shared by the call and the chat path."""
-    if r.status == "failed":
-        raise _openai_failed(r.error)
-    refusal = next((c.refusal for m in r.output if m.type == "message" for c in m.content if c.type == "refusal"), None)
-    filtered = r.incomplete_details is not None and r.incomplete_details.reason == "content_filter"
-    if refusal is not None or filtered:
-        raise LLMUnavailable(f"GPT từ chối: {refusal or 'content_filter'}")
-
-
 def _strict(schema: dict, optional: bool = False) -> dict:
     """Strict-mode copy (R9, S7): every key required, an optional key may be null, no extra keys."""
     out = dict(schema)
@@ -258,132 +132,13 @@ def _strict(schema: dict, optional: bool = False) -> dict:
     return out
 
 
-def openai_tools(tools: list[dict]) -> list[dict]:
-    """Anthropic-style tool definitions -> Responses strict function tools."""
-    return [
-        {"type": "function", "name": t["name"], "description": t["description"], "strict": True,
-         "parameters": _strict(t["input_schema"])}
-        for t in tools
-    ]  # fmt: skip
-
-
-def openai_input(messages: list[dict]) -> list[dict]:
-    """Shared messages -> Responses input (R7): an OpenAI turn goes back as its own items, unchanged."""
-    out = []
-    for m in messages:
-        if isinstance(m["content"], str):
-            out.append(
-                {"role": m["role"], "content": m["content"]}
-                | ({"phase": "final_answer"} if m["role"] == "assistant" else {})
-            )
-            continue
-        for b in m["content"]:  # text / tool_use blocks are copies of the openai_item blocks
-            if b["type"] == "openai_item":
-                out.append(b["item"])
-            elif b["type"] == "tool_result":
-                out.append({"type": "function_call_output", "call_id": b["tool_use_id"], "output": b["content"]})
-    return out
-
-
-def responses_chat_request(model: str, system: list[str], tools: list[dict], messages: list[dict]) -> dict:
-    """kwargs for client.responses.create: one streamed tool-use turn, nothing stored server-side."""
-    return {
-        "model": model,
-        "store": False,
-        "stream": True,
-        "instructions": "\n\n".join(system),
-        "tools": openai_tools(tools),
-        "input": openai_input(messages),
-        "max_output_tokens": 64000,
-        "reasoning": {"effort": "medium"},
-    }
-
-
-def _tool_input(arguments: str) -> dict:
-    """Strict mode sends null for an optional key (S7): drop it so the tool sees it as missing (R8)."""
-    return {k: v for k, v in json.loads(arguments).items() if v is not None}
-
-
-def responses_request(model: str, system: list[str], user: str, schema: type[BaseModel]) -> dict:
-    """kwargs for client.responses.create: one call, strict json_schema output, nothing stored server-side."""
-    from openai.lib._pydantic import to_strict_json_schema  # private: openai is pinned <4 for it
-
-    return {
-        "model": model,
-        "store": False,
-        "instructions": "\n\n".join(system),
-        "input": [{"role": "user", "content": user}],
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": schema.__name__,
-                "strict": True,
-                "schema": to_strict_json_schema(schema),
-            }
-        },
-        "max_output_tokens": 32000,  # reasoning tokens count against it
-        "reasoning": {"effort": "medium"},
-    }
-
-
-class OpenAIBackend:
-    def __init__(self, client=None) -> None:
-        import openai
-
-        try:
-            # retries are counted here (§8.4), not twice
-            self.client = client or openai.OpenAI(max_retries=0, timeout=CALL_TIMEOUT)
-        except openai.OpenAIError:
-            raise KeyRejected("Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại") from None
-
-    def __call__(self, *, agent: str, model: str, system: list[str], user: str, schema: type) -> Reply:
-        with _openai_errors():
-            r = self.client.responses.create(**responses_request(model, system, user, schema))
-        _openai_check(r)
-        raw = r.output_text
-        try:
-            parsed = schema.model_validate_json(raw)  # not responses.parse: that raises and loses raw + usage
-        except ValidationError:
-            parsed = None
-        return Reply(parsed, raw, openai_usage(r.usage))
-
-    def chat(
-        self, *, agent: str, model: str, system: list[str], tools: list[dict], messages: list[dict]
-    ) -> Iterator[dict]:
-        r = None  # not the responses.stream helper: its items carry parsed_arguments, which the API rejects (S8)
-        req = responses_chat_request(model, system, tools, messages)
-        with _openai_errors(), self.client.responses.create(**req) as stream:
-            for ev in stream:
-                if ev.type == "response.output_text.delta":
-                    yield {"type": "text", "delta": ev.delta}
-                elif ev.type == "error":
-                    raise _openai_failed(ev)
-                elif ev.type in ("response.completed", "response.incomplete", "response.failed"):
-                    r = ev.response
-        if r is None:
-            raise Retryable("GPT: stream hết mà không có sự kiện cuối")
-        _openai_check(r)
-        stop = "max_tokens" if r.status == "incomplete" else None  # content_filter has raised above
-        content = []
-        for i in r.output:
-            if i.type == "message":
-                content.append({"type": "text", "text": "".join(c.text for c in i.content if c.type == "output_text")})
-            elif i.type == "function_call" and stop is None:  # a cut-off call's arguments may not parse
-                content.append({"type": "tool_use", "id": i.call_id, "name": i.name, "input": _tool_input(i.arguments)})
-        stop = stop or ("tool_use" if any(b["type"] == "tool_use" for b in content) else "end_turn")
-        content += [{"type": "openai_item", "item": i.model_dump(mode="json", exclude_none=True)} for i in r.output]
-        yield {"type": "message", "content": content, "stop_reason": stop, "usage": openai_usage(r.usage)}
-
-
-PROVIDERS: dict[str, Callable[[], Backend]] = {"anthropic": AnthropicBackend, "openai": OpenAIBackend}
 KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
 _backend: Backend | None = None  # test / --fake-llm override: wins over every provider
-_live: dict[str, Backend] = {}  # real backends, built on first use, one per provider
 _DEFAULT_MODEL = "openai:gpt-5.6-sol"
 _chat: dict[str, BaseChatModel] = {}  # guarded LangChain models, built on first use, one per models setting
 _log_path: Path | None = None
 _models: dict[str, str] = {}
-_log_lock = threading.RLock()  # re-entrant: an abandoned `chat` generator is closed by GC inside `_log`
+_log_lock = threading.RLock()  # re-entrant: an abandoned `_stream` generator is closed by GC inside `_log`
 _last_result = "unknown"
 
 
@@ -404,9 +159,8 @@ def providers(models: dict[str, str]) -> list[str]:
 
 
 def use_key(provider: str, key: str) -> None:
-    """Take effect now: the next call builds a new backend with `key` (a test's fake backend stays)."""
+    """Take effect now: the next call builds a new model with `key` (a test's fake backend stays)."""
     os.environ[KEY_ENV[provider]] = key
-    _live.pop(provider, None)
     _chat.clear()
 
 
@@ -421,29 +175,9 @@ def split_model(setting: str) -> tuple[str, str]:
     head, sep, name = setting.partition(":")
     if not sep:
         return "anthropic", setting
-    if head not in PROVIDERS:
+    if head not in ("anthropic", "openai"):
         raise ValueError(f"không biết provider {head}")
     return head, name
-
-
-def _route(agent: str) -> tuple[Backend, str, str]:
-    """(backend, model name sent to the API, models setting as logged) for one agent."""
-    global _last_result
-    setting = _models.get(agent, "openai:gpt-5.6-sol")
-    try:
-        provider, name = split_model(setting)
-    except ValueError as e:
-        _last_result = "error"
-        raise LLMUnavailable(f"models.{agent}: {e}") from None
-    if _backend is not None:
-        return _backend, name, setting
-    if provider not in _live:
-        try:
-            _live.setdefault(provider, PROVIDERS[provider]())  # two first calls may both build; one wins
-        except LLMUnavailable:
-            _last_result = "error"  # raised before call / chat reach their own marking
-            raise
-    return _live[provider], name, setting
 
 
 def status() -> str:
@@ -514,7 +248,7 @@ def _log(row: dict) -> None:
 
 
 def _row_tail(usage: dict, t0: float, result: str) -> dict:
-    """Log fields every API call row ends with (C-07), shared by call and chat."""
+    """Log fields every API call row ends with (C-07)."""
     return {
         "ts": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "input_tokens": usage.get("input", 0),
@@ -594,100 +328,6 @@ def call[T: BaseModel](
         except ValidationError:
             pass
     raise SchemaFlag(f"{agent}: output sai schema {SCHEMA_TRIES} lần")
-
-
-def chat(
-    agent: str,
-    fixed: list[str],
-    tools: list[dict],
-    messages: list[dict],
-    *,
-    run_tool: Callable[[str, dict], tuple[str, bool]],
-    context: CallContext,
-    max_tool_turns: int,
-) -> Iterator[dict]:
-    """Streaming tool-use loop for one tutor message. Only tutor/agents/a00_orchestrator/orchestrator.py may call this.
-
-    messages: history + current message. run_tool(name, input) -> (content, is_error). Yields text / tool events,
-    then {"type": "end", "text", "stopped": None | "max_tool_turns" | "max_tokens"}.
-    """
-    global _last_result
-    backend, name, setting = _route(agent)
-    redact = context.redact
-    system, h1 = _mask_all(fixed, redact)
-    tools_sent, h2 = _mask_all(tools, redact)
-    msgs, h3 = _mask_all(messages, redact)
-    hits = h1 or h2 or h3
-    base = {
-        "agent": agent,
-        "prompt_version": prompt_version(agent, fixed + [json.dumps(tools, sort_keys=True, ensure_ascii=False)]),
-        "model": setting,
-        "graph": context.graph,
-        "conversation_id": context.conversation_id,
-    }
-    said, turns = [], 0
-    while True:
-        net = 0
-        while True:  # one API call, retried only while nothing has streamed yet
-            t0 = time.monotonic()
-            usage, result, err, streamed, msg = {}, "error", None, False, None
-            try:
-                for ev in backend.chat(agent=agent, model=name, system=system, tools=tools_sent, messages=msgs):
-                    if ev["type"] == "text":
-                        if said and not streamed:  # text of an earlier call in this turn: keep it a paragraph apart
-                            said.append("\n\n")
-                            yield {"type": "text", "delta": "\n\n"}
-                        streamed = True
-                        said.append(ev["delta"])
-                        yield ev
-                    else:
-                        msg = ev
-                usage, result = msg["usage"], "ok"
-            except Retryable as e:
-                result, err = "retry", str(e)
-            except Exception as e:
-                err = str(e)
-                raise
-            finally:  # also runs when the consumer closes the stream: result stays "error"
-                out = [b for b in msg["content"] if b["type"] in ("text", "tool_use")] if msg else None
-                _log(
-                    base
-                    | {
-                        "tools": [b["name"] for b in out or [] if b["type"] == "tool_use"],
-                        "name_masked": hits,
-                        "user": json.dumps(msgs[-1]["content"], ensure_ascii=False),
-                    }
-                    | _row_tail(usage, t0, result)
-                    | {"output": out, **({"error": err} if err else {})}
-                )
-                _last_result = "ok" if result == "ok" else "error"
-            if result == "ok":
-                break
-            net += 1
-            if streamed or net >= NET_TRIES:
-                raise LLMUnavailable(f"{agent}: {err}")
-            _sleep(2**net)
-        msgs.append({"role": "assistant", "content": msg["content"]})  # append-only: thinking blocks stay valid
-        if msg["stop_reason"] != "tool_use":
-            stopped = "max_tokens" if msg["stop_reason"] == "max_tokens" else None
-            break
-        if turns >= max_tool_turns:
-            stopped = "max_tool_turns"
-            break
-        turns += 1
-        results = []
-        for b in msg["content"]:
-            if b["type"] != "tool_use":
-                continue
-            yield {"type": "tool", "id": b["id"], "name": b["name"], "input": b["input"], "state": "start"}
-            content, is_error = run_tool(b["name"], b["input"])
-            content, h = _mask(content, redact)
-            hits |= h
-            yield {"type": "tool", "id": b["id"], "name": b["name"], "state": "error" if is_error else "done"}
-            results.append({"type": "tool_result", "tool_use_id": b["id"], "content": content}
-                           | ({"is_error": True} if is_error else {}))  # fmt: skip
-        msgs.append({"role": "user", "content": results})
-    yield {"type": "end", "text": "".join(said), "stopped": stopped}
 
 
 _FILTERS = {"agent": "agent", "graph": "graph", "student": "student_code", "thread": "thread_id"}
@@ -1017,7 +657,7 @@ class GuardedAnthropic(Guard, ChatAnthropic):
 
 
 class BackendChat(BaseChatModel):
-    """Any `Backend` (a test fake, --fake-llm, AnthropicBackend) as a chat model: the messages go back to its call."""
+    """Any `Backend` (a test fake, --fake-llm) as a chat model: the messages go back to its call."""
 
     backend: Any
     model_name: str

@@ -282,7 +282,7 @@ def scope(context: llm.CallContext, fixed: list[str], tool_defs: list[dict], sto
     base = {
         "agent": "00",
         "prompt_version": orchestrator.version(fixed, tool_defs),
-        "model": llm._route("00")[2],
+        "model": llm._models.get("00", llm._DEFAULT_MODEL),
         "graph": context.graph,
         "conversation_id": context.conversation_id,
     }
