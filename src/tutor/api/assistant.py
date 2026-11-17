@@ -299,7 +299,7 @@ def _line(ev: dict) -> str:
     return json.dumps(ev, ensure_ascii=False) + "\n"
 
 
-def _history(rows: list[dict]) -> list:
+def _history(rows: list[dict], redact: dict[str, str]) -> list:
     """The thread's start when it has none: the last 20 text messages of the log, an incomplete turn left out.
 
     An old answer = its text + one "(đã tra: …)" line per tool. The user row before an incomplete answer goes too,
@@ -319,7 +319,8 @@ def _history(rows: list[dict]) -> list:
     kept = kept[-HISTORY_MESSAGES:]
     while kept and kept[0][0] != "user":
         kept.pop(0)
-    return [(HumanMessage if role == "user" else AIMessage)(text) for role, text in kept]
+    # the log may predate a student, so its text is masked again with today's names (C-40)
+    return [(HumanMessage if role == "user" else AIMessage)(orchestrator.mask(text, redact)) for role, text in kept]
 
 
 def _resaved(runner: Runner, rows: list[dict]) -> bool:
@@ -426,7 +427,7 @@ def _respond(app, conn, cid: str, f: Path, rows: list[dict], resume, ctx: chat.C
         snap = agent.get_state(cfg)
         defs = tool_defs([c["code"] for c in codes])
         cc = llm.CallContext(graph=None, conversation_id=cid, redact=orchestrator._names(ctx.redact))
-        history = [] if snap.values else _history(rows)
+        history = [] if snap.values else _history(rows, ctx.redact)
         answers = _decisions(decision, chat.waiting(agent, cfg)) if decision else None
         yield from _scoped(lambda: chat.scope(cc, fixed, defs, stop=ctx.stop),
                            chat.events(agent, ctx, cfg, history, answers))  # fmt: skip

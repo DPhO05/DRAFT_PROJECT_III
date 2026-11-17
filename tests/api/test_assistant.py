@@ -414,6 +414,22 @@ def test_history_from_log_when_thread_is_empty(paths, client, w):
     assert "a13\n\n(đã tra: S13)" in got
 
 
+def test_old_log_text_is_masked_against_todays_names(paths, client, w):
+    """C-40: a log line written before the student existed holds the name; the thread built from it must not."""
+    name = "Nguyễn Văn An"
+    cid = f"{date.today().isoformat()}-1"
+    log = [
+        {"id": "m1", "role": "user", "ts": "t", "text": f"{name} làm bài thế nào?"},
+        {"id": "m2", "role": "assistant", "ts": "t", "text": f"{name} làm khá."},
+    ]
+    (paths.logs / "chat" / f"{cid}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in log), encoding="utf-8")
+    script([text("Ừ.")])
+    lines(send(client, "Tin mới", cid=cid))
+    blob = chat_db_bytes(paths)
+    assert b"Tin m" in blob
+    assert name.encode() not in blob
+
+
 @pytest.mark.parametrize(("status", "stamp", "recheck"), [
     ("committed", "9999-01-01T00:00:00Z", True),
     ("committed", "2000-01-01T00:00:00Z", False),  # saved before the last answer: said already
