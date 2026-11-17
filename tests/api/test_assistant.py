@@ -647,7 +647,8 @@ def test_decision_stays_open_until_the_tool_ran(paths, client, w, monkeypatch):
     _, cid = ask_grading(client, paths, w, [text("Không chấm.")])
     assert lines(decide(client, cid, "approve"))[-1]["code"] == "internal" and g1(client) == []
     assert waiting_state(client, cid) == (True, True)
-    assert send(client, "Thôi", cid=cid).status_code == 409
+    refused = send(client, "Thôi", cid=cid)
+    assert (refused.status_code, refused.json()["error"]["message"]) == (409, assistant.WAITING)
     evs = lines(decide(client, cid, "reject"))
     assert "".join(e["delta"] for e in evs if e["type"] == "text") == "Không chấm." and g1(client) == []
     assert waiting_state(client, cid) == (False, False)

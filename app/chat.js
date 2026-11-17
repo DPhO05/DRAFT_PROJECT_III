@@ -145,7 +145,7 @@
     }
     if (m.stopped === 'max_tool_turns') h += '<p class="small">Mình dừng sau 8 lượt tra cứu, thầy/cô hỏi hẹp hơn giúp mình nhé.</p>';
     if (m.error) {
-      h += '<p class="err">' + U.esc(ERR[m.error.code] || UNAVAILABLE) + '</p>' + (m.error.code === 'bad_key' ? btn('c-keys', 'Mở Cài đặt') : '') + (m.retry ? btn('c-retry', 'Gửi lại', 'data-turn="' + m.retry.id + '"') : '');
+      h += '<p class="err">' + U.esc((m.error.code === 'not_ready' && m.error.message) || ERR[m.error.code] || UNAVAILABLE) + '</p>' + (m.error.code === 'bad_key' ? btn('c-keys', 'Mở Cài đặt') : '') + (m.retry ? btn('c-retry', 'Gửi lại', 'data-turn="' + m.retry.id + '"') : '');
     }
     m.bubble.querySelector('.b-end').innerHTML = h;
   }
@@ -180,8 +180,8 @@
     $('.asst').classList.toggle('is-busy', on);
     canSend();
   }
-  function lose(turn, m, why) {
-    m.error = { code: why || '' }; m.bubble.classList.add('bubble-err');
+  function lose(turn, m, why, said) {  // `said`: the server's words on a refused send; not_ready is busy or waiting for a decision
+    m.error = { code: why || '', message: said }; m.bubble.classList.add('bubble-err');
     drawText(m); drawEnd(m);
     var ta = $('#chat-input');
     if (turn.conv === cur && ta && !ta.value && !attached) {  // the typed text comes back unless the teacher already typed something else
@@ -213,7 +213,7 @@
       } catch (e) { console.error(e); }
     }).then(function () {
       if (!m.done && !m.error) lose(turn, m, '');  // the stream closed before `done`
-    }, function (e) { lose(turn, m, e.code); }).then(function () {
+    }, function (e) { lose(turn, m, e.code, e.message); }).then(function () {
       setBusy(false);
       C.refreshPending(); loadConvs();
     });
