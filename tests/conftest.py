@@ -12,6 +12,7 @@ def no_real_llm(monkeypatch, tmp_path):
     for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY"):  # nor the developer's shell
         monkeypatch.setenv(k, "")  # records the original, so a key a test sets is undone too
         monkeypatch.delenv(k)
+    config.no_tracing()  # a shell with LANGSMITH_TRACING=true must not send test traces
     llm.set_backend(FakeLLM({}))
     monkeypatch.setattr(llm, "_last_result", "unknown")
     monkeypatch.setattr(llm, "_sleep", lambda s: None)
