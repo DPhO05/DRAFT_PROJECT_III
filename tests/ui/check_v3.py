@@ -3801,7 +3801,7 @@ def walk_replay(page, rep: dict, base: str) -> None:
         page.select_option("#replay-student", label="Lê Dựng Lại")
         press(page, rep, '[data-act="replay-ask"]', "replay Dựng lại", JS_ROOT_HAS, "Dựng lại hồ sơ?")
         press(page, rep, '[data-act="confirm-ok"]', "replay Dựng lại (hỏi lại)", JS_ROOT_HAS, "Đã dựng lại hồ sơ của")
-        if "Lê Dựng Lại: 0 lần làm bài" not in page.inner_text("#replay-result"):
+        if "Lê Dựng Lại: 0 lần cập nhật kỹ năng" not in page.inner_text("#replay-result"):
             rep["missing"].append(f"replay: the result line says {page.inner_text('#replay-result')!r}")
         close_overlay(page)
 

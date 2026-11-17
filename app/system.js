@@ -121,7 +121,7 @@
       'Dựng lại', function () {
         U.api.send('POST', '/students/' + id + '/replay').then(function (r) {
           var n = r.level_changes.length;
-          SYS.replay({ id: id, text: 'Đã dựng lại hồ sơ của ' + U.esc(name) + ': ' + r.events + ' lần làm bài, ' + (n ? n + ' kỹ năng đổi mức.' : 'không kỹ năng nào đổi mức.') });
+          SYS.replay({ id: id, text: 'Đã dựng lại hồ sơ của ' + U.esc(name) + ': ' + r.events + ' lần cập nhật kỹ năng, ' + (n ? n + ' kỹ năng đổi mức.' : 'không kỹ năng nào đổi mức.') });
         }).catch(function (e) {
           U.toast(e.status === 409 ? 'Em này còn buổi chấm chưa lưu. Lưu hoặc huỷ buổi đó trước.' : e.status === 422 ? 'Em này đã lưu trữ.' : 'Chưa dựng lại được. Thử lại sau.', 'warn');
         });
