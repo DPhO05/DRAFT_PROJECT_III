@@ -121,7 +121,9 @@ def by_code(state: ChatState, runtime) -> dict:
     for name, args, (content, is_error, m) in ran:
         cid = f"code_{uuid4().hex[:12]}"
         messages += [
-            AIMessage("", tool_calls=[{"type": "tool_call", "id": cid, "name": name, "args": args}]),
+            AIMessage(
+                "", tool_calls=[{"type": "tool_call", "id": cid, "name": name, "args": _mask_deep(args, ctx.redact)}]
+            ),
             ToolMessage(
                 orchestrator.mask(content, ctx.redact),
                 tool_call_id=cid,

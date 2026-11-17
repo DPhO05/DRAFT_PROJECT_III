@@ -249,6 +249,25 @@ def test_by_code_reply_is_masked(make):
     assert "đã đóng" in stored(state) and "Nguyễn Văn An" not in stored(state)
 
 
+def test_by_code_tool_call_args_are_masked(make, tmp_path):
+    """C-40: the inbox file the tutor picked may carry a student name; the stored tool_call keeps no name."""
+    name = "Nguyễn Văn An"
+    started = lambda sid, file, held_on: {"status": "running", "thread_id": "g1-x"}  # noqa: E731
+    starters = Starters(start_grading=started, start_bank_import=None, propose_worksheet=None, add_to_worksheet=None)
+    r = make([])
+    turn = Turn("chấm bài này", [r.w["an"]], attachment=f"{name} - s01.tex", held_on="2026-10-21")
+    box = Toolbox(r.conn, settings=config.defaults(), today=r.w["today"], text=turn.text, starters=starters)
+    ctx = chat.ChatContext(turn, box, r.w["students"], r.w["redact"])
+    agent = chat.build(llm.model("00"), [], r.saver, max_tool_turns=2)
+    cfg = {"configurable": {"thread_id": "bc"}}
+    agent.invoke({"messages": [HumanMessage(turn.text)]}, cfg, context=ctx)
+    state = agent.get_state(cfg).values
+    assert "start_grading" in stored(state) and name not in stored(state)
+    with closing(sqlite3.connect(tmp_path / "chat.db")) as db:
+        blobs = [b for q in ("checkpoint FROM checkpoints", "value FROM writes") for (b,) in db.execute(f"SELECT {q}")]
+        assert blobs and not [b for b in blobs if name.encode() in b]
+
+
 def test_parallel_starts_run_once(make):
     starts = []
 
