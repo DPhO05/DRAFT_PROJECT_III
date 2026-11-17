@@ -14,8 +14,9 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
@@ -811,7 +812,11 @@ def _lc_usage(md: dict | None) -> dict:
 def _refused(m: BaseMessage) -> bool:
     blocks = m.content if isinstance(m.content, list) else []
     reason = (m.response_metadata.get("incomplete_details") or {}).get("reason")
-    return reason == "content_filter" or any(isinstance(b, dict) and b.get("type") == "refusal" for b in blocks)
+    return (
+        reason == "content_filter"
+        or m.response_metadata.get("stop_reason") == "refusal"
+        or any(isinstance(b, dict) and b.get("type") == "refusal" for b in blocks)
+    )
 
 
 _CALL_BLOCKS = ("function_call", "tool_call", "custom_tool_call")
@@ -830,17 +835,20 @@ def _drop_calls(m):
 
 def _translate(e: Exception) -> Exception:
     """Provider error -> Retryable | KeyRejected | LLMUnavailable; anything else comes back unchanged."""
+    import anthropic
     import openai
     from langchain_core.exceptions import ModelRefusalError
 
     text = _scrub(str(e))
     if getattr(e, "status_code", None) in (401, 403) or getattr(e, "code", None) == "insufficient_quota":
         return KeyRejected(f"Khoá API bị từ chối: {text}")
-    if isinstance(e, Retryable) or _openai_retryable(e):
+    if isinstance(e, Retryable) or _openai_retryable(e) or _retryable(e):
         return Retryable(text)
     if isinstance(e, ValueError) and any(c in text for c in _OPENAI_RETRY_CODES):  # SSE error / failed response (K18)
         return Retryable(text)
-    if isinstance(e, openai.BadRequestError | openai.NotFoundError):
+    if isinstance(
+        e, openai.BadRequestError | openai.NotFoundError | anthropic.BadRequestError | anthropic.NotFoundError
+    ):
         return LLMUnavailable(_BAD_REQUEST)
     if isinstance(e, ModelRefusalError):
         return LLMUnavailable(f"GPT từ chối: {text}")
@@ -858,6 +866,8 @@ def _record(base: dict, md: dict | None, t0: float, raw: str, result: str, err: 
 
 class Guard(BaseChatModel):
     """Mixin below the provider class: every send is masked, retried and logged here (SDD §8)."""
+
+    brand: ClassVar[str] = "GPT"
 
     def _begin(self, messages: list[BaseMessage]) -> tuple[_Scope, list[BaseMessage], dict]:
         sc = _scope.get()
@@ -879,7 +889,7 @@ class Guard(BaseChatModel):
                 ai = res.generations[0].message
                 md, raw = ai.usage_metadata, ai.text
                 if _refused(ai):
-                    raise LLMUnavailable("GPT từ chối")
+                    raise LLMUnavailable(f"{self.brand} từ chối")
                 if ai.response_metadata.get("status") == "incomplete":
                     res.generations[0].message = _drop_calls(ai)
                 if sc.check and not sc.check(raw):
@@ -933,7 +943,7 @@ class Guard(BaseChatModel):
                     sent = True
                     yield r
                 if refused:
-                    raise LLMUnavailable("GPT từ chối")
+                    raise LLMUnavailable(f"{self.brand} từ chối")
                 if sc.check and not sc.check(raw):
                     result = "schema_error"
                 return
@@ -983,6 +993,27 @@ class GuardedOpenAI(Guard, ChatOpenAI):
         if sc is not None and _mask_all(payload, sc.context.redact)[1]:
             raise LLMUnavailable("Còn họ tên học sinh trong yêu cầu: không gửi")
         return payload
+
+
+class GuardedAnthropic(Guard, ChatAnthropic):
+    brand: ClassVar[str] = "Claude"
+
+    def _get_request_payload(self, *args, **kw):
+        """Cache the whole fixed system part; last gate: no name may still be in the body."""
+        payload = super()._get_request_payload(*args, **kw)
+        system = payload.get("system")
+        if isinstance(system, str):
+            system = payload["system"] = [{"type": "text", "text": system}]
+        if system:
+            system[-1].setdefault("cache_control", {"type": "ephemeral"})
+        sc = _scope.get()
+        if sc is not None and _mask_all(payload, sc.context.redact)[1]:
+            raise LLMUnavailable("Còn họ tên học sinh trong yêu cầu: không gửi")
+        return payload
+
+    def with_structured_output(self, schema, **kw):
+        """`llm.call` passes `_Schema` (OpenAI envelope); Claude takes the bare JSON schema."""
+        return super().with_structured_output(schema["schema"] if isinstance(schema, _Schema) else schema, **kw)
 
 
 class BackendChat(BaseChatModel):
@@ -1106,14 +1137,27 @@ def model(agent: str) -> BaseChatModel:
         raise LLMUnavailable(f"models.{agent}: {e}") from None
     if _backend is not None:
         return GuardedBackend(backend=_backend, model_name=name)
-    if provider == "anthropic":
-        try:
-            if "anthropic" not in _live:
-                _live.setdefault("anthropic", PROVIDERS["anthropic"]())
-        except LLMUnavailable:
+    if provider == "anthropic" and setting not in _chat:
+        key = os.environ.get(KEY_ENV[provider])
+        if not key:
             _last_result = "error"
-            raise
-        return GuardedBackend(backend=_live["anthropic"], model_name=name)
+            raise KeyRejected("Thiếu ANTHROPIC_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại")
+        _chat.setdefault(
+            setting,
+            GuardedAnthropic(
+                model=name,
+                max_retries=0,  # retries are counted in Guard (§8.4), not twice
+                timeout=CALL_TIMEOUT,  # the SDK refuses a non-streaming call with large max_tokens without one
+                max_tokens=64000,
+                thinking={"type": "adaptive"},
+                reasoning_effort="medium",  # Opus 5.5 default, stated so a model change keeps it
+                betas=["server-side-fallback-2026-07-01"],
+                model_kwargs={"fallbacks": "default"},  # no field for it; not .with_fallbacks, that would catch a 401
+                api_key=key,
+            ),
+        )
+    if provider == "anthropic":
+        return _chat[setting]
     if provider != "openai":
         _last_result = "error"
         raise LLMUnavailable(f"models.{agent}: provider {provider} chưa dùng được")
