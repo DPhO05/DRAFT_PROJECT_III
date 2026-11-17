@@ -266,9 +266,11 @@
     }).then(function () {
       if (!m.done && !m.error) { lost = true; lose(turn, m, ''); }
     }, function (e) {
-      m.el.remove();  // nothing started: the card comes back with the server's words
-      if (host.isConnected) C.cards.approval(host, { ev: { args: JSON.parse(host.dataset.args), description: host.dataset.said }, settled: false });
-      U.toast(e.status === 422 ? e.message : 'Chưa gửi được, thử lại.', 'warn');
+      m.el.remove();
+      if (e.status === 422) {  // refused before anything started: the card comes back with the server's words
+        if (host.isConnected) C.cards.approval(host, { ev: { args: JSON.parse(host.dataset.args), description: host.dataset.said }, settled: false });
+        U.toast(e.message, 'warn');
+      } else { lost = true; U.toast('Chưa gửi được, thử lại.', 'warn'); }  // the call may have run: the reload shows the card the server says
     }).then(function () {  // the stream broke: the server says whether the call still waits, so the card follows it
       return lost && cur.id === id ? openConv(id, true) : null;
     }).then(function () { setBusy(false); C.refreshPending(); loadConvs(); });

@@ -1387,7 +1387,12 @@ def chat_approval(page, rep: dict, phone: bool, data_dir: str) -> None:
     if want not in page.inner_text("#chat-msgs"):
         rep["missing"].append(f"chat approval: the card does not say {want!r}")
     see_chat(page, rep, "chat approval", phone)
-    press(page, rep, '#chat-msgs [data-act="c-yes"]', "chat Duyệt", JS_HOST_SEL, [tid, ".gcard-head"])
+    # the server runs Duyệt, then the answer never reaches the page: the card must follow the server (settled), not stay live
+    page.route("**/api/assistant/conversations/*/decide", lambda r: (r.fetch(), r.abort()))
+    press(page, rep, '#chat-msgs [data-act="c-yes"]', "chat Duyệt (answer lost)", JS_HOST_SEL, [tid, ".gcard-head"])
+    page.unroute("**/api/assistant/conversations/*/decide")
+    if page.locator('#chat-msgs [data-act="c-yes"]').count():
+        rep["missing"].append("chat approval: the card stayed live after the answer was lost and the call had run")
     Path(data_dir, "inbox", "s01.tex").write_bytes(
         (FIX / "s01.tex").read_bytes()
     )  # the inbox listing keeps its graded sha
