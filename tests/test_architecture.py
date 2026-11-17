@@ -13,9 +13,8 @@ ALLOWED = {
     "devfake": {"llm"},
     "db": {"config", "services"},
     "agents": {"llm", "services", "config"},
-    "graphs": {"agents", "db", "services", "config", "mcp"},  # R14: G5 is a 09 client
-    "mcp": {"agents", "services", "db", "config"},  # R12
-    "api": {"graphs", "db", "services", "llm", "config", "devfake", "agents", "mcp"},  # agents: see API_AGENTS
+    "graphs": {"agents", "db", "services", "config"},
+    "api": {"graphs", "db", "services", "llm", "config", "devfake", "agents"},  # agents: see API_AGENTS
     "cli": {"api", "graphs", "db", "config"},  # cli runs create_app() for `tutor app`
 }
 LLM_READ_ONLY = {"iter_log", "cost"}  # what api may take from tutor.llm
@@ -25,8 +24,7 @@ ASSISTANT_FILES = {
     Path("tutor/api/assistant.py"),
     ORCHESTRATOR,
     Path("tutor/agents/a00_orchestrator/tools.py"),
-}  # R21: no resume; nor anywhere under tutor/mcp/ (MCP_DIR)
-MCP_DIR = Path("tutor/mcp")
+}  # R21: no resume
 PROVIDERS = {"langchain_openai", "langchain_anthropic"}
 
 
@@ -92,9 +90,7 @@ def violations(root: Path) -> list[str]:
                 on_llm = isinstance(fn, ast.Attribute) and isinstance(fn.value, ast.Name) and fn.value.id == "llm"
                 if on_llm and name == "call" and me != "agents":
                     bad(node, "llm.call() only from tutor/agents/")
-                if on_llm and name == "chat" and rel != ORCHESTRATOR:
-                    bad(node, "llm.chat() only from tutor/agents/a00_orchestrator/orchestrator.py")
-                if name == "resume" and (rel in ASSISTANT_FILES or rel.is_relative_to(MCP_DIR)):
+                if name == "resume" and rel in ASSISTANT_FILES:
                     bad(node, "resume() never from the assistant (C-39)")
     return out
 
@@ -133,7 +129,7 @@ def test_commit_and_llm_call_rules(tmp_path):
 
 
 def test_assistant_rules(tmp_path):
-    """MONO-P6-01 (R21): agents only via api/assistant.py, llm.chat only in the orchestrator, no resume (C-39)."""
+    """MONO-P6-01 (R21): agents only via api/assistant.py, no resume (C-39)."""
     write(
         tmp_path,
         "tutor/api/assistant.py",
@@ -150,43 +146,22 @@ def test_assistant_rules(tmp_path):
     write(
         tmp_path,
         "tutor/agents/a00_orchestrator/tools.py",
-        "from tutor.db import repo\nfrom tutor import llm\nllm.chat('00')\n",
+        "from tutor.db import repo\n",
     )
     write(
         tmp_path,
         "tutor/agents/a00_orchestrator/orchestrator.py",
-        "from tutor import llm\nllm.chat('00')\nself.resume()\n",
+        "self.resume()\n",
     )
     write(tmp_path, "tutor/api/threads.py", "runner.resume('t')\n")
     msg = "api may import only agents.a00_orchestrator, and only in api/assistant.py"
     assert violations(tmp_path / "tutor") == [
-        "tutor/agents/a00_orchestrator/orchestrator.py:3: resume() never from the assistant (C-39)",
+        "tutor/agents/a00_orchestrator/orchestrator.py:1: resume() never from the assistant (C-39)",
         "tutor/agents/a00_orchestrator/tools.py:1: agents must not import tutor.db",
-        "tutor/agents/a00_orchestrator/tools.py:3: llm.chat() only from tutor/agents/a00_orchestrator/orchestrator.py",
         "tutor/api/assistant.py:3: resume() never from the assistant (C-39)",
         f"tutor/api/assistant_extra.py:1: {msg}",
         f"tutor/api/other.py:1: {msg}",
         f"tutor/api/other.py:2: {msg}",
-    ]
-
-
-def test_mcp_rules(tmp_path):
-    """R12: mcp sits above agents; api and graphs may import it, agents never; no resume in tutor/mcp/ (C-39)."""
-    write(tmp_path, "tutor/agents/x.py", "import tutor.mcp.client\n")
-    write(tmp_path, "tutor/graphs/x.py", "import tutor.mcp.client\n")  # R14: G5's write node is a 09 client
-    write(
-        tmp_path,
-        "tutor/mcp/server.py",
-        "from tutor.agents.a00_orchestrator import tools\nfrom tutor.db import repo\nrunner.resume('t')\n",
-    )
-    write(tmp_path, "tutor/mcp/client.py", "from mcp import Client\nrunner.resume('t')\n")
-    write(tmp_path, "tutor/mcp/roles.py", "runner.resume('t')\n")
-    write(tmp_path, "tutor/api/assistant.py", "from tutor.mcp.client import connect\n")
-    assert violations(tmp_path / "tutor") == [
-        "tutor/agents/x.py:1: agents must not import tutor.mcp",
-        "tutor/mcp/client.py:2: resume() never from the assistant (C-39)",
-        "tutor/mcp/roles.py:1: resume() never from the assistant (C-39)",
-        "tutor/mcp/server.py:3: resume() never from the assistant (C-39)",
     ]
 
 

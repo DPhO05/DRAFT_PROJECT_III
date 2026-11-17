@@ -1,4 +1,4 @@
-"""P7-T04: agent 09 Reporter over MCP role 09 (design T9): facts in, cited sentences out, one rewrite at most."""
+"""P7-T04: agent 09 Reporter (design T9): facts in, cited sentences out, one rewrite at most."""
 
 import json
 from contextlib import closing
@@ -10,12 +10,10 @@ from tests.assistant_fix import world
 from tests.fakes import FakeLLM
 from tutor import config, llm
 from tutor.agents import CallContext
-from tutor.agents.a00_orchestrator.tools import Toolbox
 from tutor.agents.a08_recommender import select
 from tutor.agents.a09_reporter import reporter
 from tutor.agents.a09_reporter.reporter import ReportOut, Sentence
 from tutor.db import repo
-from tutor.mcp.client import connect
 from tutor.services import facts
 
 TODAY = date(2026, 10, 21)
@@ -28,10 +26,6 @@ def ro(conn, paths):
     w = world(conn)
     with closing(repo.connect(paths.tutor_db, readonly=True)) as c:
         yield c, w
-
-
-def session(ro):
-    return connect("09", Toolbox(ro[0], settings=config.defaults(), today=TODAY, text="", starters=None))
 
 
 def go(ro, *, ctx=CTX, low=0.5, ranked=None, **period):
@@ -64,26 +58,13 @@ def out(*sentences):
 DRAFT = out(("Tháng này em học 2 buổi.", "F01"), ("Em đã làm 5 bài.", "F02"), ("Em rất chăm chỉ.", "F99"))
 
 
-def test_role_09_sees_only_its_tools(ro):
-    s = session(ro)
-    assert [t["name"] for t in s.tools()] == ["rank_problems", "report_facts"]
-    content, is_error, _ = s.call("start_grading", {"code": "HS-01", "file": "a.tex", "held_on": "2026-10-21"})
-    assert is_error and json.loads(content) == {"error": "Không có công cụ start_grading"}  # starters=None never ran
-    content, is_error, meta = s.call("report_facts", MONTH)
-    direct = facts.report_facts(ro[0], ro[1]["an"], "month", "2026-10-01", today=TODAY, low_pass_rate=0.5)
-    assert (json.loads(content), is_error, meta) == (direct, False, {})
-
-
-def test_report_facts_errors_in_words(ro):
-    """R13: NotReady and a malformed period come back as a tool error in words (MCP role 09)."""
-    s = session(ro)
-    for args, words in [
-        (MONTH | {"period_start": "2026-09-01"}, "chưa có buổi học nào đã duyệt"),
-        (MONTH | {"period_kind": "year"}, "Loại kỳ"),
-        (MONTH | {"code": "HS-99"}, "Không có học sinh HS-99"),
-    ]:
-        content, is_error, _ = s.call("report_facts", args)
-        assert is_error and words in json.loads(content)["error"]
+def test_report_facts_refuses_an_empty_or_malformed_period(ro):
+    """R13: an empty period raises NotReady and a malformed one a ValueError in words; G5 fails the run with either."""
+    c, w = ro
+    with pytest.raises(facts.NotReady):
+        facts.report_facts(c, w["an"], "month", "2026-09-01", today=TODAY, low_pass_rate=0.5)
+    with pytest.raises(ValueError, match="Loại kỳ"):
+        facts.report_facts(c, w["an"], "year", "2026-10-01", today=TODAY, low_pass_rate=0.5)
 
 
 def test_rewrite_once_then_drop(ro):
