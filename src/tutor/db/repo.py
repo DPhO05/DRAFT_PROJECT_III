@@ -740,7 +740,7 @@ def problem_tech(conn: sqlite3.Connection, problem_id: int) -> dict:
     return {
         "delta": row[0],
         "difficulty_approved_at": row[1],
-        "replay_hint": [f"tutor replay {student_code(sid)}" for (sid,) in students],
+        "replay_hint": [f"Dựng lại hồ sơ {student_code(sid)} (menu ⚙)" for (sid,) in students],
     }
 
 

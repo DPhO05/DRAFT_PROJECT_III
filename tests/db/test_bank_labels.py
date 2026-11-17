@@ -102,6 +102,6 @@ def test_problem_tech(conn, made):
     assert repo.problem_tech(conn, made["p1"]) == {
         "delta": 0.0,
         "difficulty_approved_at": conn.execute("SELECT difficulty_approved_at FROM problem").fetchone()[0],
-        "replay_hint": ["tutor replay HS-01"],
+        "replay_hint": ["Dựng lại hồ sơ HS-01 (menu ⚙)"],
     }
     assert repo.problem_tech(conn, made["p9"])["replay_hint"] == []

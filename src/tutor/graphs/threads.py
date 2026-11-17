@@ -56,7 +56,7 @@ def annotate(rows: list[dict]) -> list[dict]:
 
 
 def queue(rows: list[dict]) -> list[dict]:
-    """Awaiting threads: G1 → G5; G1 by student then held_on, other graphs by last update (`tutor review`)."""
+    """Awaiting threads: G1 → G5; G1 by student then held_on, other graphs by last update."""
     aw = [t for t in annotate(rows) if t["status"] == "awaiting_review"]
     return sorted(aw, key=lambda t: (GRAPH_ORDER.get(t["graph"], 9),
                                      *((t["student_id"] or 0, t["held_on"] or "") if t["graph"] == "G1"

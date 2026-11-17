@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/threads")
 @router.get("")
 def list_threads(request: Request, graph: str | None = None, status: str | None = None,
                  student: int | None = None) -> list[dict]:  # fmt: skip
-    """status=awaiting_review → the review queue order (`tutor review`)."""
+    """status=awaiting_review → the review queue order."""
     return threads.listing(request.app.state.runner, graph=graph, status=status, student_id=student)
 
 
