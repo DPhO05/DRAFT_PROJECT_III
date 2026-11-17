@@ -319,7 +319,7 @@ def waiting(agent, cfg: dict) -> list[dict]:
 def events(
     agent, ctx: ChatContext, cfg: dict, history: list | None = None, resume: list[dict] | None = None
 ) -> Iterator[dict]:
-    """NDJSON events of one tutor message, as `orchestrator.reply` gives them, without `start` / `error`.
+    """NDJSON events of one tutor message, without `start` / `error` (`api/assistant.py` adds those).
 
     agent: `build(...)`; ctx.resaved: set by the caller; the thread (`cfg`) carries the earlier messages.
     history: messages that go into an empty thread before this one.
