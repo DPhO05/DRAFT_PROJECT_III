@@ -254,21 +254,23 @@
   };
   function decide(el, body, note) {
     if (busy) { U.toast('Trợ lý đang trả lời, chờ một lát.', 'info'); return; }
-    var host = el.closest('.card-host'), id = cur.id, turn = { conv: cur, shown: '', map: {}, chip: null }, m;
+    var host = el.closest('.card-host'), id = cur.id, turn = { conv: cur, shown: '', map: {}, chip: null }, m, lost = false;
     setBusy(true); settle(host, note);
     m = botMsg(); drawText(m); scrollEnd(true);
     U.ndjson('/assistant/conversations/' + encodeURIComponent(id) + '/decide', body, function (ev) {
       try {
         var s = $('.chat-scroll'), stick = s && s.scrollHeight - s.scrollTop - s.clientHeight < 120;
-        if (ev.type === 'error') lose(turn, m, ev.code); else apply(m, ev);
+        if (ev.type === 'error') { lost = true; lose(turn, m, ev.code); } else apply(m, ev);
         if (stick) scrollEnd(true);
       } catch (e) { console.error(e); }
     }).then(function () {
-      if (!m.done && !m.error) lose(turn, m, '');
+      if (!m.done && !m.error) { lost = true; lose(turn, m, ''); }
     }, function (e) {
       m.el.remove();  // nothing started: the card comes back with the server's words
       if (host.isConnected) C.cards.approval(host, { ev: { args: JSON.parse(host.dataset.args), description: host.dataset.said }, settled: false });
       U.toast(e.status === 422 ? e.message : 'Chưa gửi được, thử lại.', 'warn');
+    }).then(function () {  // the stream broke: the server says whether the call still waits, so the card follows it
+      return lost && cur.id === id ? openConv(id, true) : null;
     }).then(function () { setBusy(false); C.refreshPending(); loadConvs(); });
   }
   ACT['c-yes'] = function (el) { decide(el, { decision: 'approve' }, 'Đã duyệt.'); };
@@ -365,9 +367,14 @@
     return U.api.get('/assistant/conversations/' + encodeURIComponent(id)).then(function (r) {
       cur = { id: id }; keep(id);
       $('#chat-msgs').innerHTML = '';
+      var live = -1;  // the approval row the server says still waits, skipping the decision rows after it
+      r.messages.forEach(function (row, i) {
+        var evs = row.events || [];
+        if (r.waiting && row.role === 'assistant' && evs.length && evs[evs.length - 1].type === 'approval') live = i;
+      });
       r.messages.forEach(function (row, i) {
         if (row.decision) return;  // the tutor's Duyệt / Sửa / Bỏ is the card, not a bubble
-        if (row.role === 'user') addUser(row); else replay(row, i === r.messages.length - 1);
+        if (row.role === 'user') addUser(row); else replay(row, i === live);
       });
       drawConvs(); scrollEnd(true);
       if (!quiet) { closeDrawer(); $('#chat-input').focus(); }

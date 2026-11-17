@@ -615,3 +615,55 @@ def test_message_waits_for_the_decision(paths, client, w):
     r = send(client, "Thôi", cid=cid)
     assert r.status_code == 409 and "duyệt" in r.json()["error"]["message"]
     assert lines(decide(client, cid, "approve"))[-1]["type"] == "done"
+
+
+def waiting_state(client, cid) -> tuple[bool, bool]:
+    """(GET says waiting, /pending lists it): one rule, so both agree."""
+    got = client.get(f"/api/assistant/conversations/{cid}").json()["waiting"]
+    listed = any(i["kind"] == "approval" for i in client.get("/api/assistant/pending").json()["items"])
+    assert got == listed
+    return got, listed
+
+
+def test_decision_is_final_once_the_tool_ran(paths, client, w):
+    """P4-14 (b): the grading started, then the model failed; the tutor is not asked again and nothing starts twice."""
+    _, cid = ask_grading(client, paths, w, llm.LLMUnavailable("00: overloaded"), [text("Ừ.")])
+    assert lines(decide(client, cid, "approve"))[-1]["type"] == "error"
+    assert g1(client) == ["g1-hs01-20261115"] and waiting_state(client, cid) == (False, False)
+    assert decide(client, cid, "reject").status_code == 409
+    assert lines(send(client, "Tiếp nhé", cid=cid))[-1] == {"type": "done", "stopped": None}
+    assert g1(client) == ["g1-hs01-20261115"]
+
+
+def test_decision_stays_open_until_the_tool_ran(paths, client, w, monkeypatch):
+    """P4-14 (a): the stream ended before the tool ran; a retry with Bỏ is honoured, not the first Duyệt."""
+    real, boom = Toolbox.tool_start_grading, []
+
+    def once(self, a):
+        if not boom:
+            boom.append(1)
+            raise RuntimeError("tool broke")
+        return real(self, a)
+
+    monkeypatch.setattr(Toolbox, "tool_start_grading", once)
+    _, cid = ask_grading(client, paths, w, [text("Không chấm.")])
+    assert lines(decide(client, cid, "approve"))[-1]["code"] == "internal" and g1(client) == []
+    assert waiting_state(client, cid) == (True, True)
+    assert send(client, "Thôi", cid=cid).status_code == 409
+    evs = lines(decide(client, cid, "reject"))
+    assert "".join(e["delta"] for e in evs if e["type"] == "text") == "Không chấm." and g1(client) == []
+    assert waiting_state(client, cid) == (False, False)
+
+
+def test_edit_by_full_name_starts_that_students_thread(paths, client, w):
+    _, cid = ask_grading(client, paths, w, [text("Đã bắt đầu.")])
+    lines(decide(client, cid, "edit", {"code": "Nguyễn Văn An", "file": "s01.tex", "held_on": EARLIER}))
+    assert g1(client) == ["g1-hs01-20261114"]
+    assert "Nguyễn Văn An".encode() not in chat_db_bytes(paths) + (paths.logs / "chat" / f"{cid}.jsonl").read_bytes()
+
+
+def test_decision_row_keeps_no_args_unless_edited(paths, client, w):
+    _, cid = ask_grading(client, paths, w, [text("Đã bắt đầu.")])
+    lines(decide(client, cid, "approve", {"code": "HS-09", "file": "x", "held_on": "x"}))
+    [row] = [r for r in rows(paths, cid) if r.get("decision")]
+    assert row["args"] is None

@@ -18,7 +18,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from pydantic import BaseModel
 
@@ -102,6 +102,22 @@ class ChatStore:
     def head(self, cid: str) -> str | None:
         t = self.saver.get_tuple({"configurable": {"thread_id": cid}})
         return t.config["configurable"]["checkpoint_id"] if t else None
+
+    def answered(self, cid: str) -> bool:
+        """True when no call of the thread's newest AI message is left without a tool answer, so nothing waits."""
+        t = self.saver.get_tuple({"configurable": {"thread_id": cid}})
+        msgs = t.checkpoint["channel_values"].get("messages", []) if t else []
+        calls = next((m.tool_calls for m in reversed(msgs) if isinstance(m, AIMessage) and m.tool_calls), [])
+        done = {m.tool_call_id for m in msgs if isinstance(m, ToolMessage)}
+        return all(c["id"] in done for c in calls)
+
+    def reset_pause(self, cid: str, checkpoint_id: str) -> None:
+        """A retried decision starts from the paused checkpoint: its finished writes would replay the first answer."""
+        with self.saver.cursor() as cur:
+            cur.execute(
+                "DELETE FROM writes WHERE thread_id = ? AND checkpoint_id = ? AND channel != '__interrupt__'",
+                (cid, checkpoint_id),
+            )
 
     def close(self) -> None:
         self.conn.close()
@@ -200,22 +216,26 @@ def _write(f: Path, row: dict) -> None:
         out.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def _resume(rows: list[dict]) -> tuple[str | None] | None:
+def _resume(rows: list[dict], answered: bool = False) -> tuple[str | None] | None:
     """(checkpoint id,) the next turn must run from when the last turn never finished, else None.
 
-    A turn is unfinished when its user row has no assistant row (the process died) or an incomplete one."""
+    A turn is unfinished when its user row has no assistant row (the process died) or an incomplete one.
+    A decision whose tool already ran is final: the thread moves on from its newest checkpoint (P4-14)."""
     i = len(rows) - 1
     if i >= 0 and rows[i]["role"] == "assistant":
         if not rows[i].get("incomplete"):
             return None
         i -= 1
-    return (rows[i]["from"],) if i >= 0 and rows[i]["role"] == "user" and "from" in rows[i] else None
+    if i < 0 or rows[i]["role"] != "user" or "from" not in rows[i] or (rows[i].get("decision") and answered):
+        return None
+    return (rows[i]["from"],)
 
 
 def _waiting(rows: list[dict]) -> dict | None:
-    """The approval event the conversation waits on, else None.
+    """The approval event the log says the conversation waits on, else None.
 
-    A decision that never finished (no answer row, or an incomplete one) leaves the call waiting."""
+    A decision that never finished (no answer row, or an incomplete one) leaves it open; whether its tool ran is
+    the thread's word (`ChatStore.answered`): the conversation waits only when this is set and that is False."""
     i = len(rows) - 1
     while i >= 0 and (rows[i].get("decision") or rows[i].get("incomplete")):
         i -= 1
@@ -226,14 +246,15 @@ def _waiting(rows: list[dict]) -> dict | None:
 
 
 def _open(
-    paths: DataPaths, cid: str | None, user: dict, head: Callable[[str], str | None]
-) -> tuple[str, Path, list[dict]] | None:
+    paths: DataPaths, cid: str | None, user: dict, store: ChatStore
+) -> tuple[str, Path, list[dict], tuple[str | None] | None] | None:
     """Claim the conversation and log the tutor's row before any model call (R25); None = still answering.
 
     The row carries `from`: the checkpoint this turn runs from (None = empty thread), written now so a killed
-    process still leaves the way back (P4-11). head(cid) = newest checkpoint id of the thread.
+    process still leaves the way back (P4-11).
 
-    Returns (id, log file, rows before this one): history is read first so the model gets the message once (S12).
+    Returns (id, log file, rows before this one, checkpoint to run from): history is read first so the model
+    gets the message once (S12).
     A new id is the highest n of today + 1."""
     with _lock:
         if cid is None:
@@ -247,15 +268,19 @@ def _open(
             if f in _busy:
                 return None
             rows = _read(f)
-            if bool(_waiting(rows)) != ("decision" in user):  # a message waits for the decision; a decision needs one
+            ask = _waiting(rows)
+            answered = store.answered(cid) if ask else False
+            if bool(ask and not answered) != (
+                "decision" in user
+            ):  # a message waits for the decision; a decision needs one
                 if "decision" in user:
                     raise NotReady(NOT_WAITING)
                 raise NotReady(WAITING)
-        resume = _resume(rows)
-        start = resume[0] if resume else (head(cid) if rows else None)
+        resume = _resume(rows, answered) if rows else None
+        start = resume[0] if resume else (store.head(cid) if rows else None)
         _write(f, {"id": f"m{len(rows) + 1}"} | user | {"from": start})
         _busy.add(f)
-    return cid, f, rows
+    return cid, f, rows, resume
 
 
 def _check(text: str, body: Message, everyone: dict[int, dict]) -> None:
@@ -376,7 +401,7 @@ def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn, *, stop: 
                 _write(f, row)
 
 
-def _respond(app, conn, cid: str, f: Path, rows: list[dict], ctx: chat.ChatContext, codes: list[dict],
+def _respond(app, conn, cid: str, f: Path, rows: list[dict], resume, ctx: chat.ChatContext, codes: list[dict],
              fixed: list[str], *, decision: Decision | None = None) -> StreamingResponse:  # fmt: skip
     """The NDJSON stream of one turn: a new message, or `decision` on the call the thread waits on."""
     store, settings = app.state.chat, app.state.settings
@@ -391,11 +416,13 @@ def _respond(app, conn, cid: str, f: Path, rows: list[dict], ctx: chat.ChatConte
             system=fixed,
         )
         cfg = {"configurable": {"thread_id": cid}, "recursion_limit": 200}
-        if resume := _resume(rows):  # K12: run from before the unfinished turn
+        if resume:  # K12: run from before the unfinished turn
             if resume[0] is None:
                 store.saver.delete_thread(cid)
             else:
                 cfg["configurable"]["checkpoint_id"] = resume[0]
+                if decision:
+                    store.reset_pause(cid, resume[0])
         snap = agent.get_state(cfg)
         defs = tool_defs([c["code"] for c in codes])
         cc = llm.CallContext(graph=None, conversation_id=cid, redact=orchestrator._names(ctx.redact))
@@ -437,7 +464,7 @@ def message(body: Message, request: Request):
         fixed = orchestrator.fixed_parts(repo.list_kc(conn), codes)
         attachment = body.attachment.model_dump() if body.attachment else None
         user = {"role": "user", "ts": repo.now(), "text": text, "mentions": body.mentions, "attachment": attachment}
-        opened = _open(paths, body.conversation_id, user, store.head)
+        opened = _open(paths, body.conversation_id, user, store)
     except NotReady as e:
         conn.close()
         return errors.error(409, "not_ready", str(e), {"reason": str(e)})
@@ -447,7 +474,7 @@ def message(body: Message, request: Request):
     if opened is None:
         conn.close()
         return errors.error(409, "not_ready", BUSY, {"reason": BUSY})
-    cid, f, rows = opened
+    cid, f, rows, resume = opened
     turn = orchestrator.Turn(
         text,
         body.mentions,
@@ -455,7 +482,7 @@ def message(body: Message, request: Request):
         held_on=body.held_on.isoformat() if body.held_on else None,
         worksheet_thread_id=body.context.worksheet_thread_id,
     )
-    return _respond(app, conn, cid, f, rows, chat.ChatContext(turn, box, everyone, redact), codes, fixed)
+    return _respond(app, conn, cid, f, rows, resume, chat.ChatContext(turn, box, everyone, redact), codes, fixed)
 
 
 @router.post("/conversations/{conversation_id}/decide")
@@ -467,7 +494,9 @@ def decide(conversation_id: str, body: Decision, request: Request):
     try:
         everyone = {s["id"]: s for s in repo.list_students(conn, include_archived=True)}
         redact = {s["name"]: s["code"] for s in everyone.values()}
-        if body.decision == "edit":  # the same name masking as a typed message (C-40), the same date rule as the form
+        if body.decision != "edit":
+            body.args = None
+        else:  # the same name masking as a typed message (C-40), the same date rule as the form
             a = chat._mask_deep(body.args or {}, redact)
             if not all(isinstance(a.get(k), str) and a[k].strip() for k in ("code", "file", "held_on")):
                 raise ValueError("Thiếu học sinh, file hoặc ngày học")
@@ -483,7 +512,7 @@ def decide(conversation_id: str, body: Decision, request: Request):
         label = {"approve": "Duyệt", "edit": "Sửa", "reject": "Bỏ"}[body.decision]
         user = {"role": "user", "ts": repo.now(), "text": "", "mentions": [], "attachment": None,
                 "decision": body.decision, "label": label, "args": body.args}  # fmt: skip
-        opened = _open(paths, conversation_id, user, store.head)
+        opened = _open(paths, conversation_id, user, store)
     except NotReady as e:
         conn.close()
         return errors.error(409, "not_ready", str(e), {"reason": str(e)})
@@ -493,10 +522,10 @@ def decide(conversation_id: str, body: Decision, request: Request):
     if opened is None:
         conn.close()
         return errors.error(409, "not_ready", BUSY, {"reason": BUSY})
-    cid, f, rows = opened
+    cid, f, rows, resume = opened
     turn = orchestrator.Turn(text, last.get("mentions", []))
     ctx = chat.ChatContext(turn, box, everyone, redact)
-    return _respond(app, conn, cid, f, rows, ctx, codes, fixed, decision=body)
+    return _respond(app, conn, cid, f, rows, resume, ctx, codes, fixed, decision=body)
 
 
 @router.get("/conversations")
@@ -514,12 +543,14 @@ def conversations(request: Request, limit: Annotated[int, Query(ge=1, le=500)] =
 
 @router.get("/conversations/{conversation_id}")
 def conversation(conversation_id: str, request: Request) -> dict:
-    """The log rows without `tools` (their summaries may hold error codes, S10) and `from` (a checkpoint id)."""
+    """The log rows without `tools` (their summaries may hold error codes, S10) and `from` (a checkpoint id),
+    and whether a call waits for the tutor's decision."""
     f = _file(request.app.state.paths, conversation_id)
     with _lock:
         rows = _read(f)
     return {
         "id": conversation_id,
+        "waiting": bool(_waiting(rows)) and not request.app.state.chat.answered(conversation_id),
         "messages": [{k: v for k, v in r.items() if k not in ("tools", "from")} for r in rows],
     }
 
@@ -546,7 +577,7 @@ def pending(request: Request) -> dict:
     with _lock:
         logs = [(f.stem, _read(f)) for f in (paths.logs / "chat").glob("*.jsonl") if _ID.fullmatch(f.stem)]
     items += [{"kind": "approval", "conversation_id": cid, **ask} for cid, rows in sorted(logs)
-              if (ask := _waiting(rows))]  # fmt: skip
+              if (ask := _waiting(rows)) and not request.app.state.chat.answered(cid)]  # fmt: skip
     assistant = sum(
         i["kind"] in ("grading", "worksheet")
         and i.get("state") not in ("reading", "grading", "saving")
