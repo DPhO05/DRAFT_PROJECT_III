@@ -123,11 +123,14 @@ Nếu Terminal hiện lỗi, chụp màn hình gửi người cài.
 
 1. Ở đầu tab **Trợ lý**, mục **Việc đang chờ thầy/cô** không được còn việc nào. Duyệt hoặc bỏ hết các việc đang chờ.
 2. Đóng cửa sổ Terminal để tắt app.
-3. Thay thư mục `GiaSuToan-app` bằng bản mới, cùng tên, cùng chỗ.
-4. Giữ nguyên thư mục `GiaSuToan`. Dữ liệu và khoá nằm ở đó.
-5. Bấm đúp lại `Mo-tro-ly.command`. Nếu macOS chặn, làm lại cách ở mục 1.
-6. Lần đầu sau cập nhật, chờ vài phút và cần mạng.
-7. App tự nâng cấp dữ liệu và sao lưu trước.
+3. Đừng xoá bản cũ. Đổi tên thư mục `GiaSuToan-app` thành `GiaSuToan-app-cu` và để nguyên đó. Đây là đường lùi.
+4. Giải nén bản mới, đặt thư mục `GiaSuToan-app` mới vào đúng chỗ cũ.
+5. Giữ nguyên thư mục `GiaSuToan`. Dữ liệu và khoá nằm ở đó.
+6. Bấm đúp lại `Mo-tro-ly.command`. Nếu macOS chặn, làm lại cách ở mục 1.
+7. Lần đầu sau cập nhật, chờ vài phút và cần mạng.
+8. App tự sao lưu trước. Các cuộc trò chuyện của bản mới nằm trong file riêng trong `GiaSuToan`, nên bản cũ vẫn mở được dữ liệu.
+9. Nếu bản mới trục trặc: đóng cửa sổ Terminal. Đổi tên thư mục `GiaSuToan-app` thành `GiaSuToan-app-hong`, đổi `GiaSuToan-app-cu` lại thành `GiaSuToan-app`, rồi bấm đúp `Mo-tro-ly.command` như cũ. Các cuộc trò chuyện tạo bằng bản mới sẽ không hiện ở bản cũ.
+10. Dùng bản mới ổn vài tuần thì mới xoá `GiaSuToan-app-cu`.
 
 ## 10. Dành cho người cài
 
