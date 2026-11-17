@@ -1,9 +1,11 @@
 """P6-T05: agent 00 — fixed replies, problem codes, attachments, the model loop, sources and the number check."""
 
 import json
+import time
 from contextlib import closing
 
 import pytest
+from langchain.agents.middleware import wrap_tool_call
 from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.assistant_fix import world
@@ -164,14 +166,28 @@ def test_source_added_when_model_omits(ro):
     assert of(events, "source") == [{"type": "source", "items": ["lỗi đã duyệt của HS-01", "hồ sơ của HS-01"]}]
 
 
-def test_cards_and_tool_errors_pass_through(ro):
+@pytest.mark.parametrize("late", [None, "list_students", "student_profile"])
+def test_cards_and_tool_errors_pass_through(ro, monkeypatch, late):
+    """The two calls of one step finish in whatever order the lock lets them (one task each): `late` forces it."""
+    if late:
+
+        @wrap_tool_call
+        def delayed(request, handler):
+            if request.tool_call["name"] == late:
+                time.sleep(0.2)
+            with request.runtime.context.running:
+                return handler(request)
+
+        monkeypatch.setattr(chat, "one_at_a_time", delayed)
     script = [[tool("list_students"), tool("student_profile", code="HS-99")], [text("Thầy chọn học sinh nhé.")]]
     events, _ = say(ro, "Học sinh nào yếu nhất?", script)
     assert [e["card"]["kind"] for e in of(events, "card")] == ["pick_student"]
-    assert [(e["name"], e["state"]) for e in of(events, "tool")] == [  # both calls start, then both finish
-        ("list_students", "start"), ("student_profile", "start"), ("list_students", "done"),
-        ("student_profile", "error")]  # fmt: skip
-    assert "summary" not in of(events, "tool")[3]
+    tools = of(events, "tool")
+    assert [(e["name"], e["state"]) for e in tools[:2]] == [("list_students", "start"), ("student_profile", "start")]
+    ends = {e["name"]: e for e in tools[2:]}  # one end per call, after both starts
+    assert len(tools) == 4 and ends.keys() == {"list_students", "student_profile"}
+    assert ends["list_students"]["state"] == "done" and ends["student_profile"]["state"] == "error"
+    assert "summary" not in ends["student_profile"]
     assert of(events, "source") == [{"type": "source", "items": ["danh sách học sinh"]}]
 
 
