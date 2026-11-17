@@ -157,6 +157,9 @@ def anthropic_model(*replies):
     def handler(req):
         bodies.append(json.loads(req.content))
         r = queue.pop(0)
+        if isinstance(r, list):
+            sse = "".join(f"event: {e['type']}\ndata: {json.dumps(e)}\n\n" for e in r)
+            return httpx2.Response(200, headers={"content-type": "text/event-stream"}, content=sse.encode())
         if isinstance(r, int):
             kind = "overloaded_error" if r == 529 else "api_error"
             return httpx2.Response(r, json={"type": "error", "error": {"type": kind, "message": "x"}})
@@ -262,3 +265,26 @@ def test_anthropic_thinking_block_goes_back_after_tool_call(ant):
         m.invoke([HumanMessage("hi"), first, ToolMessage("kq", tool_call_id="tu1")])
     sent = bodies[1]["messages"][1]["content"]
     assert {"type": "thinking", "thinking": "nghĩ", "signature": "sig-1"} in sent
+
+
+def test_anthropic_streamed_refusal_is_unavailable(ant):
+    from langchain_core.messages import HumanMessage
+
+    start = msg([], stop=None, usage={"input_tokens": 5, "output_tokens": 1})
+    detail = {"type": "refusal", "category": "cyber", "explanation": None}
+    events = [
+        {"type": "message_start", "message": start},
+        {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}},
+        {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "Xin"}},
+        {"type": "content_block_stop", "index": 0},
+        {
+            "type": "message_delta",
+            "delta": {"stop_reason": "refusal", "stop_sequence": None, "stop_details": detail},
+            "usage": {"output_tokens": 3},
+        },
+        {"type": "message_stop"},
+    ]
+    m, _, _ = ant(events)
+    with llm.scope(ctx(), {"agent": "01", "model": "anthropic:claude-x", "user": "u"}):
+        with pytest.raises(llm.LLMUnavailable, match="Claude từ chối"):
+            list(m.stream([HumanMessage("hi")]))
