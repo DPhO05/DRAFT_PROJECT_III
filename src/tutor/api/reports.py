@@ -43,4 +43,5 @@ def get_report(report_id: int, request: Request, conn: DB) -> dict:
     r = repo.report(conn, report_id)
     file = report.report_file(request.app.state.paths, r["student_id"], r["period_kind"], r["period_start"])
     return {k: v for k, v in r.items() if k != "text_md"} | {"sentences": report.lines(r["text_md"]),
+                                                             "sections": report.sections(r["text_md"]),
                                                              "file": file.name}  # fmt: skip

@@ -84,9 +84,25 @@ def test_create_poll_edit_approve(env):
     assert card(client, tid, "draft")["n_flagged"] == 1  # Review Focus 1: flagged, approval still allowed
     done = approve(client, tid)
     assert done["report_id"] and done["sentences"] == [] and done["n_flagged"] == 0
-    rep = client.get(f"/api/reports/{done['report_id']}").json()
+    r = client.get(f"/api/reports/{done['report_id']}")
+    rep, plan = r.json(), [p["text"] for p in c["plan"]]
     assert rep == {"id": done["report_id"], "student_id": w["an"], "approved_at": rep["approved_at"], **WEEK,
-                   "sentences": ["Em làm 45 bài."], "file": "baocao-HS-01-week-2026-10-12.md"}  # fmt: skip
+                   "sentences": [*c["sessions"], "Em làm 45 bài.", *plan], "file": "baocao-HS-01-week-2026-10-12.md",
+                   "sections": [{"title": "Các buổi học trong kỳ", "lines": c["sessions"]},
+                                {"title": "Nhận xét", "lines": ["Em làm 45 bài."]},
+                                {"title": c["plan_title"], "lines": plan}]}  # fmt: skip
+    assert "[F" not in r.text  # C-44
+
+
+def test_get_old_report_one_section(paths, env):
+    """Review Focus 1: a report approved before the three parts comes back as one part with no title."""
+    client, w = env
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        rid = repo.commit_report(conn, student_id=w["an"], **WEEK, facts=[], text_md="Em cố gắng. [F01]\nĐúng hạn.\n",
+                                 audit={})["report_id"]  # fmt: skip
+    rep = client.get(f"/api/reports/{rid}").json()
+    assert rep["sentences"] == ["Em cố gắng.", "Đúng hạn."]
+    assert rep["sections"] == [{"title": None, "lines": ["Em cố gắng.", "Đúng hạn."]}]
 
 
 def test_post_conflicts(env):

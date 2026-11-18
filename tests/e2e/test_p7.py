@@ -17,6 +17,7 @@ from tests.graphs.test_report import writer
 from tutor import llm
 from tutor.api import assistant, reports
 from tutor.db import repo
+from tutor.graphs import report
 
 TODAY = date(2026, 10, 21)  # the dummy world's day; An has sessions on 07/10 and 14/10, Bình on 14/10
 PERIODS = (("day", "2026-10-14"), ("week", "2026-10-12"), ("month", "2026-10-01"))
@@ -131,8 +132,10 @@ def test_three_periods(paths, client, w):
                                           (done["report_id"],)).fetchone()  # fmt: skip
         assert json.loads(audit)["approved"][0] == {"i": 0, "flag": "number", "why": flagged["why"]}
         assert md_file(paths, kind, start).read_text(encoding="utf-8") == text_md
-        body = text_md.splitlines()
-        assert len(body) == len(shown) and body[0] == INVENTED  # the tutor's sentence cites nothing: no tail
+        review = {s["title"]: s["lines"] for s in report.sections(text_md)}["Nhận xét"]
+        assert len(review) == len(shown) and review[0] == INVENTED
+        body = text_md.split("## Nhận xét\n")[1].split("## ")[0].splitlines()  # the part's raw lines, tails on
+        assert body[0] == INVENTED  # the tutor's sentence cites nothing: no tail
         assert all(TAIL.search(line) for line in body[1:])  # 09's sentences all end in their [Fxx] tail
         assert body[1] == shown[1]["text"] + " " + "".join(f"[{f}]" for f in shown[1]["facts"])
         assert "F07" not in text_md
@@ -146,7 +149,7 @@ def test_three_periods(paths, client, w):
         assert "[F" not in r.text and not FACT_ID.search(r.text)  # C-44: the app never sees a fact id
         body = r.json()
         assert body["file"] == md_file(paths, a["period_kind"], a["period_start"]).name
-        assert body["sentences"][0] == INVENTED and "F07" not in r.text
+        assert INVENTED in body["sentences"] and body["sections"][1]["lines"][0] == INVENTED and "F07" not in r.text
 
 
 def test_chat_then_tab_once(paths, client, w):

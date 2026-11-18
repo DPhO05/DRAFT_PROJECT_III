@@ -113,9 +113,22 @@ def sentences(state: dict, decisions: object, part: str = "sentences") -> list[d
     return out
 
 
+def sections(text_md: str) -> list[dict]:
+    """An approved report as `[{title, lines}]`, fact ids off (C-44). No `## ` heading: one part, title None."""
+    out: list[dict] = []
+    for line in text_md.splitlines():
+        if line.startswith("## "):
+            out.append({"title": line[3:].strip(), "lines": []})
+        elif x := reporter._ID_MARK.sub("", line).strip():
+            if not out:
+                out.append({"title": None, "lines": []})
+            out[-1]["lines"].append(x)
+    return out or [{"title": None, "lines": []}]
+
+
 def lines(text_md: str) -> list[str]:
-    """The sentences of an approved report: R17's lines with the fact ids off (C-44)."""
-    return [x for line in text_md.splitlines() if (x := reporter._ID_MARK.sub("", line).strip())]
+    """The sentences of an approved report, every part, no headings (C-44)."""
+    return [x for part in sections(text_md) for x in part["lines"]]
 
 
 def _stage(row: dict, state: dict) -> str:
@@ -226,10 +239,17 @@ def check(paths: DataPaths) -> Callable[[dict, object], None]:
     return run
 
 
-def text_md(sentences: list[dict]) -> str:
-    """R17: one sentence a line, its fact ids after it."""
-    return "".join(f"{s['text']}{' ' if s['facts'] else ''}{''.join(f'[{f}]' for f in s['facts'])}\n"
-                   for s in sentences)  # fmt: skip
+def _md_lines(found: list[dict]) -> str:
+    return "".join(f"{s['text']}{' ' if s['facts'] else ''}{''.join(f'[{f}]' for f in s['facts'])}\n" for s in found)
+
+
+def text_md(sentences: list[dict], sessions: list[dict] | None = None, plan: list[dict] | None = None,
+            plan_title: str | None = None) -> str:  # fmt: skip
+    """R17: one sentence a line, its fact ids after it. With `sessions`: three `## ` parts, sentences in the middle."""
+    if sessions is None:
+        return _md_lines(sentences)
+    return (f"## Các buổi học trong kỳ\n{_md_lines(sessions)}## Nhận xét\n{_md_lines(sentences)}"
+            f"## {plan_title}\n{_md_lines(plan or [])}")  # fmt: skip
 
 
 def _settings(paths: DataPaths) -> dict:
@@ -269,16 +289,18 @@ def build(paths: DataPaths) -> StateGraph:
         return {"decisions": interrupt({"gate": "report"})["decisions"]}
 
     def commit(state: ReportState) -> dict:
+        draft = state["draft"]
         final = sentences(state, state["decisions"])  # pending() held the gate until it has a sentence
-        md, sid, kind, start = text_md(final), state["student_id"], state["period_kind"], state["period_start"]
-        audit = {"writer": state["draft"]["audit"],
+        final_plan = sentences(state, state["decisions"], "plan")
+        md = text_md(final, draft.get("sessions"), final_plan, draft.get("plan_title"))
+        sid, kind, start = state["student_id"], state["period_kind"], state["period_start"]
+        audit = {"writer": draft["audit"],
                  "approved": [{"i": i, "flag": s["flag"], "why": s["why"]} for i, s in enumerate(final)]}  # fmt: skip
-        if "plan" in state["draft"]:  # a draft made before the three parts keeps its audit as it was
-            audit["approved_plan"] = [{"i": i, "flag": s["flag"], "why": s["why"]}
-                                      for i, s in enumerate(sentences(state, state["decisions"], "plan"))]  # fmt: skip
+        if "plan" in draft:  # a draft made before the three parts keeps its audit as it was
+            audit["approved_plan"] = [{"i": i, "flag": s["flag"], "why": s["why"]} for i, s in enumerate(final_plan)]
         with closing(repo.connect(paths.tutor_db)) as conn:
             receipt = repo.commit_report(conn, student_id=sid, period_kind=kind, period_start=start,
-                                         facts=state["draft"]["facts"], text_md=md, audit=audit)  # fmt: skip
+                                         facts=draft["facts"], text_md=md, audit=audit)  # fmt: skip
         paths.out.mkdir(parents=True, exist_ok=True)
         report_file(paths, sid, kind, start).write_text(md, encoding="utf-8")
         return {"receipt": receipt, "committed": True}

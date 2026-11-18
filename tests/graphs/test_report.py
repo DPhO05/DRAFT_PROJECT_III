@@ -58,6 +58,13 @@ def rows(conn):
     return conn.execute("SELECT student_id, period_kind, period_start, text_md, audit_json FROM report").fetchall()
 
 
+def full_md(state):
+    """The three-part text_md of a draft as it stands, untouched."""
+    d = state["draft"]
+    return report.text_md(report.sentences(state, None), d["sessions"], report.sentences(state, None, "plan"),
+                          d["plan_title"])  # fmt: skip
+
+
 def test_no_write_until_approve(g5, paths):
     """09 runs inside the runner's worker thread; nothing is written until approve."""
     r, conn, fake, sid = g5
@@ -84,7 +91,7 @@ def test_approve_writes_report_and_md(g5, paths):
     assert row["status"] == "committed", row["error"]
     [(student_id, kind, start, md, audit)] = rows(conn)
     assert (student_id, kind, start) == (sid, "week", "2026-10-12")
-    assert "[F0" in md and md == report.text_md(report.sentences(r.state(tid), None))
+    assert "[F0" in md and md == full_md(r.state(tid))
     f = report.report_file(paths, sid, "week", "2026-10-12")
     assert f == paths.out / "baocao-HS-01-week-2026-10-12.md"
     assert f.read_text(encoding="utf-8") == md  # P7-T06: the approved .md = report.text_md
@@ -107,6 +114,41 @@ def test_text_md_one_line_per_sentence():
     """R17: each sentence with its fact ids; a teacher sentence with none has no tail."""
     got = report.text_md([{"text": "Em học 1 buổi.", "facts": ["F01", "F03"]}, {"text": "Em cố gắng.", "facts": []}])
     assert got == "Em học 1 buổi. [F01][F03]\nEm cố gắng.\n"
+
+
+NEW_MD = "## Các buổi học trong kỳ\nA. [F01]\n## Nhận xét\nB. [F02]\n## Lộ trình 4 tuần tới (16/11–13/12)\nC. [F09]\n"
+
+
+def test_text_md_three_headings():
+    md = report.text_md([{"text": "B.", "facts": ["F02"]}], [{"text": "A.", "facts": ["F01"]}],
+                        [{"text": "C.", "facts": ["F09"]}], "Lộ trình 4 tuần tới (16/11–13/12)")  # fmt: skip
+    assert md == NEW_MD
+
+
+def test_text_md_old_format():
+    assert report.text_md([{"text": "B.", "facts": ["F02"]}]) == "B. [F02]\n"
+
+
+def test_sections_old_and_new():
+    assert report.sections("B. [F02]\n") == [{"title": None, "lines": ["B."]}]
+    assert report.sections(NEW_MD) == [
+        {"title": "Các buổi học trong kỳ", "lines": ["A."]},
+        {"title": "Nhận xét", "lines": ["B."]},
+        {"title": "Lộ trình 4 tuần tới (16/11–13/12)", "lines": ["C."]},
+    ]
+    assert report.lines(NEW_MD) == ["A.", "B.", "C."]  # no headings, no fact ids
+
+
+def test_md_file_has_headings(g5, paths):
+    """The approved .md is text_md with the three parts, and the "Nhận xét" part holds the approved sentences."""
+    r, conn, _, sid = g5
+    tid = draft(paths, r, sid)["thread_id"]
+    approve(r, tid)
+    [(_, _, _, md, _)] = rows(conn)
+    d = r.state(tid)["draft"]
+    assert md == full_md(r.state(tid)) == report.report_file(paths, sid, "week", "2026-10-12").read_text("utf-8")
+    assert [s["title"] for s in report.sections(md)] == ["Các buổi học trong kỳ", "Nhận xét", d["plan_title"]]
+    assert "## Nhận xét\n" in md and [s["text"] for s in d["sentences"]] == report.sections(md)[1]["lines"]
 
 
 def test_second_approval_blocked(g5, paths):
@@ -254,7 +296,7 @@ def test_edits_reaudited(g5, paths, conn):
     assert row["status"] == "committed", row["error"]
     audit = json.loads(rows(conn)[0][4])
     assert [(a["i"], a["flag"]) for a in audit["approved"]] == [(0, "number"), (1, None), (2, "percent")]
-    assert rows(conn)[0][3].startswith("Em làm 45 bài.\n")
+    assert "## Nhận xét\nEm làm 45 bài.\n" in rows(conn)[0][3]
 
 
 @pytest.mark.parametrize("decisions", [{"sentences": []}, {"sentences": "x"}, {"sentences": [{"text": " "}]},
