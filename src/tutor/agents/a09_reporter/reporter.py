@@ -1,4 +1,4 @@
-"""09 Reporter (P7-T04): a period report for parents, one cited sentence each; audited, failed ones rewritten once."""
+"""09 Reporter (P7-T04): the "Nhận xét" part of a parent report, one cited sentence each; failed ones rewritten once."""
 
 import re
 from datetime import date

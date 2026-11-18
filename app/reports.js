@@ -144,7 +144,7 @@
       '<div class="row">' + btn('sent-add', PART[part].add, 'data-part="' + part + '"') + '</div>';
   }
   function draftHTML(s) {
-    var c = s.card, n = flags(s), none = !c.sentences.length, noPlan = planned(c) && !c.plan.length, off = none || noPlan, three = Array.isArray(c.sessions);
+    var c = s.card, n = flags(s), none = !c.sentences.length, noPlan = planned(c) && !c.plan.length, off = none || noPlan, three = planned(c);
     return (n ? '<div class="callout callout-warn"><p>Có <b>' + n + ' câu cần xem lại</b> (gạch chân vàng). Sửa hoặc bỏ câu đó; vẫn duyệt được nếu thầy/cô thấy ổn.</p></div>'
       : none ? '<div class="callout callout-warn"><p>Bản nháp chưa có câu nào. Thêm câu, hoặc bỏ bản nháp rồi tạo lại.</p></div>'
       : '<div class="callout callout-ok"><p>Mọi câu đã khớp với dữ liệu đã duyệt.</p></div>') +
