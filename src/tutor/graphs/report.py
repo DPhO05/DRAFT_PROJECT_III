@@ -104,6 +104,7 @@ def sentences(state: dict, decisions: object, part: str = "sentences") -> list[d
     out = []
     for s in given:
         text = " ".join(reporter._ID_MARK.sub("", s["text"]).split())  # H9: no typed [Fxx]; one line in text_md
+        text = text.lstrip("#").strip()  # a leading `## ` would read as a part title in sections()
         if not any(c.isalnum() for c in text):
             raise ValueError("Câu báo cáo không có chữ")
         ids = [f for f in dict.fromkeys(s.get("facts", [])) if f in by_id]

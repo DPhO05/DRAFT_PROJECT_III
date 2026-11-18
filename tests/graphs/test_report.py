@@ -116,6 +116,17 @@ def test_text_md_one_line_per_sentence():
     assert got == "Em học 1 buổi. [F01][F03]\nEm cố gắng.\n"
 
 
+def test_heading_text_stays_a_line(g5, paths):
+    """A teacher line starting with `#` must not become a part title in text_md."""
+    r, _, _, sid = g5
+    state = r.state(draft(paths, r, sid)["thread_id"])
+    got = report.sentences(state, {"sentences": [{"text": "## Em làm 1 bài.", "facts": []}]})
+    assert got[0]["text"] == "Em làm 1 bài."
+    assert report.sections(report.text_md(got)) == [{"title": None, "lines": ["Em làm 1 bài."]}]
+    with pytest.raises(ValueError):
+        report.sentences(state, {"sentences": [{"text": "## ", "facts": []}]})
+
+
 NEW_MD = "## Các buổi học trong kỳ\nA. [F01]\n## Nhận xét\nB. [F02]\n## Lộ trình 4 tuần tới (16/11–13/12)\nC. [F09]\n"
 
 
