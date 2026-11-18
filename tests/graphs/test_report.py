@@ -497,13 +497,24 @@ def test_old_draft_without_parts(paths):
     assert [s["text"] for s in card["sentences"]] == ["Em cố gắng."]
 
 
-def test_old_draft_still_approves(g5, paths, conn):
-    """Review Focus 1: the checkpoint of a draft written before this change: saves, resumes, commits as before."""
+@pytest.mark.parametrize("day", [False, True])
+def test_old_draft_still_approves(g5, paths, conn, day):
+    """Review Focus 1: a draft written before this change (old `session` facts, none for a day, no plan): approves."""
     r, _, _, sid = g5
     tid, state, _ = _plan_state(paths, r, sid)
+    if day:
+        tid = draft(paths, r, sid, {"period_kind": "day", "period_start": "2026-10-14"})["thread_id"]
+        state = r.state(tid)
     d = state["draft"]
     old = {k: v for k, v in d.items() if k not in ("sessions", "plan", "plan_title")}
-    old["facts"] = [f for f in d["facts"] if f["kind"] != "plan"]
+    old["facts"] = []
+    for f in d["facts"]:
+        if f["kind"] == "plan" or (day and f["kind"] == "session"):
+            continue
+        if f["kind"] == "session":
+            f = {**f, "value": {k: f["value"][k] for k in ("score", "max_score", "score_10", "mistakes")}}
+        old["facts"].append(f)
+    old["dates"] = [x for x in d["dates"] if x < "2026-10-26"]
     r.graphs["G5"].update_state({"configurable": {"thread_id": tid}}, {"draft": old}, as_node="write")
     got = report.card(r.get(tid), r.state(tid))
     assert (got["sessions"], got["plan_title"], got["plan"]) == ([], None, []) and got["sentences"]

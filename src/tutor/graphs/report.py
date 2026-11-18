@@ -219,9 +219,11 @@ def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
     return count
 
 
-def _counted(found: list[dict]) -> list[tuple]:
-    """The facts that count the period's sessions; `repeat` / `resolved` move with later sessions (R9)."""
-    return [(f["kind"], f["value"]) for f in found if f["kind"] in ("sessions", "problems", "score", "session")]
+def _counted(found: list[dict], old: bool = False) -> list[tuple]:
+    """The facts that count the period's sessions; `repeat` / `resolved` move with later sessions (R9).
+    `old`: a draft from before the three parts, whose `session` facts have another shape, so they are left out."""
+    keep = ("sessions", "problems", "score") + (() if old else ("session",))
+    return [(f["kind"], f["value"]) for f in found if f["kind"] in keep]
 
 
 def check(paths: DataPaths) -> Callable[[dict, object], None]:
@@ -234,7 +236,8 @@ def check(paths: DataPaths) -> Callable[[dict, object], None]:
             _approved(conn, sid, kind, start)
             now = facts.report_facts(conn, sid, kind, start, today=date.fromisoformat(state["today"]),
                                      low_pass_rate=_settings(paths)["report"]["low_pass_rate"])  # fmt: skip
-        if _counted(now["facts"]) != _counted(state["draft"]["facts"]):
+        old = "sessions" not in state["draft"]
+        if _counted(now["facts"], old) != _counted(state["draft"]["facts"], old):
             raise NotResumable("Có buổi mới được duyệt trong kỳ này. Bỏ bản nháp rồi tạo lại.")
 
     return run
