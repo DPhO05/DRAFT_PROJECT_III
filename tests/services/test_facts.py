@@ -10,6 +10,7 @@ from tests.assistant_fix import SWAP, _problem_of_grade, world
 from tests.db.test_profile_repo import commit, start
 from tutor.db import repo
 from tutor.services import elo, facts
+from tutor.services.audit import check_sentence
 
 LATER = date(2026, 11, 3)
 
@@ -234,3 +235,146 @@ def test_no_tech_text(conn):
     text = json.dumps(out, ensure_ascii=False)  # ensure_ascii would hide θ and names as \u escapes
     assert not re.search(r"θ|%|\"(theta|delta)|(computational|conceptual|notational|presentation|other)\.", text)
     assert not re.search("Nguyễn Văn An|Trần Thị Bình|Lê Văn Cường", text)
+
+
+NO_NEW = "Chưa tìm được kỹ năng nào cần ôn hay học tiếp có bài trong ngân hàng."
+BANKED = "EXISTS (SELECT 1 FROM problem_kc pk JOIN rubric r ON r.problem_id = pk.problem_id WHERE pk.kc_id = kc.id)"
+
+
+def set_theta(conn, sid, kc, theta):
+    conn.execute(
+        "INSERT INTO skill_state (student_id, kc_id, theta, last_seen, updated_at)"
+        " VALUES (?, ?, ?, '2026-10-01', '2026-10-01')",
+        (sid, kc, theta),
+    )
+
+
+def plan_items(conn, sid, after=LATER):
+    return [i for f in facts.plan(conn, sid, after, first_id=1)["facts"] for i in f["value"]["items"]]
+
+
+def test_plan_weeks_and_title(conn):
+    w = world(conn)
+    p = facts.plan(conn, w["an"], date(2026, 11, 15), first_id=9)
+    assert p["title"] == "Lộ trình 4 tuần tới (16/11–13/12)"
+    assert p["facts"][0]["fact_id"] == "F09" and p["facts"][0]["kind"] == "plan"
+    assert p["facts"][0]["text"].startswith("Tuần 16/11–22/11: ")
+    assert {"2026-11-16", "2026-11-22"} <= set(p["dates"])
+    assert [f["fact_id"] for f in p["facts"]] == [f"F{i:02d}" for i in range(9, 9 + len(p["facts"]))]
+    assert (p["facts"][1]["value"]["from"], p["facts"][1]["value"]["to"]) == ("2026-11-23", "2026-11-29")
+
+
+def test_plan_repeat_first_with_prereqs(conn):
+    w = world(conn)
+    an, kc_id = w["an"], w["kc_swap"]
+    err, kc = words(conn, w)
+    a, b, c = [
+        r[0] for r in conn.execute("SELECT id FROM kc WHERE lop = 8 AND parent_id IS NOT NULL ORDER BY id LIMIT 3")
+    ]
+    for pre in (c, a, b):
+        conn.execute("INSERT INTO kc_prereq (kc_id, prereq_id) VALUES (?, ?)", (kc_id, pre))
+    set_theta(conn, an, b, 1.0)  # vững: not a prereq to review
+    set_theta(conn, an, c, -1.0)  # chưa vững; a has no state, which counts as 0
+    expect = [  # hand-written: unmastered direct prereqs of the repeat skill, by prereq id
+        n
+        for (n,) in conn.execute(
+            "SELECT k.name FROM kc_prereq p JOIN kc k ON k.id = p.prereq_id"
+            " LEFT JOIN skill_state t ON t.student_id = ? AND t.kc_id = p.prereq_id"
+            " WHERE p.kc_id = ? AND COALESCE(t.theta, 0) <= 0.5 ORDER BY p.prereq_id",
+            (an, kc_id),
+        )
+    ]
+    assert len(expect) == 2
+    items = plan_items(conn, an)
+    rep = next(k for k, i in enumerate(items) if i["why"] == "repeat")
+    assert items[rep] == {"kc": kc, "why": "repeat", "error": facts.short_error(err), "n": 2}
+    assert items[:rep] == [{"kc": n, "why": "prereq", "for": kc} for n in expect]
+    assert len({i["kc"] for i in items}) == len(items)  # c is weak too, but it is listed once
+
+
+def test_plan_two_per_week_max_eight(conn):
+    world(conn)
+    sid = repo.add_student(conn, name="Em Mới", grade=None)
+    for (kc,) in conn.execute(f"SELECT id FROM kc WHERE {BANKED} ORDER BY id LIMIT 10").fetchall():
+        set_theta(conn, sid, kc, -1.0)
+    p = facts.plan(conn, sid, LATER, first_id=1)
+    assert [len(f["value"]["items"]) for f in p["facts"]] == [2, 2, 2, 2]
+
+
+def test_plan_order_and_text(conn):
+    w = world(conn)
+    an = w["an"]
+    err, kc = words(conn, w)
+    conn.execute("DELETE FROM kc_prereq")
+    weak, forming = [
+        r[0] for r in conn.execute("SELECT id FROM kc WHERE lop = 8 AND parent_id IS NOT NULL ORDER BY id LIMIT 2")
+    ]
+    set_theta(conn, an, forming, 0.2)
+    set_theta(conn, an, weak, -1.0)
+    name = lambda k: conn.execute("SELECT name FROM kc WHERE id = ?", (k,)).fetchone()[0]  # noqa: E731
+    new = conn.execute(
+        "SELECT name FROM kc WHERE lop = 9 AND parent_id IS NOT NULL AND id NOT IN (SELECT kc_id FROM skill_state"
+        f" WHERE student_id = ?) AND {BANKED} ORDER BY id LIMIT 5",
+        (an,),
+    ).fetchall()
+    p = facts.plan(conn, an, date(2026, 11, 15), first_id=1)
+    assert [f["text"] for f in p["facts"]] == [
+        f"Tuần 16/11–22/11: sửa lỗi “{facts.short_error(err)}” ở “{kc}” (đã gặp 2 lần);"
+        f" củng cố “{name(weak)}” (đang chưa vững).",
+        f"Tuần 23/11–29/11: luyện thêm “{name(forming)}” (đang hình thành); học tiếp “{new[0][0]}”.",
+        f"Tuần 30/11–06/12: học tiếp “{new[1][0]}”; học tiếp “{new[2][0]}”.",
+        f"Tuần 07/12–13/12: học tiếp “{new[3][0]}”; học tiếp “{new[4][0]}”.",
+    ]
+
+
+def test_plan_new_skills_need_grade(conn):
+    world(conn)
+    sid = repo.add_student(conn, name="Em Mới", grade=None)
+    assert plan_items(conn, sid) == []  # no grade, no state: nothing to plan
+    conn.execute("UPDATE student SET grade = 8 WHERE id = ?", (sid,))
+    conn.execute("DELETE FROM kc_prereq")
+    held = conn.execute("SELECT id FROM kc WHERE lop = 8 AND parent_id IS NOT NULL ORDER BY id").fetchone()[0]
+    weak = conn.execute("SELECT id FROM kc WHERE lop = 9 AND parent_id IS NOT NULL ORDER BY id").fetchone()[0]
+    conn.execute("INSERT INTO kc_prereq (kc_id, prereq_id) VALUES (?, ?)", (held, weak))  # needs a weak prereq
+    set_theta(conn, sid, weak, -1.0)
+    expect = [  # hand-written: grade 8, a child skill, no state, every direct prereq at theta >= 0 (missing = 0)
+        n
+        for (n,) in conn.execute(
+            "SELECT name FROM kc WHERE lop = 8 AND parent_id IS NOT NULL AND id <> ? ORDER BY id", (held,)
+        )
+    ]
+    items = plan_items(conn, sid)
+    assert [i["why"] for i in items] == ["weak"] + ["new"] * 7
+    assert [i["kc"] for i in items[1:]] == expect[:7]
+    conn.execute("UPDATE student SET grade = NULL WHERE id = ?", (sid,))
+    assert [i["why"] for i in plan_items(conn, sid)] == ["weak"]
+
+
+def test_plan_fallback_line(conn):
+    w = world(conn)
+    sid = repo.add_student(conn, name="Em Mới", grade=None)
+    for (kc,) in conn.execute("SELECT id FROM kc").fetchall():
+        set_theta(conn, sid, kc, 1.0)
+    p = facts.plan(conn, sid, LATER, first_id=1)
+    assert [f["text"] for f in p["facts"]] == [NO_NEW]
+    assert p["facts"][0]["value"] == {"items": []} and p["facts"][0]["kind"] == "plan"
+    assert p["dates"] == []
+    conn.execute("DELETE FROM problem_kc")  # An has a repeat and a grade, but no skill has a graded problem
+    p = facts.plan(conn, w["an"], LATER, first_id=3)
+    assert [(f["fact_id"], f["text"]) for f in p["facts"]] == [("F03", NO_NEW)]
+
+
+def test_plan_lines_pass_audit(conn):
+    w = world(conn)
+    p = facts.plan(conn, w["an"], LATER, first_id=1)
+    days = [date.fromisoformat(d) for d in p["dates"]]
+    assert all(check_sentence(f["text"], [f], low=False, need_fact=True, dates=days) is None for f in p["facts"])
+
+
+def test_plan_dates_cross_year(conn):
+    w = world(conn)
+    p = facts.plan(conn, w["an"], date(2026, 12, 20), first_id=1)
+    assert p["title"] == "Lộ trình 4 tuần tới (21/12–17/01)"
+    assert p["facts"][3]["text"].startswith("Tuần 11/01–17/01: ")
+    days = [date.fromisoformat(d) for d in p["dates"]]
+    assert all(check_sentence(f["text"], [f], low=False, need_fact=True, dates=days) is None for f in p["facts"])

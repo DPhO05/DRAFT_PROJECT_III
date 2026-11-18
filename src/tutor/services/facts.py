@@ -9,6 +9,8 @@ from tutor.services import elo
 from tutor.services.students import _rows, score_10
 
 KINDS = ("day", "week", "month")
+PLAN_WEEKS = 4
+PLAN_PER_WEEK = 2
 # committed sessions of :sid held in [:lo, :hi]
 _IN = "s.student_id = :sid AND s.status = 'committed' AND s.held_on BETWEEN :lo AND :hi"
 
@@ -241,3 +243,79 @@ def report_facts(conn, student_id: int, kind: str, start: str, *, today: date, l
         "low": _rate(total) < low_pass_rate,
         "dates": sorted(dates),
     }
+
+
+_PLAN_TEXT = {
+    "repeat": "sửa lỗi “{error}” ở “{kc}” (đã gặp {n} lần)",
+    "prereq": "ôn nền “{kc}” (cần cho “{for}”)",
+    "weak": "củng cố “{kc}” (đang chưa vững)",
+    "forming": "luyện thêm “{kc}” (đang hình thành)",
+    "new": "học tiếp “{kc}”",
+}
+_PLAN_NONE = "Chưa tìm được kỹ năng nào cần ôn hay học tiếp có bài trong ngân hàng."
+
+
+def plan(conn, student_id: int, after: date, *, first_id: int) -> dict:
+    """The next PLAN_WEEKS weeks, from the Monday after `after`: `{title, facts, dates}`, a `plan` fact per week.
+
+    Skills in order: repeated mistake, weak, forming, new; each once, only those with a graded problem in the bank.
+    """
+    theta = dict(conn.execute("SELECT kc_id, theta FROM skill_state WHERE student_id = ?", (student_id,)))
+    banked = dict(
+        conn.execute(
+            "SELECT k.id, k.name FROM kc k WHERE EXISTS (SELECT 1 FROM problem_kc pk"
+            " JOIN rubric r ON r.problem_id = pk.problem_id WHERE pk.kc_id = k.id)"
+        )
+    )
+    items: list[dict] = []
+    seen: set[int] = set()
+
+    def add(kc: int, item: dict, *, prereqs: bool = False) -> None:
+        if kc not in banked or kc in seen:
+            return
+        if prereqs:
+            # shortcut: one level of prerequisites; add levels when the real graph (C22) has long paths
+            for (pre,) in conn.execute("SELECT prereq_id FROM kc_prereq WHERE kc_id = ? ORDER BY prereq_id", (kc,)):
+                if elo.level(theta.get(pre, 0.0)) != "vững":
+                    add(pre, {"why": "prereq", "for": banked[kc]})
+        seen.add(kc)
+        items.append({"kc": banked[kc]} | item)
+
+    for kc, error, n in conn.execute(
+        "SELECT l.kc_id, e.description, l.count FROM misconception_log l JOIN error_code e ON e.code = l.code"
+        " WHERE l.student_id = ? AND l.resolved_at IS NULL ORDER BY l.count DESC, l.last_seen DESC, l.kc_id, l.code",
+        (student_id,),
+    ):
+        add(kc, {"why": "repeat", "error": short_error(error), "n": n}, prereqs=True)
+    ranked = sorted(theta.items(), key=lambda t: (t[1], t[0]))
+    for level, why in (("chưa vững", "weak"), ("đang hình thành", "forming")):
+        for kc, th in ranked:
+            if elo.level(th) == level:
+                add(kc, {"why": why}, prereqs=why == "weak")
+    for (kc,) in conn.execute(
+        "SELECT k.id FROM kc k JOIN student s ON s.id = :sid AND s.grade = k.lop WHERE k.parent_id IS NOT NULL"
+        " AND k.id NOT IN (SELECT kc_id FROM skill_state WHERE student_id = :sid) AND NOT EXISTS"
+        " (SELECT 1 FROM kc_prereq p LEFT JOIN skill_state t ON t.student_id = :sid AND t.kc_id = p.prereq_id"
+        "  WHERE p.kc_id = k.id AND COALESCE(t.theta, 0) < 0) ORDER BY k.id",
+        {"sid": student_id},
+    ):
+        add(kc, {"why": "new"})
+
+    first = week_of(after) + timedelta(days=7)
+    title = f"Lộ trình {PLAN_WEEKS} tuần tới ({_dm(first)}–{_dm(first + timedelta(weeks=PLAN_WEEKS, days=-1))})"
+    items = items[: PLAN_WEEKS * PLAN_PER_WEEK]
+    if not items:
+        return {"title": title, "facts": [_plan_fact(first_id, {"items": []}, _PLAN_NONE)], "dates": []}
+    out, dates = [], []
+    for k in range(0, len(items), PLAN_PER_WEEK):
+        lo = first + timedelta(weeks=len(out))
+        hi = lo + timedelta(days=6)
+        mine = items[k : k + PLAN_PER_WEEK]
+        text = f"Tuần {_dm(lo)}–{_dm(hi)}: " + "; ".join(_PLAN_TEXT[i["why"]].format(**i) for i in mine) + "."
+        out.append(_plan_fact(first_id + len(out), {"from": lo.isoformat(), "to": hi.isoformat(), "items": mine}, text))
+        dates += [lo.isoformat(), hi.isoformat()]
+    return {"title": title, "facts": out, "dates": dates}
+
+
+def _plan_fact(n: int, val: dict, text: str) -> dict:
+    return {"fact_id": f"F{n:02d}", "kind": "plan", "value": val, "text": text}
