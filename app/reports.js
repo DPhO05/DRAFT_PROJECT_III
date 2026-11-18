@@ -4,8 +4,10 @@
 (function () {
   var C = window.CHAT, btn = U.btn, esc = U.nesc, wire = U.wire;
   var KIND = { day: 'Ngày', week: 'Tuần', month: 'Tháng' };
+  var NEED_SENT = 'Cần ít nhất một câu ở phần Nhận xét.', NEED_PLAN = 'Cần ít nhất một dòng ở phần Lộ trình.';
   var OPEN_BOX = 'Lưu hoặc bỏ câu đang sửa trước nhé.';
-  var ERR = { already_committed: 'Báo cáo này đã duyệt rồi.', undecided_items: 'Báo cáo cần ít nhất một câu.' };
+  var ERR = { already_committed: 'Báo cáo này đã duyệt rồi.', undecided_items: 'Báo cáo cần ít nhất một câu ở phần Nhận xét và một dòng ở phần Lộ trình.' };
+  var PART = { sentences: { word: 'Câu', add: '+ Thêm câu' }, plan: { word: 'Dòng', add: '+ Thêm dòng' } };
   var MAKE = '[data-act="rep-make"]';
   var BUSY = 'Báo cáo đang được xử lý. Thử lại sau giây lát.';
   var STALE = 'Có buổi mới được duyệt trong kỳ này. Bỏ bản nháp rồi tạo lại.';  // the one 409 text the server writes for the tutor (report.py check)
@@ -31,7 +33,7 @@
   function lab(kind, start) { return U.esc(label(kind, start)); }
   function active() { return students.filter(function (s) { return !s.archived_at; }); }
   function grade(id) { var s = students.find(function (x) { return x.id === id; }); return s && s.grade ? ' · lớp ' + s.grade : ''; }
-  function keyOf(el) { return el.id || [el.tagName, el.dataset.act, el.dataset.kind, el.dataset.tid, el.dataset.id, el.dataset.i].join('|'); }
+  function keyOf(el) { return el.id || [el.tagName, el.dataset.act, el.dataset.kind, el.dataset.tid, el.dataset.id, el.dataset.part, el.dataset.i].join('|'); }
   var IDS = 'F\\d\\d(?:\\s*,\\s*F\\d\\d)*', WORD = '[\\p{L}\\p{N}_]';
   var ID_MARK = new RegExp('\\s*(?:\\[' + IDS + '\\]|\\(' + IDS + '\\)|(?<!' + WORD + ')' + IDS + '(?!' + WORD + '))', 'gu');  // reporter.py _ID_MARK: [F01], (F01, F03), a bare F01
   function clean(t) { return t.replace(ID_MARK, '').replace(/\s+/g, ' ').trim(); }  // the server drops typed fact ids the same way (C-44)
@@ -121,32 +123,48 @@
   function head(r, chip) {
     return '<div class="spread"><div><div class="eyebrow">Báo cáo ' + lab(r.period_kind, r.period_start) + '</div><h2 id="rep-title" tabindex="-1">' + U.esc(U.who(r.student_id)) + grade(r.student_id) + '</h2></div>' + chip + '</div>';
   }
-  function flags(s) { return s.card.sentences.filter(function (x) { return x.flag; }).length; }
-  function sentRow(x, i) {
+  function flags(s) { return s.card.sentences.concat(s.card.plan || []).filter(function (x) { return x.flag; }).length; }
+  function planned(c) { return c.plan_title != null; }  // drafts made before the three parts have no plan_title
+  function sentRow(x, i, part) {
+    var w = PART[part].word.toLowerCase(), d = ' data-part="' + part + '" data-i="' + i + '"';
     return '<div class="sent"><p class="rep-text">' + (x.flag ? '<span class="uncheck">' + esc(x.text) + '</span>' : esc(x.text)) + '</p><div class="acts">' +
-      '<button type="button" class="btn btn-sm" data-act="sent-edit" data-i="' + i + '" aria-label="Sửa câu ' + (i + 1) + '">Sửa</button>' +
-      '<button type="button" class="btn btn-sm" data-act="sent-del" data-i="' + i + '" aria-label="Bỏ câu ' + (i + 1) + '">Bỏ</button></div>' +
+      '<button type="button" class="btn btn-sm" data-act="sent-edit"' + d + ' aria-label="Sửa ' + w + ' ' + (i + 1) + '">Sửa</button>' +
+      '<button type="button" class="btn btn-sm" data-act="sent-del"' + d + ' aria-label="Bỏ ' + w + ' ' + (i + 1) + '">Bỏ</button></div>' +
       (x.flag ? '<p class="uncheck-note">Cần xem lại: ' + esc(x.why) + '</p>' : '') + '</div>';
   }
-  function editRow(i, text) {
-    return '<div class="sent sent-edit"><label class="field"><span>Câu ' + (i + 1) + '</span><textarea rows="3" id="sent-' + i + '" autocomplete="off">' + U.esc(text) + '</textarea></label>' +
-      '<div class="row"><button type="button" class="btn btn-primary btn-sm" data-act="sent-save" data-i="' + i + '">Lưu câu</button>' +
-      '<button type="button" class="btn btn-sm" data-act="sent-cancel" data-i="' + i + '">Thôi</button></div></div>';
+  function editRow(part, i, text) {
+    var d = ' data-part="' + part + '" data-i="' + i + '"';
+    return '<div class="sent sent-edit"><label class="field"><span>' + PART[part].word + ' ' + (i + 1) + '</span><textarea rows="3" id="sent-' + part + '-' + i + '" autocomplete="off">' + U.esc(text) + '</textarea></label>' +
+      '<div class="row"><button type="button" class="btn btn-primary btn-sm" data-act="sent-save"' + d + '>Lưu ' + PART[part].word.toLowerCase() + '</button>' +
+      '<button type="button" class="btn btn-sm" data-act="sent-cancel"' + d + '>Thôi</button></div></div>';
+  }
+  function partHTML(s, part) {
+    var rows = s.card[part], e = s.edit && s.edit.part === part ? s.edit : null;
+    return '<div>' + rows.map(function (x, i) { return e && e.i === i ? editRow(part, i, e.text) : sentRow(x, i, part); }).join('') + (e && e.i === rows.length ? editRow(part, e.i, e.text) : '') + '</div>' +
+      '<div class="row">' + btn('sent-add', PART[part].add, 'data-part="' + part + '"') + '</div>';
   }
   function draftHTML(s) {
-    var rows = s.card.sentences, n = flags(s), e = s.edit, none = !rows.length;
+    var c = s.card, n = flags(s), none = !c.sentences.length, noPlan = planned(c) && !c.plan.length, off = none || noPlan, three = Array.isArray(c.sessions);
     return (n ? '<div class="callout callout-warn"><p>Có <b>' + n + ' câu cần xem lại</b> (gạch chân vàng). Sửa hoặc bỏ câu đó; vẫn duyệt được nếu thầy/cô thấy ổn.</p></div>'
       : none ? '<div class="callout callout-warn"><p>Bản nháp chưa có câu nào. Thêm câu, hoặc bỏ bản nháp rồi tạo lại.</p></div>'
       : '<div class="callout callout-ok"><p>Mọi câu đã khớp với dữ liệu đã duyệt.</p></div>') +
-      '<div>' + rows.map(function (x, i) { return e && e.i === i ? editRow(i, e.text) : sentRow(x, i); }).join('') + (e && e.i === rows.length ? editRow(e.i, e.text) : '') + '</div>' +
-      '<div class="row">' + btn('sent-add', '+ Thêm câu') + '</div>' +
+      (three ? '<section class="rep-part"><h3>Các buổi học trong kỳ</h3><p class="small muted">Lấy từ các buổi đã duyệt, không sửa ở đây.</p><ul class="rep-sessions">' +
+        c.sessions.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></section>' : '') +
+      '<section class="rep-part">' + (three ? '<h3>Nhận xét</h3>' : '') + partHTML(s, 'sentences') + '</section>' +
+      (planned(c) ? '<section class="rep-part"><h3>' + esc(c.plan_title) + '</h3>' + partHTML(s, 'plan') + '</section>' : '') +
       '<div class="spread">' + btn('rep-discard', 'Bỏ bản nháp', '', 'btn-ghost') + '<span class="btn-wrap"><button type="button" class="btn btn-primary" data-act="rep-approve"' +
-      (none ? ' disabled aria-describedby="rep-why"' : '') + '>Duyệt báo cáo</button>' + (none ? '<span class="reason" id="rep-why">Cần ít nhất một câu.</span>' : '') + '</span></div>' +
+      (off ? ' disabled aria-describedby="rep-why"' : '') + '>Duyệt báo cáo</button>' + (off ? '<span class="reason" id="rep-why">' + (none ? NEED_SENT : NEED_PLAN) + '</span>' : '') + '</span></div>' +
       '<p class="small muted">Chưa lưu vào hồ sơ cho tới khi bấm “Duyệt báo cáo”. Mỗi kỳ của một em chỉ duyệt một lần.</p>';
+  }
+  function secHTML(x, print) {  // Nhận xét and a section with no title read as a paragraph; the others as a list
+    var para = !x.title || x.title === 'Nhận xét', t = x.title ? '<h3>' + esc(x.title) + '</h3>' : '';
+    if (print) return t + (para ? x.lines.map(function (l) { return '<p>' + esc(l) + '</p>'; }) : ['<ul>' + x.lines.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>']).join('');
+    return '<section class="rep-part">' + t + (para ? '<p class="rep-text">' + x.lines.map(function (l) { return '<span class="rep-s">' + esc(l) + '</span>'; }).join(' ') + '</p>'
+      : '<ul class="rep-sessions">' + x.lines.map(function (l) { return '<li class="rep-text">' + esc(l) + '</li>'; }).join('') + '</ul>') + '</section>';
   }
   function approvedHTML(r) {
     return '<article class="rep-doc is-approved" aria-label="Báo cáo">' + head(r, '<span class="chip chip-ok">Đã duyệt ' + U.esc(U.d(local(r.approved_at))) + '</span>') +
-      '<p class="rep-text">' + r.sentences.map(function (t) { return '<span class="rep-s">' + esc(t) + '</span>'; }).join(' ') + '</p>' +
+      r.sections.map(function (x) { return secHTML(x, false); }).join('') +
       '<div class="row"><button type="button" class="btn btn-primary" data-act="rep-pdf">Tải PDF</button></div></article>';
   }
   function docHTML(s) {
@@ -234,13 +252,22 @@
   }
 
   // ---- writes: PUT the whole list; resume only from Duyệt báo cáo and Thử lại ----
-  function plain(s) { return s.card.sentences.map(function (x) { return { text: x.text, facts: x.facts }; }); }
-  function save(s, rows) {
-    return U.api.send('PUT', path(s, '/decisions'), { sentences: rows }).then(function (r) {
-      s.card = Object.assign({}, s.card, { sentences: rows.map(function (x, i) {
-        var a = r.audit[i] || {};
-        return { text: clean(x.text), facts: x.facts, flag: a.flag || null, why: a.why || null };
-      }) });
+  function plain(s) {
+    var strip = function (x) { return { text: x.text, facts: x.facts }; }, b = { sentences: s.card.sentences.map(strip) };
+    if (planned(s.card)) b.plan = s.card.plan.map(strip);
+    return b;
+  }
+  function audited(rows, audit) {
+    return rows.map(function (x, i) {
+      var a = audit[i] || {};
+      return { text: clean(x.text), facts: x.facts, flag: a.flag || null, why: a.why || null };
+    });
+  }
+  function save(s, body) {
+    return U.api.send('PUT', path(s, '/decisions'), body).then(function (r) {
+      var c = { sentences: audited(body.sentences, r.audit) };
+      if (body.plan) c.plan = audited(body.plan, r.audit_plan || []);
+      s.card = Object.assign({}, s.card, c);
       return r;
     });
   }
@@ -253,47 +280,47 @@
     if (cur === s && e.status === 409 && e.code === 'already_committed' && id != null) openDoc(id, true);  // approved elsewhere: show that report (like rep-make)
     else drawDoc(s);
   }
-  function change(s, rows, focusSel, after) {
+  function change(s, body, focusSel, after) {
     s.busy = true;
-    save(s, rows).then(function () { s.busy = false; if (after) after(); drawDoc(s, focusSel); }, function (e) { s.busy = false; fail(s, e); });
+    save(s, body).then(function () { s.busy = false; if (after) after(); drawDoc(s, focusSel); }, function (e) { s.busy = false; fail(s, e); });
   }
-  function nextSel(n, i) { return i < n ? '[data-act="sent-edit"][data-i="' + i + '"]' : '[data-act="sent-add"]'; }
+  function nextSel(part, n, i) { return i < n ? '[data-act="sent-edit"][data-part="' + part + '"][data-i="' + i + '"]' : '[data-act="sent-add"][data-part="' + part + '"]'; }
 
   ACT['sent-edit'] = function (el) {
-    var s = cur, i = +el.dataset.i;
+    var s = cur, i = +el.dataset.i, part = el.dataset.part;
     if (!s || s.busy) return;
     if (s.edit) { U.toast(OPEN_BOX, 'warn'); return; }  // a second box would drop the typed text
-    s.edit = { i: i, text: U.names(s.card.sentences[i].text) };
-    drawDoc(s, '#sent-' + i);
+    s.edit = { part: part, i: i, text: U.names(s.card[part][i].text) };
+    drawDoc(s, '#sent-' + part + '-' + i);
   };
-  ACT['sent-add'] = function () {
-    var s = cur;
+  ACT['sent-add'] = function (el) {
+    var s = cur, part = el.dataset.part;
     if (!s || s.busy) return;
     if (s.edit) { U.toast(OPEN_BOX, 'warn'); return; }
-    s.edit = { i: s.card.sentences.length, text: '' };
-    drawDoc(s, '#sent-' + s.edit.i);
+    s.edit = { part: part, i: s.card[part].length, text: '' };
+    drawDoc(s, '#sent-' + part + '-' + s.edit.i);
   };
   ACT['sent-cancel'] = function (el) {
-    var s = cur;
+    var s = cur, part = el.dataset.part;
     s.edit = null;
-    drawDoc(s, nextSel(s.card.sentences.length, +el.dataset.i));
+    drawDoc(s, nextSel(part, s.card[part].length, +el.dataset.i));
   };
   ACT['sent-save'] = function (el) {
-    var s = cur, i = +el.dataset.i, box = $('sent-' + i);
+    var s = cur, i = +el.dataset.i, part = el.dataset.part, box = $('sent-' + part + '-' + i);
     if (!s || s.busy || !box) return;
-    var rows = plain(s), t = wire(box.value.trim()), added = i >= rows.length;
+    var body = plain(s), rows = body[part], t = wire(box.value.trim()), added = i >= rows.length;
     if (!t && added || !added && t === rows[i].text) { ACT['sent-cancel'](el); return; }  // an empty new box, or nothing changed
     if (!t) rows.splice(i, 1);
     else if (added) rows.push({ text: t, facts: [] });
     else rows[i] = { text: t, facts: rows[i].facts };
-    change(s, rows, nextSel(rows.length, i), function () { s.edit = null; });
+    change(s, body, nextSel(part, rows.length, i), function () { s.edit = null; });
   };
   ACT['sent-del'] = function (el) {
-    var s = cur, i = +el.dataset.i, rows = s && plain(s), e = s && s.edit;
+    var s = cur, i = +el.dataset.i, part = el.dataset.part, body = s && plain(s), e = s && s.edit;
     if (!s || s.busy) return;
-    rows.splice(i, 1);
-    change(s, rows, nextSel(rows.length, i), function () {  // an open box moves with its sentence, or goes with it
-      if (e && e === s.edit) { if (e.i === i) s.edit = null; else if (e.i > i) e.i--; }
+    body[part].splice(i, 1);
+    change(s, body, nextSel(part, body[part].length, i), function () {  // an open box moves with its line, or goes with it
+      if (e && e === s.edit && e.part === part) { if (e.i === i) s.edit = null; else if (e.i > i) e.i--; }
     });
   };
   ACT['rep-approve'] = function () {
@@ -330,7 +357,7 @@
     var r = cur && cur.rep;
     if (!r) return;
     U.print('<h1>Báo cáo ' + lab(r.period_kind, r.period_start) + ' · ' + U.esc(U.who(r.student_id)) + '</h1>' +
-      '<p class="p-meta">Gia sư Toán · duyệt ngày ' + U.esc(U.d(local(r.approved_at))) + '</p>' + r.sentences.map(function (t) { return '<p>' + esc(t) + '</p>'; }).join(''), 'báo cáo');
+      '<p class="p-meta">Gia sư Toán · duyệt ngày ' + U.esc(U.d(local(r.approved_at))) + '</p>' + r.sections.map(function (x) { return secHTML(x, true); }).join(''), 'báo cáo');
   };
 
   // ---- the form ----

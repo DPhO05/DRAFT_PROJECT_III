@@ -68,7 +68,7 @@ Nếu Terminal hiện lỗi, chụp màn hình gửi người cài.
 1. Mở tab **Báo cáo**.
 2. Chọn em, chọn kỳ **Ngày**, **Tuần** hoặc **Tháng**, rồi chọn buổi, tuần hoặc tháng cụ thể.
 3. Bấm **Tạo báo cáo**. Chờ bản nháp hiện ở mục **Bản nháp chờ duyệt**.
-4. Câu gạch chân vàng cần xem lại. Bấm **Sửa** hoặc **Bỏ** ở câu đó. Bấm **+ Thêm câu** để thêm.
+4. Báo cáo có 3 phần: **Các buổi học trong kỳ**, **Nhận xét** và **Lộ trình**. Phần Các buổi học lấy từ các buổi đã duyệt, không sửa được. Phần Nhận xét và phần Lộ trình sửa giống nhau: câu gạch chân vàng cần xem lại, bấm **Sửa** hoặc **Bỏ** ở câu đó, bấm **+ Thêm câu** hoặc **+ Thêm dòng** để thêm. Mỗi phần cần còn ít nhất một câu thì mới duyệt được.
 5. Bấm **Duyệt báo cáo**. Chưa bấm thì chưa lưu vào hồ sơ. Mỗi kỳ của một em chỉ duyệt một lần.
 6. Sau khi duyệt, bấm **Tải PDF** để lấy bản PDF.
 7. Không dùng bản nháp nữa thì bấm **Bỏ bản nháp**.

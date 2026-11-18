@@ -2116,7 +2116,7 @@ REP_WAITING = "(bài 23/10 còn chờ duyệt)"
 REP_BUSY = "Báo cáo đang được xử lý. Thử lại sau giây lát."
 REP_STALE = "Có buổi mới được duyệt trong kỳ này. Bỏ bản nháp rồi tạo lại."
 REP_GONE = "Việc này đã xong"
-REP_NEED_ONE = "Cần ít nhất một câu."
+REP_NEED_ONE = "Cần ít nhất một câu ở phần Nhận xét."
 REP_FACTS, REP_FACTS_CLEAN = "Em làm tốt (F01, F03) và F02 rất đều.", "Em làm tốt và rất đều."
 REP_TYPED = "câu gõ dở chưa lưu"
 REP_FAILED_CHIP = "chưa làm xong"
@@ -2130,10 +2130,12 @@ JS_REP_FORM = "() => !!document.getElementById('rep-student') && !!document.getE
 JS_REP_OPT = 'v => !!document.querySelector(`#rep-start option[value="${v}"]`)'
 JS_REP_DRAFT = "n => document.querySelectorAll('#rep-doc .rep-doc.is-draft .sent').length >= n"
 JS_REP_DONE = "() => !!document.querySelector('#rep-doc .rep-doc.is-approved')"
-JS_REP_BOX = "i => !!document.getElementById('sent-' + i)"
-JS_NO_BOX = "i => !document.getElementById('sent-' + i)"
+JS_PLAN_BOX = "i => !!document.getElementById('sent-plan-' + i)"
+JS_REP_BOX = "i => !!document.getElementById('sent-sentences-' + i)"
+JS_NO_BOX = "i => !document.getElementById('sent-sentences-' + i)"
 JS_REP_ROWS = (
-    "n => !document.getElementById('sent-' + (n - 1)) && document.querySelectorAll('#rep-doc .sent').length >= n"
+    "n => !document.getElementById('sent-sentences-' + (n - 1))"
+    " && document.querySelectorAll('#rep-doc .sent:has([data-part=\"sentences\"])').length >= n"
 )
 JS_REP_FLAGS = "() => document.querySelectorAll('#rep-doc .sent .uncheck').length"
 JS_REP_COLS = "() => getComputedStyle(document.querySelector('.rep-layout')).gridTemplateColumns.split(' ').length"
@@ -2145,7 +2147,7 @@ JS_REP_NAME = """n => { const s = document.getElementById('rep-student');
 JS_REP_KIND_FOCUS = "() => document.activeElement?.dataset?.act === 'rep-kind'"
 JS_FOCUS_ACT = "a => document.activeElement?.dataset?.act === a"
 JS_REP_ITEM_HAS = 'a => !!document.querySelector(`.rep-item[data-tid="${a[0]}"]`)?.innerText.includes(a[1])'
-JS_REP_BOX_TEXT = "i => document.getElementById('sent-' + i)?.value ?? null"
+JS_REP_BOX_TEXT = "i => document.getElementById('sent-sentences-' + i)?.value ?? null"
 JS_TOASTS_CLEAR = "() => { document.getElementById('toasts').innerHTML = ''; }"
 REP_POLL = re.compile(r"/api/threads/[^/?]+\?view=teacher$")
 REP_LIST = re.compile(r"/api/reports$")
@@ -2211,17 +2213,26 @@ def rep_make(page, rep: dict, phone: bool) -> bool:
 def rep_edit(page, rep: dict, reqs: list, phone: bool) -> bool:
     """Sửa câu 1 (a number the data lacks), + Thêm câu (two kinds); an open box holds Duyệt báo cáo back."""
     tid = page.get_attribute("#rep-doc .rep-doc", "data-thread")
-    sent = "#rep-doc .sent"
-    press(page, rep, '[data-act="sent-edit"][data-i="0"]', "report Sửa câu 1", JS_REP_BOX, 0)
-    page.fill("#sent-0", page.input_value("#sent-0") + " 45 lần")
-    press(page, rep, '[data-act="sent-save"][data-i="0"]', "report Lưu câu 1", JS_REP_HAS, REP_45)
+    sent = '#rep-doc .sent:has([data-part="sentences"])'
+    press(page, rep, '[data-act="sent-edit"][data-part="sentences"][data-i="0"]', "report Sửa câu 1", JS_REP_BOX, 0)
+    page.fill("#sent-sentences-0", page.input_value("#sent-sentences-0") + " 45 lần")
+    press(
+        page, rep, '[data-act="sent-save"][data-part="sentences"][data-i="0"]', "report Lưu câu 1", JS_REP_HAS, REP_45
+    )
     if page.locator(f"{sent} >> nth=0").locator(".uncheck").count() != 1:
         rep["missing"].append("report edit: sentence 1 is not underlined after 45")
     for text in (REP_ADDED, REP_FACTS, REP_CODED):
         n = page.locator(sent).count()
-        press(page, rep, '[data-act="sent-add"]', "report + Thêm câu", JS_REP_BOX, n)
-        page.fill(f"#sent-{n}", text)
-        press(page, rep, f'[data-act="sent-save"][data-i="{n}"]', "report Lưu câu mới", JS_REP_ROWS, n + 1)
+        press(page, rep, '[data-act="sent-add"][data-part="sentences"]', "report + Thêm câu", JS_REP_BOX, n)
+        page.fill(f"#sent-sentences-{n}", text)
+        press(
+            page,
+            rep,
+            f'[data-act="sent-save"][data-part="sentences"][data-i="{n}"]',
+            "report Lưu câu mới",
+            JS_REP_ROWS,
+            n + 1,
+        )
         if text == REP_FACTS and (REP_FACTS_CLEAN not in (now := page.inner_text("#rep-doc")) or FACT_ID.search(now)):
             rep["missing"].append(
                 f"report edit: typed fact ids are on screen right after Lưu câu (C-44): {now[-90:]!r}"
@@ -2239,26 +2250,79 @@ def rep_edit(page, rep: dict, reqs: list, phone: bool) -> bool:
     if any(s["text"] != s["text"].strip() or "[F" in s["text"] for b in put for s in b["sentences"]):
         rep["missing"].append("report edit: a PUT carries a loose or [F sentence")
     seen = resumes(reqs, tid)
-    press(page, rep, '[data-act="sent-edit"][data-i="1"]', "report Sửa câu 2", JS_REP_BOX, 1)
+    press(page, rep, '[data-act="sent-edit"][data-part="sentences"][data-i="1"]', "report Sửa câu 2", JS_REP_BOX, 1)
     press(page, rep, APPROVE, "report Duyệt khi ô sửa mở", JS_TOAST_HAS, REP_OPEN_BOX)
     page.wait_for_timeout(500)
     if (n := resumes(reqs, tid) - seen) != 0:
         rep["missing"].append(f"report edit: Duyệt báo cáo over an open box sent {n} resumes, want 0")
-    press(page, rep, '[data-act="sent-cancel"][data-i="1"]', "report Thôi", JS_NO_BOX, 1)
-    press(page, rep, '[data-act="sent-edit"][data-i="0"]', "report Sửa câu 1 lần nữa", JS_REP_BOX, 0)
-    page.fill("#sent-0", REP_TYPED)
+    press(page, rep, '[data-act="sent-cancel"][data-part="sentences"][data-i="1"]', "report Thôi", JS_NO_BOX, 1)
+    press(
+        page,
+        rep,
+        '[data-act="sent-edit"][data-part="sentences"][data-i="0"]',
+        "report Sửa câu 1 lần nữa",
+        JS_REP_BOX,
+        0,
+    )
+    page.fill("#sent-sentences-0", REP_TYPED)
     for act, i in (("sent-edit", 1), ("sent-add", None)):  # another box never replaces the open one
         page.evaluate(JS_TOASTS_CLEAR)
-        sel = f'[data-act="{act}"]' + (f'[data-i="{i}"]' if i is not None else "")
+        sel = f'[data-act="{act}"][data-part="sentences"]' + (f'[data-i="{i}"]' if i is not None else "")
         press(page, rep, sel, f"report {act} khi ô sửa mở", JS_TOAST_HAS, REP_OPEN_BOX)
         if (kept := page.evaluate(JS_REP_BOX_TEXT, 0)) != REP_TYPED or page.locator("#rep-doc textarea").count() != 1:
             rep["missing"].append(f"report edit: {act} over an open box left {kept!r} in box 1, want {REP_TYPED!r}")
-    press(page, rep, '[data-act="sent-cancel"][data-i="0"]', "report Thôi câu 1", JS_NO_BOX, 0)
+    press(page, rep, '[data-act="sent-cancel"][data-part="sentences"][data-i="0"]', "report Thôi câu 1", JS_NO_BOX, 0)
     for _ in range(3):  # a box the bug left open must not hold Duyệt báo cáo back
         if page.locator("#rep-doc textarea").count():
             page.click('#rep-doc [data-act="sent-cancel"] >> nth=0')
     see_rep(page, rep, "report edited", phone)
     return True
+
+
+REP_PARTS = ["Các buổi học trong kỳ", "Nhận xét"]  # the third title is the draft's own plan_title (Lộ trình …)
+REP_PLAN_EDIT = "Tuần 16/11–22/11: làm 45 bài."
+REP_PLAN_AGAIN = "Tuần 16/11–22/11: ôn lại bài cũ."
+REP_NEED_PLAN = "Cần ít nhất một dòng ở phần Lộ trình."
+PLAN = '#rep-doc .rep-part:has(h3:text-matches("^Lộ trình"))'
+JS_REP_H3 = "r => [...document.querySelectorAll(r + ' h3')].map(h => h.innerText.trim())"
+JS_PLAN_DELS = 'n => document.querySelectorAll(\'#rep-doc [data-act="sent-del"][data-part="plan"]\').length === n'
+
+
+def parts_ok(rep: dict, where: str, titles: list) -> None:
+    if len(titles) != 3 or titles[:2] != REP_PARTS or not titles[2].startswith("Lộ trình"):
+        rep["missing"].append(f"{where}: the headings are {titles}, want {REP_PARTS} and a Lộ trình title")
+
+
+@counted()
+def rep_plan(page, rep: dict, reqs: list) -> None:
+    """The draft has 3 parts; Các buổi học has no Sửa / Bỏ; a Lộ trình line is edited, all removed (Duyệt off), added back."""
+    tid = page.get_attribute("#rep-doc .rep-doc", "data-thread")
+    parts_ok(rep, "report draft", page.evaluate(JS_REP_H3, "#rep-doc .rep-doc"))
+    if "Lấy từ các buổi đã duyệt, không sửa ở đây." not in page.inner_text("#rep-doc"):
+        rep["missing"].append("report plan: the Các buổi học part lacks its read-only note")
+    if page.locator("#rep-doc .rep-part:first-of-type [data-act^=sent-]").count():
+        rep["missing"].append("report plan: the Các buổi học part has a Sửa / Bỏ / Thêm button")
+    n = page.locator(f"{PLAN} .sent").count()
+    if not n:
+        rep["missing"].append("report plan: the Lộ trình part has no line")
+        return
+    edit = '[data-act="sent-{}"][data-part="plan"]'
+    press(page, rep, edit.format("edit") + '[data-i="0"]', "report Sửa dòng 1", JS_PLAN_BOX, 0)
+    page.fill("#sent-plan-0", REP_PLAN_EDIT)
+    press(page, rep, edit.format("save") + '[data-i="0"]', "report Lưu dòng 1", JS_REP_HAS, REP_PLAN_EDIT)
+    if page.locator(f"{PLAN} .sent >> nth=0").locator(".uncheck").count() != 1:
+        rep["missing"].append("report plan: line 1 is not underlined after 45")
+    if (put := sent_puts(reqs, tid)[-1]).get("plan", [{}])[0].get("text") != REP_PLAN_EDIT:
+        rep["missing"].append(f"report plan: the last PUT carries {put.get('plan')}, want the edited line first")
+    for k in range(n):
+        press(page, rep, f"{PLAN} " + '[data-act="sent-del"] >> nth=0', "report Bỏ dòng", JS_PLAN_DELS, n - k - 1)
+    expect(page, rep, JS_OFF, "report plan: Duyệt báo cáo stayed on with no Lộ trình line", APPROVE)
+    if REP_NEED_PLAN not in page.inner_text("#rep-doc") or sent_puts(reqs, tid)[-1].get("plan") != []:
+        rep["missing"].append(f"report plan: want '{REP_NEED_PLAN}' and a last PUT with an empty plan")
+    press(page, rep, '[data-act="sent-add"][data-part="plan"]', "report + Thêm dòng", JS_PLAN_BOX, 0)
+    page.fill("#sent-plan-0", REP_PLAN_AGAIN)
+    press(page, rep, edit.format("save") + '[data-i="0"]', "report Lưu dòng mới", JS_REP_HAS, REP_PLAN_AGAIN)
+    expect(page, rep, JS_ON, "report plan: Duyệt báo cáo stayed off with a Lộ trình line", APPROVE)
 
 
 @counted(commit=("report",))
@@ -2281,6 +2345,7 @@ def rep_approve(page, rep: dict, data_dir: str, reqs: list, phone: bool) -> bool
         rep["missing"].append("report approve: Duyệt should PUT the sentences once, then resume")
     if "Tải PDF" not in page.inner_text("#rep-doc"):
         rep["missing"].append("report approve: no Tải PDF")
+    parts_ok(rep, "report approved", page.evaluate(JS_REP_H3, "#rep-doc .rep-doc"))
     see_rep(page, rep, "report approved", phone)
     return True
 
@@ -2297,6 +2362,7 @@ def rep_pdf(page, rep: dict, phone: bool) -> None:
     rep["missing"] += [f"report pdf: the print page lacks '{s}'" for s in sents if s not in text]
     if "[F" in text or HS_CODE.search(text):
         rep["missing"].append(f"report pdf: the print page holds [F or a student code: {text[:200]!r}")
+    parts_ok(rep, "report pdf", page.evaluate(JS_REP_H3, "#print-root"))
     if "Báo cáo ngày 20/10/2026" not in text or "duyệt ngày" not in text:
         rep["missing"].append("report pdf: want the period and 'duyệt ngày' on the print page")
 
@@ -2550,6 +2616,7 @@ def walk_reports(page, rep: dict, phone: bool, data_dir: str, root: str) -> None
         return
     if not rep_make(page, rep, phone) or not rep_edit(page, rep, reqs, phone):
         return
+    rep_plan(page, rep, reqs)
     rep_refused(page, rep, reqs)
     if not rep_approve(page, rep, data_dir, reqs, phone):
         return
