@@ -73,11 +73,13 @@ def test_create_poll_edit_approve(env):
     )
     assert (c["n_flagged"], c["report_id"]) == (0, None)
     assert c["sentences"] and all(s["flag"] is None and s["facts"] for s in c["sentences"])
+    assert c["sessions"] and c["plan"] and c["plan_title"]
     got = put(client, tid, [{"text": "Em làm 45 bài.", "facts": []}])
     assert got.json() == {
         "saved": True,
         "pending": 0,
         "audit": [{"i": 0, "flag": "number", "why": "Số “45” không có trong dữ liệu đã duyệt."}],
+        "audit_plan": [{"i": i, "flag": None, "why": None} for i in range(len(c["plan"]))],
     }
     assert card(client, tid, "draft")["n_flagged"] == 1  # Review Focus 1: flagged, approval still allowed
     done = approve(client, tid)
@@ -149,7 +151,8 @@ def test_put_refusals(env):
         r = put(client, tid, bad)
         assert (r.status_code, r.json()["error"]["code"]) == (422, "validation_error")
     assert card(client, tid, "draft")["sentences"] == shown  # a refused answer is not stored
-    assert put(client, tid, []).json() == {"saved": True, "pending": 1, "audit": []}  # nothing left to approve
+    assert put(client, tid, []).json() == {"saved": True, "pending": 1, "audit": [], "audit_plan": [
+        {"i": i, "flag": None, "why": None} for i in range(len(card(client, tid, "draft")["plan"]))]}  # fmt: skip
     assert client.post(f"/api/threads/{tid}/resume", headers=W).json()["error"]["code"] == "undecided_items"
     assert put(client, tid, [{"text": "Em cố gắng.", "facts": []}]).json()["pending"] == 0
     approve(client, tid)
@@ -192,11 +195,11 @@ def test_card_no_tech_text(env):
     edited = card(client, tid, "draft")
     assert [s["flag"] for s in edited["sentences"]] == ["number", "percent"]
     for c in (fresh, edited):
-        shown = {k: v for k, v in c.items() if k != "sentences"} | {
-            "sentences": [{k: v for k, v in s.items() if k != "facts"} for s in c["sentences"]]
-        }
+        lines = {p: [{k: v for k, v in s.items() if k != "facts"} for s in c[p]] for p in ("sentences", "plan")}
+        shown = {k: v for k, v in c.items() if k not in lines} | lines
+        assert c["sessions"] and c["plan"] and c["plan_title"]
         assert not FORBIDDEN.search(json.dumps(shown, ensure_ascii=False)), shown
-        assert not re.search(r"\bF\d\d\b", json.dumps(shown["sentences"], ensure_ascii=False))
+        assert not re.search(r"\bF\d\d\b", json.dumps([lines, c["sessions"]], ensure_ascii=False))
 
 
 def test_card_stages(env):
@@ -205,6 +208,7 @@ def test_card_stages(env):
     _, tid = start(client, w["an"])
     c = card(client, tid, "failed")  # no draft yet: words only
     assert (c["report_id"], c["sentences"], c["n_flagged"]) == (None, [], 0)
+    assert (c["sessions"], c["plan_title"], c["plan"]) == ([], None, [])
     assert (c["student_id"], c["period_kind"], c["period_start"]) == (w["an"], "week", "2026-10-12")
     assert "boom" not in json.dumps(c)
     assert c["error_words"] == "Gặp lỗi không lường trước."

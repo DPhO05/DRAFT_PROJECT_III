@@ -18,7 +18,7 @@ from tutor.api import errors
 from tutor.db import repo
 from tutor.graphs import report, session
 from tutor.graphs.registry import make_runner
-from tutor.graphs.runner import AlreadyCommitted, NotResumable
+from tutor.graphs.runner import AlreadyCommitted, NotResumable, UndecidedItems
 from tutor.services import facts
 
 TODAY = date(2026, 10, 21)
@@ -89,8 +89,9 @@ def test_approve_writes_report_and_md(g5, paths):
     assert f == paths.out / "baocao-HS-01-week-2026-10-12.md"
     assert f.read_text(encoding="utf-8") == md  # P7-T06: the approved .md = report.text_md
     audit = json.loads(audit)
-    assert set(audit) == {"writer", "approved"} and audit["writer"] == r.state(tid)["draft"]["audit"]
+    assert set(audit) == {"writer", "approved", "approved_plan"} and audit["writer"] == r.state(tid)["draft"]["audit"]
     assert audit["approved"][0] == {"i": 0, "flag": None, "why": None}
+    assert audit["approved_plan"] and all(a["flag"] is None for a in audit["approved_plan"])
     receipt = r.state(tid)["receipt"]
     assert repo.report_for(conn, sid, "week", "2026-10-12") == {"id": receipt["report_id"],
                                                                 "approved_at": receipt["approved_at"]}  # fmt: skip
@@ -318,6 +319,7 @@ def test_readers_work_before_the_worker_runs(g5, paths, monkeypatch):
     assert report.card(row, state) == {
         "kind": "report", "stage": "writing", "student_id": sid, **WEEK,
         "n_flagged": 0, "report_id": None, "error_words": None, "sentences": [],
+        "sessions": [], "plan_title": None, "plan": [],
     }  # fmt: skip
     assert report.reminder(row, state) == {
         "kind": "report", "thread_id": tid, "student_id": sid, **WEEK, "words": "chưa làm xong",
@@ -330,3 +332,119 @@ def test_readers_work_before_the_worker_runs(g5, paths, monkeypatch):
     (got,) = report.drafts(r, sid)
     assert (got["thread_id"], got["status"], got["n_flagged"]) == (tid, "failed", 0)
     assert (got["period_kind"], got["period_start"]) == (WEEK["period_kind"], WEEK["period_start"])
+
+
+def _plan_state(paths, r, sid):
+    tid = draft(paths, r, sid)["thread_id"]
+    return tid, r.state(tid), report.card(r.get(tid), r.state(tid))
+
+
+def test_draft_has_three_parts(g5, paths):
+    """Part (a) from the session facts, (c) from facts.plan; 09 sees no plan line (C-40, spec 4.4)."""
+    r, conn, fake, sid = g5
+    n = conn.execute("SELECT count(*) FROM session WHERE student_id = ? AND status = 'committed'"
+                     " AND held_on BETWEEN '2026-10-12' AND '2026-10-18'", (sid,)).fetchone()[0]  # fmt: skip
+    tid, state, c = _plan_state(paths, r, sid)
+    assert n == 1 and len(c["sessions"]) == n and c["plan"]
+    assert c["plan_title"] == "Lộ trình 4 tuần tới (26/10–22/11)"  # the Monday after TODAY, not after 18/10
+    assert all(s["flag"] is None and s["facts"] for s in c["plan"]) and c["n_flagged"] == 0
+    d = state["draft"]
+    by_id = {f["fact_id"]: f for f in d["facts"]}
+    assert len(by_id) == len(d["facts"]) and [s["text"] for s in d["sessions"]] == c["sessions"]
+    assert [by_id[s["facts"][0]]["kind"] for s in d["sessions"]] == ["session"] * n
+    plan = [f for f in d["facts"] if f["kind"] == "plan"]
+    assert [p["text"] for p in d["plan"]] == [f["text"] for f in plan] and d["plan_title"] == c["plan_title"]
+    assert d["facts"][-len(plan) :] == plan and [p["facts"] for p in d["plan"]] == [[f["fact_id"]] for f in plan]
+    assert {"2026-10-26", "2026-11-01"} <= set(d["dates"])  # week 1 bounds: the audit lets its dates through
+    (call,) = [x for x in fake.calls if x["agent"] == "09"]
+    assert not any(f["text"] in call["user"] for f in plan) and "Lộ trình" not in call["user"]
+    assert any(f["text"] in call["user"] for f in d["facts"] if f["kind"] == "session")  # (a) still reaches 09
+
+
+def test_plan_edits_reaudited(g5, paths):
+    r, _, _, sid = g5
+    tid, state, c = _plan_state(paths, r, sid)
+    plain = [{"text": s["text"], "facts": s["facts"]} for s in c["sentences"]]
+    week = state["draft"]["plan"][0]["text"].split(":")[0]
+    pid = state["draft"]["plan"][0]["facts"][0]
+    got = report.save(r, tid, {"sentences": plain, "plan": [{"text": f"{week}: làm 45 bài.", "facts": [pid]}]})
+    assert got["pending"] == 0 and [a["flag"] for a in got["audit"]] == [None] * len(plain)
+    assert [(a["i"], a["flag"]) for a in got["audit_plan"]] == [(0, "number")]
+    assert got["audit_plan"][0]["why"] == "Số “45” không có trong dữ liệu đã duyệt."
+    shown = report.card(r.get(tid), r.state(tid))
+    assert [p["text"] for p in shown["plan"]] == [f"{week}: làm 45 bài."] and shown["n_flagged"] == 1
+    with pytest.raises(ValueError):
+        report.save(r, tid, {"sentences": plain, "plan": "x"})
+    assert report.card(r.get(tid), r.state(tid))["n_flagged"] == 1  # a refused answer is not stored
+
+
+def test_plan_missing_keeps_draft_plan(g5, paths):
+    r, _, _, sid = g5
+    tid, state, c = _plan_state(paths, r, sid)
+    got = report.save(r, tid, {"sentences": [{"text": "Em cố gắng.", "facts": []}]})
+    assert got["pending"] == 0 and got["audit_plan"] == [{"i": i, "flag": None, "why": None}
+                                                         for i in range(len(c["plan"]))]  # fmt: skip
+    card = report.card(r.get(tid), r.state(tid))
+    assert [p["text"] for p in card["plan"]] == [p["text"] for p in state["draft"]["plan"]]
+    row = approve(r, tid)
+    assert row["status"] == "committed", row["error"]
+
+
+def test_empty_plan_stays_undecided(g5, paths):
+    r, _, _, sid = g5
+    tid, _, _ = _plan_state(paths, r, sid)
+    got = report.save(r, tid, {"sentences": [{"text": "Em cố gắng.", "facts": []}], "plan": []})
+    assert got["pending"] == 1 and got["audit_plan"] == []
+    with pytest.raises(UndecidedItems):
+        r.resume(tid)
+    report.save(
+        r, tid, {"sentences": [{"text": "Em cố gắng.", "facts": []}], "plan": [{"text": "Ôn bài.", "facts": []}]}
+    )
+    row = approve(r, tid)
+    assert row["status"] == "committed", row["error"]
+
+
+def test_plan_edit_survives_approval(g5, paths, conn):
+    """The approved plan is audited like the live one; its facts reach facts_json."""
+    r, _, _, sid = g5
+    tid, state, _ = _plan_state(paths, r, sid)
+    pid = state["draft"]["plan"][0]["facts"]
+    mine = [{"text": "Em ôn lại 99 bài.", "facts": pid}]
+    report.save(r, tid, {"sentences": [{"text": "Em cố gắng.", "facts": []}], "plan": mine})
+    assert approve(r, tid)["status"] == "committed"
+    audit = json.loads(rows(conn)[0][4])
+    assert [(a["i"], a["flag"]) for a in audit["approved_plan"]] == [(0, "number")]
+    kinds = {f["kind"] for f in json.loads(conn.execute("SELECT facts_json FROM report").fetchone()[0])}
+    assert {"session", "plan"} <= kinds
+
+
+def test_old_draft_without_parts(paths):
+    """Review Focus 1: a draft made before the three parts has no sessions/plan: it reads as before."""
+    state = {"period_kind": "week", "period_start": "2026-10-12", "today": "2026-10-21",
+             "draft": {"facts": [], "dates": [], "low": False, "audit": [],
+                       "sentences": [{"text": "Em cố gắng.", "facts": []}]}}  # fmt: skip
+    row = {"status": "awaiting_review", "student_id": 1, "decisions_json": None}
+    pend = report.pending(paths)
+    assert pend(state, None, "gate_report") == 0
+    assert pend(state, {"sentences": [{"text": "Em ổn.", "facts": []}]}, "gate_report") == 0
+    assert pend(state, {"sentences": []}, "gate_report") == 1
+    assert report.sentences(state, None, "plan") == [] and report.sentences(state, {"sentences": []}, "plan") == []
+    card = report.card(row, state)
+    assert (card["sessions"], card["plan_title"], card["plan"], card["n_flagged"]) == ([], None, [], 0)
+    assert [s["text"] for s in card["sentences"]] == ["Em cố gắng."]
+
+
+def test_old_draft_still_approves(g5, paths, conn):
+    """Review Focus 1: the checkpoint of a draft written before this change: saves, resumes, commits as before."""
+    r, _, _, sid = g5
+    tid, state, _ = _plan_state(paths, r, sid)
+    d = state["draft"]
+    old = {k: v for k, v in d.items() if k not in ("sessions", "plan", "plan_title")}
+    old["facts"] = [f for f in d["facts"] if f["kind"] != "plan"]
+    r.graphs["G5"].update_state({"configurable": {"thread_id": tid}}, {"draft": old}, as_node="write")
+    got = report.card(r.get(tid), r.state(tid))
+    assert (got["sessions"], got["plan_title"], got["plan"]) == ([], None, []) and got["sentences"]
+    assert report.save(r, tid, {"sentences": d["sentences"]})["audit_plan"] == []
+    assert approve(r, tid)["status"] == "committed"
+    [(_, _, _, md, audit)] = rows(conn)
+    assert md == report.text_md(d["sentences"]) and set(json.loads(audit)) == {"writer", "approved"}

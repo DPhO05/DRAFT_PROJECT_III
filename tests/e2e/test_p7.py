@@ -110,7 +110,9 @@ def test_three_periods(paths, client, w):
         got = client.put(f"/api/threads/{tid}/decisions", json={"sentences": edited}, headers=W).json()
         flagged = {"i": 0, "flag": "number", "why": "Số “97” không có trong dữ liệu đã duyệt."}
         clean = [{"i": i, "flag": None, "why": None} for i in range(1, len(shown))]
-        assert got == {"saved": True, "pending": 0, "audit": [flagged, *clean]}
+        plan = [{"i": i, "flag": None, "why": None} for i in range(len(fresh["plan"]))]  # the draft's, untouched
+        assert fresh["sessions"] and plan
+        assert got == {"saved": True, "pending": 0, "audit": [flagged, *clean], "audit_plan": plan}
         edited_card = card_at(client, tid, "draft")
         assert edited_card["n_flagged"] == 1  # Review Focus 1: a warning, approval still allowed
         assert [s["text"] for s in edited_card["sentences"]] == [INVENTED, *(s["text"] for s in shown[1:])]

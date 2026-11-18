@@ -81,15 +81,16 @@ def start(paths: DataPaths, runner: Runner, *, student_id: int, period_kind: str
     return {"thread_id": tid, "status": "running", "existing": False}
 
 
-def sentences(state: dict, decisions: object) -> list[dict]:
-    """The report as it stands: saved sentences, else 09's; each re-audited (C-41) with `flag` and `why`.
+def sentences(state: dict, decisions: object, part: str = "sentences") -> list[dict]:
+    """One part of the report as it stands: saved lines, else the draft's; each re-audited (C-41) with `flag`, `why`.
 
-    A sentence citing no known fact is checked against every fact of the period (api-v3 §9 #18). ValueError when
-    the decisions are malformed."""
+    `part` is `sentences` (Nhận xét) or `plan` (Lộ trình). A decision with no `plan` keeps the draft's, and a draft
+    with none gives []. A line citing no known fact is checked against every fact of the period (api-v3 §9 #18).
+    ValueError when the decisions are malformed."""
     draft = state["draft"]
-    given = draft["sentences"]
-    if decisions is not None:
-        given = decisions.get("sentences") if isinstance(decisions, dict) else None
+    given = draft.get(part, [])
+    if decisions is not None and (part == "sentences" or isinstance(decisions, dict) and part in decisions):
+        given = decisions.get(part) if isinstance(decisions, dict) else None
         ok = isinstance(given, list) and all(
             isinstance(s, dict) and isinstance(s.get("text"), str)
             and isinstance(s.get("facts", []), list) and all(isinstance(f, str) for f in s.get("facts", []))
@@ -123,17 +124,19 @@ def _stage(row: dict, state: dict) -> str:
     return _STAGE.get(row["status"], "failed")
 
 
-def _shown(row: dict, state: dict) -> list[dict]:
-    """The sentences as saved at the gate, else 09's; [] while there is no draft."""
+def _shown(row: dict, state: dict, part: str = "sentences") -> list[dict]:
+    """The lines of `part` as saved at the gate, else the draft's; [] while there is no draft."""
     if "draft" not in state:
         return []
-    return sentences(state, json.loads(row["decisions_json"]) if row.get("decisions_json") else None)
+    return sentences(state, json.loads(row["decisions_json"]) if row.get("decisions_json") else None, part)
 
 
 def card(row: dict, state: dict) -> dict:
     """The teacher's view of a G5 thread (api-v3 §5.3): words only; `facts` are ids to send back, never shown."""
     stage = _stage(row, state)
     shown = _shown(row, state) if stage == "draft" else []
+    plan = _shown(row, state, "plan") if stage == "draft" else []
+    draft = state.get("draft", {}) if stage == "draft" else {}
     rc = state.get("receipt")
     return {
         "kind": "report",
@@ -141,10 +144,13 @@ def card(row: dict, state: dict) -> dict:
         "student_id": row["student_id"],
         "period_kind": state["period_kind"],
         "period_start": state["period_start"],
-        "n_flagged": sum(s["flag"] is not None for s in shown),
+        "n_flagged": sum(s["flag"] is not None for s in shown + plan),
         "report_id": rc["report_id"] if stage == "saved" and rc else None,
         "error_words": f"{session._reason(row.get('error') or '')}." if stage == "failed" else None,
         "sentences": [{k: s[k] for k in ("text", "flag", "why", "facts")} for s in shown],
+        "sessions": [s["text"] for s in draft.get("sessions", [])],
+        "plan_title": draft.get("plan_title"),
+        "plan": [{k: s[k] for k in ("text", "flag", "why", "facts")} for s in plan],
     }
 
 
@@ -161,10 +167,11 @@ def drafts(runner: Runner, student_id: int | None = None) -> list[dict]:
     for row in runner.list_threads(graph=GRAPH, student_id=student_id):
         if row["status"] in ("awaiting_review", "failed"):
             state = runner.state(row["thread_id"])
+            flagged = sum(s["flag"] is not None for part in ("sentences", "plan") for s in _shown(row, state, part))
             out.append({"thread_id": row["thread_id"], "student_id": row["student_id"],
                         "period_kind": state["period_kind"], "period_start": state["period_start"],
                         "created_at": row["created_at"], "status": row["status"],
-                        "n_flagged": sum(s["flag"] is not None for s in _shown(row, state))})  # fmt: skip
+                        "n_flagged": flagged})  # fmt: skip
     return out
 
 
@@ -172,17 +179,25 @@ def save(runner: Runner, thread_id: str, decisions: dict) -> dict:
     """PUT decisions (api-v3 §5.3): re-audit first, so a malformed answer (ValueError → 422) is never stored."""
     if runner.get(thread_id)["status"] != "awaiting_review":
         raise NotResumable("Bản nháp không còn sửa được")
-    audit = [{"i": i, "flag": s["flag"], "why": s["why"]}
-             for i, s in enumerate(sentences(runner.state(thread_id), decisions))]  # fmt: skip
-    return {"saved": True, "pending": runner.save_decisions(thread_id, decisions), "audit": audit}
+    state = runner.state(thread_id)
+
+    def audit(part: str) -> list[dict]:
+        return [{"i": i, "flag": s["flag"], "why": s["why"]} for i, s in enumerate(sentences(state, decisions, part))]
+
+    audit_sentences, audit_plan = audit("sentences"), audit("plan")
+    return {"saved": True, "pending": runner.save_decisions(thread_id, decisions), "audit": audit_sentences,
+            "audit_plan": audit_plan}  # fmt: skip
 
 
 def pending(paths: DataPaths) -> Callable[[dict, object, str], int]:
-    """Runner resume check: 1 while the decisions are malformed or leave no sentence; flags only warn."""
+    """Runner resume check: 1 while the decisions are malformed or leave no sentence, or no plan line when the draft
+    has a plan; flags only warn."""
 
     def count(state: dict, decisions: object, node: str) -> int:
         try:
-            return int(not sentences(state, decisions))
+            if not sentences(state, decisions):
+                return 1
+            return int(bool(state["draft"].get("plan")) and not sentences(state, decisions, "plan"))
         except ValueError:
             return 1
 
@@ -223,6 +238,11 @@ def _settings(paths: DataPaths) -> dict:
         return config.defaults()
 
 
+def _lines(found: list[dict]) -> list[dict]:
+    """A part made of facts: each fact's text, citing itself."""
+    return [{"text": f["text"], "facts": [f["fact_id"]]} for f in found]
+
+
 def build(paths: DataPaths) -> StateGraph:
     def write(state: ReportState, config) -> dict:
         sid = state["student_id"]
@@ -236,7 +256,13 @@ def build(paths: DataPaths) -> StateGraph:
             except facts.NotReady:
                 raise ValueError("Kỳ này chưa có buổi học nào đã duyệt") from None
             draft = reporter.run(got, ctx=ctx)
-        return {"draft": draft}
+            # after 09 and not in its input: the plan is code's words, never sent to a model (C-40, spec 4.4)
+            plan = facts.plan(conn, sid, max(date.fromisoformat(got["period_end"]), today),
+                              first_id=len(draft["facts"]) + 1)  # fmt: skip
+        drafted = {"facts": [*draft["facts"], *plan["facts"]], "dates": [*draft["dates"], *plan["dates"]],
+                   "sessions": _lines([f for f in draft["facts"] if f["kind"] == "session"]),
+                   "plan": _lines(plan["facts"]), "plan_title": plan["title"]}  # fmt: skip
+        return {"draft": draft | drafted}
 
     def gate_report(state: ReportState) -> dict:
         return {"decisions": interrupt({"gate": "report"})["decisions"]}
@@ -246,6 +272,9 @@ def build(paths: DataPaths) -> StateGraph:
         md, sid, kind, start = text_md(final), state["student_id"], state["period_kind"], state["period_start"]
         audit = {"writer": state["draft"]["audit"],
                  "approved": [{"i": i, "flag": s["flag"], "why": s["why"]} for i, s in enumerate(final)]}  # fmt: skip
+        if "plan" in state["draft"]:  # a draft made before the three parts keeps its audit as it was
+            audit["approved_plan"] = [{"i": i, "flag": s["flag"], "why": s["why"]}
+                                      for i, s in enumerate(sentences(state, state["decisions"], "plan"))]  # fmt: skip
         with closing(repo.connect(paths.tutor_db)) as conn:
             receipt = repo.commit_report(conn, student_id=sid, period_kind=kind, period_start=start,
                                          facts=state["draft"]["facts"], text_md=md, audit=audit)  # fmt: skip
