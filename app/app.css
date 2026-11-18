@@ -418,6 +418,7 @@ summary { cursor: pointer; }
 .print-sheet { font: 400 13pt/1.6 var(--font-ui); color: #000; }
 .print-sheet h1 { font-size: 20pt; margin-bottom: 4pt; }
 .print-sheet .p-meta { color: #333; margin-bottom: 14pt; }
+.print-sheet h3 { font-size: 17pt; margin: 16pt 0 6pt; break-after: avoid; }
 .print-sheet ol { padding-left: 18pt; }
 .print-sheet li { margin-bottom: 12pt; break-inside: avoid; }
 @media print {
