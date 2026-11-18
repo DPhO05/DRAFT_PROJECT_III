@@ -99,6 +99,7 @@ def sentences(state: dict, decisions: object, part: str = "sentences") -> list[d
         if not ok:
             raise ValueError("Câu báo cáo không đúng dạng")
     by_id = {f["fact_id"]: f for f in draft["facts"]}
+    period = [f for f in draft["facts"] if f["kind"] != "plan"]  # plan dates must not make other numbers known
     dates = [date.fromisoformat(d) for d in draft["dates"]]
     out = []
     for s in given:
@@ -106,7 +107,7 @@ def sentences(state: dict, decisions: object, part: str = "sentences") -> list[d
         if not any(c.isalnum() for c in text):
             raise ValueError("Câu báo cáo không có chữ")
         ids = [f for f in dict.fromkeys(s.get("facts", [])) if f in by_id]
-        cited = [by_id[f] for f in ids] or draft["facts"]
+        cited = [by_id[f] for f in ids] or period
         flag = check_sentence(text, cited, low=draft["low"], need_fact=False, dates=dates) or {}
         out.append({"text": text, "facts": ids, "flag": flag.get("flag"), "why": flag.get("why")})
     return out

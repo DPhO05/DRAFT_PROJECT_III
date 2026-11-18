@@ -378,6 +378,16 @@ def test_plan_edits_reaudited(g5, paths):
     assert report.card(r.get(tid), r.state(tid))["n_flagged"] == 1  # a refused answer is not stored
 
 
+def test_uncited_line_not_checked_against_plan_dates(g5, paths):
+    """C-41: a line citing no fact is checked against the period's facts; plan dates must not become known numbers."""
+    r, _, _, sid = g5
+    _, state, _ = _plan_state(paths, r, sid)
+    assert "2026-10-26" in json.dumps([f["value"] for f in state["draft"]["facts"] if f["kind"] == "plan"])
+    for n in (26, 2026):
+        got = report.sentences(state, {"sentences": [{"text": f"Em làm {n} bài.", "facts": []}]})
+        assert [s["flag"] for s in got] == ["number"], n
+
+
 def test_plan_missing_keeps_draft_plan(g5, paths):
     r, _, _, sid = g5
     tid, state, c = _plan_state(paths, r, sid)
