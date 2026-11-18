@@ -72,7 +72,32 @@ def test_period_edges(conn):
     day = run("day", "2026-11-01")
     assert value(day, "sessions") == 2
     assert value(day, "previous")["sessions"] == 1  # 31/10
-    assert kinds(day, "session") == []
+    assert len(kinds(day, "session")) == 2  # one fact per committed session, also for a day
+
+
+def test_session_fact_details(conn):
+    w = world(conn)
+    err, kc = words(conn, w)
+    out = facts.report_facts(conn, w["an"], "month", "2026-10-01", today=LATER, low_pass_rate=0.5)
+    s = kinds(out, "session")[0]
+    assert s["value"]["problems"] == 1 and s["value"]["kcs"] == [kc]
+    assert s["value"]["mistake_kinds"] == [{"kind": facts.short_error(err), "n": 1}]
+    assert s["text"] == (
+        f"Buổi 07/10: làm 1 bài, đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi. "
+        f"Đã luyện: “{kc}”. Lỗi: “{facts.short_error(err)}” 1 lần."
+    )
+
+
+def test_session_line_without_mistakes(conn):
+    w = world(conn)
+    conn.execute("UPDATE mistake SET status = 'rejected'")
+    out = facts.report_facts(conn, w["an"], "month", "2026-10-01", today=LATER, low_pass_rate=0.5)
+    s = kinds(out, "session")[0]
+    assert s["value"]["mistake_kinds"] == [] and "Lỗi:" not in s["text"]
+
+
+def test_short_error():
+    assert facts.short_error("Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)") == "nhầm phép toán hoặc dấu"
 
 
 def test_same_facts_twice(conn):

@@ -1,6 +1,7 @@
 """Report facts by period (P7-T02, C-44): committed sessions only, each fact has a `fact_id`; same DB, same facts."""
 
 import calendar
+import re
 from datetime import date, timedelta
 
 from tutor.config import student_code
@@ -53,8 +54,14 @@ def period(kind: str, start: str, today: date) -> tuple[date, date]:
     return lo, hi
 
 
+def short_error(words: str) -> str:
+    """Error words as one line of a sentence: no trailing bracket, first letter lower case."""
+    words = re.sub(r"\s*\([^()]*\)\s*$", "", words)
+    return words[:1].lower() + words[1:]
+
+
 def _sessions(conn, sid: int, lo: date, hi: date) -> list[dict]:
-    return _rows(
+    rows = _rows(
         conn,
         "SELECT s.id, s.held_on,"
         " COALESCE((SELECT sum(score) FROM attempt_current WHERE session_id = s.id), 0) AS score,"
@@ -65,6 +72,27 @@ def _sessions(conn, sid: int, lo: date, hi: date) -> list[dict]:
         f" FROM session s WHERE {_IN} ORDER BY s.held_on, s.id",
         {"sid": sid, "lo": lo.isoformat(), "hi": hi.isoformat()},
     )
+    for r in rows:
+        r["kcs"] = list(
+            dict.fromkeys(
+                name
+                for (name,) in conn.execute(
+                    "SELECT k.name FROM skill_event e JOIN attempt a ON a.id = e.attempt_id JOIN kc k ON k.id = e.kc_id"
+                    " WHERE a.session_id = ? ORDER BY e.id",
+                    (r["id"],),
+                )
+            )
+        )
+        r["mistake_kinds"] = [
+            {"kind": short_error(kind), "n": n}
+            for kind, n in conn.execute(
+                "SELECT e.description, count(*) AS n FROM mistake_current m"
+                " JOIN attempt_current a ON a.id = m.attempt_id JOIN error_code e ON e.code = m.code"
+                " WHERE a.session_id = ? GROUP BY m.code ORDER BY n DESC, m.code",
+                (r["id"],),
+            )
+        ]
+    return rows
 
 
 def _latest(conn, sid: int, kind: str, lo: date) -> tuple[date, date] | None:
@@ -123,10 +151,14 @@ def report_facts(conn, student_id: int, kind: str, start: str, *, today: date, l
     add("problems", n, f"Số bài đã làm: {n}.")
     total = _total(rows)
     score_id = add("score", total, f"Cả kỳ {_points(total)}.")
-    if kind != "day":
-        for r in rows:
-            t = _total([r]) | {"mistakes": r["mistakes"]}
-            add("session", t, f"Buổi {_dm(r['held_on'])}: {_points(t)}, {r['mistakes']} lỗi.")
+    for r in rows:
+        t = _total([r]) | {k: r[k] for k in ("mistakes", "problems", "kcs", "mistake_kinds")}
+        text = f"Buổi {_dm(r['held_on'])}: làm {t['problems']} bài, {_points(t)}, {t['mistakes']} lỗi."
+        if t["kcs"]:
+            text += " Đã luyện: " + ", ".join(f"“{k}”" for k in t["kcs"]) + "."
+        if t["mistake_kinds"]:
+            text += " Lỗi: " + ", ".join(f"“{m['kind']}” {m['n']} lần" for m in t["mistake_kinds"]) + "."
+        add("session", t, text)
 
     first, last, names = {}, {}, {}
     for kc, name, before, after in conn.execute(
