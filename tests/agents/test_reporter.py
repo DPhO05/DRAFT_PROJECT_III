@@ -8,9 +8,8 @@ import pytest
 
 from tests.assistant_fix import world
 from tests.fakes import FakeLLM
-from tutor import config, llm
+from tutor import llm
 from tutor.agents import CallContext
-from tutor.agents.a08_recommender import select
 from tutor.agents.a09_reporter import reporter
 from tutor.agents.a09_reporter.reporter import ReportOut, Sentence
 from tutor.db import repo
@@ -28,17 +27,11 @@ def ro(conn, paths):
         yield c, w
 
 
-def go(ro, *, ctx=CTX, low=0.5, ranked=None, **period):
-    """09 run as G5's `write` does: facts read, `rank` closure on select.rank_problems; `ranked` collects its calls."""
+def go(ro, *, ctx=CTX, low=0.5, **period):
+    """09 run as G5's `write` does: the facts of the period read, then `reporter.run`."""
     p = MONTH | period
     got = facts.report_facts(ro[0], ro[1]["an"], p["period_kind"], p["period_start"], today=TODAY, low_pass_rate=low)
-
-    def rank():
-        if ranked is not None:
-            ranked.append(1)
-        return select.rank_problems(ro[0], ro[1]["an"], 3, reco=config.defaults()["reco"], today=TODAY)["items"]
-
-    return reporter.run(got, rank, ctx=ctx)
+    return reporter.run(got, ctx=ctx)
 
 
 def fake(*turns):
@@ -109,9 +102,8 @@ def test_schema_flag_on_first_call_raises(ro):
 
 def test_clean_draft_one_call(ro):
     f = fake(out(("Tháng này em học 2 buổi, làm 2 bài.", "F01", "F02"), ("Buổi 07/10 em đạt 1 trong 2 ý.", "F04")))
-    ranked = []
-    r = go(ro, ranked=ranked)
-    assert f.count["09"] == 1 and [a["status"] for a in r["audit"]] == ["ok", "ok"] and not ranked
+    r = go(ro)
+    assert f.count["09"] == 1 and [a["status"] for a in r["audit"]] == ["ok", "ok"]
     user = f.calls[0]["user"]
     assert all(f"{x['fact_id']} · {x['text']}" in user.split("Số liệu:\n")[1] for x in r["facts"])
     assert all(f"{i['text']} ({', '.join(i['facts'])})" in user.split("Điểm cần nói:\n")[1] for i in r["insights"])
@@ -183,16 +175,15 @@ def test_fact_line_leftovers(ro, text, kept):
     assert r["audit"][0]["status"] == ("ok" if kept else "dropped")
 
 
-def test_weak_skill_gets_suggestions(conn, ro):
-    conn.execute("UPDATE skill_event SET theta_after = -1 WHERE kc_id = ?", (ro[1]["kc_swap"],))  # level from events
-    calls = []
+def test_weak_skill_no_suggestion(conn, ro):
+    conn.execute("UPDATE skill_event SET theta_after = -1 WHERE kc_id = ?", (ro[1]["kc_swap"],))
     f = fake(out(("Tháng này em học 2 buổi.", "F01")))
-    r = go(ro, ranked=calls)
-    assert calls == [1]
-    sug = [x for x in r["facts"] if x["kind"] == "suggestion"]
-    assert len(sug) == 1 and sug[0] is r["facts"][-1] and sug[0]["fact_id"] == f"F{len(r['facts']):02d}"
-    assert 1 <= sug[0]["value"]["n"] <= 3 and sug[0]["value"]["kcs"]
-    assert f"{sug[0]['fact_id']} · {sug[0]['text']}" in f.calls[0]["user"].split("Số liệu:\n")[1]
+    r = go(ro)
+    assert not [x for x in r["facts"] if x["kind"] == "suggestion"] and len(f.calls) == 1
+
+
+def test_instructions_name_the_other_parts():
+    assert "“Các buổi học trong kỳ”" in reporter.INSTRUCTIONS and "“Lộ trình”" in reporter.INSTRUCTIONS
 
 
 def test_payload_masked(conn, ro, tmp_path):
@@ -212,7 +203,7 @@ def test_payload_masked(conn, ro, tmp_path):
 
 # what 09 is sent on this world, byte for byte (the plan's "so chuỗi")
 GOLDEN_PLAIN = "Kỳ: tháng 10/2026\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: làm 1 bài, đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi. Đã luyện: “Tính chất của bất đẳng thức”. Lỗi: “nhầm phép toán hoặc dấu” 1 lần.\nF05 · Buổi 14/10: làm 1 bài, đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi. Đã luyện: “Tính chất của bất đẳng thức”. Lỗi: “nhầm phép toán hoặc dấu” 1 lần.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành đang hình thành (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
-GOLDEN_WEAK = "Kỳ: tháng 10/2026\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: làm 1 bài, đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi. Đã luyện: “Tính chất của bất đẳng thức”. Lỗi: “nhầm phép toán hoặc dấu” 1 lần.\nF05 · Buổi 14/10: làm 1 bài, đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi. Đã luyện: “Tính chất của bất đẳng thức”. Lỗi: “nhầm phép toán hoặc dấu” 1 lần.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành chưa vững (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\nF09 · Bài gợi ý luyện thêm: 3 bài về “Tính chất của bất đẳng thức”, “Chứng minh bất đẳng thức đơn giản”, “Bất phương trình đưa về dạng bậc nhất”, “Nghiệm nguyên, nghiệm thoả điều kiện thêm”.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
+GOLDEN_WEAK = "Kỳ: tháng 10/2026\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: làm 1 bài, đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi. Đã luyện: “Tính chất của bất đẳng thức”. Lỗi: “nhầm phép toán hoặc dấu” 1 lần.\nF05 · Buổi 14/10: làm 1 bài, đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi. Đã luyện: “Tính chất của bất đẳng thức”. Lỗi: “nhầm phép toán hoặc dấu” 1 lần.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành chưa vững (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
 GOLDEN_LOW = "Kỳ: tháng 10/2026\nKết quả kỳ này thấp.\n\nSố liệu:\nF01 · Số buổi học: 2.\nF02 · Số bài đã làm: 2.\nF03 · Cả kỳ đạt 2 trong 4 ý, điểm 5 trên 10.\nF04 · Buổi 07/10: làm 1 bài, đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi. Đã luyện: “Tính chất của bất đẳng thức”. Lỗi: “nhầm phép toán hoặc dấu” 1 lần.\nF05 · Buổi 14/10: làm 1 bài, đạt 1 trong 2 ý, điểm 5 trên 10, 1 lỗi. Đã luyện: “Tính chất của bất đẳng thức”. Lỗi: “nhầm phép toán hoặc dấu” 1 lần.\nF06 · Kỹ năng “Tính chất của bất đẳng thức”: từ đang hình thành thành đang hình thành (cần ôn).\nF07 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”: 2 lần.\nF08 · Lỗi “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)” ở “Tính chất của bất đẳng thức” hiện còn, đã gặp 2 lần.\n\nĐiểm cần nói:\n- Thay đổi rõ nhất ở “Tính chất của bất đẳng thức” (cần ôn). (F06)\n- Lỗi gặp nhiều nhất: “Nhầm phép toán hoặc dấu (+/−, ⇒/⇔)”. (F07)"  # noqa: E501
 
 
@@ -226,4 +217,4 @@ def test_user_text_matches_golden(conn, ro):
 
 
 def test_prompt_version_unchanged():
-    assert llm.prompt_version("09", [reporter.INSTRUCTIONS]) == "09-841b5710"
+    assert llm.prompt_version("09", [reporter.INSTRUCTIONS]) == "09-a779e471"

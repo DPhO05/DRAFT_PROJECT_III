@@ -20,7 +20,6 @@ from tests.fakes import FakeLLM
 from tutor import config, llm
 from tutor.agents.a00_orchestrator import chat, orchestrator
 from tutor.agents.a00_orchestrator.tools import Toolbox, lc_tools, tool_defs
-from tutor.agents.a08_recommender import select
 from tutor.agents.a09_reporter import reporter
 from tutor.db import repo
 from tutor.graphs import session
@@ -135,9 +134,7 @@ def _report_09(paths, w: dict, p: dict) -> dict:
         ctx = session.call_context(paths, sid, None, cfg, graph="G5")  # as the app: names masked
         got = facts.report_facts(conn, sid, p["period_kind"], p["period_start"], today=today,
                                  low_pass_rate=settings["report"]["low_pass_rate"])  # fmt: skip
-        r = reporter.run(
-            got, lambda: select.rank_problems(conn, sid, 3, reco=settings["reco"], today=today)["items"], ctx=ctx
-        )
+        r = reporter.run(got, ctx=ctx)
     return {
         "key": p["key"],
         "period_kind": p["period_kind"],

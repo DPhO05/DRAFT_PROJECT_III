@@ -14,7 +14,6 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from tutor import config
-from tutor.agents.a08_recommender import select
 from tutor.agents.a09_reporter import reporter
 from tutor.config import DataPaths, student_code
 from tutor.db import repo
@@ -236,9 +235,7 @@ def build(paths: DataPaths) -> StateGraph:
                                          low_pass_rate=settings["report"]["low_pass_rate"])  # fmt: skip
             except facts.NotReady:
                 raise ValueError("Kỳ này chưa có buổi học nào đã duyệt") from None
-            draft = reporter.run(
-                got, lambda: select.rank_problems(conn, sid, 3, reco=settings["reco"], today=today)["items"], ctx=ctx
-            )
+            draft = reporter.run(got, ctx=ctx)
         return {"draft": draft}
 
     def gate_report(state: ReportState) -> dict:

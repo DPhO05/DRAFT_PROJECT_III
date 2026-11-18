@@ -111,7 +111,7 @@ def test_reporter_answers(paths, conn):
     llm.set_backend(devfake.DevFakeLLM())
     with closing(repo.connect(paths.tutor_db, readonly=True)) as ro:
         got = facts.report_facts(ro, an, "week", "2026-10-12", today=date(2026, 10, 21), low_pass_rate=0.5)
-        r = reporter.run(got, lambda: [], ctx=CallContext(graph="G5"))
+        r = reporter.run(got, ctx=CallContext(graph="G5"))
     assert [a["status"] for a in r["audit"]] == ["ok"] * 3
     assert [s["facts"] for s in r["sentences"]] == [["F01"], ["F02"], ["F03"]]
     assert [(x["agent"], x["model"]) for x in llm.iter_log(paths.logs / "llm.jsonl")] == [("09", "dev-fake")]
