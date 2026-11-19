@@ -92,6 +92,7 @@ def check_sentence(text: str, cited: list[dict], *, low: bool, need_fact: bool, 
 
     A number written in words (hai, sáu, bảy…) is flagged `number`: it cannot be checked against the facts,
     unless a cited fact's text holds the same word (a skill name).
+    A sentence naming “kỳ trước” is `no_fact` unless it cites a `previous` fact.
 
     `dates` = the report's real days (period bounds, session days, previous span); only those are exempt from the check.
     """
@@ -104,6 +105,12 @@ def check_sentence(text: str, cited: list[dict], *, low: bool, need_fact: bool, 
         }
     if need_fact and not cited:
         return {"flag": "no_fact", "why": "Câu chưa dựa vào số liệu đã duyệt.", "detail": "câu không trích fact nào"}
+    if "kỳ trước" in text.lower() and not any(f["kind"] == "previous" for f in cited):
+        return {
+            "flag": "no_fact",
+            "why": "Câu so với kỳ trước nhưng không dựa vào số liệu kỳ trước.",
+            "detail": "câu nhắc kỳ trước nhưng không trích số liệu “Kỳ trước”",
+        }
     known = known_numbers(json.dumps(f["value"], ensure_ascii=False) for f in cited)
     bad = [n for u in unverified(_drop_dates(text, dates), known) for n in u["numbers"]]
     if bad:

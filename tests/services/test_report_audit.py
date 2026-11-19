@@ -175,3 +175,11 @@ def test_date_pattern_does_not_cut_into_numbers():
 
 def test_number_words_and_codes():
     assert check("Em sai ở bài 9DS-PT2-002, $x^2 = 4$.", [F02]) is None
+
+
+def test_previous_period_needs_previous_fact():
+    # a skill fact "từ … thành …" is change inside this period, not a previous period (demo10 HS-01, HS-08)
+    skill = {"fact_id": "F05", "kind": "skill", "value": {"kc": "Hệ"}, "text": "Kỹ năng “Hệ”: từ A thành A (cần ôn)."}
+    assert check("So với kỳ trước, kỹ năng “Hệ” cần ôn.", [skill])["flag"] == "no_fact"
+    prev = {"fact_id": "F09", "kind": "previous", "value": {"sessions": 1}, "text": "Kỳ trước (09/2026): 1 buổi."}
+    assert check("Kết quả tốt hơn kỳ trước.", [F02, prev]) is None
