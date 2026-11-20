@@ -43,6 +43,8 @@ def _source(paths: DataPaths, rel_path: str):
         raise ValueError("Nhánh PDF chưa làm (P1-T09 chờ §11.1 câu 2); nộp file .tex")
     if p.suffix.lower() != ".tex":
         raise ValueError(f"Chỉ nhận .tex: {rel_path}")
+    if p.stat().st_size > config.MAX_TEX_BYTES:
+        raise ValueError("File lớn hơn 200 KB, chia thành file nhỏ hơn rồi nộp lại")
     return p
 
 

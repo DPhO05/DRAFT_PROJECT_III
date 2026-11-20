@@ -14,6 +14,7 @@ from pathlib import Path
 K = 0.3
 THETA0 = 0
 RESOLVE_STREAK = 2
+MAX_TEX_BYTES = 200_000
 
 _DEFAULTS = {
     "reco": {

@@ -7,7 +7,7 @@ import pytest
 
 from tests.bankfix import P2, add_bank
 from tests.fakes import FakeLLM, lane_handlers
-from tutor import llm
+from tutor import config, llm
 from tutor.agents.a01_ingest import ingest
 from tutor.db import repo
 from tutor.graphs import runner as rmod
@@ -183,3 +183,11 @@ def test_compact_date_is_stored_as_iso_and_keeps_the_date_lock(env):
     with pytest.raises(repo.DateOrderLocked):
         session.submit(paths, r, student_id=sid, held_on="2026-10-13", rel_path=put(paths, "b.tex", NO_ID))
     session.submit(paths, r, student_id=sid, held_on="2026-10-28", rel_path=put(paths, "c.tex", NO_ID + "\n"))
+
+
+def test_oversize_file_rejected_before_session_row(env):
+    paths, conn, r, sid, _ = env
+    big = WITH_IDS + "%" + "x" * config.MAX_TEX_BYTES
+    with pytest.raises(ValueError, match="200 KB"):
+        session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path=put(paths, "big.tex", big))
+    assert repo.row_counts(conn)["session"] == 0

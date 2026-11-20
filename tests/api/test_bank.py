@@ -181,3 +181,9 @@ def test_import_of_a_non_utf8_file_says_so_and_is_logged(paths, client):
     r = client.post("/api/bank/imports", json={"file": "latin.tex"}, headers=W)
     assert r.status_code == 422 and r.json()["error"]["message"] == "File phải lưu dạng UTF-8"
     assert "POST /api/bank/imports: File phải lưu dạng UTF-8" in (paths.logs / "app.log").read_text(encoding="utf-8")
+
+
+def test_import_of_an_oversize_file_is_refused(paths, client):
+    (paths.inbox / "bank" / "big.tex").write_text(ONE + "%" + "x" * 200_000, encoding="utf-8")
+    r = client.post("/api/bank/imports", json={"file": "big.tex"}, headers=W)
+    assert r.status_code == 422 and "200 KB" in r.json()["error"]["message"]

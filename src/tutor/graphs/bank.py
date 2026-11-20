@@ -13,7 +13,7 @@ from pathlib import Path
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from tutor.config import DataPaths
+from tutor.config import MAX_TEX_BYTES, DataPaths
 from tutor.db import repo
 from tutor.graphs.runner import Runner
 from tutor.graphs.state import BankState
@@ -29,6 +29,8 @@ def _source(paths: DataPaths, file: str):
     p = (folder / file).resolve()
     if p.suffix.lower() != ".tex" or not p.is_relative_to(folder) or not p.is_file():
         raise ValueError(f"Chỉ nhận file .tex trong data/inbox/bank/: {file}")
+    if p.stat().st_size > MAX_TEX_BYTES:
+        raise ValueError("File lớn hơn 200 KB, chia thành file nhỏ hơn rồi nộp lại")
     return p, folder
 
 
