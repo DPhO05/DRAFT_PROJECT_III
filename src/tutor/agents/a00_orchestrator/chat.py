@@ -25,6 +25,7 @@ from langchain.agents.middleware import (
     wrap_model_call,
     wrap_tool_call,
 )
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage, ToolMessage
 from langgraph.types import Command
 
@@ -278,6 +279,14 @@ def build(model, tools, saver, *, max_tool_turns: int, system: list[str] | None 
         context_schema=ChatContext,
         checkpointer=saver,
     )
+
+
+def model() -> BaseChatModel:
+    return llm.model("00")
+
+
+def call_context(conversation_id: str, redact: dict[str, str]) -> llm.CallContext:
+    return llm.CallContext(graph=None, conversation_id=conversation_id, redact=orchestrator._names(redact))
 
 
 def scope(context: llm.CallContext, fixed: list[str], tool_defs: list[dict], stop: threading.Event | None = None):

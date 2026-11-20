@@ -22,7 +22,6 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 from pydantic import BaseModel
 
-from tutor import llm
 from tutor.agents.a00_orchestrator import chat, orchestrator
 from tutor.agents.a00_orchestrator.tools import Starters, Toolbox, lc_tools, tool_defs
 from tutor.api import errors
@@ -410,7 +409,7 @@ def _respond(app, conn, cid: str, f: Path, rows: list[dict], resume, ctx: chat.C
     def run() -> Iterator[dict]:  # inside `_stream`'s try: an error here becomes an error event and a log row
         ctx.resaved = _resaved(app.state.runner, rows)
         agent = chat.build(
-            llm.model("00"),
+            chat.model(),
             lc_tools(ctx.box, [c["code"] for c in codes]),
             store.saver,
             max_tool_turns=settings["assistant"]["max_tool_turns"],
@@ -426,7 +425,7 @@ def _respond(app, conn, cid: str, f: Path, rows: list[dict], resume, ctx: chat.C
                     store.reset_pause(cid, resume[0])
         snap = agent.get_state(cfg)
         defs = tool_defs([c["code"] for c in codes])
-        cc = llm.CallContext(graph=None, conversation_id=cid, redact=orchestrator._names(ctx.redact))
+        cc = chat.call_context(cid, ctx.redact)
         history = [] if snap.values else _history(rows, ctx.redact)
         answers = _decisions(decision, chat.waiting(agent, cfg)) if decision else None
         yield from _scoped(lambda: chat.scope(cc, fixed, defs, stop=ctx.stop),

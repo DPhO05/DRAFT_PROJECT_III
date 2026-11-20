@@ -18,6 +18,14 @@ ALLOWED = {
     "cli": {"api", "graphs", "db", "config"},  # cli runs create_app() for `tutor app`
 }
 LLM_READ_ONLY = {"iter_log", "cost"}  # what api may take from tutor.llm
+API_LLM = LLM_READ_ONLY | {
+    "configure",
+    "set_backend",
+    "status",
+    "KEY_ENV",
+    "providers",
+    "use_key",
+}  # app wiring and key settings; never a model call
 API_AGENTS = {"a00_orchestrator"}  # what api/assistant.py, the only api file that imports agents, may take
 ORCHESTRATOR = Path("tutor/agents/a00_orchestrator/orchestrator.py")
 ASSISTANT_FILES = {
@@ -82,6 +90,14 @@ def violations(root: Path) -> list[str]:
                 if tl == "llm" and me == "api" and len(full) == 2:
                     for n in set(names) - LLM_READ_ONLY:
                         bad(node, f"{me} may only use llm.iter_log / llm.cost, not {n}")
+            if (
+                me == "api"
+                and isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "llm"
+                and node.attr not in API_LLM
+            ):
+                bad(node, f"api may not use llm.{node.attr}")
             if isinstance(node, ast.Call):
                 fn = node.func
                 name = fn.attr if isinstance(fn, ast.Attribute) else fn.id if isinstance(fn, ast.Name) else ""
@@ -120,9 +136,16 @@ def test_commit_and_llm_call_rules(tmp_path):
     write(tmp_path, "tutor/graphs/g.py", "from tutor.db import repo\nrepo.commit_session(1)\n")
     write(tmp_path, "tutor/graphs/n.py", "from tutor import llm\nllm.call('03')\n")
     write(tmp_path, "tutor/api/x.py", "from tutor.llm import cost, call\n")
+    write(
+        tmp_path,
+        "tutor/api/y.py",
+        "from tutor import llm\nllm.status()\nllm.model('00')\nllm.CallContext(graph=None)\n",
+    )
     assert violations(tmp_path / "tutor") == [
         "tutor/api/s.py:2: commit_session() only from tutor/graphs/",
         "tutor/api/x.py:1: api may only use llm.iter_log / llm.cost, not call",
+        "tutor/api/y.py:3: api may not use llm.model",
+        "tutor/api/y.py:4: api may not use llm.CallContext",
         "tutor/graphs/n.py:1: graphs must not import tutor.llm",
         "tutor/graphs/n.py:2: llm.call() only from tutor/agents/",
     ]
