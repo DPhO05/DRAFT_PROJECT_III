@@ -143,7 +143,7 @@
       h += m.source.items ? '<p class="src"><b>Nguồn:</b> ' + m.source.items.map(function (x) { return U.esc(U.names(x)); }).join(' · ') + '</p>'
         : '<p class="src">Câu trả lời này không lấy từ dữ liệu học sinh.</p>';
     }
-    if (m.stopped === 'max_tool_turns') h += '<p class="small">Mình dừng sau 8 lượt tra cứu, thầy/cô hỏi hẹp hơn giúp mình nhé.</p>';
+    if (m.stopped === 'max_tool_turns') h += '<p class="small">Mình dừng vì đã tra cứu quá nhiều lượt, thầy/cô hỏi hẹp hơn giúp mình nhé.</p>';
     if (m.error) {
       h += '<p class="err">' + U.esc((m.error.code === 'not_ready' && m.error.message) || ERR[m.error.code] || UNAVAILABLE) + '</p>' + (m.error.code === 'bad_key' ? btn('c-keys', 'Mở Cài đặt') : '') + (m.retry ? btn('c-retry', 'Gửi lại', 'data-turn="' + m.retry.id + '"') : '');
     }
@@ -397,7 +397,7 @@
     var s = active(), a = s[0], b = s[1] || s[0];
     var Q = [
       a && ['Chấm bài của ' + a.name, 'Chấm bài này cho @' + a.name, a.id, 1],
-      a && ['Gợi ý 6 bài cho ' + a.name + ' buổi thứ Bảy', 'Gợi ý 6 bài cho @' + a.name + ' buổi thứ Bảy', a.id],
+      a && ['Gợi ý bài cho ' + a.name + ' buổi thứ Bảy', 'Gợi ý bài cho @' + a.name + ' buổi thứ Bảy', a.id],
       a && ['Tháng này ' + a.name + ' yếu gì?', 'Tháng này @' + a.name + ' yếu gì?', a.id],
       ['Ai còn nhầm dấu khi chuyển vế?', 'Ai còn nhầm dấu khi chuyển vế?'],
       b && ['Làm báo cáo tuần cho ' + b.name, 'Làm báo cáo tuần cho @' + b.name, b.id],

@@ -804,7 +804,7 @@ FACT_ID = re.compile(r"\bF\d\d\b")
 NO_WORK = "Không có việc nào đang chờ thầy/cô."
 SAVED_NOTHING = "Mình chưa lưu gì cả"
 ERR_BUBBLE = "Chưa trả lời được, thử lại"
-STOPPED = "Mình dừng sau 8 lượt tra cứu, thầy/cô hỏi hẹp hơn giúp mình nhé."
+STOPPED = "Mình dừng vì đã tra cứu quá nhiều lượt, thầy/cô hỏi hẹp hơn giúp mình nhé."
 SEND = '[data-act="c-send"]'
 MSGS = "**/api/assistant/messages"
 JS_REPLIED = """n => document.querySelectorAll('#chat-msgs .msg').length > n
