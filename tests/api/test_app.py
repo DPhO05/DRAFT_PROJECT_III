@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from tutor import __version__
 from tutor.api.app import create_app
 from tutor.db import repo
+from tutor.graphs import threads
 
 
 def test_health(client, paths):
@@ -113,3 +114,21 @@ def test_mathjax_is_served_by_the_app(client):
     assert 'src="vendor/mathjax/es5/tex-svg.js"' in html
     for f in ("tex-svg.js", "ui/safe.js", "input/tex/extensions/html.js"):
         assert client.get(f"/vendor/mathjax/es5/{f}").status_code == 200
+
+
+def test_startup_drops_old_committed_threads(paths, app, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(threads, "cleanup", lambda runner, **kw: seen.update(kw) or {"removed": []})
+    with TestClient(app, base_url="http://127.0.0.1:8000"):
+        pass
+    assert seen == {"older_than_days": threads.STARTUP_KEEP_DAYS}
+
+
+def test_startup_survives_a_failed_cleanup(paths, app, monkeypatch):
+    def boom(runner, **kw):
+        raise RuntimeError("gài lỗi dọn")
+
+    monkeypatch.setattr(threads, "cleanup", boom)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as c:
+        assert c.get("/api/health").status_code == 200
+    assert "gài lỗi dọn" in (paths.logs / "app.log").read_text(encoding="utf-8")

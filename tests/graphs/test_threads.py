@@ -191,3 +191,17 @@ def test_restore_cleans_committed_threads(paths, conn):
         assert r.list_threads() == []
     finally:
         r.close()
+
+
+def test_cleanup_keeps_threads_newer_than_the_cutoff(paths, conn):
+    r = rmod.Runner(paths, {"G4": gate_graph()})
+    try:
+        for tid in ("g4-new", "g4-old"):
+            r.start("G4", tid, {"x": 0}, {})
+            r.wait(tid)
+            r._set(tid, status="committed")
+        r._conn.execute("UPDATE tutor_thread SET updated_at = '2026-01-01T00:00:00Z' WHERE thread_id = 'g4-old'")
+        assert threads.cleanup(r, older_than_days=7) == {"removed": ["g4-old"]}
+        assert [t["thread_id"] for t in r.list_threads()] == ["g4-new"]
+    finally:
+        r.close()

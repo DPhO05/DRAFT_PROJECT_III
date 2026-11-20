@@ -12,6 +12,7 @@ from tutor import __version__, config, devfake, llm
 from tutor.api import assistant, backup, bank, catalog, errors, logs, reports, sessions, students, threads, worksheets
 from tutor.api import settings as settings_api  # `settings` is a local of create_app
 from tutor.db import repo
+from tutor.graphs import threads as graph_threads
 from tutor.graphs.registry import make_runner
 
 APP_DIR = Path(__file__).resolve().parents[3] / "app"
@@ -50,6 +51,10 @@ def create_app(paths: config.DataPaths, *, port: int, fake_llm: bool = False) ->
         runner = make_runner(paths, settings["runner"]["max_workers"])
         if stuck := runner.recover_on_startup():
             log.warning("thread dừng giữa chừng -> failed: %s", stuck)
+        try:
+            graph_threads.cleanup(runner, older_than_days=graph_threads.STARTUP_KEEP_DAYS)
+        except Exception:  # a failed tidy-up must not stop the app
+            log.error("khởi động: dọn checkpoint lỗi", exc_info=True)
         app.state.runner = runner
         app.state.chat = assistant.ChatStore(paths.chat_db)
         yield

@@ -2,13 +2,14 @@
 
 import logging
 from contextlib import closing
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 from tutor.config import DataPaths, student_code
 from tutor.db import repo
 from tutor.graphs.runner import AlreadyCommitted, Runner, ThreadBusy
 
 log = logging.getLogger("tutor")
+STARTUP_KEEP_DAYS = 7
 GRAPH_ORDER = {"G1": 1, "G2": 2, "G4": 4, "G5": 5}
 _BLOCKING = {"awaiting_review": "", "failed": " đang lỗi — chạy lại và duyệt buổi đó trước",
              "running": " đang chạy — chờ xong và duyệt buổi đó trước"}  # fmt: skip
@@ -96,9 +97,15 @@ def cancel(runner: Runner, paths: DataPaths, thread_id: str) -> dict:
     return {"cancelled": thread_id, "session_deleted": deleted}
 
 
-def cleanup(runner: Runner) -> dict:
-    """Dọn: drop checkpoints of committed threads (tutor.db already has their result)."""
-    gone = [t["thread_id"] for t in runner.list_threads() if t["status"] in ("committed", "done") and not t["running"]]
+def cleanup(runner: Runner, *, older_than_days: int = 0) -> dict:
+    """Dọn: drop checkpoints of committed threads (tutor.db already has their result) idle for `older_than_days`."""
+    # same shape as repo.now(), so the strings compare
+    cutoff = (datetime.now(UTC) - timedelta(days=older_than_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    gone = [
+        t["thread_id"]
+        for t in runner.list_threads()
+        if t["status"] in ("committed", "done") and not t["running"] and t["updated_at"] <= cutoff
+    ]
     for tid in gone:
         runner.delete(tid)
     return {"removed": gone}
