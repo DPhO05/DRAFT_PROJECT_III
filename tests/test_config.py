@@ -29,6 +29,12 @@ def test_partial_file_keeps_other_defaults(tmp_path):
     assert s["budget_usd_month"] == 30
 
 
+def test_old_file_with_dropped_keys_still_loads(tmp_path):
+    p = tmp_path / "settings.json"
+    p.write_text('{"privacy": {"send_code_only": true}, "backup": {"keep_recent": 30}}', encoding="utf-8")
+    assert config.load(p)["app"] == {"port": 8000}
+
+
 def test_corrupt_file_raises_and_is_not_overwritten(tmp_path):
     p = tmp_path / "settings.json"
     p.write_text("{not json", encoding="utf-8")
@@ -41,7 +47,7 @@ def test_defaults_match_appendix_c():
     s = config.defaults()
     assert s["models"] == {f"{i:02d}": "openai:gpt-5.6-sol" for i in (*range(0, 5), 9)}
     assert s["assistant"] == {"max_tool_turns": 8}
-    assert s["backup"] == {"keep_recent": 30, "keep_monthly": True}
+    assert "privacy" not in s and "backup" not in s
     assert s["app"]["port"] == 8000
     assert (config.K, config.THETA0, config.RESOLVE_STREAK) == (0.3, 0, 2)
     assert s["price_by_model"]["openai:gpt-5.6-sol"] == {

@@ -46,8 +46,6 @@ _DEFAULTS = {
             "cache_write_per_mtok": 5,
         },
     },
-    "privacy": {"send_code_only": True},
-    "backup": {"keep_recent": 30, "keep_monthly": True},
     "app": {"port": 8000},
     "runner": {"max_workers": 2},
     "assistant": {"max_tool_turns": 8},
