@@ -1286,8 +1286,8 @@ def chat_attach(page, rep: dict, phone: bool, data_dir: str, reqs: list, before:
     )  # graded for HS-01 and HS-02, but its name points to nobody
     if row.locator("button").inner_text().strip() != "Chọn" or row.locator("button").is_disabled():
         rep["missing"].append("chat 📎: s01.tex has no student in its name, so it should stay selectable")
-    if f"đã chấm cho {PEOPLE[0]}, {PEOPLE[1]}" not in row.inner_text():
-        rep["missing"].append(f"chat 📎: s01.tex should say 'đã chấm cho {PEOPLE[0]}, {PEOPLE[1]}'")
+    if f"đã nộp cho {PEOPLE[0]}, {PEOPLE[1]}" not in row.inner_text():
+        rep["missing"].append(f"chat 📎: s01.tex should say 'đã nộp cho {PEOPLE[0]}, {PEOPLE[1]}'")
     see_chat(page, rep, "chat 📎", phone)
     press(page, rep, f'#modal-body .file-row:has-text("{fname}") button', "chat Chọn bài", JS_NO_MODAL)
     if fname not in page.inner_text("#attach-row") or page.locator(SEND).is_disabled():
@@ -1337,12 +1337,12 @@ def chat_attach_lock(page, rep: dict, phone: bool, data_dir: str) -> None:
     expect(page, rep, JS_FILES, "chat 📎 lock: the inbox is not listed")
     mine = page.locator(f'#modal-body .file-row:has-text("hs01-2026-10-{day}.tex")')
     other = page.locator(f'#modal-body .file-row:has-text("hs02-2026-10-{day}.tex")')
-    if mine.locator("button").inner_text().strip() != "đã chấm" or not mine.locator("button").is_disabled():
-        rep["missing"].append("chat 📎 lock: the file named for HS-01 should be a disabled 'đã chấm'")
+    if mine.locator("button").inner_text().strip() != "đã nộp" or not mine.locator("button").is_disabled():
+        rep["missing"].append("chat 📎 lock: the file named for HS-01 should be a disabled 'đã nộp'")
     if other.locator("button").inner_text().strip() != "Chọn" or other.locator("button").is_disabled():
         rep["missing"].append("chat 📎 lock: the file named for HS-02 should be selectable")
-    if f"đã chấm cho {PEOPLE[0]}" not in other.inner_text():
-        rep["missing"].append(f"chat 📎 lock: no 'đã chấm cho {PEOPLE[0]}' under the file named for HS-02")
+    if f"đã nộp cho {PEOPLE[0]}" not in other.inner_text():
+        rep["missing"].append(f"chat 📎 lock: no 'đã nộp cho {PEOPLE[0]}' under the file named for HS-02")
     see_chat(page, rep, "chat 📎 lock", phone)
     press(page, rep, f'#modal-body .file-row:has-text("hs02-2026-10-{day}.tex") button', "chat Chọn bài", JS_NO_MODAL)
     if f"hs02-2026-10-{day}.tex" not in page.inner_text("#attach-row") or page.locator(SEND).is_disabled():
