@@ -38,7 +38,7 @@ NOT_WAITING = "Không có việc nào đang chờ duyệt."
 BAD_MODEL = "Model đang cài không dùng được với khoá này. Kiểm tra mục models trong file settings.json."
 UNAVAILABLE = "Chưa trả lời được, thử lại"
 BAD_KEY = "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để kiểm tra khoá."
-INTERNAL = "Lỗi không lường trước, chi tiết ở data/logs/app.log"
+INTERNAL = "Lỗi không lường trước, chi tiết ở logs/app.log trong thư mục dữ liệu"
 _ID = re.compile(r"\d{4}-\d{2}-\d{2}-\d+")
 _AT = re.compile(r"@HS-(\d+)", re.IGNORECASE)
 # RLock: a dropped stream's `finally` runs in GC, possibly inside a section that already holds the lock

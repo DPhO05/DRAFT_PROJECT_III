@@ -28,7 +28,7 @@ def _source(paths: DataPaths, file: str):
     folder = (paths.inbox / "bank").resolve()
     p = (folder / file).resolve()
     if p.suffix.lower() != ".tex" or not p.is_relative_to(folder) or not p.is_file():
-        raise ValueError(f"Chỉ nhận file .tex trong data/inbox/bank/: {file}")
+        raise ValueError(f"Chỉ nhận file .tex trong thư mục inbox/bank: {file}")
     if p.stat().st_size > MAX_TEX_BYTES:
         raise ValueError("File lớn hơn 200 KB, chia thành file nhỏ hơn rồi nộp lại")
     return p, folder

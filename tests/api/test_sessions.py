@@ -109,3 +109,14 @@ def test_submit_file_without_a_problem_is_422_with_words(paths, client):
     assert r.status_code == 422 and r.json()["error"]["code"] == "validation_error"
     assert r.json()["error"]["message"].startswith("File không có \\begin{problem} nào")
     assert client.get("/api/sessions").json() == []
+
+
+def test_refusals_name_no_dev_path_or_task_id(paths, client):
+    (paths.inbox / "scan.pdf").write_bytes(b"%PDF-1.4\n")
+    sid = add_student(client)
+    for path in ("scan.pdf", "missing.tex"):
+        body = {"student_id": sid, "held_on": "2026-10-20", "path": path}
+        msg = client.post("/api/sessions", json=body, headers=W).json()["error"]["message"]
+        assert "data/" not in msg and "P1-T09" not in msg
+    msg = client.post("/api/bank/imports", json={"file": "missing.tex"}, headers=W).json()["error"]["message"]
+    assert "data/" not in msg

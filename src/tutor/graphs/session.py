@@ -38,9 +38,9 @@ def _source(paths: DataPaths, rel_path: str):
     inbox = paths.inbox.resolve()
     p = (inbox / rel_path).resolve()
     if not p.is_relative_to(inbox) or not p.is_file():
-        raise ValueError(f"Không có file trong data/inbox/: {rel_path}")
+        raise ValueError(f"Không thấy file này trong thư mục inbox: {rel_path}")
     if p.suffix.lower() == ".pdf":
-        raise ValueError("Nhánh PDF chưa làm (P1-T09 chờ §11.1 câu 2); nộp file .tex")
+        raise ValueError("Chưa nhận bài PDF, thầy/cô nộp file .tex")
     if p.suffix.lower() != ".tex":
         raise ValueError(f"Chỉ nhận .tex: {rel_path}")
     if p.stat().st_size > config.MAX_TEX_BYTES:

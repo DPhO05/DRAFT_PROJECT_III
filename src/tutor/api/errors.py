@@ -67,4 +67,4 @@ def install(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     def _unexpected(request: Request, e: Exception) -> JSONResponse:
         log.error("%s %s", request.method, request.url.path, exc_info=e)
-        return error(500, "internal", "Lỗi không lường trước, chi tiết ở data/logs/app.log")
+        return error(500, "internal", "Lỗi không lường trước, chi tiết ở logs/app.log trong thư mục dữ liệu")
