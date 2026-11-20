@@ -39,7 +39,7 @@ def run(mistake: dict, steps: list[dict], problem: dict, *, codes: list[dict], c
     extra = [f"Đề:\n{problem['statement_latex']}", f"Lời giải mẫu:\n{problem['solution_latex']}", claim]
     try:
         out = llm.call("04", [INSTRUCTIONS, table], VerdictOut, extra=extra, student_work=numbered(steps), context=ctx)
-    except llm.KeyRejected:
+    except (llm.KeyRejected, llm.BadRequest):
         raise
     except (llm.SchemaFlag, llm.LLMUnavailable) as e:
         return Verdict(verdict=None, reason=str(e), suggested_code=None)

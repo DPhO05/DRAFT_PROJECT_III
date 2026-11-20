@@ -320,6 +320,8 @@ def _stage(row: dict, state: dict) -> str:
 def _reason(error: str) -> str:
     if re.search(r"Khoá API bị từ chối|Thiếu OPENAI_API_KEY", error):  # before 429: no quota arrives as a 429
         return "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức (mở ⚙ Cài đặt)"
+    if error.startswith("BadRequest:"):  # graphs may not import llm, so match the runner's "<class>: <text>"
+        return "Model đang cài không dùng được với khoá này (mục models trong settings.json)"
     if "Tiến trình dừng giữa chừng" in error:
         return "App bị tắt"
     if re.search(r"\b(?:429|529)\b|overloaded|rate.?limit", error, re.I):

@@ -35,6 +35,7 @@ log = logging.getLogger("tutor")
 BUSY = "Trợ lý đang trả lời tin trước"
 WAITING = "Có việc đang chờ thầy/cô duyệt. Bấm Duyệt, Sửa hoặc Bỏ trước khi nhắn tiếp."
 NOT_WAITING = "Không có việc nào đang chờ duyệt."
+BAD_MODEL = "Model đang cài không dùng được với khoá này. Kiểm tra mục models trong file settings.json."
 UNAVAILABLE = "Chưa trả lời được, thử lại"
 BAD_KEY = "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức. Mở ⚙ Cài đặt để kiểm tra khoá."
 INTERNAL = "Lỗi không lường trước, chi tiết ở data/logs/app.log"
@@ -326,6 +327,9 @@ def _stream(f: Path, cid: str, mid: str, events: Iterator[dict], conn, *, stop: 
         except orchestrator.KeyRejected as e:
             log.warning("assistant %s: %s", cid, e)
             err = {"type": "error", "code": "bad_key", "message": BAD_KEY}
+        except orchestrator.BadRequest as e:
+            log.warning("assistant %s: %s", cid, e)
+            err = {"type": "error", "code": "bad_model", "message": BAD_MODEL}
         except orchestrator.LLMUnavailable as e:
             log.warning("assistant %s: %s", cid, e)
             err = {"type": "error", "code": "llm_unavailable", "message": UNAVAILABLE}

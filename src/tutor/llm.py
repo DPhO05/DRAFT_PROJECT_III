@@ -38,6 +38,10 @@ class LLMUnavailable(Exception):
     """Transient errors used up every try, or the model refused."""
 
 
+class BadRequest(LLMUnavailable):
+    """The provider refused the request (400/404), e.g. a key with no access to the model: retrying cannot help."""
+
+
 class KeyRejected(LLMUnavailable):
     """The provider refused the API key, or the account has no quota left: retrying cannot help."""
 
@@ -489,7 +493,7 @@ def _translate(e: Exception) -> Exception:
     if isinstance(
         e, openai.BadRequestError | openai.NotFoundError | anthropic.BadRequestError | anthropic.NotFoundError
     ):
-        return LLMUnavailable(_BAD_REQUEST)
+        return BadRequest(_BAD_REQUEST)
     if isinstance(e, ModelRefusalError):
         return LLMUnavailable(f"GPT từ chối: {text}")
     if type(e) is ValueError:  # SSE error event / failed response, bare (K18): a non-transient provider failure

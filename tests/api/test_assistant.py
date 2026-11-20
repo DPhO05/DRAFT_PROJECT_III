@@ -151,6 +151,11 @@ def test_refused_key_has_its_own_code(paths, client, w):
     assert lines(send(client, "Hỏi lại"))[-1]["code"] == "llm_unavailable"
 
 
+def test_wrong_model_has_its_own_code(paths, client, w):
+    script(llm.BadRequest("x"))
+    assert lines(send(client, "Hỏi"))[-1] == {"type": "error", "code": "bad_model", "message": assistant.BAD_MODEL}
+
+
 def test_chat_card_and_server_share_the_key_text():
     assert f"bad_key: '{BAD_KEY}'" in (Path(__file__).parents[2] / "app" / "chat.js").read_text(encoding="utf-8")
 

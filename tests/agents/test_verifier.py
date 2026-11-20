@@ -43,6 +43,12 @@ def test_rejected_key_is_not_swallowed(fake):
         verifier.run(MISTAKE, STEPS, PROBLEM, codes=CODES, ctx=CTX)
 
 
+def test_wrong_model_is_not_swallowed(fake):
+    fake(llm.BadRequest("Tên model hoặc yêu cầu không hợp lệ"))
+    with pytest.raises(llm.BadRequest):
+        verifier.run(MISTAKE, STEPS, PROBLEM, codes=CODES, ctx=CTX)
+
+
 def test_prompt_sees_only_the_conclusion_of_03(fake):
     f = fake(verifier.VerdictOut(verdict="agree", reason="đúng"))
     v = verifier.run(MISTAKE | {"corrected_latex": "BẢN SỬA CỦA 03"}, STEPS, PROBLEM, codes=CODES, ctx=CTX)

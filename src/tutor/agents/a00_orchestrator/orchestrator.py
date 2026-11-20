@@ -10,6 +10,7 @@ from datetime import date
 from tutor import llm
 from tutor.agents.a00_orchestrator.tools import LABELS, Starters, Toolbox, meta
 from tutor.config import guess_submission, student_code
+from tutor.llm import BadRequest as BadRequest
 from tutor.llm import KeyRejected as KeyRejected
 from tutor.llm import LLMUnavailable as LLMUnavailable  # api catches it from here (S14)
 

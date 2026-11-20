@@ -23,6 +23,7 @@ FORBIDDEN = re.compile(
     r"θ|δ|\[F\d\d\]|thread|checkpoint|token|computational\.|conceptual\.|notational\.|presentation\.|other\.unclear"
     r"|g[1-5]-hs|\bnode\b|\b\d[A-Z]{2}-[A-Z0-9]+-\d\d\b"
 )
+MODEL = "Model đang cài không dùng được với khoá này (mục models trong settings.json)"
 TAIL = "Bài làm vẫn còn nguyên, chưa có gì được lưu."
 KEY = "Khoá API sai, hết hạn, chưa có hoặc tài khoản hết hạn mức (mở ⚙ Cài đặt)"
 
@@ -225,6 +226,7 @@ def test_failed_stage_names_the_lane(env):
     ("Tiến trình dừng giữa chừng (tắt app / máy ngủ); bấm Chạy lại", "commit", "App bị tắt", "lưu kết quả"),
     ("KeyRejected: Khoá API bị từ chối: Error code: 429 - insufficient_quota", "lane", KEY, "chấm bài"),
     ("KeyRejected: Thiếu OPENAI_API_KEY: nhập khoá ở ⚙ Cài đặt rồi thử lại", "ingest", KEY, "đọc bài"),
+    ("BadRequest: Tên model hoặc yêu cầu không hợp lệ, xem mục models trong settings.json", "lane", MODEL, "chấm bài"),
     ("KeyError: 'x'", "commit", "Gặp lỗi không lường trước", "lưu kết quả"),
 ])  # fmt: skip
 def test_error_words(env, error, node, reason, step):
