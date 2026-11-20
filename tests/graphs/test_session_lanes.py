@@ -1,11 +1,15 @@
 """P2-T05: G1 runs one 02 → 03 → 04 lane per problem up to the review gate; confirm_match loop."""
 
+import itertools
+
 import pytest
 
 from tests.bankfix import P1, P2
 from tests.fakes import lane_handlers
 from tests.graphs.g1 import THREE, prob, status
+from tutor import llm
 from tutor.agents.a01_ingest import ingest
+from tutor.agents.a04_verifier import verifier
 from tutor.db import repo
 from tutor.graphs import runner as rmod
 
@@ -124,3 +128,26 @@ def test_malformed_decisions_count_as_pending(env, bad):
     go, conn, r = env
     out, row, _ = go(prob(P2[0], "LANE1 $m = -4$"))
     assert r.save_decisions(out["thread_id"], bad) == 1
+
+
+def test_04_failing_on_one_mistake_keeps_the_other_verdicts(env):
+    go, conn, r = env
+    calls = itertools.count()
+
+    def g04(user, system):
+        if next(calls) == 1:
+            return llm.LLMUnavailable("04: Connection error.")
+        return verifier.VerdictOut(verdict="agree", reason="đúng")
+
+    out, row, fake = go(THREE, handlers=lane_handlers(mistakes=2) | {"04": g04})
+    assert (row["status"], row["node"]) == ("awaiting_review", "gate_review")
+    assert fake.count["04"] == 6
+    verdicts = [p["verifier"]["verdict"] for p in r.state(out["thread_id"])["proposals"]]
+    assert sorted(verdicts, key=str) == [None] + ["agree"] * 5
+
+
+def test_04_down_for_every_mistake_still_reaches_review(env):
+    go, conn, r = env
+    out, row, _ = go(THREE, handlers=lane_handlers() | {"04": llm.LLMUnavailable("04: Connection error.")})
+    assert (row["status"], row["node"]) == ("awaiting_review", "gate_review")
+    assert {p["verifier"]["verdict"] for p in r.state(out["thread_id"])["proposals"]} == {None}

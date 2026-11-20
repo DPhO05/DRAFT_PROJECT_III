@@ -31,6 +31,18 @@ def fake(tmp_path):
     llm.set_backend(None)
 
 
+def test_unavailable_gives_no_verdict(fake):
+    fake(llm.LLMUnavailable("04: Connection error."))
+    v = verifier.run(MISTAKE, STEPS, PROBLEM, codes=CODES, ctx=CTX)
+    assert v.verdict is None and "Connection error" in v.reason
+
+
+def test_rejected_key_is_not_swallowed(fake):
+    fake(llm.KeyRejected("Khoá API bị từ chối: x"))
+    with pytest.raises(llm.KeyRejected):
+        verifier.run(MISTAKE, STEPS, PROBLEM, codes=CODES, ctx=CTX)
+
+
 def test_prompt_sees_only_the_conclusion_of_03(fake):
     f = fake(verifier.VerdictOut(verdict="agree", reason="đúng"))
     v = verifier.run(MISTAKE | {"corrected_latex": "BẢN SỬA CỦA 03"}, STEPS, PROBLEM, codes=CODES, ctx=CTX)

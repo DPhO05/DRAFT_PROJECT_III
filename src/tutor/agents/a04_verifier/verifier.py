@@ -24,7 +24,7 @@ class VerdictOut(BaseModel):
 
 
 class Verdict(BaseModel):
-    verdict: Verdicts | None  # None: 04 failed the schema twice
+    verdict: Verdicts | None  # None: 04 failed the schema twice, or the call failed
     reason: str
     suggested_code: str | None
 
@@ -39,7 +39,9 @@ def run(mistake: dict, steps: list[dict], problem: dict, *, codes: list[dict], c
     extra = [f"Đề:\n{problem['statement_latex']}", f"Lời giải mẫu:\n{problem['solution_latex']}", claim]
     try:
         out = llm.call("04", [INSTRUCTIONS, table], VerdictOut, extra=extra, student_work=numbered(steps), context=ctx)
-    except llm.SchemaFlag as e:
+    except llm.KeyRejected:
+        raise
+    except (llm.SchemaFlag, llm.LLMUnavailable) as e:
         return Verdict(verdict=None, reason=str(e), suggested_code=None)
     active = {c["code"] for c in codes}
     return Verdict(verdict=out.verdict, reason=out.reason,
