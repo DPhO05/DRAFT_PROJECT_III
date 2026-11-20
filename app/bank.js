@@ -65,7 +65,12 @@
     });
   }
   function loadCatalog() {
-    return U.api.get('/catalog/kc').then(function (k) { kcs = k; drawTopics(); drawSkills(); });
+    return U.api.get('/catalog/kc').then(function (k) { kcs = k; drawGrades(); drawTopics(); drawSkills(); });
+  }
+  function drawGrades() {
+    var gs = kcs.map(function (k) { return k.lop; }).filter(function (l, i, a) { return l != null && a.indexOf(l) === i; }).sort(function (a, b) { return a - b; });
+    $('b-grade').innerHTML = '<option value="">Tất cả</option>' + gs.map(function (l) { return '<option value="' + l + '">Lớp ' + l + '</option>'; }).join('');
+    $('b-grade').value = f.grade;
   }
   function drawTopics() {
     if (topicsDrawn || !kcs.length || !counts) return;
@@ -90,7 +95,7 @@
       '<section class="section"><div class="filters">' +
       '<label class="field wide"><span>Tìm</span><input type="search" id="b-q" autocomplete="off" placeholder="Mã bài, chữ trong đề hoặc tên kỹ năng"></label>' +
       '<label class="field"><span>Chủ đề</span><select id="b-topic"><option value="">Tất cả chủ đề</option></select></label>' +
-      '<label class="field"><span>Lớp</span><select id="b-grade"><option value="">Tất cả</option><option value="8">Lớp 8</option><option value="9">Lớp 9</option></select></label>' +
+      '<label class="field"><span>Lớp</span><select id="b-grade"><option value="">Tất cả</option></select></label>' +
       '<label class="field"><span>Kỹ năng</span><select id="b-skill"><option value="">Tất cả kỹ năng</option></select></label>' +
       '<div class="field wide"><span>Mức</span><div class="seg" role="group" aria-label="Mức độ khó">' +
       [['', 'Tất cả'], ['dễ', 'dễ'], ['vừa', 'vừa'], ['khó', 'khó'], ['none', NO_LEVEL]].map(function (l) {
