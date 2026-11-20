@@ -12,6 +12,7 @@ from tutor import __version__, config, devfake, llm
 from tutor.api import assistant, backup, bank, catalog, errors, logs, reports, sessions, students, threads, worksheets
 from tutor.api import settings as settings_api  # `settings` is a local of create_app
 from tutor.db import repo
+from tutor.graphs import chat_store
 from tutor.graphs import threads as graph_threads
 from tutor.graphs.registry import make_runner
 
@@ -56,7 +57,7 @@ def create_app(paths: config.DataPaths, *, port: int, fake_llm: bool = False) ->
         except Exception:  # a failed tidy-up must not stop the app
             log.error("khởi động: dọn checkpoint lỗi", exc_info=True)
         app.state.runner = runner
-        app.state.chat = assistant.ChatStore(paths.chat_db)
+        app.state.chat = chat_store.ChatStore(paths.chat_db)
         yield
         app.state.chat.close()
         runner.close()
