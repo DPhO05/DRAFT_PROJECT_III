@@ -105,3 +105,11 @@ def test_create_app_turns_langsmith_tracing_off(paths, monkeypatch):
     create_app(paths, port=8000)
     utils.get_env_var.cache_clear()
     assert utils.tracing_is_enabled() is False
+
+
+def test_mathjax_is_served_by_the_app(client):
+    html = client.get("/").text
+    assert "cdnjs.cloudflare.com" not in html
+    assert 'src="vendor/mathjax/es5/tex-svg.js"' in html
+    for f in ("tex-svg.js", "ui/safe.js", "input/tex/extensions/html.js"):
+        assert client.get(f"/vendor/mathjax/es5/{f}").status_code == 200
