@@ -527,7 +527,12 @@ def _check_parent(conn: sqlite3.Connection, kc_id: int | None, parent_id: int | 
 
 def update_kc(conn: sqlite3.Connection, kc_id: int, **fields) -> None:
     """name / description / parent_id / lop."""
-    allowed = {k: v for k, v in fields.items() if k in ("name", "description", "parent_id", "lop")}
+    # name and description are NOT NULL, so a null means "unchanged"
+    allowed = {
+        k: v
+        for k, v in fields.items()
+        if k in ("name", "description", "parent_id", "lop") and not (v is None and k in ("name", "description"))
+    }
     with write_tx(conn):
         if conn.execute("SELECT 1 FROM kc WHERE id = ?", (kc_id,)).fetchone() is None:
             raise NotFound(f"KC {kc_id}")
@@ -573,7 +578,8 @@ def add_student(conn: sqlite3.Connection, *, name: str, grade: int | None = None
 
 
 def update_student(conn: sqlite3.Connection, student_id: int, **fields) -> None:
-    allowed = {k: v for k, v in fields.items() if k in ("name", "grade", "note")}
+    # name is NOT NULL, so a null means "unchanged"
+    allowed = {k: v for k, v in fields.items() if k in ("name", "grade", "note") and not (v is None and k == "name")}
     _check_student(allowed.get("name"), allowed.get("grade"))
     with write_tx(conn):
         if conn.execute("SELECT 1 FROM student WHERE id = ?", (student_id,)).fetchone() is None:

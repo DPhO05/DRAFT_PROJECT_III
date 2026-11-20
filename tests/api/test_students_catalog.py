@@ -66,3 +66,12 @@ def test_csv_cycle_import_rejected(client):
             "prereq_csv": "kc_code,prereq_code\nA,B\nB,A\n"}  # fmt: skip
     r = client.post("/api/catalog/import", json=body, headers=W)
     assert r.status_code == 422 and r.json()["error"]["detail"]["cycle"]
+
+
+def test_patch_with_null_name_keeps_the_name(client):
+    sid = client.post("/api/students", json={"name": "Lê Minh", "grade": 8}, headers=W).json()["id"]
+    r = client.patch(f"/api/students/{sid}", json={"name": None, "note": "chăm"}, headers=W)
+    assert (r.status_code, r.json()["name"], r.json()["note"]) == (200, "Lê Minh", "chăm")
+    k = client.post("/api/catalog/kc", json={"code": "A", "name": "a", "description": "d", "lop": 8}, headers=W).json()
+    r = client.patch(f"/api/catalog/kc/{k['id']}", json={"name": None, "description": None, "lop": 9}, headers=W)
+    assert (r.status_code, r.json()["name"], r.json()["description"], r.json()["lop"]) == (200, "a", "d", 9)
