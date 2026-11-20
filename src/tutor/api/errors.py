@@ -58,6 +58,8 @@ def install(app: FastAPI) -> None:
             status, code, detail = fn(e)
             if status >= 500 and e.__cause__:  # the words are for the teacher; the cause is for app.log
                 log.error("%s %s: %s: %s", request.method, request.url.path, type(e.__cause__).__name__, e.__cause__)
+            elif status == 422:
+                log.warning("%s %s: %s", request.method, request.url.path, e)
             return error(status, code, str(e) or code, detail)
 
         app.add_exception_handler(exc, handler)

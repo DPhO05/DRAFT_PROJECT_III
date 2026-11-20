@@ -199,7 +199,7 @@
   };
 
   // ---- import (G2): pick a file, read it, fill the missing skills, save ----
-  var imp = null, IMP_422 = 'File cần là .tex trong thư mục inbox/bank và có ít nhất một khối \\begin{problem}.';
+  var imp = null;
 
   function live(s) { return s === imp && s.root.isConnected; }
   function impDraw(s, focusSel) {
@@ -352,7 +352,7 @@
       var saved = r.status === 'running' ? Promise.resolve({}) : U.api.get('/threads/' + r.thread_id).then(savedAnswers);
       saved.then(function (dec) { if (live(s)) { s.dec = dec; impPoll(s); } },
         function () { if (live(s)) impFail(s, 'Không đọc được lựa chọn đã lưu lần trước. Thử lại sau.'); });
-    }, function (e) { if (live(s)) impFail(s, e.status === 422 ? IMP_422 : 'Thử lại sau.'); });
+    }, function (e) { if (live(s)) impFail(s, e.status === 422 ? U.esc(e.message) : 'Thử lại sau.'); });
   };
   ACT['imp-back'] = function () { impFiles(imp); };
   ACT['imp-retry'] = function (btn) {

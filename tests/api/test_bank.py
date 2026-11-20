@@ -174,3 +174,10 @@ def test_import_twice_returns_same_thread(paths, client):
 def test_import_needs_header(paths, client):
     shutil.copy(MIX, paths.inbox / "bank" / "mix.tex")
     assert client.post("/api/bank/imports", json={"file": "mix.tex"}).status_code == 403
+
+
+def test_import_of_a_non_utf8_file_says_so_and_is_logged(paths, client):
+    (paths.inbox / "bank" / "latin.tex").write_bytes("\\begin{problem}[X1] caf\xe9 \\end{problem}".encode("latin-1"))
+    r = client.post("/api/bank/imports", json={"file": "latin.tex"}, headers=W)
+    assert r.status_code == 422 and r.json()["error"]["message"] == "File phải lưu dạng UTF-8"
+    assert "POST /api/bank/imports: File phải lưu dạng UTF-8" in (paths.logs / "app.log").read_text(encoding="utf-8")

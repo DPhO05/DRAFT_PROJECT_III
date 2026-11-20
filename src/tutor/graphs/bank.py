@@ -35,7 +35,11 @@ def _source(paths: DataPaths, file: str):
 def start_import(paths: DataPaths, runner: Runner, *, file: str) -> dict:
     """Check the file, then run `read` in the background. A file whose import is not committed yet keeps its thread."""
     src, folder = _source(paths, file)
-    if not latex.split_problems(src.read_text(encoding="utf-8")):
+    try:
+        text = src.read_text(encoding="utf-8")
+    except UnicodeDecodeError as e:
+        raise ValueError("File phải lưu dạng UTF-8") from e
+    if not latex.split_problems(text):
         raise ValueError("Không tìm thấy bài nào trong file (chưa có dòng \\begin{problem})")
     name = src.relative_to(folder).as_posix()
     with _START:
