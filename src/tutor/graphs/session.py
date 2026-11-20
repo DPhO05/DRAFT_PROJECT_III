@@ -11,7 +11,7 @@ import hashlib
 import json
 import re
 from collections.abc import Callable
-from contextlib import closing
+from contextlib import closing, suppress
 from datetime import date
 from pathlib import Path
 
@@ -89,9 +89,11 @@ def submit(paths: DataPaths, runner: Runner, *, student_id: int, held_on: str, r
     try:
         runner.start(GRAPH, tid, state, meta)
     except Exception:
-        # ① is already written: never leave a 'running' session with no thread behind it
+        # A session with no thread cannot be cancelled and would block the file and later sessions.
         with closing(repo.connect(paths.tutor_db)) as conn:
-            repo.commit_session_status(conn, session_id, "failed")
+            repo.delete_uncommitted_session(conn, session_id)
+        with suppress(Exception):
+            runner.delete(tid)
         raise
     return {"thread_id": tid, "session_id": session_id, "status": "running"}
 

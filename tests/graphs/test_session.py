@@ -139,16 +139,28 @@ def test_failure_after_01_then_rerun_does_not_call_01_again(env, monkeypatch):
     assert fake.count["01"] == 1
 
 
-def test_session_marked_failed_when_graph_cannot_start(env, monkeypatch):
+def broken(*a, **k):
+    raise RuntimeError("checkpoints.db hỏng")
+
+
+def test_session_dropped_when_graph_cannot_start(env, monkeypatch):
     paths, conn, r, sid, _ = env
+    name = put(paths, "a.tex", WITH_IDS)
+    with monkeypatch.context() as m:
+        m.setattr(r, "start", broken)
+        with pytest.raises(RuntimeError):
+            session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path=name)
+    assert repo.row_counts(conn)["session"] == 0
+    out = session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path=name)  # the same file goes again
+    assert r.wait(out["thread_id"])["status"] == "awaiting_review"
 
-    def broken(*a, **k):
-        raise RuntimeError("checkpoints.db hỏng")
 
-    monkeypatch.setattr(r, "start", broken)
+def test_thread_row_dropped_too_when_graph_cannot_start(env, monkeypatch):
+    paths, conn, r, sid, _ = env
+    monkeypatch.setattr(r, "_submit", broken)  # the thread row is written, then the pool refuses
     with pytest.raises(RuntimeError):
         session.submit(paths, r, student_id=sid, held_on="2026-10-20", rel_path=put(paths, "a.tex", WITH_IDS))
-    assert conn.execute("SELECT status FROM session").fetchone()[0] == "failed"
+    assert repo.row_counts(conn)["session"] == 0 and not r.exists(f"g1-hs{sid:02d}-20261020")
 
 
 def test_other_students_name_in_tex_is_masked(env):
