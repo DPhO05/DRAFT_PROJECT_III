@@ -6,17 +6,104 @@ import pytest
 
 from tests.eval import agents, metrics, run
 from tutor import llm
+from tutor.agents.a00_orchestrator import orchestrator, tools
 from tutor.agents.a09_reporter.reporter import ReportOut, Sentence
 
 
 def test_00_oracle_passes_every_question(tmp_path):
     res = agents.evaluate_00(agents.oracle_00, work=tmp_path, runs=3)
     assert res["errors"] == [] and res["agent"] == "00" and res["runs"] == 3
-    assert [q["id"] for q in agents.QUESTIONS] == [f"q{i}" for i in range(1, 9)]
+    assert [q["id"] for q in agents.QUESTIONS] == [f"q{i}" for i in range(1, 21)]
     for s in res["metrics"]["per_run"]:
-        assert s == {"n_questions": 8, "tools_ok": 1, "unverified_pct": 0, "args_ok": 1, "passed": 1}
-    assert res["metrics"]["pass_k"] == 1
+        assert (s["n_questions"], s["tools_ok"], s["args_ok"], s["unverified_pct"], s["passed"]) == (20, 1, 1, 0, 1)
+    assert res["metrics"]["pass_k"] == 1 and res["metrics"]["extra"] == {"name_leaks": 0, "approval_ok": 1}
     assert list(res["prompt_versions"]) == ["00"] and len(res["prompt_versions"]["00"]) == 1
+
+
+def test_00_tasks_are_wellformed():
+    known = set(tools.LABELS)
+    firsts = [q.get("masked", q["text"]) for q in agents.QUESTIONS]
+    assert len(set(firsts)) == len(firsts) == 20
+    for q in agents.QUESTIONS:
+        named = {*q["expect"], *q["forbid"], *q.get("expect_args", {}), *q.get("max_calls", {}),
+                 *q.get("fail_tools", []), *(c["name"] for step in q["script"] for c in step)} - {"*"}  # fmt: skip
+        assert named <= known, q["id"]
+    by_id = {q["id"]: q for q in agents.QUESTIONS}
+    assert by_id["q18"]["expect_text"] == orchestrator.SAVED_NOTHING
+
+
+def by_id(res, qid):
+    [a] = [a for a in res["answers"][0] if a["id"] == qid]
+    return a
+
+
+def test_00_approval_decisions_reach_the_starter(tmp_path):
+    res = agents.evaluate_00(agents.oracle_00, work=tmp_path, runs=1, only=["q11", "q12", "q13"])
+    assert by_id(res, "q11")["starts"] == [["start_grading", 1, "hs01-a.tex", "2026-10-21"]]
+    assert by_id(res, "q12")["starts"] == [] and by_id(res, "q12")["tool_errors"] == 1
+    assert by_id(res, "q13")["starts"] == [["start_grading", 1, "hs01-c.tex", "2026-10-20"]]
+    assert all(len(by_id(res, q)["approvals"]) == 1 for q in ("q11", "q12", "q13"))
+
+
+def test_00_two_turn_tasks_share_one_thread(tmp_path):
+    res = agents.evaluate_00(agents.oracle_00, work=tmp_path, runs=1, only=["q15", "q16"])
+    assert by_id(res, "q15")["tools"] == ["student_mistakes"]
+    assert by_id(res, "q16")["tools"] == ["rank_problems", "propose_worksheet"]
+    assert res["metrics"]["pass_k"] == 1
+
+
+def test_00_by_code_tasks_make_no_model_call(tmp_path):
+    res = agents.evaluate_00(agents.oracle_00, work=tmp_path, runs=1, only=["q18", "q19"])
+    assert by_id(res, "q18")["model_calls"] == by_id(res, "q19")["model_calls"] == 0
+    assert by_id(res, "q19")["tools"] == ["find_problems"] and by_id(res, "q19")["text"] == ""
+
+
+def test_00_full_name_never_reaches_the_model(tmp_path):
+    res = agents.evaluate_00(agents.oracle_00, work=tmp_path / "w", runs=1, only=["q20"], traces=tmp_path / "tr")
+    assert by_id(res, "q20")["leaks"] == 0 and by_id(res, "q20")["calls"][0]["args"] == {"code": "HS-01"}
+    assert "Nguyễn Văn An" not in (tmp_path / "tr" / "run1-chat.json").read_text(encoding="utf-8")
+
+
+def retry_q10(times):
+    def make(conn):
+        fake, models = agents.oracle_00(conn)
+        right = fake.handlers["00"]
+
+        def handle(messages):
+            if agents.question_of(messages)["id"] != "q10":
+                return right(messages)
+            n = sum(m["role"] == "assistant" for m in messages)
+            return (
+                [{"type": "tool_use", "name": "start_bank_import", "input": {"file": "bai-moi.tex"}}]
+                if n < times
+                else right(messages)
+            )
+
+        fake.handlers["00"] = handle
+        return fake, models
+
+    return make
+
+
+@pytest.mark.parametrize(("times", "ok"), [(1, True), (2, True), (3, False)])
+def test_00_failing_tool_may_be_retried_once(tmp_path, times, ok):
+    res = agents.evaluate_00(retry_q10(times), work=tmp_path, runs=1, only=["q10"])
+    assert metrics.passed_00(by_id(res, "q10")) is ok
+
+
+def repeat_after_reject(conn):
+    fake, models = agents.oracle_00(conn)
+    go = [{"type": "tool_use", "name": "start_grading",
+           "input": {"code": "HS-01", "file": "hs01-b.tex", "held_on": "2026-10-21"}}]  # fmt: skip
+    fake.handlers["00"] = lambda messages: (
+        go if sum(m["role"] == "assistant" for m in messages) < 2 else [{"type": "text", "text": agents.DONE}]
+    )
+    return fake, models
+
+
+def test_00_calling_again_after_a_reject_fails(tmp_path):
+    res = agents.evaluate_00(repeat_after_reject, work=tmp_path, runs=1, only=["q12"])
+    assert not metrics.passed_00(by_id(res, "q12")) and res["metrics"]["extra"]["approval_ok"] == 0
 
 
 def test_00_prompt_version_is_the_apps(tmp_path):
@@ -69,8 +156,8 @@ def unknown_student_q2(conn):
 def test_00_wrong_oracle_scores_drop(tmp_path):
     res = agents.evaluate_00(wrong_00, work=tmp_path, runs=2)
     s = res["metrics"]["per_run"][0]
-    assert s["tools_ok"] == 6 / 8 and s["unverified_pct"] == 100 / 8 and s["passed"] == 5 / 8
-    assert res["metrics"]["pass_k"] == 5 / 8
+    assert s["tools_ok"] == 18 / 20 and s["unverified_pct"] == 100 / 20 and s["passed"] == 17 / 20
+    assert res["metrics"]["pass_k"] == 17 / 20
     [q3] = [a for a in res["answers"][0] if a["id"] == "q3"]
     assert q3["text"] == "HS-01 sai 99 lần." and [w["kind"] for w in q3["warnings"]] == ["unverified_number"]
 
@@ -78,7 +165,7 @@ def test_00_wrong_oracle_scores_drop(tmp_path):
 def test_00_one_failing_question_is_an_error_not_a_crash(tmp_path):
     res = agents.evaluate_00(broken_q4, work=tmp_path, runs=1)
     assert [e["id"] for e in res["errors"]] == ["q4"]
-    assert res["metrics"]["per_run"][0]["n_questions"] == 8 and res["metrics"]["pass_k"] == 7 / 8
+    assert res["metrics"]["per_run"][0]["n_questions"] == 20 and res["metrics"]["pass_k"] == 19 / 20
 
 
 def test_00_tool_error_fails_the_question(tmp_path):
@@ -86,7 +173,7 @@ def test_00_tool_error_fails_the_question(tmp_path):
     [q2] = [a for a in res["answers"][0] if a["id"] == "q2"]
     assert q2["tools"] == ["student_profile"] and q2["tool_errors"] == 1  # called as expected, but it failed
     assert not metrics.passed_00(q2)
-    assert res["metrics"]["per_run"][0]["tools_ok"] == 7 / 8
+    assert res["metrics"]["per_run"][0]["tools_ok"] == 19 / 20
 
 
 def test_09_oracle_passes_every_period(tmp_path):
@@ -121,6 +208,18 @@ def test_09_bad_number_is_dropped_after_one_rewrite(tmp_path):
     res = agents.evaluate_09(wrong_09, work=tmp_path, runs=1)
     assert all(sum(a["status"] == "dropped" for a in r["audit"]) == 1 for r in res["reports"][0])
     assert res["metrics"]["pass_k"] == 0
+
+
+def test_raised_error_text_is_stored_without_a_student_name(tmp_path, monkeypatch):
+    res = agents.evaluate_00(raising_q1_with_a_name, work=tmp_path / "a", runs=1, only=["q1"])
+    assert "down" in res["errors"][0]["error"] and "Nguyễn Văn An" not in res["errors"][0]["error"]
+
+    def boom(*args, **kw):
+        raise ValueError("Trần Thị Bình")
+
+    monkeypatch.setattr(agents.reporter, "run", boom)
+    res = agents.evaluate_09(agents.oracle_09, work=tmp_path / "b", runs=1, only=["HS-02 day 2026-10-14"])
+    assert "ValueError" in res["errors"][0]["error"] and "Trần Thị Bình" not in res["errors"][0]["error"]
 
 
 def test_09_period_without_facts_is_an_error(tmp_path, monkeypatch):
@@ -193,7 +292,7 @@ def test_00_result_has_calls_tally_and_models(tmp_path):
     assert res["calls"]["logged"] > 0 and isinstance(res["calls"]["usd"], float)
     assert set(res["calls"]["by_agent"]) == {"00"} and list(res["models"]) == ["00"]
     t = res["metrics"]["tally"]
-    assert (t["trials_passed"], t["trials"], t["tasks_passed"], t["tasks"]) == (8, 8, 8, 8)
+    assert (t["trials_passed"], t["trials"], t["tasks_passed"], t["tasks"]) == (20, 20, 20, 20)
     assert res["metrics"]["success"] == 1 and res["metrics"]["extra"]["name_leaks"] == 0
 
 
@@ -234,7 +333,7 @@ def wrong_args_q2(conn):
 def test_00_wrong_argument_fails_the_question(tmp_path):
     res = agents.evaluate_00(wrong_args_q2, work=tmp_path, runs=1)
     s = res["metrics"]["per_run"][0]
-    assert s["tools_ok"] == 1 and s["args_ok"] == 7 / 8 and s["passed"] == 7 / 8
+    assert s["tools_ok"] == 1 and s["args_ok"] == 19 / 20 and s["passed"] == 19 / 20
 
 
 def name_echo_q1(conn):

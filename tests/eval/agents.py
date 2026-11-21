@@ -5,6 +5,7 @@ api/assistant.py: fixed prompt parts and tool list from the catalog, `chat.event
 09: write the parent report of a few fixed periods of the same world, score what the audit did to the draft.
 """
 
+import dataclasses
 import json
 import re
 import shutil
@@ -25,6 +26,7 @@ from tutor import config, llm
 from tutor.agents.a00_orchestrator import chat, orchestrator
 from tutor.agents.a00_orchestrator.tools import Toolbox, lc_tools, tool_defs
 from tutor.agents.a09_reporter import reporter
+from tutor.api import assistant
 from tutor.db import repo
 from tutor.graphs import session
 from tutor.services import facts
@@ -46,46 +48,65 @@ def _world(work: Path):
         return paths, world(conn)
 
 
+def _fails(*args):
+    raise ValueError("File này không đọc được")
+
+
+# task fields the grader reads, copied into the answer
+_GRADER_FIELDS = ("expect_approval", "approval", "expect_starts", "allow_tool_error", "max_calls", "max_model_calls",
+                  "expect_text", "expect_any", "card_only")  # fmt: skip
+
+
 def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
-    """The answer to one question in a new read-only session, as one tutor message."""
+    """The answer to one task in a new read-only session: its messages in one thread, approvals answered as scripted."""
     calls = []
     starters = recorder(calls)
+    if q.get("fail_tools"):
+        starters = dataclasses.replace(starters, **dict.fromkeys(q["fail_tools"], _fails))
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         everyone = {s["id"]: s for s in repo.list_students(conn, include_archived=True)}
         redact = {s["name"]: s["code"] for s in everyone.values()}
-        box = Toolbox(conn, settings=config.defaults(), today=w["today"], text=q["text"], starters=starters)
         codes = repo.error_codes(conn, active_only=True)
+        code_names = [c["code"] for c in codes]
         fixed = orchestrator.fixed_parts(repo.list_kc(conn), codes)
-        tools = tool_defs([c["code"] for c in codes])
+        tools = tool_defs(code_names)
         n0 = len(read_log(log))
-        ctx = chat.ChatContext(orchestrator.Turn(q["text"]), box, everyone, redact)
-        agent = chat.build(
-            llm.model("00"),
-            lc_tools(box, [c["code"] for c in codes]),
-            InMemorySaver(),
-            max_tool_turns=config.defaults()["assistant"]["max_tool_turns"],
-            system=fixed,
-        )
-        cfg = {"configurable": {"thread_id": "eval"}, "recursion_limit": 200}
+        saver, cfg = InMemorySaver(), {"configurable": {"thread_id": "eval"}, "recursion_limit": 200}
         cc = llm.CallContext(graph=None, conversation_id="2026-10-21-1", redact=orchestrator._names(redact))
-        error = None
+        events, approvals, agent, error = [], [], None, None
         try:
             with chat.scope(cc, fixed, tools):
-                events = list(chat.events(agent, ctx, cfg))
+                for text in [q["text"], *q.get("turns", [])]:  # as the app: all new per message, the thread stays
+                    box = Toolbox(conn, settings=config.defaults(), today=w["today"], text=text, starters=starters)
+                    ctx = chat.ChatContext(orchestrator.Turn(text), box, everyone, redact)
+                    agent = chat.build(llm.model("00"), lc_tools(box, code_names), saver,
+                                       max_tool_turns=config.defaults()["assistant"]["max_tool_turns"],
+                                       system=fixed)  # fmt: skip
+                    leg = list(chat.events(agent, ctx, cfg))
+                    events += leg
+                    while leg and leg[-1]["type"] == "approval":
+                        approvals.append({"name": leg[-1]["name"], "args": leg[-1]["args"]})
+                        decision = assistant.Decision(**q.get("approval", {"decision": "reject"}))
+                        resume = assistant._decisions(decision, chat.waiting(agent, cfg))
+                        leg = list(chat.events(agent, ctx, cfg, resume=resume))
+                        events += leg
         except Exception as e:  # kept as a failed answer so its log rows still count for leaks
-            events, error = [], f"{type(e).__name__}: {e}"
-        thread = agent.get_state(cfg).values.get("messages", [])
+            events, approvals, error = [], [], orchestrator.mask(f"{type(e).__name__}: {e}", redact)
+        thread = agent.get_state(cfg).values.get("messages", []) if agent else []
         messages = messages_to_dict(thread)
     rows = read_log(log)[n0:]
     made = [{"name": c["name"], "args": c["args"]} for m in thread if isinstance(m, AIMessage) for c in m.tool_calls]
     text = "".join(e["delta"] for e in events if e["type"] == "text")
+    dones = [e for e in events if e["type"] == "done"]
     return {
         "id": q["id"],
         "expect": q["expect"],
         "forbid": q["forbid"],
         "expect_args": q.get("expect_args", {}),
+        **{k: q[k] for k in _GRADER_FIELDS if k in q},
         "calls": made,
         "starts": [list(c) for c in calls],
+        "approvals": approvals,
         "model_calls": len(rows),
         "leaks": leak_count(chain(_strings(rows), _strings(messages)), orchestrator._names(redact)),
         "schema_errors": sum(not metrics.args_fit(c, tools) for c in made),
@@ -94,7 +115,7 @@ def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
         "tools": [e["name"] for e in events if e["type"] == "tool" and e["state"] != "start"],
         "tool_errors": sum(e["type"] == "tool" and e["state"] == "error" for e in events),
         "unverified": sum(e["type"] == "warning" and e["kind"] == "unverified_number" for e in events),
-        "stopped": events[-1]["stopped"] if events else "error",
+        "stopped": "error" if error else dones[-1]["stopped"] if dones else "no_done",
         "error": error,
         "text": text,
         "warnings": [e for e in events if e["type"] == "warning"],
@@ -140,7 +161,7 @@ def trials(tasks, one, make_backend, *, work: Path, runs: int, key: str = "id", 
             try:
                 done.append(one(paths, w, t, log))
             except Exception as e:  # recorded; the task counts as failed in pass^k
-                errors.append({"run": k, key: t[key], "error": f"{type(e).__name__}: {e}"})
+                errors.append({"run": k, key: t[key], "error": orchestrator.mask(f"{type(e).__name__}: {e}", names)})
         got.append(done)
         rows += [r | {"run": k} for r in read_log(log)]
         if traces is not None and log.exists():
@@ -214,6 +235,8 @@ def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | No
     leaks = sum(a["leaks"] for done in t["got"] for a in done)
     res = summarize("00", t, key="id", score=metrics.score_00, passed=metrics.passed_00, payload="answers",
                     leaks=leaks)  # fmt: skip
+    rates = [s["approval_ok"] for s in res["metrics"]["per_run"] if s["approval_ok"] is not None]
+    res["metrics"]["extra"]["approval_ok"] = sum(rates) / len(rates) if rates else None
     return res | {"app_version": app_version}
 
 
@@ -252,10 +275,11 @@ def oracle_00(conn):
     """FakeLLM that follows each question's script, one model turn per scripted step, then answers without a number."""
 
     def handle(messages):
-        script, step = question_of(messages)["script"], sum(m["role"] == "assistant" for m in messages)
-        if step < len(script):
-            return [{"type": "tool_use", **call} for call in script[step]]
-        return [{"type": "text", "text": DONE}]
+        step = sum(m["role"] == "assistant" for m in messages)
+        q = question_of(messages)
+        if step < len(q["script"]) and q["script"][step]:  # an empty step: answer in words
+            return [{"type": "tool_use", **call} for call in q["script"][step]]
+        return [{"type": "text", "text": q.get("say", DONE)}]
 
     return FakeLLM({"00": handle}), {}
 

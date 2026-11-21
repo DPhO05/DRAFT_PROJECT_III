@@ -149,7 +149,42 @@ def test_passed_00_fails_on_a_leak_a_shown_code_a_save_claim_or_a_bad_call():
 
 def test_score_00():
     s = metrics.score_00([ans(["list_students"], ["list_students"]), ans(["list_students"], [], unverified=2)])
-    assert s == {"n_questions": 2, "tools_ok": 0.5, "unverified_pct": 50.0, "args_ok": 1.0, "passed": 0.5}
+    assert s == {
+        "n_questions": 2,
+        "tools_ok": 0.5,
+        "unverified_pct": 50.0,
+        "args_ok": 1.0,
+        "passed": 0.5,
+        "approval_ok": None,
+    }
+
+
+def test_score_00_approval_ok_counts_only_answers_with_an_approval():
+    asked = ans(["start_grading"], ["start_grading"], approval={"decision": "approve"}, expect_approval=True,
+                approvals=[{"name": "start_grading"}])  # fmt: skip
+    s = metrics.score_00([asked, asked | {"approvals": []}, ans([], [])])
+    assert s["approval_ok"] == 0.5 and s["passed"] == 2 / 3
+
+
+def test_rules_ok_checks_starts_approval_limits_and_text():
+    a = ans([], [], starts=[["start_grading", 1, "a.tex", "2026-10-21"]], approvals=[{"name": "start_grading"}],
+            calls=[{"name": "start_grading", "args": {}}], model_calls=2)  # fmt: skip
+    assert metrics.rules_ok(
+        a | {"expect_starts": [["start_grading", 1, "a.tex", "2026-10-21"]], "expect_approval": True}
+    )
+    assert not metrics.rules_ok(a | {"expect_starts": []})
+    assert not metrics.rules_ok(a)  # an approval nobody expected
+    assert not metrics.rules_ok(a | {"expect_approval": True, "max_calls": {"start_grading": 0}})
+    assert not metrics.rules_ok(a | {"expect_approval": True, "max_model_calls": 1})
+    assert not metrics.rules_ok(a | {"expect_approval": True, "expect_text": "khác"})
+    assert metrics.rules_ok(a | {"expect_approval": True, "expect_any": ["xong", "???"]})  # ans() text is "Xong."
+    assert not metrics.rules_ok(a | {"expect_approval": True, "expect_any": ["?"]})
+
+
+def test_passed_00_card_only_and_allowed_tool_error():
+    assert metrics.passed_00(ans(["find_problems"], ["find_problems"], text="", cards=1, card_only=True))
+    assert not metrics.passed_00(ans(["find_problems"], ["find_problems"], text="", cards=1))
+    assert metrics.passed_00(ans(["start_grading"], ["start_grading"], tool_errors=1, allow_tool_error=True))
 
 
 def test_pass_k_missing_counts_as_failed():

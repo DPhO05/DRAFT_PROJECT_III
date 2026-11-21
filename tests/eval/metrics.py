@@ -87,10 +87,14 @@ def stability(runs: list[dict[str, dict]]) -> dict:
 
 
 def _tools_ok(a: dict) -> bool:
-    """Expected tools called in order (others may sit between), none forbidden ("*" = any tool), no tool error."""
+    """Expected tools in order (others may sit between), none forbidden ("*" = any), no tool error unless allowed."""
     forbidden = bool(a["tools"]) if "*" in a["forbid"] else bool(set(a["forbid"]) & set(a["tools"]))
     calls = iter(a["tools"])
-    return all(name in calls for name in a["expect"]) and not forbidden and a["tool_errors"] == 0
+    return (
+        all(name in calls for name in a["expect"])
+        and not forbidden
+        and (a["tool_errors"] == 0 or a.get("allow_tool_error", False))
+    )
 
 
 def _arg_match(want, got) -> bool:
@@ -124,12 +128,20 @@ def args_fit(call: dict, defs: list[dict]) -> bool:
 
 
 def rules_ok(a: dict) -> bool:
-    """No student name in the trace, no error code shown, every call fits its tool, no claim of saving."""
+    """No student name in the trace, no error code shown, every call fits its tool, no claim of saving, and the
+    task's own limits: approval, starts, calls per tool, model calls, reply text."""
+    text = a["text"].strip()
     return (
         a.get("leaks", 0) == 0
         and a.get("codes_shown", 0) == 0
         and a.get("schema_errors", 0) == 0
         and "đã lưu" not in a["text"].lower()
+        and bool(a.get("approvals")) == bool(a.get("expect_approval"))
+        and ("expect_starts" not in a or a["starts"] == a["expect_starts"])
+        and all(sum(c["name"] == t for c in a["calls"]) <= n for t, n in a.get("max_calls", {}).items())
+        and ("max_model_calls" not in a or a["model_calls"] <= a["max_model_calls"])
+        and text == a.get("expect_text", text)
+        and ("expect_any" not in a or any(x.lower() in text.lower() for x in a["expect_any"]))
     )
 
 
@@ -145,19 +157,20 @@ def passed_00(a: dict) -> bool:
         and rules_ok(a)
         and a["unverified"] == 0
         and a["stopped"] is None
-        and bool(a["text"].strip())
+        and (bool(a["text"].strip()) or bool(a.get("card_only") and a.get("cards", 0) > 0))
     )
 
 
 def score_00(answers: list[dict]) -> dict:
     """One run of agent 00 over the questions that finished."""
-    n = len(answers)
+    n, asked = len(answers), [a for a in answers if "approval" in a]
     return {
         "n_questions": n,
         "tools_ok": _rate(sum(map(_tools_ok, answers)), n),
         "unverified_pct": _rate(100 * sum(a["unverified"] > 0 for a in answers), n),
         "args_ok": _rate(sum(map(args_ok, answers)), n),
         "passed": _rate(sum(map(passed_00, answers)), n),
+        "approval_ok": _rate(sum(map(passed_00, asked)), len(asked)),
     }
 
 
