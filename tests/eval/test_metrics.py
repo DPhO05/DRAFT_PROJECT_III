@@ -318,3 +318,17 @@ def test_passed_02r_checks_ids_points_and_total():
     bad_id = {"items": [{"item_id": "r2", "text": "a", "points": 1}], "max_score": 1}
     assert not metrics.passed_02r(ok | {"draft": bad_id})
     assert not metrics.passed_02r(ok | {"model_calls": 2})
+
+
+def test_trajectory_groups_lanes_and_counts_budget():
+    def r(thread, agent, statement, result="ok", run=1):
+        user = f"Đề:\n{statement}\n\nLời giải mẫu:\ns" if statement else "bài"
+        return {"run": run, "thread_id": thread, "agent": agent, "user": user, "result": result}
+
+    rows = [r("t1", "01", None), r("t1", "02", "A"), r("t1", "02", "B"), r("t1", "03", "A"), r("t1", "03", "B"),
+            r("t1", "04", "A"), r("t2", "03", "C"), r("t2", "02", "C", "schema_error"),
+            r("t2", "02", "C", "retry")]  # fmt: skip
+    t = metrics.trajectory(rows, {"1:t1": 5, "1:t2": 9})
+    assert (t["threads"], t["calls_max"], t["retries"], t["schema_errors"]) == (2, 6, 1, 1)
+    assert t["over_budget"] == 1 and t["order_ok"] == 2 / 3 and t["by_agent"] == {"01": 1, "02": 4, "03": 3, "04": 1}
+    assert metrics.trajectory(rows, None)["over_budget"] is None

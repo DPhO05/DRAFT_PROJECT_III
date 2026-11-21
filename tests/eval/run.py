@@ -86,14 +86,17 @@ def _answer(flag: dict, state: dict, refs: dict) -> dict:
     return {"rubric_items": draft["items"]}
 
 
-def _one(paths, r, name: str, lab: dict) -> dict:
-    """Submit one fixture, pass confirm_match, return {"<file>#<seq>": problem} at the review gate."""
+def _one(paths, r, name: str, lab: dict) -> tuple[dict, str, bool]:
+    """Submit one fixture, pass confirm_match; return ({"<file>#<seq>": problem} at the review gate, thread id,
+    whether the thread stopped at confirm_match exactly when ingest raised a flag)."""
     with closing(repo.connect(paths.tutor_db)) as conn:
         sid = repo.add_student(conn, name=lab["student_name"] or f"Eval {name}", grade=lab["grade"])
     tid = session.submit(paths, r, student_id=sid, held_on=HELD_ON, rel_path=name)["thread_id"]
     row = r.wait(tid, TIMEOUT)
     refs = {str(p["seq"]): p["ref"] for p in lab["problems"]}
+    stopped = False
     while (row["status"], row["node"]) == ("awaiting_review", "gate_confirm_match"):
+        stopped = True
         st = r.state(tid)
         r.save_decisions(tid, {str(f["seq"]): _answer(f, st, refs) for f in st["ingest"]["flags"] if not f["resolved"]})
         r.resume(tid)
@@ -101,6 +104,7 @@ def _one(paths, r, name: str, lab: dict) -> dict:
     if (row["status"], row["node"]) != ("awaiting_review", "gate_review"):
         raise RuntimeError(f"{row['status']} ở {row['node']}: {row['error']}")
     st = r.state(tid)
+    confirm_ok = bool(st["ingest"]["flags"]) == stopped
     lanes = {lane["seq"]: lane for lane in st["lanes"]}
     attempts = {a["seq"]: a for a in st["ingest"]["attempts"]}
     redact = session.call_context(paths, sid, None, {"configurable": {"thread_id": tid}}).redact  # as the agents saw
@@ -123,7 +127,7 @@ def _one(paths, r, name: str, lab: dict) -> dict:
             "evidence": {i["item_id"]: i["evidence_latex"] for i in grade["items"] if i["passed"]},
             "flags": [f["type"] for f in [*grade["flags"], *(lane["diagnosis"]["flags"] if lane else [])]],
         }  # fmt: skip
-    return out
+    return out, tid, confirm_ok
 
 
 def load_sets() -> dict[str, dict]:
@@ -146,7 +150,8 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
     work/run<k>; the backend is built once, on run 1."""
     labels = load_labels(files, fix)
     files = list(labels)
-    results, errors, rows = [], [], []
+    results, errors, rows, confirms = [], [], [], []
+    budgets: dict[str, int] = {}
     for k in range(1, runs + 1):
         paths = config.paths(work / f"run{k}" / "data").ensure()
         repo.init_db(paths.tutor_db, paths.backup)
@@ -166,7 +171,11 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
         try:
             for f in files:
                 try:
-                    got |= _one(paths, r, f, labels[f])
+                    out, tid, ok = _one(paths, r, f, labels[f])
+                    got |= out
+                    confirms.append(ok)
+                    if "max_calls" in labels[f]:
+                        budgets[f"{k}:{tid}"] = labels[f]["max_calls"]
                 except Exception as e:  # recorded; the problems count as missing in stability
                     errors.append({"run": k, "file": f, "error": f"{type(e).__name__}: {e}"})
         finally:
@@ -184,6 +193,7 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
     # every label key starts False, so a problem that failed in all runs still counts
     every = {f"{f}#{p['seq']}": False for f, lab in labels.items() for p in lab["problems"]}
     tally = metrics.tally([every | metrics.g1_passed(g) for g in results])
+    trajectory = metrics.trajectory(rows, budgets or None)
     names = {lab["student_name"]: "X" for lab in labels.values() if lab["student_name"]}
     return {
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -198,10 +208,14 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
             "success": tally["success"],
             "tally": tally,
             "components": [metrics.components(list(g.values())) for g in results],
+            "trajectory": trajectory,
             "extra": {
                 "flow_errors": len(errors),
                 "items_changed_pct": stability["items_changed_pct"],
                 "name_leaks": agents.leak_count(agents._strings(results), names),
+                "over_budget": trajectory["over_budget"],
+                "order_ok": trajectory["order_ok"],
+                "confirm_ok": sum(confirms) / len(confirms) if confirms else None,
             },
         },
         "errors": errors,

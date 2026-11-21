@@ -155,3 +155,16 @@ def test_g1_result_has_calls_tally_and_models(tmp_path):
     t = res["metrics"]["tally"]
     assert (t["trials"], t["tasks"], t["tasks_passed"]) == (10, 5, 5) and res["metrics"]["pass_k"] == 1
     assert res["metrics"]["extra"]["flow_errors"] == 0
+
+
+def test_heldout_trajectory_stays_in_budget(tmp_path):
+    fix = run.ROOT / run.load_sets()["g1-heldout"]["dir"]
+    res = run.evaluate(run.oracle, work=tmp_path, runs=1, fix=fix, files=["hs11-2026-11-13.tex", "hs12-2026-11-12.tex"])
+    t = res["metrics"]["trajectory"]
+    assert (t["threads"], t["over_budget"], t["order_ok"], t["retries"], t["schema_errors"]) == (2, 0, 1, 0, 0)
+    assert res["metrics"]["extra"]["confirm_ok"] == 1
+
+
+def test_dev_set_has_no_budget(tmp_path):
+    res = run.evaluate(run.oracle, work=tmp_path, files=["s04.tex"], runs=1)
+    assert res["metrics"]["trajectory"]["over_budget"] is None and res["metrics"]["extra"]["confirm_ok"] == 1

@@ -359,6 +359,35 @@ def usage(rows: list[dict]) -> dict:
     }
 
 
+_STATEMENT = re.compile(r"Đề:\n(.*?)\n\nLời giải mẫu:", re.S)
+
+
+def trajectory(rows: list[dict], budgets: dict[str, int] | None) -> dict:
+    """Calls per thread (run, thread_id) against budgets["<run>:<thread_id>"], retries, schema errors and the 02, 03,
+    04 order per lane. A row has no lane field: a lane is the rows of a thread that share one `Đề:` block."""
+    threads: dict[tuple, list[dict]] = {}
+    lanes: dict[tuple, list[str]] = {}
+    for r in rows:
+        if not r.get("thread_id"):
+            continue
+        key = (r["run"], r["thread_id"])
+        threads.setdefault(key, []).append(r)
+        if m := _STATEMENT.search(r["user"]):
+            lanes.setdefault((*key, m[1]), []).append(r["agent"])
+    over = None if budgets is None else sum(
+        len(v) > budgets[f"{k[0]}:{k[1]}"] for k, v in threads.items() if f"{k[0]}:{k[1]}" in budgets
+    )  # fmt: skip
+    return {
+        "threads": len(threads),
+        "calls_max": max(map(len, threads.values()), default=0),
+        "by_agent": dict(sorted(Counter(r["agent"] for r in rows if r.get("thread_id")).items())),
+        "retries": sum(r["result"] == "retry" for r in rows),
+        "schema_errors": sum(r["result"] == "schema_error" for r in rows),
+        "over_budget": over,
+        "order_ok": _rate(sum(a == sorted(a) for a in lanes.values()), len(lanes)),
+    }
+
+
 def passed_02r(a: dict) -> bool:
     """A draft with items r1, r2, ... in order, every point above 0, max_score the sum, in one model call."""
     d = a["draft"]
