@@ -459,3 +459,8 @@ def test_lc_tools_error_flag_in_artifact(ro):
         {"name": "student_profile", "args": {"code": "HS-99"}, "id": "e1", "type": "tool_call"}
     )
     assert msg.artifact["tutor/error"] is True and "error" in json.loads(msg.content)
+
+
+def test_student_mistakes_says_when_to_use_it():
+    text = {d["name"]: d["description"] for d in TOOLS}["student_mistakes"]
+    assert "student_profile" in text and "compare_students" in text

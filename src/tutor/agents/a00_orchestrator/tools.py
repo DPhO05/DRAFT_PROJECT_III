@@ -104,7 +104,9 @@ TOOLS: list[dict] = [
     ),
     _tool(
         "student_mistakes",
-        "Lỗi thầy/cô đã duyệt của một học sinh: tổng, theo loại, và danh sách. Lọc theo ngày, loại lỗi, kỹ năng.",
+        "Lỗi thầy/cô đã duyệt của một học sinh: tổng, theo loại, và danh sách. Lọc theo ngày, loại lỗi, kỹ năng."
+        " Hỏi học sinh hay sai lỗi gì thì dùng công cụ này, không dùng student_profile."
+        " So sánh từ hai học sinh thì dùng compare_students.",
         {
             "code": _CODE,
             "since": {"type": "string", "description": "Từ ngày (gồm cả ngày này), dạng yyyy-mm-dd"},
