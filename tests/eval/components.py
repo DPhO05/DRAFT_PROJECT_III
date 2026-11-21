@@ -169,9 +169,12 @@ def evaluate_08(make_backend, *, work: Path, runs: int = 1, only: list[str] | No
         for q in SEARCH_00:
             box = Toolbox(conn, settings=config.defaults(), today=seen["today"], text=q["text"])
             out = box.run("search_problems", {"text": q["text"], "limit": 5})
+            if out.is_error:  # kept out of the mean: a broken search is not a quality drop
+                t["errors"].append({"run": 1, "id": q["id"], "error": json.loads(out.content)["error"]})
+                continue
             got = {p["ref"] for p in (out.card or {}).get("problems", [])}
             recall.append(len(got & set(q["relevant"])) / len(q["relevant"]))
     drafts = sum(x["status"] == "draft" for x in [*TASKS_08, *SEARCH_00])
-    extra = {"search_recall_at_5": sum(recall) / len(recall), "draft_labels": drafts}
+    extra = {"search_recall_at_5": sum(recall) / len(recall) if recall else None, "draft_labels": drafts}
     return agents.summarize("08", t, key="id", score=metrics.score_08, passed=metrics.passed_08, payload="items",
                             extra=extra)  # fmt: skip

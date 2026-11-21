@@ -362,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
     print("prompt_version: " + "  ".join(v for vs in res["prompt_versions"].values() for v in vs))
     print(f"calls: logged={res['calls']['logged']}  usd={res['calls']['usd']:.3f}")
     extra = res["metrics"]["extra"]
-    if "search_recall_at_5" in extra:
+    if extra.get("search_recall_at_5") is not None:
         print(f"search recall@5={extra['search_recall_at_5']:.3f}")
     if extra.get("draft_labels"):
         print(f"CẢNH BÁO: {extra['draft_labels']} nhãn nháp, chủ dự án chưa duyệt")

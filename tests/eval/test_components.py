@@ -6,6 +6,7 @@ import pytest
 
 from tests.eval import components, run
 from tests.fakes import FakeLLM
+from tutor.agents.a00_orchestrator.tools import Outcome, Toolbox
 from tutor.agents.a01_ingest import ingest
 from tutor.agents.a04_verifier import verifier
 
@@ -114,3 +115,17 @@ def test_08_main_warns_about_draft_labels(tmp_path, capsys):
 def test_08_needs_no_yes_for_the_real_backend(tmp_path, capsys):
     assert run.main(["--agent", "08", "--backend", "real", "--out", str(tmp_path / "results")]) == 0
     assert "tốn tiền" not in capsys.readouterr().out
+
+
+def test_08_failed_search_is_an_error_not_a_zero(tmp_path, monkeypatch):
+    run_tool = Toolbox.run
+
+    def flaky(self, name, args):
+        if args["text"] == "taxi":
+            return Outcome('{"error": "Cơ sở dữ liệu đang bận, thử lại sau"}', is_error=True)
+        return run_tool(self, name, args)
+
+    monkeypatch.setattr(Toolbox, "run", flaky)
+    res = components.evaluate_08(None, work=tmp_path)
+    assert [(e["run"], e["id"]) for e in res["errors"]] == [(1, "s4")] and "bận" in res["errors"][0]["error"]
+    assert 0 <= res["metrics"]["extra"]["search_recall_at_5"] <= 1
