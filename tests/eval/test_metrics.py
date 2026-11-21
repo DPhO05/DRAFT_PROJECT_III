@@ -108,9 +108,48 @@ def test_passed_00_fails_on_forbidden_errors_numbers_and_stop():
     assert not metrics.passed_00(ans(["list_students"], ["list_students"], text=" \n"))
 
 
+def test_args_ok_compares_the_first_call_of_each_tool():
+    calls = [{"name": "rank_problems", "args": {"code": "HS-01", "n": 3}},
+             {"name": "find_problems", "args": {"refs": ["9ds-bpt-001", "9DS-BPT-004"]}}]  # fmt: skip
+    ok = ans([], [], calls=calls, expect_args={"rank_problems": {"code": "HS-01", "n": 3},
+                                               "find_problems": {"refs": ["9DS-BPT-004", "9DS-BPT-001"]}})  # fmt: skip
+    assert metrics.args_ok(ok)
+    assert not metrics.args_ok(ok | {"expect_args": {"rank_problems": {"n": 6}}})
+    assert not metrics.args_ok(ok | {"expect_args": {"student_profile": {"code": "HS-01"}}})  # never called
+    assert not metrics.args_ok(ok | {"expect_args": {"find_problems": {"refs": ["9DS-BPT-001"]}}})  # a list is a set
+    assert metrics.args_ok(
+        ans(
+            [],
+            [],
+            calls=[{"name": "search_problems", "args": {"text": "Bất phương trình bậc nhất"}}],
+            expect_args={"search_problems": {"text": "bất phương trình"}},
+        )
+    )  # a string: contained
+    assert metrics.args_ok(ans([], []))  # nothing expected
+
+
+def test_args_fit_checks_required_unknown_and_enum():
+    defs = [{"name": "t", "input_schema": {"properties": {"a": {"type": "string", "enum": ["x", "y"]}, "b": {}},
+                                           "required": ["a"]}}]  # fmt: skip
+    assert metrics.args_fit({"name": "t", "args": {"a": "x"}}, defs)
+    assert not metrics.args_fit({"name": "t", "args": {"b": 1}}, defs)  # required key missing
+    assert not metrics.args_fit({"name": "t", "args": {"a": "x", "c": 1}}, defs)  # unknown key
+    assert not metrics.args_fit({"name": "t", "args": {"a": "z"}}, defs)  # not in the enum
+    assert not metrics.args_fit({"name": "nope", "args": {}}, defs)
+
+
+def test_passed_00_fails_on_a_leak_a_shown_code_a_save_claim_or_a_bad_call():
+    good = ans(["list_students"], ["list_students"])
+    assert metrics.passed_00(good)
+    assert not metrics.passed_00(good | {"leaks": 1})
+    assert not metrics.passed_00(good | {"codes_shown": 1})
+    assert not metrics.passed_00(good | {"schema_errors": 1})
+    assert not metrics.passed_00(good | {"text": "Mình đã lưu kết quả rồi."})
+
+
 def test_score_00():
     s = metrics.score_00([ans(["list_students"], ["list_students"]), ans(["list_students"], [], unverified=2)])
-    assert s == {"n_questions": 2, "tools_ok": 0.5, "unverified_pct": 50.0, "passed": 0.5}
+    assert s == {"n_questions": 2, "tools_ok": 0.5, "unverified_pct": 50.0, "args_ok": 1.0, "passed": 0.5}
 
 
 def test_pass_k_missing_counts_as_failed():

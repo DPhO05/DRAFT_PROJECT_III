@@ -14,7 +14,7 @@ def test_00_oracle_passes_every_question(tmp_path):
     assert res["errors"] == [] and res["agent"] == "00" and res["runs"] == 3
     assert [q["id"] for q in agents.QUESTIONS] == [f"q{i}" for i in range(1, 9)]
     for s in res["metrics"]["per_run"]:
-        assert s == {"n_questions": 8, "tools_ok": 1, "unverified_pct": 0, "passed": 1}
+        assert s == {"n_questions": 8, "tools_ok": 1, "unverified_pct": 0, "args_ok": 1, "passed": 1}
     assert res["metrics"]["pass_k"] == 1
     assert list(res["prompt_versions"]) == ["00"] and len(res["prompt_versions"]["00"]) == 1
 
@@ -207,3 +207,51 @@ def test_leak_count_reads_strings_not_json_text():
     rows = [{"user": {"turns": ["Nguyễn\\,Văn\\,An làm bài"]}}, {"user": ["Nguyễn Văn\nAn"]}, {"user": ["HS-01"]}]
     strings = [x for r in rows for x in agents._strings(r)]
     assert agents.leak_count(strings, names) == 2
+
+
+def test_00_answer_records_calls_starts_and_model_calls(tmp_path):
+    res = agents.evaluate_00(agents.oracle_00, work=tmp_path, runs=1, only=["q5", "q8"])
+    q5, q8 = res["answers"][0]
+    assert [c["name"] for c in q5["calls"]] == ["rank_problems", "propose_worksheet"]
+    assert q5["calls"][0]["args"] == {"code": "HS-01", "n": 3} and q5["starts"][0][0] == "propose_worksheet"
+    assert (q5["model_calls"], q8["model_calls"], q8["calls"], q8["starts"]) == (3, 1, [], [])
+
+
+def wrong_args_q2(conn):
+    fake, models = agents.oracle_00(conn)
+    right = fake.handlers["00"]
+
+    def handle(messages):
+        turn = right(messages)
+        if agents.question_of(messages)["id"] != "q2":
+            return turn
+        return [b | {"input": {"code": "HS-02"}} if b["type"] == "tool_use" else b for b in turn]
+
+    fake.handlers["00"] = handle
+    return fake, models
+
+
+def test_00_wrong_argument_fails_the_question(tmp_path):
+    res = agents.evaluate_00(wrong_args_q2, work=tmp_path, runs=1)
+    s = res["metrics"]["per_run"][0]
+    assert s["tools_ok"] == 1 and s["args_ok"] == 7 / 8 and s["passed"] == 7 / 8
+
+
+def name_echo_q1(conn):
+    fake, models = agents.oracle_00(conn)
+    right = fake.handlers["00"]
+
+    def handle(messages):
+        turn = right(messages)
+        if agents.question_of(messages)["id"] == "q1" and turn[0]["type"] == "text":
+            return [{"type": "text", "text": "Lớp có bạn Nguyễn Văn An."}]
+        return turn
+
+    fake.handlers["00"] = handle
+    return fake, models
+
+
+def test_00_name_in_the_trace_fails_the_question(tmp_path):
+    res = agents.evaluate_00(name_echo_q1, work=tmp_path, runs=1)
+    [q1] = [a for a in res["answers"][0] if a["id"] == "q1"]
+    assert q1["leaks"] >= 1 and not metrics.passed_00(q1) and res["metrics"]["extra"]["name_leaks"] >= 1

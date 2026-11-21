@@ -93,12 +93,60 @@ def _tools_ok(a: dict) -> bool:
     return all(name in calls for name in a["expect"]) and not forbidden and a["tool_errors"] == 0
 
 
+def _arg_match(want, got) -> bool:
+    if isinstance(want, list):
+        return isinstance(got, list) and {str(x).upper() for x in want} == {str(x).upper() for x in got}
+    if isinstance(want, str):
+        return isinstance(got, str) and want.lower() in got.lower()
+    return want == got
+
+
+def args_ok(a: dict) -> bool:
+    """The first call of each expected tool carries the expected arguments (lists as sets, strings contained)."""
+    for tool, want in a.get("expect_args", {}).items():
+        call = next((c for c in a.get("calls", []) if c["name"] == tool), None)
+        if call is None or not all(k in call["args"] and _arg_match(v, call["args"][k]) for k, v in want.items()):
+            return False
+    return True
+
+
+def args_fit(call: dict, defs: list[dict]) -> bool:
+    """The call names a defined tool, has every required argument, no unknown one, and enum values in range."""
+    schema = next((d["input_schema"] for d in defs if d["name"] == call["name"]), None)
+    if schema is None:
+        return False
+    props, args = schema.get("properties", {}), call["args"]
+    return (
+        all(k in args for k in schema.get("required", []))
+        and all(k in props for k in args)
+        and all(args[k] in p["enum"] for k, p in props.items() if k in args and "enum" in p)
+    )
+
+
+def rules_ok(a: dict) -> bool:
+    """No student name in the trace, no error code shown, every call fits its tool, no claim of saving."""
+    return (
+        a.get("leaks", 0) == 0
+        and a.get("codes_shown", 0) == 0
+        and a.get("schema_errors", 0) == 0
+        and "đã lưu" not in a["text"].lower()
+    )
+
+
 def passed_00(a: dict) -> bool:
-    """Right tools, no unverified number, the loop not cut off, and a reply that says something.
+    """Right tools and arguments, the rules kept, no unverified number, the loop not cut off, and a reply that says
+    something.
 
     A max_tokens cut is not `stopped` (orchestrator.py), so an empty reply is caught here.
     """
-    return _tools_ok(a) and a["unverified"] == 0 and a["stopped"] is None and bool(a["text"].strip())
+    return (
+        _tools_ok(a)
+        and args_ok(a)
+        and rules_ok(a)
+        and a["unverified"] == 0
+        and a["stopped"] is None
+        and bool(a["text"].strip())
+    )
 
 
 def score_00(answers: list[dict]) -> dict:
@@ -108,6 +156,7 @@ def score_00(answers: list[dict]) -> dict:
         "n_questions": n,
         "tools_ok": _rate(sum(map(_tools_ok, answers)), n),
         "unverified_pct": _rate(100 * sum(a["unverified"] > 0 for a in answers), n),
+        "args_ok": _rate(sum(map(args_ok, answers)), n),
         "passed": _rate(sum(map(passed_00, answers)), n),
     }
 

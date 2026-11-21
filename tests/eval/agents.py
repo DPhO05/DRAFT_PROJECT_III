@@ -11,9 +11,10 @@ import shutil
 import unicodedata
 from contextlib import closing
 from datetime import UTC, datetime
+from itertools import chain
 from pathlib import Path
 
-from langchain_core.messages import messages_to_dict
+from langchain_core.messages import AIMessage, messages_to_dict
 from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.agents.test_tools import recorder
@@ -56,6 +57,7 @@ def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
         codes = repo.error_codes(conn, active_only=True)
         fixed = orchestrator.fixed_parts(repo.list_kc(conn), codes)
         tools = tool_defs([c["code"] for c in codes])
+        n0 = len(read_log(log))
         ctx = chat.ChatContext(orchestrator.Turn(q["text"]), box, everyone, redact)
         agent = chat.build(
             llm.model("00"),
@@ -68,16 +70,28 @@ def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
         cc = llm.CallContext(graph=None, conversation_id="2026-10-21-1", redact=orchestrator._names(redact))
         with chat.scope(cc, fixed, tools):
             events = list(chat.events(agent, ctx, cfg))
-        messages = messages_to_dict(agent.get_state(cfg).values["messages"])
+        thread = agent.get_state(cfg).values["messages"]
+        messages = messages_to_dict(thread)
+    rows = read_log(log)[n0:]
+    made = [{"name": c["name"], "args": c["args"]} for m in thread if isinstance(m, AIMessage) for c in m.tool_calls]
+    text = "".join(e["delta"] for e in events if e["type"] == "text")
     return {
         "id": q["id"],
         "expect": q["expect"],
         "forbid": q["forbid"],
+        "expect_args": q.get("expect_args", {}),
+        "calls": made,
+        "starts": [list(c) for c in calls],
+        "model_calls": len(rows),
+        "leaks": leak_count(chain(_strings(rows), _strings(messages)), orchestrator._names(redact)),
+        "schema_errors": sum(not metrics.args_fit(c, tools) for c in made),
+        "codes_shown": sum(c["code"] in text for c in codes),
+        "cards": sum(e["type"] == "card" for e in events),
         "tools": [e["name"] for e in events if e["type"] == "tool" and e["state"] != "start"],
         "tool_errors": sum(e["type"] == "tool" and e["state"] == "error" for e in events),
         "unverified": sum(e["type"] == "warning" and e["kind"] == "unverified_number" for e in events),
         "stopped": events[-1]["stopped"],
-        "text": "".join(e["delta"] for e in events if e["type"] == "text"),
+        "text": text,
         "warnings": [e for e in events if e["type"] == "warning"],
         "app_version": orchestrator.version(fixed, tools),
         "trace": {"events": events, "messages": messages},
@@ -190,7 +204,9 @@ def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | No
             (traces / f"run{k}-chat.json").write_text(json.dumps(chats, ensure_ascii=False), encoding="utf-8")
         for a in got:
             app_version = a.pop("app_version")
-    res = summarize("00", t, key="id", score=metrics.score_00, passed=metrics.passed_00, payload="answers")
+    leaks = sum(a["leaks"] for done in t["got"] for a in done)
+    res = summarize("00", t, key="id", score=metrics.score_00, passed=metrics.passed_00, payload="answers",
+                    leaks=leaks)  # fmt: skip
     return res | {"app_version": app_version}
 
 
@@ -222,7 +238,7 @@ def question_of(messages: list[dict]) -> dict:
     """The question a chat call belongs to: the first user message is "Hôm nay: …" + blank line + the text."""
     first = messages[0]["content"]  # a string, or blocks when the message came through the agent
     text = (first if isinstance(first, str) else "".join(b["text"] for b in first)).split("\n\n", 1)[1]
-    return next(q for q in QUESTIONS if q["text"] == text)
+    return next(q for q in QUESTIONS if text in (q["text"], q.get("masked")))
 
 
 def oracle_00(conn):
