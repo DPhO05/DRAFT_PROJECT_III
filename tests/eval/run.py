@@ -179,6 +179,7 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
 TARGETS: dict[str, dict] = {  # --agent value -> how to run it; "g1" is handled by evaluate()
     "00": {"evaluate": agents.evaluate_00, "oracle": agents.oracle_00, "ids": ("00",)},
     "09": {"evaluate": agents.evaluate_09, "oracle": agents.oracle_09, "ids": ("09",)},
+    "g5": {"evaluate": agents.evaluate_g5, "oracle": agents.oracle_09, "ids": ("09",), "judge": True},
 }
 
 
@@ -238,6 +239,8 @@ def main(argv: list[str] | None = None) -> int:
             what = f"{n} bài toán × ≥ 3 lượt gọi (02 · 03 · 04 mỗi lỗi; 01 khi thiếu mã bài)"
         elif target == "00":
             what = f"{len(agents.QUESTIONS)} câu × ≥ 2 lượt gọi"
+        elif target == "g5":
+            what = f"{len(agents.G5_PERIODS)} task × ≥ 1 lượt gọi"
         else:
             what = f"{len(agents.PERIODS)} kỳ × 1–2 lượt gọi"
         print(f"CẢNH BÁO: gọi API thật (Anthropic / OpenAI theo settings), tốn tiền: {a.runs} lần × {what}.")

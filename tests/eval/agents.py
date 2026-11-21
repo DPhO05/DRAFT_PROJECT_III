@@ -28,7 +28,7 @@ from tutor.agents.a00_orchestrator.tools import Toolbox, lc_tools, tool_defs
 from tutor.agents.a09_reporter import reporter
 from tutor.api import assistant
 from tutor.db import repo
-from tutor.graphs import session
+from tutor.graphs import registry, report, session
 from tutor.services import facts
 
 QUESTIONS: list[dict] = json.loads((Path(__file__).parent / "questions_00.json").read_text(encoding="utf-8"))
@@ -47,6 +47,9 @@ PERIODS: list[dict] = [  # HS-02 has one session in `world`, on 14/10
         "low_pass_rate": 0.6,
     },  # no period of `world` is low at the default 0.5
 ]
+
+
+G5_PERIODS = [PERIODS[1]]  # HS-01 week 2026-10-12
 
 
 def _world(work: Path):
@@ -292,6 +295,62 @@ def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | No
     leaks = sum(r["leaks"] for done in t["got"] for r in done)
     return summarize("09", t, key="key", score=metrics.score_09, passed=metrics.passed_09, payload="reports",
                      leaks=leaks)  # fmt: skip
+
+
+def _draft_g5(paths, w: dict, p: dict, log: Path) -> dict:
+    """The G5 draft of one period, run to its review gate; no teacher decision, so no report row may exist."""
+    with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+        everyone = repo.list_students(conn, include_archived=True)
+    sid = next(s["id"] for s in everyone if s["code"] == p["code"])
+    redact = {s["name"]: s["code"] for s in everyone}
+    n0, error, draft, gate = len(read_log(log)), None, None, False
+    r = registry.make_runner(paths)
+    try:
+        tid = report.start(paths, r, student_id=sid, period_kind=p["period_kind"], period_start=p["period_start"],
+                           today=w["today"])["thread_id"]  # fmt: skip
+        try:
+            row = r.wait(tid, 900)
+            rows = read_log(log)[n0:]  # before any judge call, so a judge never changes passed or the call bound
+            if (row["status"], row["node"]) != ("awaiting_review", "gate_report"):
+                raise RuntimeError(f"{row['status']} ở {row['node']}: {row['error']}")
+            draft, gate = r.state(tid)["draft"], True
+        except Exception as e:  # kept as a failed report so its log rows still count for leaks
+            error = orchestrator.mask(f"{type(e).__name__}: {e}", redact)
+            rows = read_log(log)[n0:]
+    finally:
+        r.close()
+    with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+        report_rows = conn.execute("SELECT COUNT(*) FROM report").fetchone()[0]
+    draft = draft or {"sentences": [], "audit": [], "low": False, "facts": []}
+    sentences = [s["text"] for s in draft["sentences"]]
+    return {
+        "key": p["key"],
+        "period_kind": p["period_kind"],
+        "n_sentences": len(sentences),
+        "audit": draft["audit"],
+        "sentences": sentences,
+        "low": draft["low"],
+        "n_insights": len(draft.get("insights", [])),
+        "has_previous": any(f["kind"] == "previous" for f in draft["facts"]),
+        "model_calls": len(rows),
+        "leaks": leak_count(chain(_strings(rows), sentences), redact),
+        "facts_block": "\n".join(f"{f['fact_id']} · {f['text']}" for f in draft["facts"]),
+        "gate": gate,
+        "report_rows": report_rows,
+        "error": error,
+    }
+
+
+def evaluate_g5(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
+    """G5 up to its review gate, on the period of G5_PERIODS. Same errors and leaks rules as evaluate_09."""
+    t = trials(G5_PERIODS, _draft_g5, make_backend, work=work, runs=runs, key="key", only=only, traces=traces)
+    for k, got in enumerate(t["got"], 1):
+        for r in got:
+            if error := r.pop("error"):
+                t["errors"].append({"run": k, "key": r["key"], "error": error})
+    leaks = sum(r["leaks"] for done in t["got"] for r in done)
+    return summarize("g5", t, key="key", score=metrics.score_09, payload="reports", leaks=leaks,
+                     passed=lambda r: metrics.passed_09(r) and r["gate"] and r["report_rows"] == 0)  # fmt: skip
 
 
 def question_of(messages: list[dict]) -> dict:

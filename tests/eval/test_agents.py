@@ -5,6 +5,7 @@ import json
 import pytest
 
 from tests.eval import agents, metrics, run
+from tests.fakes import FakeLLM
 from tutor import llm
 from tutor.agents.a00_orchestrator import orchestrator, tools
 from tutor.agents.a09_reporter.reporter import ReportOut, Sentence
@@ -266,7 +267,7 @@ def test_09_masks_every_full_name(tmp_path, monkeypatch):
     assert [c.student_code for c in seen] == ["HS-01", "HS-01", "HS-02", "HS-01", "HS-01", "HS-02"]
 
 
-@pytest.mark.parametrize("agent", ["00", "09"])
+@pytest.mark.parametrize("agent", ["00", "09", "g5"])
 def test_real_backend_needs_yes(agent, monkeypatch, capsys):
     monkeypatch.setattr(agents, f"evaluate_{agent}", lambda *a, **k: pytest.fail("ran the real API without --yes"))
     assert run.main(["--agent", agent, "--backend", "real"]) == 2
@@ -401,3 +402,20 @@ def test_00_a_failed_task_keeps_its_leak_rows(tmp_path):
     assert [e["id"] for e in res["errors"]] == ["q1"] and "down" in res["errors"][0]["error"]
     assert q1["leaks"] >= 1 and not metrics.passed_00(q1)
     assert res["metrics"]["extra"]["name_leaks"] >= 1 and res["metrics"]["tally"]["task_pass"]["q1"] is False
+
+
+def test_g5_draft_reaches_the_gate_and_writes_no_report(tmp_path):
+    res = agents.evaluate_g5(agents.oracle_09, work=tmp_path, runs=3)
+    assert res["errors"] == [] and res["agent"] == "g5" and res["metrics"]["pass_k"] == 1
+    for done in res["reports"]:
+        [r] = done
+        assert r["gate"] is True and r["report_rows"] == 0 and 1 <= r["model_calls"] <= 2
+    assert list(res["prompt_versions"]) == ["09"]
+
+
+def test_g5_failed_thread_is_an_error(tmp_path):
+    def down(conn):
+        return FakeLLM({"09": llm.LLMUnavailable("down")}), {}
+
+    res = agents.evaluate_g5(down, work=tmp_path, runs=1)
+    assert len(res["errors"]) == 1 and res["metrics"]["pass_k"] == 0
