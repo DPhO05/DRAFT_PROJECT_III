@@ -98,13 +98,24 @@ def _versions(log: Path) -> dict[str, list[str]]:
     return {a: sorted(v) for a, v in sorted(seen.items())}
 
 
-def evaluate_00(make_backend, *, work: Path, runs: int = 3) -> dict:
+def _only(tasks: list[dict], key: str, only: list[str] | None) -> list[dict]:
+    """The tasks whose `key` is in `only`; an id that matches none is an error."""
+    if only is None:
+        return tasks
+    for name in only:
+        if all(t[key] != name for t in tasks):
+            raise ValueError(f"Không có task {name}")
+    return [t for t in tasks if t[key] in only]
+
+
+def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None) -> dict:
     """make_backend(conn) -> (llm backend | None for the real API, models). Runs and questions go in order."""
+    questions = _only(QUESTIONS, "id", only)
     paths, w, log = _setup(make_backend, work)
     answers, errors, app_version = [], [], None
     for k in range(runs):
         got = []
-        for q in QUESTIONS:
+        for q in questions:
             try:
                 answer, app_version = _ask_00(paths, w, q)
             except Exception as e:  # recorded; the question counts as failed in pass^k
@@ -112,7 +123,7 @@ def evaluate_00(make_backend, *, work: Path, runs: int = 3) -> dict:
             else:
                 got.append(answer)
         answers.append(got)
-    passed = [{q["id"]: False for q in QUESTIONS} | {a["id"]: metrics.passed_00(a) for a in got} for got in answers]
+    passed = [{q["id"]: False for q in questions} | {a["id"]: metrics.passed_00(a) for a in got} for got in answers]
     return {
         "agent": "00",
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -143,19 +154,20 @@ def _report_09(paths, w: dict, p: dict) -> dict:
     }
 
 
-def evaluate_09(make_backend, *, work: Path, runs: int = 3) -> dict:
+def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None) -> dict:
     """make_backend(conn) -> (llm backend | None for the real API, models). Runs and periods go in order."""
+    periods = _only(PERIODS, "key", only)
     paths, w, log = _setup(make_backend, work)
     reports, errors = [], []
     for k in range(runs):
         got = []
-        for p in PERIODS:
+        for p in periods:
             try:
                 got.append(_report_09(paths, w, p))
             except Exception as e:  # recorded; the period counts as failed in pass^k
                 errors.append({"run": k + 1, "key": p["key"], "error": f"{type(e).__name__}: {e}"})
         reports.append(got)
-    passed = [{p["key"]: False for p in PERIODS} | {r["key"]: metrics.passed_09(r) for r in got} for got in reports]
+    passed = [{p["key"]: False for p in periods} | {r["key"]: metrics.passed_09(r) for r in got} for got in reports]
     return {
         "agent": "09",
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),

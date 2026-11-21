@@ -1,5 +1,7 @@
 """P2-T10: the eval harness end to end on the P1-T07 fixtures, with label oracles instead of the API (C-34)."""
 
+import json
+
 import pytest
 
 from tests.eval import run
@@ -62,3 +64,25 @@ def test_real_backend_needs_yes(monkeypatch, capsys):
     monkeypatch.setattr(run, "evaluate", lambda *a, **k: pytest.fail("ran the real API without --yes"))
     assert run.main(["--backend", "real"]) == 2
     assert "tốn tiền" in capsys.readouterr().out
+
+
+def test_unknown_set_exits_2(capsys):
+    assert run.main(["--set", "nope", "--backend", "fake"]) == 2
+    assert "nope" in capsys.readouterr().out
+
+
+def test_result_names_its_set(tmp_path):
+    out = tmp_path / "results"
+    assert run.main(["--backend", "fake", "--runs", "1", "--files", "s01.tex", "--out", str(out)]) == 0
+    (f,) = out.glob("*.json")
+    res = json.loads(f.read_text(encoding="utf-8"))
+    assert (res["set"], res["target"], res["split"], res["source"]) == ("g1-dev", "g1", "dev", "synthetic")
+
+
+def test_local_sets_extend_committed_ones(tmp_path, monkeypatch):
+    local = tmp_path / "sets.json"
+    local.write_text(
+        '{"mine": {"dir": "data/eval/tasks/mine", "split": "dev", "source": "production"}}', encoding="utf-8"
+    )
+    monkeypatch.setattr(run, "LOCAL_SETS", local)
+    assert {"g1-dev", "mine"} <= set(run.load_sets())

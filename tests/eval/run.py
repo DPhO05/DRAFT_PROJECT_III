@@ -1,11 +1,11 @@
 """G1 eval harness (P2-T10, NFR8): run G1 to the review gate on the labeled fixtures, score it, save by prompt_version.
 
-uv run python tests/eval/run.py [--agent g1|00|09] [--backend fake|dev|real] [--runs 3] [--files s01.tex ...]
-                                [--out data/eval/results/]
+uv run python tests/eval/run.py [--agent g1|00|09 | --set g1-dev] [--backend fake|dev|real] [--runs 3]
+                                [--files s01.tex ... | --only q4 ...] [--out data/eval/results/]
 
 fake = label oracle (checks the harness itself), dev = tutor.devfake, real = Anthropic API (costs money; manual only,
 C-34). A prompt is fit for use only after it passes 3 runs (pass^3). --agent 00 and 09 use tests/eval/agents.py;
---files is for g1 only.
+--files is for g1 only, --only for the others.
 """
 
 # ruff: noqa: E402
@@ -31,6 +31,8 @@ from tutor.db import repo, seed_dummy
 from tutor.graphs import runner, session
 
 FIX = ROOT / "tests" / "fixtures" / "submissions"
+SETS = Path(__file__).with_name("sets.json")
+LOCAL_SETS = ROOT / "data" / "eval" / "sets.json"  # sets built from real data: local, never in git
 BANK = ROOT / "data" / "dummy" / "bank"
 HELD_ON = "2026-10-20"
 TIMEOUT = 900  # seconds per graph leg; real API lanes are slow
@@ -95,15 +97,23 @@ def _one(paths, r, name: str, lab: dict) -> dict:
     return out
 
 
-def load_labels(files: list[str] | None = None) -> dict:
+def load_sets() -> dict[str, dict]:
+    """The committed sets, updated by the local file when it exists."""
+    sets = json.loads(SETS.read_text(encoding="utf-8"))
+    if LOCAL_SETS.exists():
+        sets |= json.loads(LOCAL_SETS.read_text(encoding="utf-8"))
+    return sets
+
+
+def load_labels(files: list[str] | None = None, fix: Path = FIX) -> dict:
     """Labels of `files`; default every fixture except duplicate-check copies."""
-    every = json.loads((FIX / "labels.json").read_text(encoding="utf-8"))
+    every = json.loads((fix / "labels.json").read_text(encoding="utf-8"))
     return {f: every[f] for f in files or [f for f, lab in every.items() if "duplicate_of" not in lab]}
 
 
-def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: int = 3) -> dict:
+def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: int = 3, fix: Path = FIX) -> dict:
     """make_backend(conn, labels) -> (llm backend | None for the real API, models). Runs and files go in order."""
-    labels = load_labels(files)
+    labels = load_labels(files, fix)
     files = list(labels)
     paths = config.paths(work / "data").ensure()
     repo.init_db(paths.tutor_db, paths.backup)
@@ -111,7 +121,7 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
         seed_dummy.seed(conn, BANK)
         backend, models = make_backend(conn, labels)
     for f in files:
-        (paths.inbox / f).write_bytes((FIX / f).read_bytes())
+        (paths.inbox / f).write_bytes((fix / f).read_bytes())
     log = paths.logs / "llm.jsonl"
     llm.configure(log, models)
     llm.set_backend(backend)
@@ -147,6 +157,20 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
     }
 
 
+TARGETS: dict[str, dict] = {  # --agent value -> how to run it; "g1" is handled by evaluate()
+    "00": {"evaluate": agents.evaluate_00, "oracle": agents.oracle_00, "ids": ("00",)},
+    "09": {"evaluate": agents.evaluate_09, "oracle": agents.oracle_09, "ids": ("09",)},
+}
+
+
+def meta(target: str, set_name: str | None, backend: str) -> dict:
+    """The fields that say what a result is a result of."""
+    if target == "g1":
+        s = load_sets()[set_name]
+        return {"backend": backend, "set": set_name, "target": target, "split": s["split"], "source": s["source"]}
+    return {"backend": backend, "set": f"{target}-dev", "target": target, "split": "dev", "source": "synthetic"}
+
+
 def _backend(name: str, fake=oracle):
     if name == "fake":
         return fake
@@ -161,18 +185,32 @@ def _fmt(x) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--agent", choices=["g1", "00", "09"], default="g1")
+    ap.add_argument("--agent", choices=["g1", *TARGETS])
+    ap.add_argument("--set", help="bộ bài của g1, xem tests/eval/sets.json")
     ap.add_argument("--backend", choices=["fake", "dev", "real"], default="dev")
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--files", nargs="+")
+    ap.add_argument("--only", nargs="+", help="chỉ chạy các id này (không dùng cho g1)")
     ap.add_argument("--out", type=Path, default=ROOT / "data" / "eval" / "results")
     ap.add_argument("--yes", action="store_true", help="xác nhận chạy API thật (tốn tiền)")
     a = ap.parse_args(argv)
+    target = a.agent or "g1"
+    fix = FIX
+    if target == "g1":
+        if a.only:
+            print("--only không dùng cho g1, dùng --files")
+            return 2
+        sets = load_sets()
+        a.set = a.set or "g1-dev"
+        if a.set not in sets:
+            print(f"Không có bộ {a.set}. Có: {', '.join(sets)}")
+            return 2
+        fix = ROOT / sets[a.set]["dir"]
     if a.backend == "real":
-        if a.agent == "g1":
-            n = sum(len(lab["problems"]) for lab in load_labels(a.files).values())
+        if target == "g1":
+            n = sum(len(lab["problems"]) for lab in load_labels(a.files, fix).values())
             what = f"{n} bài toán × ≥ 3 lượt gọi (02 · 03 · 04 mỗi lỗi; 01 khi thiếu mã bài)"
-        elif a.agent == "00":
+        elif target == "00":
             what = f"{len(agents.QUESTIONS)} câu × ≥ 2 lượt gọi"
         else:
             what = f"{len(agents.PERIODS)} kỳ × 1–2 lượt gọi"
@@ -182,21 +220,26 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         config.load_env(config.ENV_FILE)  # no cli callback here; GPT settings need OPENAI_API_KEY
     with tempfile.TemporaryDirectory(prefix="tutor-eval-") as tmp:
-        if a.agent == "g1":
-            res = {"backend": a.backend} | evaluate(_backend(a.backend), work=Path(tmp), files=a.files, runs=a.runs)
+        info = meta(target, a.set, a.backend)
+        if target == "g1":
+            res = info | evaluate(_backend(a.backend), work=Path(tmp), files=a.files, runs=a.runs, fix=fix)
         else:
-            fake, run_agent = getattr(agents, f"oracle_{a.agent}"), getattr(agents, f"evaluate_{a.agent}")
-            res = {"backend": a.backend} | run_agent(_backend(a.backend, fake), work=Path(tmp), runs=a.runs)
+            t = TARGETS[target]
+            try:
+                res = info | t["evaluate"](_backend(a.backend, t["oracle"]), work=Path(tmp), runs=a.runs, only=a.only)
+            except ValueError as e:
+                print(e)
+                return 2
     for k, s in enumerate(res["metrics"]["per_run"], 1):
         print(f"run {k}: " + "  ".join(f"{m}={_fmt(v)}" for m, v in s.items()))
-    if a.agent == "g1":
+    if target == "g1":
         print("stability: " + "  ".join(f"{m}={_fmt(v)}" for m, v in res["metrics"]["stability"].items()))
     else:
         print(f"pass_k={_fmt(res['metrics']['pass_k'])}")
     for e in res["errors"]:
         print(f"LỖI run {e['run']} {e.get('file') or e.get('id') or e.get('key')}: {e['error']}")
     print("prompt_version: " + "  ".join(v for vs in res["prompt_versions"].values() for v in vs))
-    ids = ("02", "03", "04") if a.agent == "g1" else (a.agent,)
+    ids = ("02", "03", "04") if target == "g1" else TARGETS[target]["ids"]
     key = "_".join(v for a_ in ids for v in res["prompt_versions"].get(a_, []))
     a.out.mkdir(parents=True, exist_ok=True)
     out = a.out / f"{res['created'].replace(':', '').replace('-', '')}_{key}.json"

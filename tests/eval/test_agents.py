@@ -152,3 +152,17 @@ def test_main_fake_00_writes_result(tmp_path):
     assert run.main(["--agent", "00", "--backend", "fake", "--runs", "1", "--out", str(tmp_path)]) == 0
     (out,) = tmp_path.glob("*_00-*.json")
     assert json.loads(out.read_text(encoding="utf-8"))["metrics"]["pass_k"] == 1
+
+
+def test_only_runs_the_named_questions(tmp_path):
+    res = agents.evaluate_00(agents.oracle_00, work=tmp_path, runs=1, only=["q4"])
+    assert res["metrics"]["per_run"][0]["n_questions"] == 1 and res["metrics"]["pass_k"] == 1
+
+
+def test_only_unknown_id_exits_2(capsys):
+    assert run.main(["--agent", "00", "--backend", "fake", "--only", "q99"]) == 2
+    assert "q99" in capsys.readouterr().out
+
+
+def test_only_is_refused_for_g1(capsys):
+    assert run.main(["--backend", "fake", "--only", "s01.tex"]) == 2

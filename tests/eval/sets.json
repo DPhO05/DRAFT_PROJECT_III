@@ -1,0 +1,3 @@
+{
+ "g1-dev": {"dir": "tests/fixtures/submissions", "split": "dev", "source": "synthetic"}
+}
