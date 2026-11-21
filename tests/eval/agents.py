@@ -268,6 +268,11 @@ def _report_09(paths, w: dict, p: dict, log: Path) -> dict:
             error = orchestrator.mask(f"{type(e).__name__}: {e}", ctx.redact)
             r = {"sentences": [], "audit": [], "low": got["low"], "insights": [], "facts": got["facts"]}
         rows = read_log(log)[n0:]  # before any judge call, so a judge never changes passed or the call bound
+    return _report_row(p, r, rows, ctx.redact, error)
+
+
+def _report_row(p: dict, r: dict, rows: list[dict], redact: dict[str, str], error: str | None) -> dict:
+    """The row of one 09 report (or of a failed one: empty `r`), as the 09 and G5 targets score it."""
     sentences = [s["text"] for s in r["sentences"]]
     return {
         "key": p["key"],
@@ -279,22 +284,26 @@ def _report_09(paths, w: dict, p: dict, log: Path) -> dict:
         "n_insights": len(r["insights"]),
         "has_previous": any(f["kind"] == "previous" for f in r["facts"]),
         "model_calls": len(rows),
-        "leaks": leak_count(chain(_strings(rows), sentences), ctx.redact),
+        "leaks": leak_count(chain(_strings(rows), sentences), redact),
         "facts_block": "\n".join(f"{f['fact_id']} · {f['text']}" for f in r["facts"]),
         "error": error,
     }
 
 
-def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
-    """make_backend(conn) -> (llm backend | None for the real API, models). Runs and periods go in order."""
-    t = trials(PERIODS, _report_09, make_backend, work=work, runs=runs, key="key", only=only, traces=traces)
+def _pop_errors(t: dict) -> int:
+    """Move each failed report's error into t["errors"]; the leaks of all reports."""
     for k, got in enumerate(t["got"], 1):
         for r in got:
             if error := r.pop("error"):
                 t["errors"].append({"run": k, "key": r["key"], "error": error})
-    leaks = sum(r["leaks"] for done in t["got"] for r in done)
+    return sum(r["leaks"] for done in t["got"] for r in done)
+
+
+def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
+    """make_backend(conn) -> (llm backend | None for the real API, models). Runs and periods go in order."""
+    t = trials(PERIODS, _report_09, make_backend, work=work, runs=runs, key="key", only=only, traces=traces)
     return summarize("09", t, key="key", score=metrics.score_09, passed=metrics.passed_09, payload="reports",
-                     leaks=leaks)  # fmt: skip
+                     leaks=_pop_errors(t))  # fmt: skip
 
 
 def _draft_g5(paths, w: dict, p: dict, log: Path) -> dict:
@@ -321,35 +330,14 @@ def _draft_g5(paths, w: dict, p: dict, log: Path) -> dict:
         r.close()
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         report_rows = conn.execute("SELECT COUNT(*) FROM report").fetchone()[0]
-    draft = draft or {"sentences": [], "audit": [], "low": False, "facts": []}
-    sentences = [s["text"] for s in draft["sentences"]]
-    return {
-        "key": p["key"],
-        "period_kind": p["period_kind"],
-        "n_sentences": len(sentences),
-        "audit": draft["audit"],
-        "sentences": sentences,
-        "low": draft["low"],
-        "n_insights": len(draft.get("insights", [])),
-        "has_previous": any(f["kind"] == "previous" for f in draft["facts"]),
-        "model_calls": len(rows),
-        "leaks": leak_count(chain(_strings(rows), sentences), redact),
-        "facts_block": "\n".join(f"{f['fact_id']} · {f['text']}" for f in draft["facts"]),
-        "gate": gate,
-        "report_rows": report_rows,
-        "error": error,
-    }
+    draft = draft or {"sentences": [], "audit": [], "low": False, "insights": [], "facts": []}
+    return _report_row(p, draft, rows, redact, error) | {"gate": gate, "report_rows": report_rows}
 
 
 def evaluate_g5(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
     """G5 up to its review gate, on the period of G5_PERIODS. Same errors and leaks rules as evaluate_09."""
     t = trials(G5_PERIODS, _draft_g5, make_backend, work=work, runs=runs, key="key", only=only, traces=traces)
-    for k, got in enumerate(t["got"], 1):
-        for r in got:
-            if error := r.pop("error"):
-                t["errors"].append({"run": k, "key": r["key"], "error": error})
-    leaks = sum(r["leaks"] for done in t["got"] for r in done)
-    return summarize("g5", t, key="key", score=metrics.score_09, payload="reports", leaks=leaks,
+    return summarize("g5", t, key="key", score=metrics.score_09, payload="reports", leaks=_pop_errors(t),
                      passed=lambda r: metrics.passed_09(r) and r["gate"] and r["report_rows"] == 0)  # fmt: skip
 
 
