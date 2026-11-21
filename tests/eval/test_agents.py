@@ -566,3 +566,14 @@ def test_00_worksheet_stub_answers_with_the_refs_sent(tmp_path):
     sheet = next(d for d in msgs if d["name"] == "propose_worksheet")
     got = json.loads(sheet["content"])
     assert (got["added"], got["invalid"]) == (["9DS-BPT-004", "9DS-BPT-005"], [])
+
+
+def test_00_worksheet_stub_reports_existing_from_the_second_call(tmp_path, monkeypatch):
+    q = next(q for q in agents.QUESTIONS if q["id"] == "q16")
+    twice = {**q, "script": [*q["script"], q["script"][-1]]}
+    monkeypatch.setattr(agents, "QUESTIONS", [twice])
+    agents.evaluate_00(agents.oracle_00, work=tmp_path / "w", runs=1, only=["q16"], traces=tmp_path / "tr")
+    [chat] = json.loads((tmp_path / "tr" / "run1-chat.json").read_text(encoding="utf-8"))
+    msgs = (m["data"] for m in chat["messages"] if m["type"] == "tool")
+    got = [json.loads(d["content"])["replaced_draft"] for d in msgs if d["name"] == "propose_worksheet"]
+    assert got == [False, True]

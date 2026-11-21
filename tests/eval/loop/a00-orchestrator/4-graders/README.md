@@ -13,7 +13,8 @@ Chỉ có grader code, trong `tests/eval/metrics.py`. Một task đạt khi `met
 - `agents._ask_00` ghi cho grader: `calls`, `starts`, `approvals`, `model_calls`, `leaks`, `schema_errors`, `codes_shown`, `tool_errors`,
   `unverified`.
 - Test grader: `tests/eval/test_metrics.py::test_passed_00_needs_expected_tools_in_order`,
-  `tests/eval/test_metrics.py::test_rules_ok_checks_starts_approval_limits_and_text`.
+  `tests/eval/test_metrics.py::test_rules_ok_checks_starts_approval_limits_and_text`,
+  `tests/eval/test_metrics.py::test_args_ok_expect_last_args_compares_the_last_call`.
 - Oracle sai làm điểm tụt: `tests/eval/test_agents.py::test_00_wrong_oracle_scores_drop`.
 
 ## Judge faithfulness
