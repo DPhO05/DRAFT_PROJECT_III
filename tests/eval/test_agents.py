@@ -78,7 +78,7 @@ def test_00_wrong_oracle_scores_drop(tmp_path):
 def test_00_one_failing_question_is_an_error_not_a_crash(tmp_path):
     res = agents.evaluate_00(broken_q4, work=tmp_path, runs=1)
     assert [e["id"] for e in res["errors"]] == ["q4"]
-    assert res["metrics"]["per_run"][0]["n_questions"] == 7 and res["metrics"]["pass_k"] == 7 / 8
+    assert res["metrics"]["per_run"][0]["n_questions"] == 8 and res["metrics"]["pass_k"] == 7 / 8
 
 
 def test_00_tool_error_fails_the_question(tmp_path):
@@ -255,3 +255,24 @@ def test_00_name_in_the_trace_fails_the_question(tmp_path):
     res = agents.evaluate_00(name_echo_q1, work=tmp_path, runs=1)
     [q1] = [a for a in res["answers"][0] if a["id"] == "q1"]
     assert q1["leaks"] >= 1 and not metrics.passed_00(q1) and res["metrics"]["extra"]["name_leaks"] >= 1
+
+
+def raising_q1_with_a_name(conn):
+    fake, models = agents.oracle_00(conn)
+    right = fake.handlers["00"]
+
+    def handle(messages):
+        if agents.question_of(messages)["id"] == "q1" and any(m["role"] == "assistant" for m in messages):
+            return llm.LLMUnavailable("down: Nguyễn Văn An")
+        return right(messages)
+
+    fake.handlers["00"] = handle
+    return fake, models
+
+
+def test_00_a_failed_task_keeps_its_leak_rows(tmp_path):
+    res = agents.evaluate_00(raising_q1_with_a_name, work=tmp_path, runs=1)
+    [q1] = [a for a in res["answers"][0] if a["id"] == "q1"]
+    assert [e["id"] for e in res["errors"]] == ["q1"] and "down" in res["errors"][0]["error"]
+    assert q1["leaks"] >= 1 and not metrics.passed_00(q1)
+    assert res["metrics"]["extra"]["name_leaks"] >= 1 and res["metrics"]["tally"]["task_pass"]["q1"] is False

@@ -68,9 +68,13 @@ def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
         )
         cfg = {"configurable": {"thread_id": "eval"}, "recursion_limit": 200}
         cc = llm.CallContext(graph=None, conversation_id="2026-10-21-1", redact=orchestrator._names(redact))
-        with chat.scope(cc, fixed, tools):
-            events = list(chat.events(agent, ctx, cfg))
-        thread = agent.get_state(cfg).values["messages"]
+        error = None
+        try:
+            with chat.scope(cc, fixed, tools):
+                events = list(chat.events(agent, ctx, cfg))
+        except Exception as e:  # kept as a failed answer so its log rows still count for leaks
+            events, error = [], f"{type(e).__name__}: {e}"
+        thread = agent.get_state(cfg).values.get("messages", [])
         messages = messages_to_dict(thread)
     rows = read_log(log)[n0:]
     made = [{"name": c["name"], "args": c["args"]} for m in thread if isinstance(m, AIMessage) for c in m.tool_calls]
@@ -90,7 +94,8 @@ def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
         "tools": [e["name"] for e in events if e["type"] == "tool" and e["state"] != "start"],
         "tool_errors": sum(e["type"] == "tool" and e["state"] == "error" for e in events),
         "unverified": sum(e["type"] == "warning" and e["kind"] == "unverified_number" for e in events),
-        "stopped": events[-1]["stopped"],
+        "stopped": events[-1]["stopped"] if events else "error",
+        "error": error,
         "text": text,
         "warnings": [e for e in events if e["type"] == "warning"],
         "app_version": orchestrator.version(fixed, tools),
@@ -204,6 +209,8 @@ def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | No
             (traces / f"run{k}-chat.json").write_text(json.dumps(chats, ensure_ascii=False), encoding="utf-8")
         for a in got:
             app_version = a.pop("app_version")
+            if error := a.pop("error"):
+                t["errors"].append({"run": k, "id": a["id"], "error": error})
     leaks = sum(a["leaks"] for done in t["got"] for a in done)
     res = summarize("00", t, key="id", score=metrics.score_00, passed=metrics.passed_00, payload="answers",
                     leaks=leaks)  # fmt: skip
