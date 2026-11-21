@@ -1,6 +1,8 @@
 """P2-T10: the eval harness end to end on the P1-T07 fixtures, with label oracles instead of the API (C-34)."""
 
 import json
+import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -22,6 +24,40 @@ def test_label_oracle_scores_perfect_and_stable(tmp_path):
     assert st["n_items"] > 40
     assert {"02", "03", "04"} <= set(res["prompt_versions"])
     assert all(v[0].startswith(f"{a}-") for a, v in res["prompt_versions"].items())
+
+
+def _count(db, table):
+    with closing(sqlite3.connect(f"{db.resolve().as_uri()}?mode=ro", uri=True)) as c:
+        return c.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+
+
+def test_each_run_starts_from_a_new_world(tmp_path):
+    run.evaluate(run.oracle, work=tmp_path, files=["s01.tex"], runs=2)
+    for k in (1, 2):
+        data = tmp_path / f"run{k}" / "data"
+        assert _count(data / "tutor.db", "student") == 1 and _count(data / "tutor.db", "session") == 1
+        assert _count(data / "checkpoints.db", "tutor_thread") == 1
+
+
+def test_traces_are_kept_per_run(tmp_path):
+    made = []
+
+    def backend(conn, labels):
+        made.append(run.oracle(conn, labels))
+        return made[-1]
+
+    res = run.evaluate(backend, work=tmp_path / "w", files=["s01.tex"], runs=2, traces=tmp_path / "tr")
+    lines = sum(len((tmp_path / "tr" / f"run{k}.jsonl").read_text(encoding="utf-8").splitlines()) for k in (1, 2))
+    assert len(made) == 1 and lines == sum(made[0][0].count.values()) > 0 and res["errors"] == []
+
+
+def test_labels_never_enter_the_trial_data(tmp_path):
+    run.evaluate(run.oracle, work=tmp_path, files=["s04.tex"], runs=1, traces=tmp_path / "tr")
+    assert (tmp_path / "tr" / "run1.jsonl").exists()
+    for f in [*(tmp_path / "run1" / "data").rglob("*"), *(tmp_path / "tr").rglob("*")]:
+        if f.is_file():
+            data = f.read_bytes()
+            assert b"propagates_to" not in data and b"labels.json" not in data, f
 
 
 def wrong_oracle(conn, labels):

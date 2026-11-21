@@ -7,10 +7,12 @@ api/assistant.py: fixed prompt parts and tool list from the catalog, `chat.event
 
 import json
 import re
+import shutil
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
+from langchain_core.messages import messages_to_dict
 from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.agents.test_tools import recorder
@@ -42,8 +44,8 @@ def _world(work: Path):
         return paths, world(conn)
 
 
-def _ask_00(paths, w: dict, q: dict) -> tuple[dict, str]:
-    """(answer, app prompt_version) for one question in a new read-only session, as one tutor message."""
+def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
+    """The answer to one question in a new read-only session, as one tutor message."""
     calls = []
     starters = recorder(calls)
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
@@ -65,7 +67,8 @@ def _ask_00(paths, w: dict, q: dict) -> tuple[dict, str]:
         cc = llm.CallContext(graph=None, conversation_id="2026-10-21-1", redact=orchestrator._names(redact))
         with chat.scope(cc, fixed, tools):
             events = list(chat.events(agent, ctx, cfg))
-    answer = {
+        messages = messages_to_dict(agent.get_state(cfg).values["messages"])
+    return {
         "id": q["id"],
         "expect": q["expect"],
         "forbid": q["forbid"],
@@ -75,68 +78,90 @@ def _ask_00(paths, w: dict, q: dict) -> tuple[dict, str]:
         "stopped": events[-1]["stopped"],
         "text": "".join(e["delta"] for e in events if e["type"] == "text"),
         "warnings": [e for e in events if e["type"] == "warning"],
+        "app_version": orchestrator.version(fixed, tools),
+        "trace": {"events": events, "messages": messages},
     }
-    return answer, orchestrator.version(fixed, tools)
 
 
-def _setup(make_backend, work: Path):
-    """(paths, world, llm log): a new world in `work`, with the backend `make_backend(conn)` gives installed."""
-    paths, w = _world(work)
-    with closing(repo.connect(paths.tutor_db)) as conn:
-        backend, models = make_backend(conn)
-    log = paths.logs / "llm.jsonl"
-    llm.configure(log, models)
-    llm.set_backend(backend)
-    return paths, w, log
-
-
-def _versions(log: Path) -> dict[str, list[str]]:
-    """prompt_version(s) per agent that the run logged."""
+def _prompt_versions(rows: list[dict]) -> dict[str, list[str]]:
+    """prompt_version(s) per agent in the logged rows."""
     seen: dict[str, set] = {}
-    for row in llm.iter_log(log):
+    for row in rows:
         seen.setdefault(row["agent"], set()).add(row["prompt_version"])
     return {a: sorted(v) for a, v in sorted(seen.items())}
 
 
-def _only(tasks: list[dict], key: str, only: list[str] | None) -> list[dict]:
-    """The tasks whose `key` is in `only`; an id that matches none is an error."""
-    if only is None:
-        return tasks
-    for name in only:
-        if all(t[key] != name for t in tasks):
-            raise ValueError(f"Không có task {name}")
-    return [t for t in tasks if t[key] in only]
+class UnknownTask(ValueError):
+    """--only named a task the target does not have."""
 
 
-def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None) -> dict:
-    """make_backend(conn) -> (llm backend | None for the real API, models). Runs and questions go in order."""
-    questions = _only(QUESTIONS, "id", only)
-    paths, w, log = _setup(make_backend, work)
-    answers, errors, app_version = [], [], None
-    for k in range(runs):
-        got = []
-        for q in questions:
+PRICES, BY_MODEL = config.defaults()["price_assumption"], config.defaults()["price_by_model"]
+
+
+def read_log(log: Path) -> list[dict]:
+    """llm.jsonl rows with cost_usd at the default prices (config.py:32-48)."""
+    return list(llm.iter_log(log, PRICES, by_model=BY_MODEL))
+
+
+def trials(tasks, one, make_backend, *, work: Path, runs: int, key: str = "id", only=None, traces=None,
+           models=None) -> dict:  # fmt: skip
+    """Run every task `runs` times; each run gets a new world in work/run<k> and its own llm.jsonl.
+
+    one(paths, w, task, log) -> dict that carries task[key]. make_backend(conn) is called once, on run 1.
+    """
+    if only is not None:
+        if unknown := sorted(set(only) - {t[key] for t in tasks}):
+            raise UnknownTask(f"Không có task {', '.join(unknown)}")
+        tasks = [t for t in tasks if t[key] in only]
+    got, errors, rows = [], [], []
+    for k in range(1, runs + 1):
+        paths, w = _world(work / f"run{k}")
+        if k == 1:  # once: a stateful fake keeps its counters across runs
+            with closing(repo.connect(paths.tutor_db)) as conn:
+                backend, base = make_backend(conn)
+                names = {s["name"]: s["code"] for s in repo.list_students(conn, include_archived=True)}
+        log = paths.logs / "llm.jsonl"
+        llm.configure(log, base | (models or {}))
+        llm.set_backend(backend)
+        done = []
+        for t in tasks:
             try:
-                answer, app_version = _ask_00(paths, w, q)
-            except Exception as e:  # recorded; the question counts as failed in pass^k
-                errors.append({"run": k + 1, "id": q["id"], "error": f"{type(e).__name__}: {e}"})
-            else:
-                got.append(answer)
-        answers.append(got)
-    passed = [{q["id"]: False for q in questions} | {a["id"]: metrics.passed_00(a) for a in got} for got in answers]
+                done.append(one(paths, w, t, log))
+            except Exception as e:  # recorded; the task counts as failed in pass^k
+                errors.append({"run": k, key: t[key], "error": f"{type(e).__name__}: {e}"})
+        got.append(done)
+        rows += [r | {"run": k} for r in read_log(log)]
+        if traces is not None and log.exists():
+            traces.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(log, traces / f"run{k}.jsonl")
+    return {"tasks": tasks, "got": got, "errors": errors, "rows": rows, "names": names}
+
+
+def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
+    """make_backend(conn) -> (llm backend | None for the real API, models). Runs and questions go in order."""
+    t = trials(QUESTIONS, _ask_00, make_backend, work=work, runs=runs, only=only, traces=traces)
+    answers, app_version = t["got"], None
+    for k, got in enumerate(answers, 1):
+        chats = [{"id": a["id"], **a.pop("trace")} for a in got]
+        if traces is not None:
+            traces.mkdir(parents=True, exist_ok=True)
+            (traces / f"run{k}-chat.json").write_text(json.dumps(chats, ensure_ascii=False), encoding="utf-8")
+        for a in got:
+            app_version = a.pop("app_version")
+    passed = [{q["id"]: False for q in t["tasks"]} | {a["id"]: metrics.passed_00(a) for a in got} for got in answers]
     return {
         "agent": "00",
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "runs": runs,
         "app_version": app_version,
-        "prompt_versions": _versions(log),
+        "prompt_versions": _prompt_versions(t["rows"]),
         "metrics": {"per_run": [metrics.score_00(got) for got in answers], "pass_k": metrics.pass_k(passed)},
-        "errors": errors,
+        "errors": t["errors"],
         "answers": answers,
     }
 
 
-def _report_09(paths, w: dict, p: dict) -> dict:
+def _report_09(paths, w: dict, p: dict, log: Path) -> dict:
     """The report of one period, written in a new read-only session."""
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         settings, today = config.defaults(), w["today"]
@@ -154,27 +179,18 @@ def _report_09(paths, w: dict, p: dict) -> dict:
     }
 
 
-def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None) -> dict:
+def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
     """make_backend(conn) -> (llm backend | None for the real API, models). Runs and periods go in order."""
-    periods = _only(PERIODS, "key", only)
-    paths, w, log = _setup(make_backend, work)
-    reports, errors = [], []
-    for k in range(runs):
-        got = []
-        for p in periods:
-            try:
-                got.append(_report_09(paths, w, p))
-            except Exception as e:  # recorded; the period counts as failed in pass^k
-                errors.append({"run": k + 1, "key": p["key"], "error": f"{type(e).__name__}: {e}"})
-        reports.append(got)
-    passed = [{p["key"]: False for p in periods} | {r["key"]: metrics.passed_09(r) for r in got} for got in reports]
+    t = trials(PERIODS, _report_09, make_backend, work=work, runs=runs, key="key", only=only, traces=traces)
+    reports = t["got"]
+    passed = [{p["key"]: False for p in t["tasks"]} | {r["key"]: metrics.passed_09(r) for r in got} for got in reports]
     return {
         "agent": "09",
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "runs": runs,
-        "prompt_versions": _versions(log),
+        "prompt_versions": _prompt_versions(t["rows"]),
         "metrics": {"per_run": [metrics.score_09(got) for got in reports], "pass_k": metrics.pass_k(passed)},
-        "errors": errors,
+        "errors": t["errors"],
         "reports": reports,
     }
 

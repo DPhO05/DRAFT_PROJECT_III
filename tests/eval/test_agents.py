@@ -149,9 +149,23 @@ def test_real_backend_needs_yes(agent, monkeypatch, capsys):
 
 
 def test_main_fake_00_writes_result(tmp_path):
-    assert run.main(["--agent", "00", "--backend", "fake", "--runs", "1", "--out", str(tmp_path)]) == 0
-    (out,) = tmp_path.glob("*_00-*.json")
+    assert run.main(["--agent", "00", "--backend", "fake", "--runs", "1", "--out", str(tmp_path / "results")]) == 0
+    (out,) = (tmp_path / "results").glob("*_00-*.json")
     assert json.loads(out.read_text(encoding="utf-8"))["metrics"]["pass_k"] == 1
+    assert len(list((tmp_path / "traces").glob("*_00/run1.jsonl"))) == 1
+
+
+def test_00_each_run_starts_from_a_new_world(tmp_path):
+    agents.evaluate_00(agents.oracle_00, work=tmp_path, runs=2, only=["q1"])
+    assert (tmp_path / "run1" / "data" / "tutor.db").exists() and (tmp_path / "run2" / "data" / "tutor.db").exists()
+
+
+def test_00_chat_trace_is_kept(tmp_path):
+    agents.evaluate_00(agents.oracle_00, work=tmp_path / "w", runs=1, traces=tmp_path / "tr")
+    chat_trace = json.loads((tmp_path / "tr" / "run1-chat.json").read_text(encoding="utf-8"))
+    assert [c["id"] for c in chat_trace] == [q["id"] for q in agents.QUESTIONS]
+    assert all(c["events"] and c["messages"] for c in chat_trace)
+    assert (tmp_path / "tr" / "run1.jsonl").exists()
 
 
 def test_only_runs_the_named_questions(tmp_path):

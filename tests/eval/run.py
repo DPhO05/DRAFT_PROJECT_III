@@ -11,6 +11,7 @@ C-34). A prompt is fit for use only after it passes 3 runs (pass^3). --agent 00 
 # ruff: noqa: E402
 import argparse
 import json
+import shutil
 import sys
 import tempfile
 from contextlib import closing
@@ -111,37 +112,44 @@ def load_labels(files: list[str] | None = None, fix: Path = FIX) -> dict:
     return {f: every[f] for f in files or [f for f, lab in every.items() if "duplicate_of" not in lab]}
 
 
-def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: int = 3, fix: Path = FIX) -> dict:
-    """make_backend(conn, labels) -> (llm backend | None for the real API, models). Runs and files go in order."""
+def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: int = 3, fix: Path = FIX,
+             traces: Path | None = None) -> dict:  # fmt: skip
+    """make_backend(conn, labels) -> (llm backend | None for the real API, models). Each run gets a new world in
+    work/run<k>; the backend is built once, on run 1."""
     labels = load_labels(files, fix)
     files = list(labels)
-    paths = config.paths(work / "data").ensure()
-    repo.init_db(paths.tutor_db, paths.backup)
-    with closing(repo.connect(paths.tutor_db)) as conn:
-        seed_dummy.seed(conn, BANK)
-        backend, models = make_backend(conn, labels)
-    for f in files:
-        (paths.inbox / f).write_bytes((fix / f).read_bytes())
-    log = paths.logs / "llm.jsonl"
-    llm.configure(log, models)
-    llm.set_backend(backend)
-    r = runner.Runner(paths, {"G1": session.build(paths)})
-    r.on_fail("G1", session.on_fail(paths))
-    r.pending_fn("G1", session.pending(paths))
-    results, errors = [], []
-    try:
-        for k in range(runs):
-            got = {}
+    results, errors, rows = [], [], []
+    for k in range(1, runs + 1):
+        paths = config.paths(work / f"run{k}" / "data").ensure()
+        repo.init_db(paths.tutor_db, paths.backup)
+        with closing(repo.connect(paths.tutor_db)) as conn:
+            seed_dummy.seed(conn, BANK)
+            if k == 1:  # once: a stateful fake keeps its counters across runs
+                backend, models = make_backend(conn, labels)
+        for f in files:
+            (paths.inbox / f).write_bytes((fix / f).read_bytes())
+        log = paths.logs / "llm.jsonl"
+        llm.configure(log, models)
+        llm.set_backend(backend)
+        r = runner.Runner(paths, {"G1": session.build(paths)})
+        r.on_fail("G1", session.on_fail(paths))
+        r.pending_fn("G1", session.pending(paths))
+        got = {}
+        try:
             for f in files:
                 try:
                     got |= _one(paths, r, f, labels[f])
                 except Exception as e:  # recorded; the problems count as missing in stability
-                    errors.append({"run": k + 1, "file": f, "error": f"{type(e).__name__}: {e}"})
-            results.append(got)
-    finally:
-        r.close()
+                    errors.append({"run": k, "file": f, "error": f"{type(e).__name__}: {e}"})
+        finally:
+            r.close()
+        results.append(got)
+        rows += agents.read_log(log)
+        if traces is not None and log.exists():
+            traces.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(log, traces / f"run{k}.jsonl")
     versions: dict[str, set] = {}
-    for row in llm.iter_log(log):
+    for row in rows:
         versions.setdefault(row["agent"], set()).add(row["prompt_version"])
     return {
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -192,6 +200,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--files", nargs="+")
     ap.add_argument("--only", nargs="+", help="chỉ chạy các id này (không dùng cho g1)")
     ap.add_argument("--out", type=Path, default=ROOT / "data" / "eval" / "results")
+    ap.add_argument("--traces", type=Path, help="mẹ của thư mục vết (mặc định <out>/../traces)")
     ap.add_argument("--yes", action="store_true", help="xác nhận chạy API thật (tốn tiền)")
     a = ap.parse_args(argv)
     target = a.agent or "g1"
@@ -224,15 +233,19 @@ def main(argv: list[str] | None = None) -> int:
         config.load_env(config.ENV_FILE)  # no cli callback here; GPT settings need OPENAI_API_KEY
     with tempfile.TemporaryDirectory(prefix="tutor-eval-") as tmp:
         info = meta(target, a.set, a.backend)
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        folder = (a.traces or a.out.parent / "traces") / f"{stamp}_{target}"
         if target == "g1":
-            res = info | evaluate(_backend(a.backend), work=Path(tmp), files=a.files, runs=a.runs, fix=fix)
+            res = evaluate(_backend(a.backend), work=Path(tmp), files=a.files, runs=a.runs, fix=fix, traces=folder)
         else:
             t = TARGETS[target]
             try:
-                res = info | t["evaluate"](_backend(a.backend, t["oracle"]), work=Path(tmp), runs=a.runs, only=a.only)
-            except ValueError as e:
+                res = t["evaluate"](_backend(a.backend, t["oracle"]), work=Path(tmp), runs=a.runs, only=a.only,
+                                    traces=folder)  # fmt: skip
+            except agents.UnknownTask as e:
                 print(e)
                 return 2
+        res = info | res | {"traces": str(folder)}
     for k, s in enumerate(res["metrics"]["per_run"], 1):
         print(f"run {k}: " + "  ".join(f"{m}={_fmt(v)}" for m, v in s.items()))
     if target == "g1":
