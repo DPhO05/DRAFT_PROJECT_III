@@ -1,0 +1,21 @@
+{
+ "judge_trusted": false,
+ "tolerance_tasks": 1,
+ "floors": [
+  {"set": "*", "metric": "name_leaks", "max": 0, "hard": true},
+  {"set": "00-dev", "metric": "approval_ok", "min": 1.0, "hard": true},
+  {"set": "g1-*", "metric": "flow_errors", "max": 0},
+  {"set": "g1-*", "metric": "recall", "min": 0.90},
+  {"set": "g1-*", "metric": "precision", "min": 0.75},
+  {"set": "00-dev", "metric": "pass_k", "min": 0.85},
+  {"set": "09-dev", "metric": "dropped_pct", "max": 0},
+  {"set": "09-dev", "metric": "faithfulness", "min": 0.95, "needs": "judge_trusted"},
+  {"set": "00-dev", "metric": "faithfulness", "min": 0.95, "needs": "judge_trusted"},
+  {"set": "01-dev", "metric": "hit_at_1", "min": 0.90},
+  {"set": "04-dev", "metric": "recall_disagree", "min": 0.80}
+ ],
+ "no_drop": ["recall", "precision", "first_wrong_step_acc", "tools_ok", "args_ok", "hit_at_1", "hit_at_3", "mrr",
+             "accuracy", "recall_disagree", "passed"],
+ "dev": {},
+ "real": {"prompt_versions": {}, "models": {}, "rows": {}}
+}
