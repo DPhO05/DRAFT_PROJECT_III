@@ -138,6 +138,15 @@ def test_args_fit_checks_required_unknown_and_enum():
     assert not metrics.args_fit({"name": "nope", "args": {}}, defs)
 
 
+def test_args_fit_treats_null_as_not_given():
+    # strict schemas make the model send every key; the app drops the nulls (a00_orchestrator/tools.py)
+    defs = [{"name": "t", "input_schema": {"properties": {"a": {"type": "string", "enum": ["x", "y"]},
+                                                          "k": {"type": "string", "enum": ["x"]}},
+                                           "required": ["a"]}}]  # fmt: skip
+    assert metrics.args_fit({"name": "t", "args": {"a": "x", "k": None}}, defs)
+    assert not metrics.args_fit({"name": "t", "args": {"a": None}}, defs)  # required key left null
+
+
 def test_passed_00_fails_on_a_leak_a_shown_code_a_save_claim_or_a_bad_call():
     good = ans(["list_students"], ["list_students"])
     assert metrics.passed_00(good)

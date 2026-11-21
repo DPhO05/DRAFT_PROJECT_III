@@ -159,11 +159,14 @@ def args_ok(a: dict) -> bool:
 
 
 def args_fit(call: dict, defs: list[dict]) -> bool:
-    """The call names a defined tool, has every required argument, no unknown one, and enum values in range."""
+    """The call names a defined tool, has every required argument, no unknown one, and enum values in range.
+
+    A null argument counts as not given, as the app drops it (a00_orchestrator/tools.py).
+    """
     schema = next((d["input_schema"] for d in defs if d["name"] == call["name"]), None)
     if schema is None:
         return False
-    props, args = schema.get("properties", {}), call["args"]
+    props, args = schema.get("properties", {}), {k: v for k, v in call["args"].items() if v is not None}
     return (
         all(k in args for k in schema.get("required", []))
         and all(k in props for k in args)
