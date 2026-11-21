@@ -70,10 +70,20 @@ _GRADER_FIELDS = ("expect_approval", "approval", "expect_starts", "allow_tool_er
                   "expect_text", "expect_any", "card_only")  # fmt: skip
 
 
+def _echo_sheet(record):
+    """The recorder's propose_worksheet, answering with the refs it was sent: a fixed sheet makes a real model retry."""
+
+    def f(sid, for_date, items, note, warnings):
+        return record(sid, for_date, items, note, warnings) | {"added": [i["ref"] for i in items], "invalid": []}
+
+    return f
+
+
 def _ask_00(paths, w: dict, q: dict, log: Path, judge: bool = False) -> dict:
     """The answer to one task in a new read-only session: its messages in one thread, approvals answered as scripted."""
     calls = []
     starters = recorder(calls)
+    starters = dataclasses.replace(starters, propose_worksheet=_echo_sheet(starters.propose_worksheet))
     if q.get("fail_tools"):
         starters = dataclasses.replace(starters, **dict.fromkeys(q["fail_tools"], _fails))
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:

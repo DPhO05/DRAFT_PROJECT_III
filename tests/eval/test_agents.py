@@ -536,3 +536,12 @@ def test_00_judge_error_changes_nothing_else(tmp_path):
     assert [a["model_calls"] for a in down["answers"][0]] == [a["model_calls"] for a in plain["answers"][0]]
     assert down["metrics"]["extra"]["judge_errors"] == 10 and down["metrics"]["extra"]["faithfulness"] is None
     assert sum("error" in a["judge"] for a in down["answers"][0] if a.get("judge")) == 10
+
+
+def test_00_worksheet_stub_answers_with_the_refs_sent(tmp_path):
+    agents.evaluate_00(agents.oracle_00, work=tmp_path / "w", runs=1, only=["q16"], traces=tmp_path / "tr")
+    [chat] = json.loads((tmp_path / "tr" / "run1-chat.json").read_text(encoding="utf-8"))
+    msgs = (m["data"] for m in chat["messages"] if m["type"] == "tool")
+    sheet = next(d for d in msgs if d["name"] == "propose_worksheet")
+    got = json.loads(sheet["content"])
+    assert (got["added"], got["invalid"]) == (["9DS-BPT-004", "9DS-BPT-005"], [])
