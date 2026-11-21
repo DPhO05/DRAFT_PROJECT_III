@@ -1,5 +1,7 @@
 """Component targets 01, 04, 02r, 08 end to end with oracles instead of the API (C-34)."""
 
+import re
+
 import pytest
 
 from tests.eval import components, run
@@ -79,3 +81,36 @@ def test_02r_schema_failure_fails_the_task(tmp_path):
 def test_real_backend_needs_yes(agent, capsys):
     assert run.main(["--agent", agent, "--backend", "real"]) == 2
     assert "tốn tiền" in capsys.readouterr().out
+
+
+BANK_REFS = {r for f in (run.ROOT / "data" / "dummy" / "bank").glob("*.tex")
+             for r in re.findall(r"\\begin\{problem\}\[([^\]]+)\]", f.read_text(encoding="utf-8"))}  # fmt: skip
+
+
+def test_08_tasks_name_bank_problems():
+    refs = BANK_REFS
+    for t in [*components.TASKS_08, *components.SEARCH_00]:
+        assert set(t["relevant"]) | set(t.get("must_not", [])) <= refs, t["id"]
+    assert [t["id"] for t in components.TASKS_08] == ["new", "repeat", "solid", "used-up", "grade8"]
+    assert len(components.SEARCH_00) == 6 and all(1 <= len(t["relevant"]) <= 5 for t in components.SEARCH_00)
+
+
+def test_08_runs_without_any_model_call(tmp_path, capsys):
+    res = components.evaluate_08(None, work=tmp_path)
+    assert res["errors"] == [] and res["runs"] == 1 and res["calls"]["logged"] == 0
+    s = res["metrics"]["per_run"][0]
+    assert s["n_tasks"] == 5 and s["must_not_hits"] == 0 and s["passed"] == 1
+    assert 0 <= s["p_at_n"] <= 1 and 0 <= res["metrics"]["extra"]["search_recall_at_5"] <= 1
+    assert res["metrics"]["extra"]["draft_labels"] == 11
+
+
+def test_08_main_warns_about_draft_labels(tmp_path, capsys):
+    assert run.main(["--agent", "08", "--out", str(tmp_path / "results")]) == 0
+    out = capsys.readouterr().out
+    assert "nhãn nháp" in out and "search recall@5" in out
+    assert [f.name for f in (tmp_path / "results").glob("*.json")][0].endswith("_08.json")
+
+
+def test_08_needs_no_yes_for_the_real_backend(tmp_path, capsys):
+    assert run.main(["--agent", "08", "--backend", "real", "--out", str(tmp_path / "results")]) == 0
+    assert "tốn tiền" not in capsys.readouterr().out

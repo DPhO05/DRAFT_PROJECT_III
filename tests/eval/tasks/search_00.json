@@ -1,0 +1,36 @@
+[{
+  "id": "s1",
+  "status": "draft",
+  "text": "bất phương trình",
+  "relevant": ["9DS-BPT-027", "9DS-BPT-030", "9DS-BPT-019", "9DS-BPT-028", "9DS-BPT-023"]
+ },
+ {
+  "id": "s2",
+  "status": "draft",
+  "text": "vận tốc",
+  "relevant": ["9DS-HSB2-010", "9DS-PT2-010", "9DS-HPT-018", "8DS-PT1-017", "8DS-PS-006"]
+ },
+ {
+  "id": "s3",
+  "status": "draft",
+  "text": "trục căn thức",
+  "relevant": ["9DS-CAN-005", "9DS-CAN-027", "9DS-CAN-029"]
+ },
+ {
+  "id": "s4",
+  "status": "draft",
+  "text": "taxi",
+  "relevant": ["8DS-HSBN-006", "9DS-BPT-007"]
+ },
+ {
+  "id": "s5",
+  "status": "draft",
+  "text": "bể",
+  "relevant": ["9DS-CAN-031", "8DS-HSBN-015", "9DS-PT2-031"]
+ },
+ {
+  "id": "s6",
+  "status": "draft",
+  "text": "cạnh góc vuông",
+  "relevant": ["9DS-HPT-019", "9DS-PT2-020"]
+ }]

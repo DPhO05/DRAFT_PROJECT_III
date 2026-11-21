@@ -257,6 +257,15 @@ TARGETS: dict[str, dict] = {  # --agent value -> how to run it; "g1" is handled 
         "judge": False,
         "tasks": components.TASKS_02R,
     },
+    "08": {  # code only: no model call, so no cost warning and no --yes
+        "evaluate": components.evaluate_08,
+        "oracle": None,
+        "ids": (),
+        "judge": False,
+        "model": False,
+        "runs": 1,
+        "tasks": components.TASKS_08,
+    },
 }
 
 
@@ -310,7 +319,8 @@ def main(argv: list[str] | None = None) -> int:
     elif a.set not in (None, f"{target}-dev"):
         print(f"Không có bộ {a.set} cho agent {target}.")
         return 2
-    if a.backend == "real":
+    model = TARGETS.get(target, {}).get("model", True)
+    if a.backend == "real" and model:
         if target == "g1":
             n = sum(len(lab["problems"]) for lab in load_labels(a.files, fix).values())
             what = f"{n} bài toán × ≥ 3 lượt gọi (02 · 03 · 04 mỗi lỗi; 01 khi thiếu mã bài)"
@@ -334,7 +344,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             t = TARGETS[target]
             try:
-                res = t["evaluate"](_backend(a.backend, t["oracle"]), work=Path(tmp), runs=a.runs, only=a.only,
+                runs = a.runs if model else t["runs"]
+                res = t["evaluate"](_backend(a.backend, t["oracle"]), work=Path(tmp), runs=runs, only=a.only,
                                     traces=folder)  # fmt: skip
             except agents.UnknownTask as e:
                 print(e)
@@ -350,8 +361,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"LỖI run {e['run']} {e.get('file') or e.get('id') or e.get('key')}: {e['error']}")
     print("prompt_version: " + "  ".join(v for vs in res["prompt_versions"].values() for v in vs))
     print(f"calls: logged={res['calls']['logged']}  usd={res['calls']['usd']:.3f}")
+    extra = res["metrics"]["extra"]
+    if "search_recall_at_5" in extra:
+        print(f"search recall@5={extra['search_recall_at_5']:.3f}")
+    if extra.get("draft_labels"):
+        print(f"CẢNH BÁO: {extra['draft_labels']} nhãn nháp, chủ dự án chưa duyệt")
     ids = ("02", "03", "04") if target == "g1" else TARGETS[target]["ids"]
-    key = "_".join(v for a_ in ids for v in res["prompt_versions"].get(a_, []))
+    key = "_".join(v for a_ in ids for v in res["prompt_versions"].get(a_, [])) if model else target
     a.out.mkdir(parents=True, exist_ok=True)
     out = a.out / f"{res['created'].replace(':', '').replace('-', '')}_{key}.json"
     out.write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")

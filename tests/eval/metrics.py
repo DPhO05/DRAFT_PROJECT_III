@@ -403,3 +403,20 @@ def passed_02r(a: dict) -> bool:
 def score_02r(answers: list[dict]) -> dict:
     """One run of the 02 rubric draft."""
     return {"n_tasks": len(answers), "passed": _rate(sum(map(passed_02r, answers)), len(answers))}
+
+
+def passed_08(a: dict) -> bool:
+    """A full sheet (or a short one that warns) with none of the refs the profile must never get."""
+    return bool(len(a["refs"]) == a["n"] or a["warnings"]) and not set(a["must_not"]) & set(a["refs"])
+
+
+def score_08(answers: list[dict]) -> dict:
+    """One run of the 08 ranking: mean precision and recall of the sheet against the labelled refs."""
+    hit = [(len(set(a["refs"]) & set(a["relevant"])), a) for a in answers]
+    return {
+        "n_tasks": len(answers),
+        "p_at_n": _rate(sum(h / a["n"] for h, a in hit), len(answers)),
+        "recall_at_n": _rate(sum(h / len(a["relevant"]) for h, a in hit), len(answers)),
+        "must_not_hits": sum(len(set(a["must_not"]) & set(a["refs"])) for a in answers),
+        "passed": _rate(sum(map(passed_08, answers)), len(answers)),
+    }

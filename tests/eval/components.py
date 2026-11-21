@@ -3,24 +3,33 @@
 01: match a student's problem to the bank. The task set is tests/eval/tasks/ingest_01.json.
 04: agree, disagree or suggest another code for a claimed mistake. The set is tests/eval/tasks/verifier_04.json.
 02r: draft a grading rubric for a bank problem. The set is tests/eval/tasks/rubric_02.json (bank refs).
+08: rank bank problems for five student profiles (tasks/reco_08.json) and check the chat's problem search
+(tasks/search_00.json). Code only, no model call. The labels are drafts until the owner reviews them.
 """
 
 import json
 from contextlib import closing
+from datetime import timedelta
 from pathlib import Path
 
 from tests.eval import agents, metrics
 from tests.fakes import FakeLLM, lane_handlers
-from tutor import llm
+from tests.services.test_select import did
+from tests.services.test_student_reads import set_theta
+from tutor import config, llm
+from tutor.agents.a00_orchestrator.tools import Toolbox
 from tutor.agents.a01_ingest import ingest
 from tutor.agents.a02_grader import grader
 from tutor.agents.a04_verifier import verifier
+from tutor.agents.a08_recommender import select
 from tutor.db import repo
 from tutor.services import latex
 
 TASKS_01: list[dict] = json.loads((Path(__file__).parent / "tasks" / "ingest_01.json").read_text(encoding="utf-8"))
 TASKS_04: list[dict] = json.loads((Path(__file__).parent / "tasks" / "verifier_04.json").read_text(encoding="utf-8"))
 TASKS_02R: list[dict] = json.loads((Path(__file__).parent / "tasks" / "rubric_02.json").read_text(encoding="utf-8"))
+TASKS_08: list[dict] = json.loads((Path(__file__).parent / "tasks" / "reco_08.json").read_text(encoding="utf-8"))
+SEARCH_00: list[dict] = json.loads((Path(__file__).parent / "tasks" / "search_00.json").read_text(encoding="utf-8"))
 FIX = Path(__file__).parents[1] / "fixtures" / "submissions"
 
 
@@ -122,3 +131,47 @@ def evaluate_02r(make_backend, *, work: Path, runs: int = 3, only: list[str] | N
 def oracle_02r(conn):
     """FakeLLM whose 02 returns the one-item draft for any problem."""
     return FakeLLM({"02": lane_handlers()["02"]}), {}
+
+
+def _rank_08(paths, w, t, log) -> dict:
+    """One profile: a new student with the task's skills, repeats and recent work, then the sheet 08 ranks."""
+    with closing(repo.connect(paths.tutor_db)) as conn:
+        sid = repo.add_student(conn, name=f"Eval {t['id']}", grade=t["grade"])
+        kc = {k["code"]: k["id"] for k in repo.list_kc(conn)}
+        ref = {b["ref"]: b["id"] for b in repo.bank_problems(conn)}
+        for code, theta in t["theta"].items():
+            set_theta(conn, sid, kc[code], theta)
+        for r in t["repeats"]:
+            conn.execute(
+                "INSERT INTO misconception_log (student_id, code, kc_id, first_seen, last_seen, count)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (sid, r["code"], kc[r["kc"]], w["today"].isoformat(), w["today"].isoformat(), r["count"]),
+            )
+        for d in t["done"]:
+            did(conn, sid, ref[d["ref"]], w["today"] - timedelta(days=d["days_ago"]))
+        conn.commit()
+        res = select.rank_problems(conn, sid, t["n"], reco=config.defaults()["reco"], today=w["today"])
+    return {"id": t["id"], "n": t["n"], "refs": [i["ref"] for i in res["items"]], "warnings": res["warnings"],
+            "relevant": t["relevant"], "must_not": t["must_not"]}  # fmt: skip
+
+
+def evaluate_08(make_backend, *, work: Path, runs: int = 1, only: list[str] | None = None, traces=None) -> dict:
+    """Ranking plus search recall. make_backend is ignored: a fake with no handler raises on any model call."""
+    seen: dict = {}
+
+    def one(paths, w, t, log):
+        seen["today"] = w["today"]
+        return _rank_08(paths, w, t, log)
+
+    t = agents.trials(TASKS_08, one, lambda conn: (FakeLLM({}), {}), work=work, runs=runs, only=only, traces=traces)
+    recall = []
+    with closing(repo.connect(config.paths(work / "run1" / "data").tutor_db, readonly=True)) as conn:
+        for q in SEARCH_00:
+            box = Toolbox(conn, settings=config.defaults(), today=seen["today"], text=q["text"])
+            out = box.run("search_problems", {"text": q["text"], "limit": 5})
+            got = {p["ref"] for p in (out.card or {}).get("problems", [])}
+            recall.append(len(got & set(q["relevant"])) / len(q["relevant"]))
+    drafts = sum(x["status"] == "draft" for x in [*TASKS_08, *SEARCH_00])
+    extra = {"search_recall_at_5": sum(recall) / len(recall), "draft_labels": drafts}
+    return agents.summarize("08", t, key="id", score=metrics.score_08, passed=metrics.passed_08, payload="items",
+                            extra=extra)  # fmt: skip

@@ -332,3 +332,18 @@ def test_trajectory_groups_lanes_and_counts_budget():
     assert (t["threads"], t["calls_max"], t["retries"], t["schema_errors"]) == (2, 6, 1, 1)
     assert t["over_budget"] == 1 and t["order_ok"] == 2 / 3 and t["by_agent"] == {"01": 1, "02": 4, "03": 3, "04": 1}
     assert metrics.trajectory(rows, None)["over_budget"] is None
+
+
+def test_score_08_precision_recall_and_must_not():
+    a = {
+        "id": "p",
+        "n": 4,
+        "refs": ["A", "B", "C", "D"],
+        "relevant": ["A", "B", "X"],
+        "must_not": ["D"],
+        "warnings": [],
+    }
+    s = metrics.score_08([a])
+    assert (s["n_tasks"], s["p_at_n"], s["recall_at_n"], s["must_not_hits"], s["passed"]) == (1, 2 / 4, 2 / 3, 1, 0)
+    short = a | {"refs": ["A"], "must_not": [], "warnings": ["Chỉ tìm được 1 bài hợp"]}
+    assert metrics.passed_08(short) and not metrics.passed_08(short | {"warnings": []})
