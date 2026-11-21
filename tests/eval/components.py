@@ -1,6 +1,7 @@
 """Component targets: one agent run alone on a fixed task set, scored without the graph around it (plan T8).
 
 01: match a student's problem to the bank. The task set is tests/eval/tasks/ingest_01.json.
+04: agree, disagree or suggest another code for a claimed mistake. The set is tests/eval/tasks/verifier_04.json.
 """
 
 import json
@@ -11,10 +12,13 @@ from tests.eval import agents, metrics
 from tests.fakes import FakeLLM
 from tutor import llm
 from tutor.agents.a01_ingest import ingest
+from tutor.agents.a04_verifier import verifier
 from tutor.db import repo
 from tutor.services import latex
 
 TASKS_01: list[dict] = json.loads((Path(__file__).parent / "tasks" / "ingest_01.json").read_text(encoding="utf-8"))
+TASKS_04: list[dict] = json.loads((Path(__file__).parent / "tasks" / "verifier_04.json").read_text(encoding="utf-8"))
+FIX = Path(__file__).parents[1] / "fixtures" / "submissions"
 
 
 def body(t: dict) -> str:
@@ -61,3 +65,36 @@ def oracle_01(conn):
         )
 
     return FakeLLM({"01": handle}), {}
+
+
+def _verify_04(paths, w, t, log) -> dict:
+    n0 = len(agents.read_log(log))
+    tex = (FIX / t["file"]).read_text(encoding="utf-8")
+    ref = json.loads((FIX / "labels.json").read_text(encoding="utf-8"))[t["file"]]["problems"][t["seq"] - 1]["ref"]
+    p = latex.split_problems(tex)[t["seq"] - 1]
+    steps = [{"idx": s.idx, "latex": s.latex} for s in latex.split_steps(tex, p.body_pos, p.body_pos_end, by="line")]
+    c = t["claim"]
+    with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+        pid = next(b["id"] for b in repo.bank_problems(conn) if b["ref"] == ref)
+        problem, codes = repo.problem_detail(conn, pid), repo.error_codes(conn, active_only=True)
+    mistake = c | {"evidence_latex": next(s["latex"] for s in steps if s["idx"] == c["step_idx"])}
+    ctx = llm.CallContext(graph="G1", thread_id=f"eval-{t['id']}", redact=_redact(paths))
+    v = verifier.run(mistake, steps, problem, codes=codes, ctx=ctx)
+    return {"id": t["id"], "expect": t["expect"], "expect_code": t.get("expect_code"), "verdict": v.verdict,
+            "suggested_code": v.suggested_code, "model_calls": len(agents.read_log(log)) - n0}  # fmt: skip
+
+
+def evaluate_04(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
+    """make_backend(conn) -> (llm backend | None for the real API, models)."""
+    t = agents.trials(TASKS_04, _verify_04, make_backend, work=work, runs=runs, only=only, traces=traces)
+    return agents.summarize("04", t, key="id", score=metrics.score_04, passed=metrics.passed_04, payload="items")
+
+
+def oracle_04(conn):
+    """FakeLLM that finds its task by the claim description in the prompt and gives the expected verdict."""
+
+    def handle(user, system):
+        t = next(t for t in TASKS_04 if t["claim"]["description"] in user)
+        return verifier.VerdictOut(verdict=t["expect"], reason="oracle", suggested_code=t.get("expect_code"))
+
+    return FakeLLM({"04": handle}), {}

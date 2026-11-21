@@ -1,0 +1,137 @@
+[
+ {
+  "id": "v1",
+  "file": "s04.tex",
+  "seq": 2,
+  "expect": "agree",
+  "claim": {
+   "step_idx": 2,
+   "code": "notational.operator_swap",
+   "description": "đổi dấu mẫu y - x thành x - y nhưng không đổi dấu phân thức"
+  }
+ },
+ {
+  "id": "v2",
+  "file": "s01.tex",
+  "seq": 1,
+  "expect": "agree",
+  "claim": {
+   "step_idx": 5,
+   "code": "notational.operator_swap",
+   "description": "chuyển vế 8 không đổi dấu: phải là -4 - 8"
+  }
+ },
+ {
+  "id": "v3",
+  "file": "s02.tex",
+  "seq": 4,
+  "expect": "agree",
+  "claim": {
+   "step_idx": 4,
+   "code": "conceptual.wrong_fact",
+   "description": "tích khác 0 cần cả hai nhân tử khác 0; thiếu x != -3"
+  }
+ },
+ {
+  "id": "v4",
+  "file": "s05.tex",
+  "seq": 4,
+  "expect": "agree",
+  "claim": {
+   "step_idx": 4,
+   "code": "conceptual.theorem_misapplied",
+   "description": "không rút gọn: y = 1 là hàm hằng, không phải bậc nhất"
+  }
+ },
+ {
+  "id": "v5",
+  "file": "s06.tex",
+  "seq": 1,
+  "expect": "agree",
+  "claim": {
+   "step_idx": 4,
+   "code": "conceptual.theorem_misapplied",
+   "description": "chia hai vế cho -4 mà không đổi chiều; đúng là x <= -2"
+  }
+ },
+ {
+  "id": "v6",
+  "file": "s06.tex",
+  "seq": 3,
+  "expect": "agree",
+  "claim": {
+   "step_idx": 4,
+   "code": "conceptual.wrong_fact",
+   "description": "căn xác định khi biểu thức >= 0, không phải > 0"
+  }
+ },
+ {
+  "id": "v7",
+  "file": "s01.tex",
+  "seq": 1,
+  "expect": "disagree",
+  "claim": {
+   "step_idx": 1,
+   "code": "computational.intermediate_calc",
+   "description": "tính sai ở bước 1 (v7)"
+  }
+ },
+ {
+  "id": "v8",
+  "file": "s02.tex",
+  "seq": 1,
+  "expect": "disagree",
+  "claim": {
+   "step_idx": 3,
+   "code": "computational.copy_error",
+   "description": "chép sai ở bước 3 (v8)"
+  }
+ },
+ {
+  "id": "v9",
+  "file": "s06.tex",
+  "seq": 2,
+  "expect": "disagree",
+  "claim": {
+   "step_idx": 3,
+   "code": "conceptual.wrong_fact",
+   "description": "dùng sai kiến thức ở bước 3 (v9)"
+  }
+ },
+ {
+  "id": "v10",
+  "file": "s04.tex",
+  "seq": 4,
+  "expect": "wrong_code",
+  "expect_code": "notational.symbol",
+  "claim": {
+   "step_idx": 1,
+   "code": "computational.copy_error",
+   "description": "chép sai ký hiệu (v10)"
+  }
+ },
+ {
+  "id": "v11",
+  "file": "s01.tex",
+  "seq": 3,
+  "expect": "wrong_code",
+  "expect_code": "notational.parentheses",
+  "claim": {
+   "step_idx": 2,
+   "code": "computational.intermediate_calc",
+   "description": "tính sai ở bước 2 (v11)"
+  }
+ },
+ {
+  "id": "v12",
+  "file": "s02.tex",
+  "seq": 3,
+  "expect": "wrong_code",
+  "expect_code": "presentation.variable_misnamed",
+  "claim": {
+   "step_idx": 6,
+   "code": "conceptual.wrong_fact",
+   "description": "dùng sai kiến thức ở bước 6 (v12)"
+  }
+ }
+]

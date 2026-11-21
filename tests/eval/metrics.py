@@ -236,6 +236,33 @@ def score_01(answers: list[dict]) -> dict:
     }
 
 
+def passed_04(a: dict) -> bool:
+    """The expected verdict (and the expected code for wrong_code), in one model call."""
+    return (
+        a["verdict"] == a["expect"]
+        and (a["expect"] != "wrong_code" or a["suggested_code"] == a["expect_code"])
+        and a["model_calls"] == 1
+    )
+
+
+def score_04(answers: list[dict]) -> dict:
+    """One run of agent 04. recall_disagree: of the claims that are wrong, how many 04 refuses."""
+    dis = [a for a in answers if a["expect"] == "disagree"]
+    kinds = ("agree", "disagree", "wrong_code")
+    return {
+        "n_tasks": len(answers),
+        "accuracy": _rate(sum(a["verdict"] == a["expect"] for a in answers), len(answers)),
+        "recall_disagree": _rate(sum(a["verdict"] == "disagree" for a in dis), len(dis)),
+        "empty": sum(a["verdict"] is None for a in answers),
+        "confusion": {
+            e: {v: sum(a["expect"] == e and a["verdict"] == v for a in answers) for v in kinds}
+            | {"none": sum(a["expect"] == e and a["verdict"] is None for a in answers)}
+            for e in kinds
+        },
+        "passed": _rate(sum(map(passed_04, answers)), len(answers)),
+    }
+
+
 def pass_k(runs: list[dict[str, bool]]) -> float | None:
     """runs: {question id: passed} per run. A question missing from a run counts as failed (pass^k, k = runs)."""
     keys = set().union(*runs)

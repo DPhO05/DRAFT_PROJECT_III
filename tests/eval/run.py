@@ -193,6 +193,13 @@ TARGETS: dict[str, dict] = {  # --agent value -> how to run it; "g1" is handled 
         "judge": False,
         "tasks": components.TASKS_01,
     },
+    "04": {
+        "evaluate": components.evaluate_04,
+        "oracle": components.oracle_04,
+        "ids": ("04",),
+        "judge": False,
+        "tasks": components.TASKS_04,
+    },
 }
 
 

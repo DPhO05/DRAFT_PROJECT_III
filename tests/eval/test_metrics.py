@@ -277,3 +277,15 @@ def test_score_01_hit_mrr_and_flag_precision():
                           a(None, [], True)])  # fmt: skip
     assert (s["n_tasks"], s["hit_at_1"], s["hit_at_3"]) == (4, 1 / 3, 2 / 3)
     assert s["mrr"] == (1 + 1 / 2 + 0) / 3 and s["low_match_precision"] == 1 / 2 and s["passed"] == 2 / 4
+
+
+def test_score_04_accuracy_confusion_and_disagree_recall():
+    def a(expect, verdict, code=None, want=None):
+        return {"id": "x", "expect": expect, "verdict": verdict, "suggested_code": code, "expect_code": want,
+                "model_calls": 1}  # fmt: skip
+
+    s = metrics.score_04([a("agree", "agree"), a("disagree", "agree"), a("disagree", "disagree"),
+                          a("wrong_code", "wrong_code", "x.a", "x.b"), a("agree", None)])  # fmt: skip
+    assert (s["n_tasks"], s["accuracy"], s["recall_disagree"], s["empty"]) == (5, 3 / 5, 1 / 2, 1)
+    assert s["confusion"]["disagree"] == {"agree": 1, "disagree": 1, "wrong_code": 0, "none": 0}
+    assert s["passed"] == 2 / 5  # the wrong_code answer suggests the wrong code

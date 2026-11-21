@@ -3,7 +3,9 @@
 import pytest
 
 from tests.eval import components, run
+from tests.fakes import FakeLLM
 from tutor.agents.a01_ingest import ingest
+from tutor.agents.a04_verifier import verifier
 
 
 def test_01_tasks_are_wellformed():
@@ -38,7 +40,31 @@ def test_01_wrong_first_candidate_drops_hit_at_1_only(tmp_path):
     assert s["hit_at_1"] < 1 and s["hit_at_3"] == 1 and s["passed"] < 1
 
 
-@pytest.mark.parametrize("agent", ["01"])
+def test_04_tasks_are_balanced_and_unique():
+    kinds = [t["expect"] for t in components.TASKS_04]
+    assert (kinds.count("agree"), kinds.count("disagree"), kinds.count("wrong_code")) == (6, 3, 3)
+    assert len({t["claim"]["description"] for t in components.TASKS_04}) == 12
+    assert all(t["claim"]["code"].split(".")[0] != t["expect_code"].split(".")[0]
+               for t in components.TASKS_04 if t["expect"] == "wrong_code")  # fmt: skip
+
+
+def test_04_oracle_gives_every_expected_verdict(tmp_path):
+    res = components.evaluate_04(components.oracle_04, work=tmp_path, runs=3)
+    assert res["errors"] == [] and res["metrics"]["pass_k"] == 1 and res["calls"]["logged"] == 36
+    for s in res["metrics"]["per_run"]:
+        assert (s["n_tasks"], s["accuracy"], s["recall_disagree"], s["empty"]) == (12, 1, 1, 0)
+
+
+def always_agree(conn):
+    return FakeLLM({"04": verifier.VerdictOut(verdict="agree", reason="x")}), {}
+
+
+def test_04_always_agree_misses_every_wrong_conclusion(tmp_path):
+    s = components.evaluate_04(always_agree, work=tmp_path, runs=1)["metrics"]["per_run"][0]
+    assert s["accuracy"] == 6 / 12 and s["recall_disagree"] == 0
+
+
+@pytest.mark.parametrize("agent", ["01", "04"])
 def test_real_backend_needs_yes(agent, capsys):
     assert run.main(["--agent", agent, "--backend", "real"]) == 2
     assert "tốn tiền" in capsys.readouterr().out
