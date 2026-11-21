@@ -146,6 +146,17 @@ def _hide_paths(text: str, names: dict) -> str:
     return llm.mask(re.sub(r"\S*[/\\]\S*", lambda m: _path(m.group(), names), text), names)
 
 
+def _hide_all(x, names: dict):
+    """`x` with every string leaf through _hide_paths: JSON text would hide a line break as a literal `\\n`."""
+    if isinstance(x, str):
+        return _hide_paths(x, names)
+    if isinstance(x, dict):
+        return {k: _hide_all(v, names) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_hide_all(v, names) for v in x]
+    return x
+
+
 def _share(n: int, total: int):
     return round(n / total, 6) if total else None
 
@@ -205,8 +216,8 @@ def reports(data: Path, out: Path, names: dict) -> dict:
                 "code": config.student_code(r["student_id"]),
                 "period_kind": r["period_kind"],
                 "period_start": r["period_start"],
-                "writer": json.loads(llm.mask(json.dumps(bad, ensure_ascii=False), names)),
-                "approved": json.loads(llm.mask(json.dumps(approved, ensure_ascii=False), names)),
+                "writer": _hide_all(bad, names),
+                "approved": _hide_all(approved, names),
             } | DRAFT)  # fmt: skip
     _save(out, "09", drafts)
     return {"report_flagged_rate": _share(flagged, writer_rows)}
@@ -230,7 +241,7 @@ def chats(data: Path, out: Path, names: dict) -> dict:
             if hit or reject:
                 drafts.append({
                     "id": f"{f.stem}-{row.get('id')}",
-                    "text": llm.mask(said, names),
+                    "text": _hide_paths(said, names),
                     "expect": [],
                     "forbid": ["start_grading"] if reject else [],
                 } | DRAFT)  # fmt: skip
@@ -253,7 +264,7 @@ def llm_rows(data: Path, out: Path, names: dict) -> dict:
                 "agent": r.get("agent"),
                 "prompt_version": r.get("prompt_version"),
                 "thread_id": r.get("thread_id"),
-                "user": llm.mask(r["user"], names),
+                "user": _hide_paths(r["user"], names),
             } | DRAFT)  # fmt: skip
     _save(out, "component", drafts)
     return {"usd_per_session": round(usd / len(threads), 6) if threads else None}

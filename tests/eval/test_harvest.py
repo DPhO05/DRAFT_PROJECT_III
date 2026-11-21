@@ -338,3 +338,27 @@ def test_harvested_drafts_run_as_a_local_set(paths, tmp_path, monkeypatch):
     res = run.evaluate(run.oracle, work=tmp_path / "work", runs=1, fix=run.ROOT / got["dir"])
     assert res["errors"] == []
     assert res["metrics"]["per_run"][0]["recall"] == 1
+
+
+def test_slugged_name_in_a_chat_or_component_row_is_hidden(paths, tmp_path):
+    student(paths)
+    chat_log(
+        paths,
+        {"id": "m1", "role": "user", "text": "Chấm inbox/nguyen-van-an.tex"},
+        {"id": "m2", "role": "assistant", "text": "9", "events": [{"type": "warning", "kind": "unverified_number"}]},
+    )
+    llm_log(
+        paths, {"agent": "03", "graph": "G1", "thread_id": "t", "result": "retry", "user": "Đề inbox/nguyen-van-an.tex"}
+    )
+    _, day = go(paths, tmp_path)
+    assert tasks_of(day, "00")[0]["text"] == "Chấm <đã che>"
+    assert tasks_of(day, "component")[0]["user"] == "Đề <đã che>"
+
+
+def test_name_split_by_a_line_break_in_a_report_is_masked(paths, tmp_path):
+    student(paths)
+    report_row(paths, "2026-10-05", [w("dropped", "Nguyễn\nVăn An giỏi", "number")], [])
+    _, day = go(paths, tmp_path)
+    (t,) = tasks_of(day, "09")
+    assert t["writer"][0]["text"] == "HS-01 giỏi"
+    assert "Văn An" not in (day / "09" / "tasks.json").read_text(encoding="utf-8")
