@@ -33,5 +33,8 @@
 | `q18`, `q19` | trả lời bằng code (`by_code`), 0 lời gọi model |
 | `q20` | tin nhắn có họ tên học sinh |
 
+- Trường `judge: true` đánh dấu task có câu trả lời mang số liệu học sinh; chỉ các task này được judge chấm khi có `--judge`
+  (`q1` đến `q5`, `q9`, `q11`, `q15`, `q16`, `q20`).
 - Test: `tests/eval/test_agents.py::test_00_tasks_are_wellformed`.
-- Check "bao phủ cách dùng thật": chưa đạt. Chưa có task nào lấy từ log chat thật. Task 21 thêm đường đi đó.
+- Check "bao phủ cách dùng thật": chưa đạt. Chưa có task nào lấy từ log chat thật. `harvest.chats` (`tests/eval/harvest.py`) gom
+  câu có cảnh báo `unverified_number` và approval bị bỏ thành task nháp ở `00/tasks.json`. Nó chưa chạy trên log thật.

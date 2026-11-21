@@ -17,4 +17,5 @@ Task của chat nằm trong `tests/eval/questions_00.json`, cùng tệp với 00
 | `q20` | tin nhắn có họ tên | `masked`, `expect_args` |
 
 - Người dùng giả là kịch bản: `turns` và `approval` (quyết định 7A). Không có model đóng vai gia sư.
-- Check "bao phủ cách dùng thật": chưa đạt. Chưa có task nào từ log chat thật (Task 21).
+- Check "bao phủ cách dùng thật": chưa đạt. Chưa có task nào từ log chat thật. `harvest.chats` (`tests/eval/harvest.py`) gom câu có cảnh báo
+  `unverified_number` và approval bị bỏ thành task nháp ở `00/tasks.json` (`source: production`, `status: draft`). Chưa chạy trên log thật.

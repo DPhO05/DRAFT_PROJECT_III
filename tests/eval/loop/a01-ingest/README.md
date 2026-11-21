@@ -34,9 +34,15 @@ ngân hàng. Eval đo phần có model đó: 10 bài không mã, chạy k = 3 l�
 | Component | không mã ứng viên nào nằm ngoài ngân hàng | `bad_candidates` = 0 |
 | Component | trong các bài có cờ `low_match`, bao nhiêu thật sự ngoài ngân hàng | `low_match_precision` |
 
+## Cổng
+
+- `tests/eval/gate.py` xét `01-dev`: `hit_at_1` ≥ 0.90, và luật không tụt cho `hit_at_1`, `hit_at_3`, `mrr`, `passed`.
+- Cổng tầng 0: `tests/eval/test_gate.py` chạy 01 với oracle.
+- Phiên bản prompt của 01 có hai bản (một mỗi lớp). `gate.unverified` so từng phiên bản với scorecard thật.
+
 ## Chưa có
 
-- Task 22 và 23: cổng với sàn `hit_at_1` ≥ 0.90.
+- Chạy thật: chưa có lần chạy `--backend real` của 01. Chưa có baseline thật cho luật không tụt.
 - Design mục 5.2 muốn đo "0 lời gọi cho bài có mã hợp lệ". Bộ task hôm nay chỉ có bài không mã, nên trường hợp
   này chưa được đo.
 
@@ -47,6 +53,6 @@ uv run python tests/eval/run.py --agent 01 --backend fake --runs 3
 ```
 
 - `--backend fake` dùng `components.oracle_01`: một ứng viên đúng ở điểm 0.95, hoặc không ứng viên nào. Điểm luôn 1.0.
-- `--only m1 m9` chỉ chạy các task đó.
+- `--only m1 m9` chỉ chạy các task đó. Suite `compact` chạy `m1` đến `m4`, `m9`, `m10`.
 - Chạy thật cần `--backend real --yes` và tốn tiền. Design mục 11.2 ước tính 30 lời gọi, khoảng $0.79: prompt của 01
   chứa đề của cả một lớp.

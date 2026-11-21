@@ -16,8 +16,17 @@ Chỉ có grader code, trong `tests/eval/metrics.py`. Một task đạt khi `met
   `tests/eval/test_metrics.py::test_rules_ok_checks_starts_approval_limits_and_text`.
 - Oracle sai làm điểm tụt: `tests/eval/test_agents.py::test_00_wrong_oracle_scores_drop`.
 
+## Judge faithfulness
+
+- `judges.faithfulness` (`tests/eval/judges.py`) nhận khối số liệu và các câu trả lời, trả `supported`, `not_supported` hoặc `unknown`
+  cho từng câu, và điểm `supported` chia số câu. Nó chạy khi có `--judge`, cho task `judge: true`.
+- Chỉ báo cáo: `metrics.passed_00` không đọc kết quả judge. Judge lỗi (`llm.LLMUnavailable`) ghi `judge_errors` và không làm task trượt.
+- Test: `tests/eval/test_agents.py::test_00_judge_scores_only_marked_tasks`,
+  `tests/eval/test_agents.py::test_judge_never_changes_passed_or_the_call_count`.
+
 ## Check "khớp với người chấm"
 
 - Grader code không cần hiệu chỉnh. Tiêu chí trong `tests/eval/questions_00.json` do một người viết, chưa có người thứ hai
   xem lại.
-- Chưa có: Task 18 thêm judge faithfulness (`tests/eval/judges.py`). Task 19 đo judge với người chấm bằng kappa và alignment.
+- Judge cần hiệu chỉnh: `tests/eval/calibrate.py` lấy mẫu câu để người chấm tay, rồi in kappa, alignment và recall của `not_supported`.
+  Chưa có người chấm nào, nên `judge_trusted` là `false` và sàn faithfulness chưa tính.

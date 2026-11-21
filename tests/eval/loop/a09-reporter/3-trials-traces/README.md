@@ -11,7 +11,9 @@
 | `facts_block` | khối số liệu đã gửi cho 09 |
 | `model_calls`, `leaks` | số lời gọi; số chuỗi còn họ tên |
 
-- Số lời gọi đếm trước mọi lời gọi judge sau này, nên judge không đổi kết quả đạt.
+- Số lời gọi đếm trước lời gọi judge, nên judge không đổi kết quả đạt.
+- Với `--judge`, mỗi báo cáo có thêm khoá `judge`: `verdicts`, `score`, `unknown`, và `error` khi judge không chạy được.
+  Lời gọi judge nằm trong `run<k>.jsonl` với `agent` là `judge`.
 - Check "ổn định qua các lần": pass^k qua `metrics.tally`.
 - Trạng thái check: chưa đạt. Chưa đo với model thật; model giả (`--backend fake`) luôn cho pass^k = 1.000.
-  Chạy thật là design T18 đến T21, ngoài build plan.
+  Chạy thật là `--backend real --yes` hoặc `--suite`; chưa có lần chạy nào.

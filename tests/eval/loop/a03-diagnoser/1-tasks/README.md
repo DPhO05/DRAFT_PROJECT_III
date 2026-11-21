@@ -19,3 +19,6 @@ Một lỗi gài trong `problems[].mistakes` có:
 - Bài không có lỗi gài là bài sạch: 03 không được đề xuất gì.
 - Check "bao phủ cách dùng thật": chưa đạt. Mọi bài là tự soạn có lỗi gài (`source: synthetic`).
 - Bộ `g1-heldout` không dùng để sửa prompt (design mục 6.1).
+- Task từ production: `harvest.sessions` (`tests/eval/harvest.py`) ghi `g1/<thread_id>.tex` (đã che tên) và `g1/labels.json` với
+  `source: production`, `status: draft`, `signals`. Nhãn của task là quyết định của gia sư: mã lỗi bị bỏ (`rejected`) không thành nhãn.
+  Chỉ buổi đã `committed` có ít nhất một đề xuất được sửa, bỏ hoặc thêm tay mới được gom. Chưa chạy trên dữ liệu thật.

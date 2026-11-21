@@ -15,7 +15,7 @@ gọi model. Eval của G2 là test pytest sẵn có, chạy 1 lần.
 | [2 Environment](2-environment/README.md) | fixture pytest: DB tạm mới mỗi test |
 | [3 Trials & traces](3-trials-traces/README.md) | k = 1, không có trace model |
 | [4 Graders](4-graders/README.md) | `assert` của pytest |
-| [5 Scorecard](5-scorecard/README.md) | chưa có dòng; Task 17 |
+| [5 Scorecard](5-scorecard/README.md) | dòng `G2-tests` với `scorecard.py --with-tests` |
 
 ## Ba mức grader
 
@@ -26,9 +26,14 @@ gọi model. Eval của G2 là test pytest sẵn có, chạy 1 lần.
 | Trajectory | cổng không mở khi còn bài thiếu kỹ năng | `tests/graphs/test_bank_graph.py::test_resume_blocked_until_kc` |
 | Component | đọc đúng từng bài của file ngân hàng | `tests/services/test_bank_read.py` |
 
+## Trên scorecard
+
+- Các test trên khai báo trong `tests/eval/workflows.json`. `scorecard.py --with-tests` chạy chúng một lần mỗi mức và ghi dòng `G2-tests`.
+  `tests/eval/test_workflows.py::test_every_listed_test_is_collected` kiểm mọi test khai báo đều tồn tại.
+
 ## Chưa có
 
-- Task 17: các test trên lên scorecard qua `tests/eval/workflows.json` và `tests/eval/test_workflows.py`.
+- Cổng cho G2: `tests/eval/gate.py` không có sàn cho dòng `-tests`.
 - Khi 06 Tagger có code, G2 sẽ có lời gọi model và cần bộ task riêng (design mục 6.2). Chưa có task trong build plan.
 
 ## Chạy

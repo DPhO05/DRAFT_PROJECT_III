@@ -35,17 +35,26 @@ chấm bằng code: đúng công cụ, đúng đối số, giữ luật của ap
 | Trajectory | approval có hay không, trần số lời gọi | `metrics.rules_ok`: `expect_approval`, `max_calls`, `max_model_calls` |
 | Component | đối số của lời gọi đầu tiên mỗi công cụ | `metrics.args_ok` |
 | Component | đối số hợp schema; không lộ tên; không hiện mã lỗi | `metrics.args_fit`, `agents.leak_count`, `codes_shown` |
+| Component | mỗi câu có số liệu học sinh được dữ liệu đỡ (chỉ báo cáo) | `judges.faithfulness`, cờ `--judge` |
+| Component | `search_problems`: recall@5 trên 6 câu tìm | target `08`: `extra.search_recall_at_5` |
 
 - Trần 8 lượt công cụ (design mục 5.1) là của app: `max_tool_turns` trong `src/tutor/config.py`. Vòng chạm trần thì bị
   dừng, và `metrics.passed_00` đánh trượt vì `stopped`.
 
+## Judge, harvest và cổng
+
+- Judge chạy trên 10 task đánh dấu `judge: true` trong `tests/eval/questions_00.json`: `q1` đến `q5`, `q9`, `q11`, `q15`, `q16`, `q20`.
+  Mỗi câu trả lời lưu `judge`, `judge_context` và `judge_sentences` (đã che tên) để `calibrate.py sample` đọc.
+- Recall@5 của `search_problems` do target `08` đo, không phải target `00`. Nhãn của 6 câu tìm còn là nháp.
+- Log chat production thành task nháp: `harvest.chats` ghi `00/tasks.json` cho câu trả lời có cảnh báo `unverified_number` và cho
+  approval bị bỏ. Tỉ lệ `unverified_rate` nằm trong `production.json`.
+- Cổng: sàn `00-dev` `pass_k` ≥ 0.85 và `approval_ok` = 1.0 (sàn cứng); `faithfulness` ≥ 0.95 chờ `judge_trusted`.
+
 ## Chưa có
 
-- Task 16: recall@5 của công cụ `search_problems` trên 6 câu tìm có nhãn.
-- Task 18: judge faithfulness cho câu có số liệu học sinh, cờ `--judge` và `--judge-model`.
-- Task 19: hiệu chỉnh judge với người chấm.
-- Task 21: câu có "số chưa kiểm" trong log chat production thành task nháp.
-- Task 22 và 23: cổng với sàn `pass_k` ≥ 0.85 và `approval_ok` = 1.0.
+- Chạy thật: chưa có lần chạy `--backend real` của 00, nên chưa có số pass^k thật.
+- Người chấm cho judge: chưa có nhãn của người, `judge_trusted` là `false`, sàn faithfulness `BỎ QUA`.
+- `harvest.py` trên log chat thật: chưa chạy.
 
 ## Chạy
 
@@ -55,5 +64,6 @@ uv run python tests/eval/run.py --agent 00 --backend fake --runs 3
 
 - `--backend fake` dùng `agents.oracle_00`. Điểm luôn 1.0: chỉ chứng minh task giải được và grader đúng.
 - `--only q4 q11` chỉ chạy các task đó.
+- `--judge` thêm điểm faithfulness: `uv run python tests/eval/run.py --agent 00 --backend fake --judge`. Với `real` cần thêm `--judge-model`.
 - Chạy thật cần `--backend real --yes` và tốn tiền. Design mục 11.2 ước tính 135 lời gọi, khoảng $0.55 cho 20 task × 3
-  lần.
+  lần. Suite `full` chạy 00 với `--judge` (165 lời gọi dự kiến), `compact` chạy 14 task, xem `suites.json`.

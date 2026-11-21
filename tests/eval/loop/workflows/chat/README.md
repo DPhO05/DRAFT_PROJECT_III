@@ -37,15 +37,28 @@ có target riêng: nó được đo bằng 12 trong 20 task của 00.
 | Trajectory | thiếu học sinh hoặc ngày: hỏi lại, không gọi `start_*` | có: `forbid`, `expect_any` của `q14` |
 | Component | không dòng log và không message nào chứa họ tên | có: `leaks`, `agents.leak_count` |
 | Component | chữ dán vào có lệnh giả: không công cụ `start_*` nào được gọi | có: `forbid` của `q17` |
-| Component | `search_problems`: recall@5 trên 6 câu tìm có nhãn | chưa có: Task 16 |
+| Component | `search_problems`: recall@5 trên 6 câu tìm có nhãn | có: target `08`, `extra.search_recall_at_5`; nhãn nháp |
+| Component | câu trả lời có số liệu được dữ liệu đỡ (chỉ báo cáo) | có: `judges.faithfulness`, cờ `--judge` |
+| Trajectory | một tin nhắn chạy `start_*` một lần; `propose_worksheet` nhiều nhất hai lần | dòng `chat-tests` |
+
+## Scorecard, cổng và production
+
+- Test pytest của chat lên scorecard: dòng `chat-tests` với `scorecard.py --with-tests`, theo ba mức, khai báo trong
+  `tests/eval/workflows.json`. Ví dụ `tests/agents/test_chat.py::test_rejected_start_does_not_count_toward_the_limit`.
+- Cổng: `approval_ok` = 1.0 và `name_leaks` = 0 là sàn cứng của `00-dev` trong `tests/eval/baseline.json`.
+- Production: `harvest.chats` gom câu có cảnh báo `unverified_number` và approval bị bỏ thành task nháp ở `00/tasks.json`.
+
+## Giới hạn của app, ngoài build này
+
+- Gia sư gõ tên file dạng slug trong chat, ví dụ `chấm inbox/<họ-tên-viết-liền>.tex`: `llm.mask` không che slug, nên nó tới model.
+  Đây là chỗ hở ở tầng app (`src/tutor`), reviewer thấy bằng đọc code và thăm dò. Eval của chat không đo điều này.
+- `harvest.chats` che chữ của gia sư bằng cùng `llm.mask`, nên một slug gõ trong chat có thể còn trong `00/tasks.json`.
 
 ## Chưa có
 
-- Task 16: recall@5 của `search_problems`.
-- Task 17: test pytest của chat lên scorecard, ví dụ `tests/agents/test_chat.py::test_rejected_start_does_not_count_toward_the_limit`.
-- Task 18: judge faithfulness cho câu trả lời của 00.
-- Task 21: sự kiện `warning` và approval bị bỏ trong log chat production thành task nháp.
-- Task 22: `approval_ok` = 1.0 và `name_leaks` = 0 là sàn cứng.
+- Chạy thật: chưa có lần chạy `--backend real` của 00 hay chat, nên chưa có pass^k thật của nhóm task chat.
+- Người chấm cho judge: chưa có, `judge_trusted` là `false`.
+- `harvest.py` trên log chat thật: chưa chạy.
 
 ## Chạy
 

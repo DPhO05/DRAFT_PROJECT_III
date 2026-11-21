@@ -16,12 +16,14 @@ dữ liệu thật, chỉ ở máy).
 | `problems[].seq`, `ref` | số thứ tự bài và mã bài đúng |
 | `problems[].mistakes` | lỗi gài: `step_idx`, `code`, `kc`, `propagates_to` |
 | `grade`, `student_name` | lớp; tên học sinh (held-out để `null`) |
-| `expected_calls`, `max_calls` | chỉ có ở held-out; chưa grader nào đọc (Task 15) |
+| `expected_calls`, `max_calls` | chỉ ở held-out; `max_calls`: trần lời gọi mỗi thread, `metrics.trajectory` đọc; `expected_calls`: chưa ai đọc |
 
 - `run.load_labels` bỏ các file có `duplicate_of`.
 - Khác design mục 6.1: design ghi bộ dev là `s01.tex`, `s04.tex` (9 bài) và held-out có 10 lỗi gài. Code làm theo build Task 2:
   `g1-dev` trỏ cả thư mục (40 bài), held-out có 12 lỗi gài. Cỡ 9 bài là của lần chạy thật với `--files s01.tex s04.tex`.
 - Test: `tests/eval/test_harness.py::test_committed_task_files_are_not_production_data`.
 - Bộ `g1-heldout` không dùng để sửa prompt (design mục 6.1).
-- Check "bao phủ cách dùng thật": chưa đạt. Repo chưa có bài làm thật. Task 20 đưa buổi chấm đã duyệt về thành task
-  nháp trong `data/eval/tasks/`.
+- Check "bao phủ cách dùng thật": chưa đạt. Repo chưa có bài làm thật. `harvest.sessions` (`tests/eval/harvest.py`) đưa buổi chấm đã duyệt
+  về thành task nháp trong `data/eval/tasks/inbox/<ngày>/g1/`: file `.tex` đã che tên và `labels.json` (`source: production`, `status: draft`).
+  Muốn chạy chúng, thêm bộ vào `data/eval/sets.json`: `run.load_sets` đọc file này (chỉ ở máy, không vào git)
+  (`tests/eval/test_harvest.py::test_harvested_drafts_run_as_a_local_set`). Chưa chạy trên dữ liệu thật.

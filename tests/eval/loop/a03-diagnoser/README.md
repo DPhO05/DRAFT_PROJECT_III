@@ -21,7 +21,7 @@ lần chạy G1: các đề xuất ở cổng `gate_review` so với lỗi gài 
 | [1 Tasks](1-tasks/README.md) | bài của G1 có lỗi gài: bước, mã lỗi, bước kéo theo | chung với G1 |
 | [2 Environment](2-environment/README.md) | môi trường của G1; học sinh mới nên lịch sử lỗi rỗng | chung với G1 |
 | [3 Trials & traces](3-trials-traces/README.md) | đọc từ trial của G1; dòng `agent` = `03` | chung với G1 |
-| [4 Graders](4-graders/README.md) | `metrics.score`, `metrics.first_wrong_step`, `metrics.cohen_kappa` | riêng phần số |
+| [4 Graders](4-graders/README.md) | `metrics.score`, `metrics.first_wrong_step`, `metrics.cohen_kappa`, `metrics.components` | riêng phần số |
 | [5 Scorecard](5-scorecard/README.md) | `precision`, `recall`, `kappa`, `drop_rate`, `add_rate` trong dòng G1 | chung với G1 |
 
 ## Ba mức grader
@@ -29,21 +29,26 @@ lần chạy G1: các đề xuất ở cổng `gate_review` so với lỗi gài 
 | mức | kiểm gì | hôm nay |
 |---|---|---|
 | Outcome | đúng bước sai đầu tiên; bài sạch không có đề xuất | có: `metrics.first_wrong_step`, `first_wrong_step_acc` |
-| Trajectory | 1 lời gọi mỗi bài, không `schema_error` | chưa có: Task 15 |
+| Trajectory | số lời gọi mỗi thread, `schema_error`, `retry`, thứ tự 02, 03, 04 | có: `metrics.trajectory` |
 | Component | recall, precision trên tập bước sai; bước kéo theo không tính là thừa | có: `metrics.score` |
 | Component | kappa mã lỗi giữa nhãn và 03 | có: `metrics.cohen_kappa` |
-| Component | confusion matrix mã lỗi; bằng chứng nguyên văn; cờ của `Diagnosis` | chưa có: Task 13 |
+| Component | confusion matrix mã lỗi; bằng chứng nguyên văn; cờ của `Diagnosis` | có: `metrics.components` |
+| Component | 04 có `agree` trên đề xuất đúng nhãn và sai nhãn | có: `agree_on_right`, `agree_on_wrong` |
 
 - Pass^k của G1 chính là "bước sai đầu tiên đúng ở cả k run" (`metrics.g1_passed`). Nên outcome của G1 phần lớn là
   outcome của 03.
 - Đầu vào của 03 có phần đến từ 02: danh sách mục rubric chưa đạt. Số của 03 đọc từ G1 không hoàn toàn là
   "đầu vào cố định" (design mục 5.4).
 
+## Cổng và production
+
+- Cổng: sàn `recall` ≥ 0.90 và `precision` ≥ 0.75 cho mọi bộ `g1-*`, trong `tests/eval/baseline.json`.
+- Production: `harvest.sessions` biến buổi chấm đã duyệt mà gia sư sửa, bỏ hoặc thêm tay thành task G1 nháp.
+
 ## Chưa có
 
-- Task 13: `evidence_03`, `confusion`, `flags`, `clean_flagged`, `agree_on_right`, `agree_on_wrong` trong `metrics.components`.
-- Task 15: lời gọi mỗi bài, `retry`, `schema_error`, thứ tự 02, 03, 04 trong mỗi lane.
-- Task 22: sàn `recall` ≥ 0.90 và `precision` ≥ 0.75 cho mọi bộ G1.
+- Chạy thật: chưa có lần chạy `--backend real` của G1 sau 2026-11-04. Chưa biết `recall` và `precision` thật so với sàn.
+- Nhãn của người thứ hai cho bộ held-out, và `harvest.py` trên dữ liệu thật.
 
 ## Chạy
 

@@ -20,5 +20,7 @@ Thư mục `--traces`, mặc định `data/eval/traces/<stamp>_00/`:
 - pass^k: tỉ lệ task đạt ở cả k run (`metrics.tally`).
 - success: tỉ lệ trial đạt.
 - Test: `tests/eval/test_agents.py::test_00_chat_trace_is_kept`.
+- Khi có `--judge`, `run<k>.jsonl` có thêm dòng của agent `judge`. Số lời gọi của task đếm trước lời gọi judge, nên judge không đổi
+  kết quả đạt.
 - Trạng thái check: chưa đạt. Chưa đo với model thật; model giả (`--backend fake`) luôn cho pass^k = 1.000.
-  Chạy thật là design T18 đến T21, ngoài build plan.
+  Chạy thật là `--backend real --yes` hoặc `--suite`; chưa có lần chạy nào.

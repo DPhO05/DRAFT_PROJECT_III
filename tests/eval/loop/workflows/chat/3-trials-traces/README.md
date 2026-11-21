@@ -7,4 +7,4 @@
 - Kết quả mỗi task giữ `approvals` (tên và đối số chờ duyệt) và `starts` (lệnh bản ghi âm nhận).
 - Check "ổn định qua các lần": pass^k của 00. Chưa tách pass^k theo nhóm task chat.
 - Trạng thái check: chưa đạt. Chưa đo với model thật; model giả (`--backend fake`) luôn cho pass^k = 1.000.
-  Chạy thật là design T18 đến T21, ngoài build plan.
+  Chạy thật là `--backend real --yes` hoặc `--suite`; chưa có lần chạy nào.

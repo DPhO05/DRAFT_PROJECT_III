@@ -23,8 +23,8 @@ Eval chạy G1 thật trên file bài có lỗi gài, tới cổng đó, k = 3 l
 | [1 Tasks](1-tasks/README.md) | `g1-dev` 40 bài, `g1-heldout` 20 bài, khai báo trong `tests/eval/sets.json` | riêng |
 | [2 Environment](2-environment/README.md) | thế giới mới mỗi run: DB, ngân hàng mẫu, `inbox`, `Runner` | vòng riêng |
 | [3 Trials & traces](3-trials-traces/README.md) | k = `--runs`; trace `run<k>.jsonl`; đề xuất trong khoá `problems` | chung |
-| [4 Graders](4-graders/README.md) | chỉ code: `metrics.score`, `metrics.stability`, `metrics.g1_passed` | riêng |
-| [5 Scorecard](5-scorecard/README.md) | recall, precision, pass^k, `flow_errors`, chi phí | `metrics.tally`, `metrics.usage` chung |
+| [4 Graders](4-graders/README.md) | chỉ code: `metrics.score`, `metrics.stability`, `metrics.components`, `metrics.trajectory` | riêng |
+| [5 Scorecard](5-scorecard/README.md) | recall, precision, pass^k, `flow_errors`, `order_ok`, chi phí | `metrics.tally`, `metrics.usage` chung |
 
 ## Ba mức grader
 
@@ -34,17 +34,25 @@ Eval chạy G1 thật trên file bài có lỗi gài, tới cổng đó, k = 3 l
 | Outcome | luồng tới cổng, không thread nào `failed` | có: `errors`, `flow_errors` |
 | Outcome | `commit` ghi đúng dòng sau quyết định mẫu | test pytest `tests/graphs/test_session.py` |
 | Trajectory | không ghi DB trước cổng duyệt | test pytest `tests/graphs/test_no_write_before_review.py` |
-| Trajectory | lane gọi 02, 03, rồi 04; lời gọi mỗi file trong `max_calls`; dừng đúng lúc ở `gate_confirm_match` | Task 15 |
+| Trajectory | lane gọi 02, 03, rồi 04; lời gọi mỗi file trong `max_calls`; dừng đúng lúc ở `gate_confirm_match` | có: `metrics.trajectory` |
+| Trajectory | `gate_confirm_match` chỉ mở khi 01 gắn cờ `low_match` hoặc `no_rubric` | test pytest, dòng `G1-tests` |
+| Component | bằng chứng nguyên văn, cờ, confusion matrix của 02 và 03 | có: `metrics.components` |
 | Component | các kiểm tra của 01, 02, 03, 04 | xem `tests/eval/loop/a01-ingest/` đến `tests/eval/loop/a04-verifier/` |
+
+## Đã có thêm
+
+- `metrics.components` và `name_leaks` cho G1; `metrics.trajectory`: `order_ok`, `over_budget`, `retries`, `schema_errors`.
+- `confirm_ok` trong `extra`: tỉ lệ file mà thread dừng ở `gate_confirm_match` đúng khi 01 gắn cờ.
+- Test pytest của G1 trên scorecard: `scorecard.py --with-tests`, dòng `G1-tests`, khai báo trong `tests/eval/workflows.json`.
+- `harvest.sessions`: buổi chấm đã duyệt ở production thành task G1 nháp, nhãn theo quyết định của gia sư.
+- Cổng: sàn `flow_errors` = 0, `recall` ≥ 0.90, `precision` ≥ 0.75 cho `g1-*` trong `tests/eval/baseline.json`.
+- Bộ chạy thật: `run.py --suite full` và `--suite compact` chạy G1 trên `g1-dev` và `g1-heldout`.
 
 ## Chưa có
 
-- Task 13: chỉ số component của 02 và 03, và `name_leaks` cho G1.
-- Task 15: `metrics.trajectory`: `order_ok`, `over_budget`, `retries`, `schema_errors`, `confirm_ok`.
-- Task 17: hai test pytest trên lên scorecard.
-- Task 20: buổi chấm đã duyệt ở production thành task nháp, nhãn theo quyết định của gia sư.
-- Task 22: sàn `flow_errors` = 0, `recall` ≥ 0.90, `precision` ≥ 0.75.
-- Task 24: bộ chạy thật `full` và `compact`.
+- Chạy thật: chưa có lần chạy `--backend real` của G1 sau 2026-11-04, nên chưa có `recall`, `precision` thật so với sàn.
+- Baseline thật: `real` trong `tests/eval/baseline.json` rỗng.
+- `harvest.py` trên dữ liệu thật; nhãn của người thứ hai cho bộ held-out.
 
 ## Chạy
 
@@ -54,7 +62,7 @@ uv run python tests/eval/run.py --agent g1 --set g1-heldout --backend fake --run
 ```
 
 - `--backend fake` dùng `run.oracle`: 03 trả đúng nhãn, 04 luôn `agree`. Điểm luôn 1.0.
-- `--files s01.tex s04.tex` chỉ chạy các file đó. `--only` không dùng cho g1.
+- `--files s01.tex s04.tex` chỉ chạy các file đó. `--only` không dùng cho g1. Suite chạy `g1-dev` với đúng hai file này.
 - Chạy thật cần `--backend real --yes` và tốn tiền. Design mục 11.2 ước tính 102 lời gọi, khoảng $1.01 cho
   `--files s01.tex s04.tex` (9 bài). Bộ `g1-heldout` khoảng 189 lời gọi, $1.87.
 - `g1-dev` không có `--files` chạy cả 40 bài. Design không có ước tính cho cỡ này.

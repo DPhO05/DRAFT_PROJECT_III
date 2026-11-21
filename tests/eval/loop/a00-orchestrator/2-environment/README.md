@@ -18,6 +18,8 @@
   bằng hàm luôn lỗi.
 - Người dùng giả là kịch bản cố định: `turns` và `approval` (quyết định 7A). Không có model đóng vai gia sư.
 - Lời gọi model đi qua `chat.scope` với bản đồ che tên. `llm.Guard` che tên và từ chối gửi nếu còn họ tên.
+- Giới hạn của app, ngoài build này: tên file dạng slug gõ trong chat, ví dụ `chấm inbox/<họ-tên-viết-liền>.tex`, không bị `llm.mask`
+  che, nên slug tới model. Eval không đo điều này.
 
 ## Check "sạch, không rò"
 

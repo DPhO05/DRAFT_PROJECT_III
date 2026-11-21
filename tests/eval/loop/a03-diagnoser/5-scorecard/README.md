@@ -8,7 +8,13 @@
 
 ## Check "khớp production"
 
-Chưa có:
+- `harvest.sessions` (`tests/eval/harvest.py`) đếm đề xuất của 03 theo quyết định của gia sư và ghi `production.json`:
+  `proposals` (số `confirmed`, `edited`, `rejected`, `added`) và `rates` (`kept`, `edited`, `rejected`, `added`).
+- Design mục 8.4: so `precision` của G1 với `rates.kept`; lệch quá 0.10 thì cảnh báo. Code chưa so hai số này.
+- Chưa chạy `harvest.py` trên dữ liệu thật, nên chưa có số production.
 
-- Task 20: đề xuất bị gia sư bỏ, sửa, hay thêm tay trong dữ liệu thật thành task G1 nháp.
-- Task 22: sàn `recall` ≥ 0.90, `precision` ≥ 0.75, luật không tụt cho `first_wrong_step_acc`.
+## Cổng
+
+- `tests/eval/gate.py`: sàn `recall` ≥ 0.90 và `precision` ≥ 0.75 cho `g1-*`, `flow_errors` = 0; luật không tụt cho `first_wrong_step_acc`.
+  Luật không tụt chờ baseline thật.
+- Lỗi cần sửa: chạy với `--files` tạo dòng một phần, thay dòng đầy đủ, và gate không phân biệt được. Đang sửa trong review cuối.

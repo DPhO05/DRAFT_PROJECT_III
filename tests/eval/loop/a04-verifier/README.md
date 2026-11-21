@@ -35,11 +35,15 @@ trên 12 kết luận cố định, k = 3 lần, chấm bằng code so khớp ve
 | Component | với `wrong_code`, `suggested_code` bằng `expect_code` | `metrics.passed_04` |
 | Component | confusion matrix verdict mong đợi và verdict 04 trả | khoá `confusion` |
 
+## Trong G1 và cổng
+
+- Trong trial của G1, `metrics.components` có `agree_on_right` và `agree_on_wrong`: tỉ lệ `agree` của 04 trên đề xuất đúng nhãn và
+  trên đề xuất sai nhãn. Xem `tests/eval/loop/a03-diagnoser/4-graders/README.md`.
+- Cổng: `tests/eval/gate.py` có sàn `04-dev` `recall_disagree` ≥ 0.80 và luật không tụt cho `accuracy`, `recall_disagree`.
+
 ## Chưa có
 
-- Task 13: trong trial của G1, tỉ lệ `agree` trên đề xuất đúng nhãn và trên đề xuất sai nhãn (`agree_on_right`,
-  `agree_on_wrong`).
-- Task 22 và 23: cổng với sàn `recall_disagree` ≥ 0.80.
+- Chạy thật: chưa có lần chạy `--backend real` của 04, nên chưa biết `recall_disagree` thật so với sàn 0.80.
 
 ## Chạy
 

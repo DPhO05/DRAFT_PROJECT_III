@@ -37,16 +37,23 @@ audit được viết lại một lần, trượt lần nữa thì bị bỏ. Ev
 | Component | mỗi câu trích mã số liệu có thật; số khớp số liệu | khoá `audit`, do `audit.check_sentence` của app |
 | Component | % câu nháp bị cờ, % câu bị bỏ, số cờ theo loại | `metrics.score_09`, `metrics.FLAGS_09` |
 | Component | không lộ họ tên trong log và trong câu | `agents.leak_count` |
+| Component | câu được số liệu đỡ (chỉ báo cáo) | `judges.faithfulness`, cờ `--judge` |
 
 - Audit bằng code chỉ so con số. Câu "em tiến bộ rõ" khi số liệu nói mức kỹ năng giảm thì code không bắt được.
-  Judge faithfulness lo phần này (Task 18).
+  Judge faithfulness lo phần này.
+
+## Judge, production và cổng
+
+- Judge: `judges.faithfulness` chấm từng câu còn lại của mọi báo cáo so với `facts_block`, khi có `--judge`. Chỉ báo cáo, không đổi `passed`.
+- Hiệu chỉnh judge: `tests/eval/calibrate.py` (xem `4-graders/README.md`).
+- Production: `harvest.reports` ghi `09/tasks.json` cho báo cáo có dòng `writer` không `ok` hoặc dòng `approved` có cờ, và tính
+  `report_flagged_rate` vào `production.json`.
+- Cổng: `09-dev` `dropped_pct` = 0 và luật không tụt; `faithfulness` ≥ 0.95 chỉ tính khi `judge_trusted` là `true`.
 
 ## Chưa có
 
-- Task 18: judge faithfulness, cờ `--judge` và `--judge-model`. Mỗi báo cáo đã giữ sẵn `facts_block` cho judge.
-- Task 19: hiệu chỉnh judge với người chấm trên 30 câu.
-- Task 21: câu báo cáo bị cờ, bị sửa hay bị xoá ở production thành task nháp; tỉ lệ `report_flagged_rate`.
-- Task 22: sàn `dropped_pct` = 0; sàn faithfulness ≥ 0.95 chỉ khi judge đã được tin.
+- Chạy thật: chưa có lần chạy `--backend real` của 09. Chưa có người chấm cho judge, nên `judge_trusted` là `false`.
+- `harvest.py` trên báo cáo thật: chưa chạy.
 - Design mục 5.9 muốn đếm riêng output hợp schema, hỏng schema, bị cắt. Build plan không có task cho việc này.
 
 ## Chạy
@@ -57,4 +64,6 @@ uv run python tests/eval/run.py --agent 09 --backend fake --runs 3
 
 - `--backend fake` dùng `agents.oracle_09`: viết mỗi dòng số liệu thành một câu tự trích nó. Điểm luôn 1.0.
 - `--only "HS-01 day 2026-10-14"` chỉ chạy kỳ đó. Khoá của kỳ là trường `key`.
+- `--judge` thêm faithfulness: `uv run python tests/eval/run.py --agent 09 --backend fake --judge`. Với `real` cần thêm `--judge-model`.
+- Suite `compact` chạy `09` với `--judge` trên 3 kỳ; `full` chạy cả 6 kỳ.
 - Chạy thật cần `--backend real --yes` và tốn tiền. Design mục 11.2 ước tính 24 lời gọi, khoảng $0.39.

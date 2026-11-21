@@ -4,15 +4,24 @@
 - Khoá `metrics`:
   - `per_run`: `metrics.score` của từng run.
   - `stability`, `pass_k`, `success`, `tally`.
-  - `extra`: `flow_errors`, `items_changed_pct`.
+  - `components`: một dict mỗi run. `trajectory`: một dict cho cả file.
+  - `extra`: `flow_errors`, `items_changed_pct`, `name_leaks`, `over_budget`, `order_ok`, `confirm_ok`.
 - Khoá `calls`: `metrics.usage`, có `by_agent` cho 01, 02, 03, 04.
-- `tests/eval/scorecard.py` in dòng `g1-dev` hoặc `g1-heldout` với chỉ số chính `recall`, `precision`. `name_leaks` in "-" vì G1 chưa
-  ghi khoá này (Task 13).
+- `tests/eval/scorecard.py` in dòng `g1-dev` hoặc `g1-heldout` với chỉ số chính `recall`, `precision`, `name_leaks`.
+- `scorecard.py --with-tests` thêm dòng `G1-tests`: test của `tests/graphs/test_session.py`, `tests/graphs/test_session_lanes.py` và
+  `tests/graphs/test_no_write_before_review.py`, theo ba mức.
+
+## Cổng
+
+- `tests/eval/gate.py`: sàn `flow_errors` = 0, `recall` ≥ 0.90, `precision` ≥ 0.75 cho `g1-*`; `name_leaks` = 0 là sàn cứng.
+  Luật không tụt cho `recall`, `precision`, `first_wrong_step_acc`: chờ baseline thật.
+- Cổng tầng 0: `tests/eval/test_gate.py` chạy `g1-dev` và `g1-heldout` với oracle, và so `g1-dev` trên backend `dev` với ảnh chụp
+  trong `baseline.json` (`dev`).
+- Lỗi cần sửa: chạy với `--files` tạo dòng một phần, thay dòng đầy đủ, và gate không phân biệt được. Cả hai suite chạy `g1-dev` với
+  `s01.tex` và `s04.tex` (9 bài thay vì 40), và `compact` chạy `g1-heldout` với 5 file (10 bài thay vì 20). Đang sửa trong review cuối.
 
 ## Check "khớp production"
 
-Chưa có:
-
-- Task 20: `production.json`: tỉ lệ đề xuất được giữ, bị sửa, bị bỏ, lỗi gia sư thêm tay.
-- Design mục 8.4: so precision của G1 với tỉ lệ đề xuất được giữ; lệch quá 0.10 thì cảnh báo.
-- Task 22: `tests/eval/gate.py` với sàn và luật không tụt.
+- `harvest.sessions` ghi `production.json`: `proposals` và `rates` (`kept`, `edited`, `rejected`, `added`) từ quyết định của gia sư.
+  Chưa chạy trên dữ liệu thật, nên chưa có số.
+- Design mục 8.4: so `precision` của G1 với `rates.kept`; lệch quá 0.10 thì cảnh báo. Code chưa so hai số này.

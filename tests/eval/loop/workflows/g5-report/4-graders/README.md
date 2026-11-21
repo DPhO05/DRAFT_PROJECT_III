@@ -11,4 +11,12 @@ Một trial đạt khi cả ba đều đúng:
 - Component: không có dòng riêng. Component của G5 là của 09: `metrics.score_09` trên bản nháp
   (`tests/eval/loop/a09-reporter/4-graders/README.md`).
 - Phần sau cổng chỉ có test pytest: `tests/graphs/test_report.py`.
-- Check "khớp với người chấm": chưa có. Judge faithfulness là Task 18, dùng chung với 09.
+- Test code của G5 trên scorecard: câu báo cáo không có mã số liệu (`tests/agents/test_reporter.py::test_fact_ids_never_in_text`) và
+  file `.md` đã lưu không có họ tên (`tests/eval/test_workflows.py::test_saved_report_md_holds_no_student_name`).
+- File `.md` đã lưu có thẻ mã số liệu như `[F01]`: `report.text_md` ghi chúng, và `test_approve_writes_report_and_md` kiểm điều đó.
+  Chủ dự án cần xác nhận file gửi phụ huynh được mang các thẻ này.
+
+## Judge
+
+- Judge faithfulness dùng chung với 09 (`judges.faithfulness`): xem `tests/eval/loop/a09-reporter/4-graders/README.md`.
+- Check "khớp với người chấm": chưa có người chấm cho judge, nên `judge_trusted` là `false`.

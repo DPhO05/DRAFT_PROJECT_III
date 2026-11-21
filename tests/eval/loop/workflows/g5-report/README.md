@@ -31,15 +31,22 @@ graph G5 thật tới cổng trên 1 kỳ, k = 3 lần. Nó xác nhận đườn
 |---|---|---|
 | Outcome | thread tới cổng `gate_report` | có: trường `gate` |
 | Outcome | sau khi duyệt mẫu: dòng `report`, file `.md` đúng | `tests/graphs/test_report.py::test_approve_writes_report_and_md` |
+| Outcome | câu báo cáo không chứa mã số liệu; file `.md` đã lưu không có họ tên học sinh | dòng `G5-tests` |
 | Trajectory | không ghi trước khi duyệt | có: `report_rows` = 0; test `tests/graphs/test_report.py::test_no_write_until_approve` |
 | Trajectory | 1 đến 2 lời gọi 09 cho mỗi bản nháp | có: `model_calls` ≤ 2 trong `metrics.passed_09` |
+| Trajectory | bản nháp cũ không được duyệt | `tests/graphs/test_report.py::test_stale_draft_not_approved`, dòng `G5-tests` |
 | Component | 09: xem `tests/eval/loop/a09-reporter/README.md` | có |
+| Component | câu của bản nháp được số liệu đỡ (chỉ báo cáo) | có: `judges.faithfulness`, cờ `--judge` |
+
+## Judge, scorecard và cổng
+
+- `--judge` chấm faithfulness của bản nháp ở cổng (`agents._judged`). Chỉ báo cáo, không đổi `passed`.
+- Test pytest của G5 lên scorecard: dòng `G5-tests` với `scorecard.py --with-tests`.
+- Cổng: `tests/eval/gate.py` không có sàn riêng cho `g5-dev` ngoài `name_leaks` = 0. Suite `full` và `compact` chạy g5 với `--judge`.
 
 ## Chưa có
 
-- Task 17: hai test pytest của G5 lên scorecard.
-- Task 18: judge faithfulness cho bản nháp. `run.TARGETS` đã đánh dấu `judge` cho g5, nhưng chưa có cờ `--judge`.
-- Task 22: cổng so với baseline.
+- Chạy thật: chưa có lần chạy `--backend real` của G5. Chưa có người chấm cho judge, nên `judge_trusted` là `false`.
 
 ## Chạy
 
@@ -48,4 +55,5 @@ uv run python tests/eval/run.py --agent g5 --backend fake --runs 3
 ```
 
 - `--backend fake` dùng `agents.oracle_09`. Điểm luôn 1.0.
+- `--judge` thêm faithfulness: `uv run python tests/eval/run.py --agent g5 --backend fake --judge`. Với `real` cần thêm `--judge-model`.
 - Chạy thật cần `--backend real --yes` và tốn tiền. Design mục 11.2 ước tính 6 lời gọi, khoảng $0.10.

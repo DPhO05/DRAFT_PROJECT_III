@@ -5,4 +5,4 @@
 - `components._verify_04` đếm `model_calls` bằng số dòng log mới của task.
 - Check "ổn định qua các lần": pass^k qua `metrics.tally`. Kết luận trượt ở một run thì trượt pass^k.
 - Trạng thái check: chưa đạt. Chưa đo với model thật; model giả (`--backend fake`) luôn cho pass^k = 1.000.
-  Chạy thật là design T18 đến T21, ngoài build plan.
+  Chạy thật là `--backend real --yes` hoặc `--suite`; chưa có lần chạy nào.

@@ -6,6 +6,12 @@
 - Khoá `pass_k`, `success`, `tally`, `extra.name_leaks`, `calls`: như mọi target, qua `agents.summarize`.
 - `tests/eval/scorecard.py` in dòng `01-dev` với chỉ số chính `hit_at_1`, `mrr`, `name_leaks`.
 
+## Cổng
+
+- `tests/eval/gate.py`: sàn `hit_at_1` ≥ 0.90 và luật không tụt cho `hit_at_1`, `hit_at_3`, `mrr`, `passed`. Luật không tụt chờ baseline thật.
+- Lỗi cần sửa: chạy với `--only` (suite `compact`: 6 trong 10 task) tạo dòng `01-dev` một phần, thay dòng đầy đủ, và gate không phân biệt
+  được. Đang sửa trong review cuối.
+
 ## Check "khớp production"
 
-Chưa có. Task 22 thêm sàn `hit_at_1` ≥ 0.90 và luật không tụt cho `hit_at_1`, `hit_at_3`, `mrr`.
+Chưa có. `harvest.py` không gom task cho 01, và không có số production nào để so với `01-dev`.

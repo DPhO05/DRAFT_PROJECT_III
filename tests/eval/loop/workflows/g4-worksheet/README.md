@@ -16,7 +16,7 @@
 | [2 Environment](2-environment/README.md) | fixture pytest: DB tạm mới mỗi test |
 | [3 Trials & traces](3-trials-traces/README.md) | k = 1, không có trace model |
 | [4 Graders](4-graders/README.md) | `assert` của pytest |
-| [5 Scorecard](5-scorecard/README.md) | chưa có dòng; Task 17 |
+| [5 Scorecard](5-scorecard/README.md) | dòng `G4-tests` với `scorecard.py --with-tests` |
 
 ## Ba mức grader
 
@@ -26,10 +26,15 @@
 | Trajectory | không ghi DB trước cổng | `tests/graphs/test_worksheet.py::test_no_write_until_commit` |
 | Component | 08 chọn bài | xem `tests/eval/loop/a08-recommender/README.md` |
 
+## Trên scorecard và 08
+
+- Các test trên khai báo trong `tests/eval/workflows.json`. `scorecard.py --with-tests` ghi dòng `G4-tests`.
+- Chỉ số xếp hạng của 08 (P@n, recall@n) có ở target `--agent 08`. Nhãn của nó còn nháp, và ba hồ sơ đạt 0/6: xem
+  `tests/eval/loop/a08-recommender/README.md`.
+
 ## Chưa có
 
-- Task 16: chỉ số xếp hạng của 08 (P@n, recall@n).
-- Task 17: các test trên lên scorecard qua `tests/eval/workflows.json`.
+- Cổng cho G4: `tests/eval/gate.py` không có sàn cho dòng `-tests`.
 
 ## Chạy
 

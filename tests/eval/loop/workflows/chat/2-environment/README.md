@@ -15,3 +15,4 @@ Phần riêng cho chat trong `agents._ask_00`:
 - `tests/eval/test_agents.py::test_00_full_name_never_reaches_the_model`.
 - `tests/eval/test_agents.py::test_00_approval_decisions_reach_the_starter`.
 - Test pytest: `tests/agents/test_chat.py::test_names_never_enter_state`.
+- Giới hạn của app, ngoài build này: tên file dạng slug gõ trong chat không bị `llm.mask` che. Xem `tests/eval/loop/workflows/chat/README.md`.
