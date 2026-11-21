@@ -493,7 +493,7 @@
       }
       return !/^(saved|failed)$/.test(st);
     }, host, function () {  // dropped in the Báo cáo tab, or cleaned up elsewhere
-      host.innerHTML = '<div class="empty"><p>Bản nháp này không còn nữa.</p>' + btn('c-tab', 'Sang tab Báo cáo', 'data-tab="bao-cao"') + '</div>';
+      host.innerHTML = '<div class="empty"><p>Việc này đã xong hoặc không còn nữa. Xem ở tab Báo cáo.</p>' + btn('c-tab', 'Sang tab Báo cáo', 'data-tab="bao-cao"') + '</div>';
     });
   };
 

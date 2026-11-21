@@ -44,7 +44,7 @@ def _source(paths: DataPaths, rel_path: str):
     if p.suffix.lower() != ".tex":
         raise ValueError(f"Chỉ nhận .tex: {rel_path}")
     if p.stat().st_size > config.MAX_TEX_BYTES:
-        raise ValueError("File lớn hơn 200 KB, chia thành file nhỏ hơn rồi nộp lại")
+        raise ValueError(f"File lớn hơn {config.MAX_TEX_BYTES // 1000} KB, chia thành file nhỏ hơn rồi nộp lại")
     return p
 
 

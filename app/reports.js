@@ -221,7 +221,7 @@
     if (cur !== s) return;
     cur = null; $('rep-doc').innerHTML = EMPTY;
     C.refreshPending(); refresh(stray());
-    U.toast('Bản nháp này không còn nữa.', 'info');
+    U.toast('Việc này đã xong hoặc không còn nữa. Xem ở tab Báo cáo.', 'info');
   }
   function onRow(s, row) {
     var c = row.card, was = s.eff, redraw = false;

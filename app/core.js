@@ -91,7 +91,7 @@ var U = {};
     });
   };
 
-  // ---- MathJax: typeset on demand, queue until the CDN script is ready ----
+  // ---- MathJax: typeset on demand, queue until the MathJax script is ready ----
   var texQueue = [], texReady = false;
   window.__texReady = function () { texReady = true; var q = texQueue; texQueue = []; q.forEach(U.typeset); };
   U.typeset = function (el) {
