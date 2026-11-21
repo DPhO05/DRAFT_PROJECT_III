@@ -265,3 +265,15 @@ def test_tally_counts_trials_and_tasks():
     assert (t["trials_passed"], t["trials"], t["tasks_passed"], t["tasks"]) == (23, 24, 7, 8)
     assert (t["success"], t["pass_k"]) == (23 / 24, 7 / 8) and t["task_pass"]["q3"] is False
     assert metrics.tally([{"a": True, "b": True}, {"a": True}])["pass_k"] == 0.5  # missing = failed
+
+
+def test_score_01_hit_mrr_and_flag_precision():
+    def a(expect, cands, low):
+        return {"id": "x", "expect_ref": expect, "ref": cands[0] if cands and not low else None,
+                "candidates": [{"ref": c, "score": 0.9} for c in cands], "low_match": low, "model_calls": 1,
+                "bad_candidates": 0}  # fmt: skip
+
+    s = metrics.score_01([a("A", ["A"], False), a("B", ["X", "B"], False), a("C", ["X", "Y", "Z"], True),
+                          a(None, [], True)])  # fmt: skip
+    assert (s["n_tasks"], s["hit_at_1"], s["hit_at_3"]) == (4, 1 / 3, 2 / 3)
+    assert s["mrr"] == (1 + 1 / 2 + 0) / 3 and s["low_match_precision"] == 1 / 2 and s["passed"] == 2 / 4

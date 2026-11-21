@@ -211,6 +211,31 @@ def score_09(reports: list[dict]) -> dict:
     }
 
 
+def passed_01(a: dict) -> bool:
+    """The right problem (a low_match flag for one outside the bank), in one model call, no ref off the list."""
+    return (
+        a["ref"] == a["expect_ref"]
+        and (a["expect_ref"] is not None or a["low_match"])
+        and a["model_calls"] == 1
+        and a["bad_candidates"] == 0
+    )
+
+
+def score_01(answers: list[dict]) -> dict:
+    """One run of agent 01. hit and mrr are over the problems that are in the bank."""
+    found = [a for a in answers if a["expect_ref"] is not None]
+    ranks = [next((i for i, c in enumerate(a["candidates"], 1) if c["ref"] == a["expect_ref"]), 0) for a in found]
+    low = [a for a in answers if a["low_match"]]
+    return {
+        "n_tasks": len(answers),
+        "hit_at_1": _rate(sum(r == 1 for r in ranks), len(found)),
+        "hit_at_3": _rate(sum(0 < r <= 3 for r in ranks), len(found)),
+        "mrr": _rate(sum(1 / r for r in ranks if r), len(found)),
+        "low_match_precision": _rate(sum(a["expect_ref"] is None for a in low), len(low)),
+        "passed": _rate(sum(map(passed_01, answers)), len(answers)),
+    }
+
+
 def pass_k(runs: list[dict[str, bool]]) -> float | None:
     """runs: {question id: passed} per run. A question missing from a run counts as failed (pass^k, k = runs)."""
     keys = set().union(*runs)

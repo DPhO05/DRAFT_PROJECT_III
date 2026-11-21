@@ -1,0 +1,62 @@
+[
+ {
+  "id": "m1",
+  "grade": 8,
+  "expect_ref": "8DS-PTNT-003",
+  "tex": "\\begin{problem}\nPhân tích các đa thức sau thành nhân tử: a) $x^2 - xy + 3x - 3y$; b) $2xy + 3z + 6y + xz$.\na) $x^2 - xy + 3x - 3y = (x^2 - xy) + (3x - 3y) = x(x - y) + 3(x - y) = (x - y)(x + 3)$\nb) $2xy + 3z + 6y + xz = (2xy + 6y) + (xz + 3z) = 2y(x + 3) + z(x + 3) = (x + 3)(2y + z)$\n\\end{problem}\n"
+ },
+ {
+  "id": "m2",
+  "grade": 8,
+  "expect_ref": "8DS-PT1-003",
+  "tex": "\\begin{problem}\n$3(x - 2) - 2(x + 1) = 5 - x$\n$3x - 6 - 2x - 2 = 5 - x$\n$x - 8 = 5 - x$\n$x + x = 5 + 8$\n$2x = 13$\n$x = \\dfrac{13}{2}$\nVậy phương trình có nghiệm $x = \\dfrac{13}{2}$.\n\\end{problem}\n"
+ },
+ {
+  "id": "m3",
+  "grade": 8,
+  "expect_ref": "8DS-HSBN-001",
+  "tex": "\\begin{problem}\n$f(0) = 3 \\cdot 0 - 2 = -2$\n$f(2) = 3 \\cdot 2 - 2 = 4$\n$f\\left(-\\dfrac{1}{3}\\right) = 3 \\cdot \\left(-\\dfrac{1}{3}\\right) - 2 = -1 - 2 = -3$\nVậy $f(0) = -2$, $f(2) = 4$, $f\\left(-\\dfrac{1}{3}\\right) = -3$.\n\\end{problem}\n"
+ },
+ {
+  "id": "m4",
+  "grade": 8,
+  "expect_ref": "8DS-HDT-005",
+  "tex": "\\begin{problem}\n\\[\nB = (2x + 5)^2 - 2(2x + 5)(2x - 1) + (2x - 1)^2\n  = \\left[(2x + 5) - (2x - 1)\\right]^2\n\\]\n$B = (2x + 5 - 2x + 1)^2 = 6^2 = 36$\nVậy $B = 36$ với mọi $x$, nên giá trị của $B$ không phụ thuộc vào $x$.\n\\end{problem}\n"
+ },
+ {
+  "id": "m5",
+  "grade": 9,
+  "expect_ref": "9DS-BPT-002",
+  "tex": "\\begin{problem}\n$3 - 4x \\geq 11$\n$-4x \\geq 11 - 3$\n$-4x \\geq 8$\n$x \\geq -2$\nVậy nghiệm của bất phương trình là $x \\geq -2$.\n\\end{problem}\n"
+ },
+ {
+  "id": "m6",
+  "grade": 9,
+  "expect_ref": "9DS-HPT-001",
+  "tex": "\\begin{problem}\nCộng từng vế hai phương trình: $3x = 6$\n$x = 2$\nThay $x = 2$ vào $x + y = 5$: $y = 3$\nVậy hệ có nghiệm $(x; y) = (2; 3)$.\n\\end{problem}\n"
+ },
+ {
+  "id": "m7",
+  "grade": 9,
+  "expect_ref": "9DS-PT2-003",
+  "tex": "\\begin{problem}\na) $x^2 - 6x + 4 = 0$ có $b' = -3$, $\\Delta' = (-3)^2 - 1 \\cdot 4 = 5 > 0$\nPhương trình có hai nghiệm $x_1 = 3 + \\sqrt{5}$; $x_2 = 3 - \\sqrt{5}$\nb) $9x^2 - 12x + 4 = 0$ có $b' = -6$, $\\Delta' = (-6)^2 - 9 \\cdot 4 = 0$\nPhương trình có nghiệm kép $x_1 = x_2 = \\dfrac{6}{9} = \\dfrac{2}{3}$\nc) $2x^2 + 3x + 5 = 0$ có $\\Delta = 3^2 - 4 \\cdot 2 \\cdot 5 = 9 - 40 = -31 < 0$\nPhương trình vô nghiệm.\n\\end{problem}\n"
+ },
+ {
+  "id": "m8",
+  "grade": 9,
+  "expect_ref": "9DS-CAN-004",
+  "tex": "\\begin{problem}\na) $A = 2\\sqrt{4 \\cdot 3} - 3\\sqrt{9 \\cdot 3} + \\sqrt{25 \\cdot 3} + \\dfrac{1}{2}\\sqrt{16 \\cdot 3}$\n$A = 4\\sqrt{3} - 9\\sqrt{3} + 5\\sqrt{3} + 2\\sqrt{3} = 2\\sqrt{3}$\nb) $\\sqrt{18a^2} = \\sqrt{9 \\cdot 2 \\cdot a^2} = 3a\\sqrt{2}$\nc) $5\\sqrt{2} = \\sqrt{50}$, $4\\sqrt{3} = \\sqrt{48}$, $3\\sqrt{6} = \\sqrt{54}$, $2\\sqrt{13} = \\sqrt{52}$\nVì $48 < 50 < 52 < 54$ nên $4\\sqrt{3} < 5\\sqrt{2} < 2\\sqrt{13} < 3\\sqrt{6}$\n\\end{problem}\n"
+ },
+ {
+  "id": "m9",
+  "grade": 9,
+  "expect_ref": null,
+  "tex": "\\begin{problem}\nCho đường tròn $(O; 5\\text{ cm})$. Tính chu vi và diện tích hình tròn đó.\nChu vi: $C = 2\\pi R = 2 \\cdot \\pi \\cdot 5 = 10\\pi$ (cm)\nDiện tích: $S = \\pi R^2 = \\pi \\cdot 5^2 = 25\\pi$ (cm$^2$)\n\\end{problem}\n"
+ },
+ {
+  "id": "m10",
+  "grade": 9,
+  "expect_ref": null,
+  "tex": "\\begin{problem}\nGieo một con xúc xắc cân đối một lần. Tính xác suất để mặt xuất hiện có số chấm lớn hơn $4$.\nCó $6$ kết quả có thể, đồng khả năng.\nCác kết quả thuận lợi: $5$ và $6$, có $2$ kết quả.\nXác suất cần tìm là $\\dfrac{2}{6} = \\dfrac{1}{3}$.\n\\end{problem}\n"
+ }
+]

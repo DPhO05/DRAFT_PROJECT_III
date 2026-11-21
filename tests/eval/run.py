@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if not __package__:  # run as a script: make `tests.*` importable
     sys.path.insert(0, str(ROOT))
 
-from tests.eval import agents, metrics
+from tests.eval import agents, components, metrics
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import config, devfake, llm
 from tutor.agents.a01_ingest import ingest
@@ -185,6 +185,13 @@ TARGETS: dict[str, dict] = {  # --agent value -> how to run it; "g1" is handled 
         "ids": ("09",),
         "judge": True,
         "tasks": agents.G5_PERIODS,
+    },
+    "01": {
+        "evaluate": components.evaluate_01,
+        "oracle": components.oracle_01,
+        "ids": ("01",),
+        "judge": False,
+        "tasks": components.TASKS_01,
     },
 }
 
