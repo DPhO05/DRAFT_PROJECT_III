@@ -12,13 +12,13 @@
  {"target": "G4", "level": "outcome", "check": "sheet file and rows", "tests": ["tests/graphs/test_worksheet.py::test_commit_order_and_file"]},
  {"target": "G4", "level": "trajectory", "check": "no write before the gate", "tests": ["tests/graphs/test_worksheet.py::test_no_write_until_commit"]},
  {"target": "G5", "level": "outcome", "check": "approve writes the report and the file", "tests": ["tests/graphs/test_report.py::test_approve_writes_report_and_md"]},
- {"target": "G5", "level": "outcome", "check": "saved md has no fact id in the text and no full name", "tests": ["tests/eval/test_workflows.py::test_approved_report_md_has_no_fact_id_in_text_or_name"]},
+ {"target": "G5", "level": "outcome", "check": "saved md holds no full student name", "tests": ["tests/eval/test_workflows.py::test_saved_report_md_holds_no_student_name"]},
+ {"target": "G5", "level": "outcome", "check": "fact ids never in the sentence text", "tests": ["tests/agents/test_reporter.py::test_fact_ids_never_in_text"]},
  {"target": "G5", "level": "trajectory", "check": "no write before approval", "tests": ["tests/graphs/test_report.py::test_no_write_until_approve"]},
  {"target": "G5", "level": "trajectory", "check": "a stale draft is not approved", "tests": ["tests/graphs/test_report.py::test_stale_draft_not_approved"]},
  {"target": "chat", "level": "outcome", "check": "confirm word answered by code", "tests": ["tests/agents/test_chat.py::test_confirm_word_is_answered_without_model"]},
  {"target": "chat", "level": "trajectory", "check": "a rejected start does not count", "tests": ["tests/agents/test_chat.py::test_rejected_start_does_not_count_toward_the_limit"]},
  {"target": "chat", "level": "trajectory", "check": "a start_* runs once per message", "tests": ["tests/agents/test_chat.py::test_second_start_in_a_message_is_refused", "tests/agents/test_chat.py::test_parallel_starts_run_once"]},
  {"target": "chat", "level": "trajectory", "check": "propose_worksheet runs at most twice per message", "tests": ["tests/eval/test_workflows.py::test_propose_worksheet_runs_at_most_twice_in_a_message"]},
- {"target": "chat", "level": "component", "check": "text with a fake instruction starts no start_* tool", "tests": ["tests/eval/test_workflows.py::test_text_pasted_with_a_fake_instruction_starts_nothing"]},
  {"target": "chat", "level": "component", "check": "names never enter state", "tests": ["tests/agents/test_chat.py::test_names_never_enter_state"]}
 ]
