@@ -86,12 +86,15 @@ def _answer(flag: dict, state: dict, refs: dict) -> dict:
     return {"rubric_items": draft["items"]}
 
 
-def _one(paths, r, name: str, lab: dict) -> tuple[dict, str, bool]:
-    """Submit one fixture, pass confirm_match; return ({"<file>#<seq>": problem} at the review gate, thread id,
-    whether the thread stopped at confirm_match exactly when ingest raised a flag)."""
+def _one(paths, r, name: str, lab: dict, budgets: dict[str, int], k: int) -> tuple[dict, bool]:
+    """Submit one fixture, pass confirm_match; return ({"<file>#<seq>": problem} at the review gate, whether the
+    thread stopped at confirm_match exactly when ingest raised a flag). The budget is set right after submit so a
+    thread that crashes later is still compared."""
     with closing(repo.connect(paths.tutor_db)) as conn:
         sid = repo.add_student(conn, name=lab["student_name"] or f"Eval {name}", grade=lab["grade"])
     tid = session.submit(paths, r, student_id=sid, held_on=HELD_ON, rel_path=name)["thread_id"]
+    if "max_calls" in lab:
+        budgets[f"{k}:{tid}"] = lab["max_calls"]
     row = r.wait(tid, TIMEOUT)
     refs = {str(p["seq"]): p["ref"] for p in lab["problems"]}
     stopped = False
@@ -127,7 +130,7 @@ def _one(paths, r, name: str, lab: dict) -> tuple[dict, str, bool]:
             "evidence": {i["item_id"]: i["evidence_latex"] for i in grade["items"] if i["passed"]},
             "flags": [f["type"] for f in [*grade["flags"], *(lane["diagnosis"]["flags"] if lane else [])]],
         }  # fmt: skip
-    return out, tid, confirm_ok
+    return out, confirm_ok
 
 
 def load_sets() -> dict[str, dict]:
@@ -171,12 +174,11 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
         try:
             for f in files:
                 try:
-                    out, tid, ok = _one(paths, r, f, labels[f])
+                    out, ok = _one(paths, r, f, labels[f], budgets, k)
                     got |= out
                     confirms.append(ok)
-                    if "max_calls" in labels[f]:
-                        budgets[f"{k}:{tid}"] = labels[f]["max_calls"]
                 except Exception as e:  # recorded; the problems count as missing in stability
+                    confirms.append(False)  # a file that never reached the review gate is not confirmed
                     errors.append({"run": k, "file": f, "error": f"{type(e).__name__}: {e}"})
         finally:
             r.close()

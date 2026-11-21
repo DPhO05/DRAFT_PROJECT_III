@@ -168,3 +168,16 @@ def test_heldout_trajectory_stays_in_budget(tmp_path):
 def test_dev_set_has_no_budget(tmp_path):
     res = run.evaluate(run.oracle, work=tmp_path, files=["s04.tex"], runs=1)
     assert res["metrics"]["trajectory"]["over_budget"] is None and res["metrics"]["extra"]["confirm_ok"] == 1
+
+
+def test_crashed_file_stays_in_confirm_and_budget_counts(tmp_path):
+    def backend(conn, labels):
+        labels["s04.tex"]["max_calls"] = 0  # any logged call of the crashed thread is over budget
+        fake, models = run.oracle(conn, labels)
+        fake.handlers["02"] = RuntimeError("down")
+        return fake, models
+
+    res = run.evaluate(backend, work=tmp_path, files=["s04.tex"], runs=1)
+    assert len(res["errors"]) == 1
+    assert res["metrics"]["extra"]["confirm_ok"] == 0
+    assert res["metrics"]["trajectory"]["threads"] == 1 and res["metrics"]["trajectory"]["over_budget"] == 1
