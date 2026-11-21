@@ -11,6 +11,7 @@ C-34). A prompt is fit for use only after it passes 3 runs (pass^3). --agent 00 
 # ruff: noqa: E402
 import argparse
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -26,6 +27,7 @@ from tests.eval import agents, components, metrics
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import config, devfake, llm
 from tutor.agents.a01_ingest import ingest
+from tutor.agents.a02_grader import grader
 from tutor.agents.a03_diagnoser import diagnoser
 from tutor.agents.a04_verifier import verifier
 from tutor.db import repo, seed_dummy
@@ -45,15 +47,32 @@ def oracle(conn, labels: dict):
     ref_of = {b["statement_latex"]: b["ref"] for b in repo.bank_problems(conn)}
     kc_id = {k["code"]: k["id"] for k in repo.list_kc(conn)}
 
+    def lines(user):
+        """The framed work as {step idx: line}, the way the agent sees it (masked)."""
+        return {
+            int(i): t
+            for i, t in re.findall(r"^\[(\d+)\] (.*)$", user.split(llm.OPEN, 1)[1].split(llm.CLOSE, 1)[0], re.M)
+        }
+
     def h03(user, system):
         statement = user.split("Đề:\n", 1)[1].split("\n\nLời giải mẫu:\n", 1)[0]
+        steps = lines(user)
         return diagnoser.DiagnosisOut(corrected_latex="", mistakes=[
             diagnoser.MistakeOut(step_idx=m["step_idx"], code=m["code"], kc_id=kc_id.get(m["kc"]),
-                                 description=m["note"], evidence_latex="x", confidence=0.9)
+                                 description=m["note"], evidence_latex=steps.get(m["step_idx"], ""), confidence=0.9)
             for m in by_ref[ref_of[statement]]["mistakes"]
         ])  # fmt: skip
 
-    handlers = {"01": ingest.MatchResult(candidates=[]), "02": lane_handlers()["02"], "03": h03,
+    base02 = lane_handlers()["02"]
+
+    def h02(user, system):
+        out = base02(user=user, system=system)
+        if not isinstance(out, grader.GradeOut):
+            return out
+        first = next(iter(lines(user).values()), "")
+        return out.model_copy(update={"items": [i.model_copy(update={"evidence_latex": first}) for i in out.items]})
+
+    handlers = {"01": ingest.MatchResult(candidates=[]), "02": h02, "03": h03,
                 "04": verifier.VerdictOut(verdict="agree", reason="oracle")}  # fmt: skip
     return FakeLLM(handlers), {}
 
@@ -83,18 +102,27 @@ def _one(paths, r, name: str, lab: dict) -> dict:
         raise RuntimeError(f"{row['status']} ở {row['node']}: {row['error']}")
     st = r.state(tid)
     lanes = {lane["seq"]: lane for lane in st["lanes"]}
+    attempts = {a["seq"]: a for a in st["ingest"]["attempts"]}
+    redact = session.call_context(paths, sid, None, {"configurable": {"thread_id": tid}}).redact  # as the agents saw
     out = {}
     for p in lab["problems"]:
         lane = lanes.get(p["seq"])
+        grade = lane["grade"] if lane else {"items": [], "flags": [], "score": None, "max_score": None}
         out[f"{name}#{p['seq']}"] = {
             "labels": [{k: m[k] for k in ("step_idx", "code", "propagates_to")} for m in p["mistakes"]],
             "proposals": [
-                {"step_idx": x["step_idx"], "code": x["code"], "verdict": x["verifier"]["verdict"]}
+                {"step_idx": x["step_idx"], "code": x["code"], "verdict": x["verifier"]["verdict"],
+                 "evidence_latex": x["evidence_latex"]}
                 for x in st["proposals"]
                 if x["attempt_seq"] == p["seq"]
             ],
-            "items": {i["item_id"]: i["passed"] for i in lane["grade"]["items"]} if lane else {},
-        }
+            "items": {i["item_id"]: i["passed"] for i in grade["items"]},
+            "steps": {s["idx"]: llm.mask(s["latex"], redact) for s in attempts[p["seq"]]["steps"]},
+            "score": grade["score"],
+            "max_score": grade["max_score"],
+            "evidence": {i["item_id"]: i["evidence_latex"] for i in grade["items"] if i["passed"]},
+            "flags": [f["type"] for f in [*grade["flags"], *(lane["diagnosis"]["flags"] if lane else [])]],
+        }  # fmt: skip
     return out
 
 
@@ -156,6 +184,7 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
     # every label key starts False, so a problem that failed in all runs still counts
     every = {f"{f}#{p['seq']}": False for f, lab in labels.items() for p in lab["problems"]}
     tally = metrics.tally([every | metrics.g1_passed(g) for g in results])
+    names = {lab["student_name"]: "X" for lab in labels.values() if lab["student_name"]}
     return {
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "runs": runs,
@@ -168,7 +197,12 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
             "pass_k": tally["pass_k"],
             "success": tally["success"],
             "tally": tally,
-            "extra": {"flow_errors": len(errors), "items_changed_pct": stability["items_changed_pct"]},
+            "components": [metrics.components(list(g.values())) for g in results],
+            "extra": {
+                "flow_errors": len(errors),
+                "items_changed_pct": stability["items_changed_pct"],
+                "name_leaks": agents.leak_count(agents._strings(results), names),
+            },
         },
         "errors": errors,
         "calls": metrics.usage(rows),

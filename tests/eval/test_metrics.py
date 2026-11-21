@@ -289,3 +289,21 @@ def test_score_04_accuracy_confusion_and_disagree_recall():
     assert (s["n_tasks"], s["accuracy"], s["recall_disagree"], s["empty"]) == (5, 3 / 5, 1 / 2, 1)
     assert s["confusion"]["disagree"] == {"agree": 1, "disagree": 1, "wrong_code": 0, "none": 0}
     assert s["passed"] == 2 / 5  # the wrong_code answer suggests the wrong code
+
+
+def test_components_hand_example():
+    clean = {"labels": [], "proposals": [], "items": {"r1": True}, "steps": {1: "x = 2"}, "score": 2, "max_score": 2,
+             "evidence": {"r1": "x = 2"}, "flags": []}  # fmt: skip
+    noisy = {"labels": [], "proposals": [{"step_idx": 1, "code": "a.b", "verdict": "agree", "evidence_latex": "bịa"}],
+             "items": {"r1": True}, "steps": {1: "y = 3"}, "score": 1, "max_score": 2, "evidence": {"r1": "y  =  3"},
+             "flags": ["no_evidence"]}  # fmt: skip
+    wrong = {"labels": [{"step_idx": 2, "code": "a.b", "propagates_to": []}],
+             "proposals": [{"step_idx": 2, "code": "c.d", "verdict": "disagree", "evidence_latex": "z = 1"}],
+             "items": {"r1": False}, "steps": {1: "z = 0", 2: "z = 1"}, "score": 0, "max_score": 2, "evidence": {},
+             "flags": ["bad_code", "bad_code"]}  # fmt: skip
+    c = metrics.components([clean, noisy, wrong])
+    assert (c["evidence_02"], c["evidence_03"]) == (1, 1 / 2)  # whitespace runs do not matter
+    assert c["flags"] == {"no_evidence": 1, "bad_code": 2}
+    assert (c["clean_full_marks"], c["clean_flagged"]) == (1 / 2, 1 / 2)
+    assert c["confusion"] == {"a.b": {"c.d": 1}}
+    assert (c["agree_on_right"], c["agree_on_wrong"]) == (0, 1)  # 0 of 1 at a label step, 1 of 1 elsewhere

@@ -37,6 +37,13 @@ def _fws(p: dict) -> bool:
     return first_wrong_step([m["step_idx"] for m in p["labels"]], [x["step_idx"] for x in p["proposals"]])
 
 
+def _llm_code(m: dict, p: dict) -> str | None:
+    """The LLM code paired with label mistake `m`: the label's own code if proposed at its step, else the first one;
+    None when the LLM proposed nothing there."""
+    codes = [x["code"] for x in p["proposals"] if x["step_idx"] == m["step_idx"]]
+    return m["code"] if m["code"] in codes else codes[0] if codes else None
+
+
 def score(problems: list[dict]) -> dict:
     """One run.
 
@@ -53,11 +60,11 @@ def score(problems: list[dict]) -> dict:
         found, wrong = found + len(got & steps), wrong + len(steps)
         ok, flagged = ok + len(got & allowed), flagged + len(got)
         for m in p["labels"]:
-            codes = [x["code"] for x in p["proposals"] if x["step_idx"] == m["step_idx"]]
-            if codes:
-                pairs.append((m["code"], m["code"] if m["code"] in codes else codes[0]))
-            else:
+            code = _llm_code(m, p)
+            if code is None:
                 dropped += 1
+            else:
+                pairs.append((m["code"], code))
         added += sum(x["step_idx"] not in allowed for x in p["proposals"])
         n_props += len(p["proposals"])
     n_labels = sum(len(p["labels"]) for p in problems)
@@ -72,6 +79,42 @@ def score(problems: list[dict]) -> dict:
         "kappa": cohen_kappa(pairs),
         "drop_rate": _rate(dropped, n_labels),
         "add_rate": _rate(added, n_props),
+    }
+
+
+def quoted(evidence: str, text: str) -> bool:
+    """The evidence is not empty and sits in the text, whitespace runs collapsed on both sides."""
+    ev = " ".join(evidence.split())
+    return bool(ev) and ev in " ".join(text.split())
+
+
+def components(problems: list[dict]) -> dict:
+    """One run of G1, agent by agent. Problems also carry steps {idx: latex}, score, max_score, evidence
+    {item_id: latex} of the passed items, flags [type], and proposals with evidence_latex and verdict."""
+    ev02 = [quoted(e, "\n".join(p["steps"].values())) for p in problems for e in p["evidence"].values()]
+    ev03 = [quoted(x["evidence_latex"], p["steps"].get(x["step_idx"], "")) for p in problems for x in p["proposals"]]
+    clean = [p for p in problems if not p["labels"]]
+    full = [p for p in clean if p["score"] is not None and p["score"] == p["max_score"]]  # no lane: score None
+    confusion: dict[str, dict[str, int]] = {}
+    right, wrong = [], []
+    for p in problems:
+        at = {m["step_idx"] for m in p["labels"]}
+        spread = at | {s for m in p["labels"] for s in m["propagates_to"]}
+        for m in p["labels"]:
+            if (code := _llm_code(m, p)) is not None:
+                row = confusion.setdefault(m["code"], {})
+                row[code] = row.get(code, 0) + 1
+        right += [x["verdict"] == "agree" for x in p["proposals"] if x["step_idx"] in at]
+        wrong += [x["verdict"] == "agree" for x in p["proposals"] if x["step_idx"] not in spread]
+    return {
+        "evidence_02": _rate(sum(ev02), len(ev02)),
+        "evidence_03": _rate(sum(ev03), len(ev03)),
+        "flags": dict(Counter(f for p in problems for f in p["flags"])),
+        "clean_full_marks": _rate(len(full), len(clean)),
+        "clean_flagged": _rate(sum(bool(p["proposals"]) for p in clean), len(clean)),
+        "confusion": confusion,
+        "agree_on_right": _rate(sum(right), len(right)),
+        "agree_on_wrong": _rate(sum(wrong), len(wrong)),
     }
 
 

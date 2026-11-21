@@ -94,6 +94,15 @@ def test_wrong_oracle_metrics_drop(tmp_path):
     assert s["add_rate"] == 5 / 9
     assert res["metrics"]["stability"]["items_changed_pct"] == 100
     assert res["metrics"]["stability"]["pass_k"] == 4 / 9
+    assert res["metrics"]["components"][0]["clean_flagged"] == 1
+
+
+def test_oracle_components_are_perfect(tmp_path):
+    res = run.evaluate(run.oracle, work=tmp_path, files=["s03.tex", "s04.tex"], runs=1)
+    c = res["metrics"]["components"][0]
+    assert (c["evidence_02"], c["evidence_03"], c["clean_full_marks"], c["clean_flagged"]) == (1, 1, 1, 0)
+    assert c["flags"] == {} and c["agree_on_right"] == 1
+    assert res["metrics"]["extra"]["name_leaks"] == 0  # s03 holds a full name, with and without diacritics
 
 
 def test_real_backend_needs_yes(monkeypatch, capsys):
