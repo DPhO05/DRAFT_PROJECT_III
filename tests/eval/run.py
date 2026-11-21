@@ -206,6 +206,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Không có bộ {a.set}. Có: {', '.join(sets)}")
             return 2
         fix = ROOT / sets[a.set]["dir"]
+    elif a.set not in (None, f"{target}-dev"):
+        print(f"Không có bộ {a.set} cho agent {target}.")
+        return 2
     if a.backend == "real":
         if target == "g1":
             n = sum(len(lab["problems"]) for lab in load_labels(a.files, fix).values())

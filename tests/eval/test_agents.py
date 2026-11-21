@@ -166,3 +166,9 @@ def test_only_unknown_id_exits_2(capsys):
 
 def test_only_is_refused_for_g1(capsys):
     assert run.main(["--backend", "fake", "--only", "s01.tex"]) == 2
+
+
+def test_set_the_agent_does_not_have_exits_2(capsys):
+    assert run.main(["--agent", "00", "--backend", "fake", "--set", "g1-dev"]) == 2
+    out = capsys.readouterr().out
+    assert "g1-dev" in out and "00" in out
