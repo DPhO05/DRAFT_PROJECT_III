@@ -1,5 +1,6 @@
 """Read KC / level labels and rubric v1 from a bank .tex (P5-T02)."""
 
+import re
 from dataclasses import dataclass
 
 from tutor.services import latex
@@ -20,9 +21,12 @@ class BankItem:
     invalid: str | None
 
 
+_CHECK = re.compile(r"(?:[a-z]\)\s*)?Thử lại\b")  # a check of the answer, not a step every correct solution has
+
+
 def rubric_v1(paragraphs: list[str]) -> list[dict]:
-    """One item per paragraph, the final "Đáp số" paragraph merged into the item before it."""
-    texts = list(paragraphs)
+    """One item per paragraph, check paragraphs left out, "Đáp số" merged into the item before it."""
+    texts = [p for p in paragraphs if not _CHECK.match(p)] or list(paragraphs)
     if len(texts) > 1:
         texts[-2:] = [f"{texts[-2]}\n\n{texts[-1]}"]
     return [{"item_id": f"r{i}", "text": t, "points": 1} for i, t in enumerate(texts, 1)]

@@ -101,6 +101,16 @@ def test_rubric_items():
             bank.rubric_items(bad)
 
 
+def test_rubric_v1_skips_the_check_paragraph():
+    def texts(paragraphs):
+        return [r["text"] for r in bank.rubric_v1(paragraphs)]
+
+    assert texts(["a", "Thử lại: b", "c"]) == ["a\n\nc"]
+    assert texts(["a", "b) Thử lại: c", "d", "e"]) == ["a", "d\n\ne"]
+    assert texts(["a", "Đối chiếu điều kiện. Thử lại: b", "c"]) == ["a", "Đối chiếu điều kiện. Thử lại: b\n\nc"]
+    assert texts(["Thử lại: a"]) == ["Thử lại: a"]  # nothing else to score
+
+
 def test_rubric_v1():
     assert bank.rubric_v1(["a"]) == [{"item_id": "r1", "text": "a", "points": 1}]
     assert [r["text"] for r in bank.rubric_v1(["a", "b", "c"])] == ["a", "b\n\nc"]
