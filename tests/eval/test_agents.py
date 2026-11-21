@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from tests.eval import agents, metrics, run
+from tests.eval import agents, judges, metrics, run
 from tests.fakes import FakeLLM
 from tutor import llm
 from tutor.agents.a00_orchestrator import orchestrator, tools
@@ -419,3 +419,66 @@ def test_g5_failed_thread_is_an_error(tmp_path):
 
     res = agents.evaluate_g5(down, work=tmp_path, runs=1)
     assert len(res["errors"]) == 1 and res["metrics"]["pass_k"] == 0
+
+
+def test_09_judge_scores_every_report(tmp_path):
+    res = agents.evaluate_09(judges.with_oracle(agents.oracle_09), work=tmp_path, runs=1, judge=True)
+    assert res["metrics"]["extra"]["faithfulness"] == 1 and res["metrics"]["extra"]["judge_unknown"] == 0
+    assert all(r["judge"]["score"] == 1 for r in res["reports"][0]) and res["calls"]["by_agent"]["judge"]["calls"] == 6
+
+
+def test_00_judge_scores_only_marked_tasks(tmp_path):
+    res = agents.evaluate_00(judges.with_oracle(agents.oracle_00), work=tmp_path, runs=1, judge=True)
+    judged = [a["id"] for a in res["answers"][0] if a.get("judge")]
+    assert judged == [q["id"] for q in agents.QUESTIONS if q.get("judge")] and len(judged) == 10
+    assert res["metrics"]["extra"]["faithfulness"] == 1
+    assert all("judge" not in a or {"judge_context", "judge_sentences"} <= a.keys() for a in res["answers"][0])
+
+
+def test_g5_judge_scores_the_draft(tmp_path):
+    res = agents.evaluate_g5(judges.with_oracle(agents.oracle_09), work=tmp_path, runs=1, judge=True)
+    assert res["metrics"]["extra"]["faithfulness"] == 1 and res["metrics"]["pass_k"] == 1
+
+
+def test_judge_never_changes_passed_or_the_call_count(tmp_path):
+    plain = agents.evaluate_09(agents.oracle_09, work=tmp_path / "a", runs=1)
+    judged = agents.evaluate_09(judges.with_oracle(agents.oracle_09), work=tmp_path / "b", runs=1, judge=True)
+    assert judged["metrics"]["pass_k"] == plain["metrics"]["pass_k"]
+    assert [r["model_calls"] for r in judged["reports"][0]] == [r["model_calls"] for r in plain["reports"][0]]
+
+
+def test_judge_model_is_used_for_the_judge_rows(tmp_path):
+    make = judges.with_oracle(agents.oracle_09)
+    res = agents.evaluate_09(make, work=tmp_path, runs=1, only=[agents.PERIODS[0]["key"]], judge=True,
+                             judge_model="openai:judge-x")  # fmt: skip
+    assert res["models"]["judge"] == ["openai:judge-x"]
+
+
+def test_without_judge_no_judge_row(tmp_path):
+    res = agents.evaluate_09(agents.oracle_09, work=tmp_path, runs=1)
+    assert "judge" not in res["calls"]["by_agent"] and res["metrics"]["extra"].get("faithfulness") is None
+
+
+def test_judge_flag_rules(tmp_path, capsys):
+    out = ["--out", str(tmp_path / "results")]
+    assert run.main(["--agent", "09", "--backend", "dev", "--judge", *out]) == 2  # devfake has no judge
+    assert run.main(["--agent", "01", "--backend", "fake", "--judge", *out]) == 2  # 01 has no judge
+    assert run.main(["--agent", "09", "--backend", "real", "--judge", "--yes", *out]) == 2  # needs --judge-model
+    assert run.main(["--agent", "09", "--backend", "fake", "--judge", "--judge-model", "x:y", *out]) == 2
+    assert run.main(["--agent", "09", "--backend", "fake", "--judge", "--runs", "1", *out]) == 0
+    assert "faithfulness=1.000  unknown=0" in capsys.readouterr().out
+
+
+def test_judge_warns_when_it_shares_the_provider(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TUTOR_DATA", str(tmp_path))  # default settings, no key file
+    monkeypatch.setattr(run.config, "load_env", lambda *_: None)
+    monkeypatch.setitem(
+        run.TARGETS["09"], "evaluate", lambda *a, **k: (_ for _ in ()).throw(agents.UnknownTask("stop"))
+    )
+    provider = llm.split_model(run.config.defaults()["models"]["09"])[0]
+    other = "openai" if provider == "anthropic" else "anthropic"
+    argv = ["--agent", "09", "--backend", "real", "--yes", "--judge", "--out", str(tmp_path / "results")]
+    assert run.main([*argv, "--judge-model", f"{provider}:j"]) == 2
+    assert "judge cùng nhà cung cấp" in capsys.readouterr().out
+    assert run.main([*argv, "--judge-model", f"{other}:j"]) == 2
+    assert "judge cùng nhà cung cấp" not in capsys.readouterr().out

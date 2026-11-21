@@ -12,6 +12,7 @@ import shutil
 import unicodedata
 from contextlib import closing
 from datetime import UTC, datetime
+from functools import partial
 from itertools import chain
 from pathlib import Path
 
@@ -20,7 +21,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.agents.test_tools import recorder
 from tests.assistant_fix import world
-from tests.eval import metrics
+from tests.eval import judges, metrics
 from tests.fakes import FakeLLM
 from tutor import config, llm
 from tutor.agents.a00_orchestrator import chat, orchestrator
@@ -69,7 +70,7 @@ _GRADER_FIELDS = ("expect_approval", "approval", "expect_starts", "allow_tool_er
                   "expect_text", "expect_any", "card_only")  # fmt: skip
 
 
-def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
+def _ask_00(paths, w: dict, q: dict, log: Path, judge: bool = False) -> dict:
     """The answer to one task in a new read-only session: its messages in one thread, approvals answered as scripted."""
     calls = []
     starters = recorder(calls)
@@ -106,10 +107,20 @@ def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
             events, approvals, error = [], [], orchestrator.mask(f"{type(e).__name__}: {e}", redact)
         thread = agent.get_state(cfg).values.get("messages", []) if agent else []
         messages = messages_to_dict(thread)
-    rows = read_log(log)[n0:]
+    rows = read_log(log)[n0:]  # before any judge call, so a judge never changes passed or the call bound
+    leaks = leak_count(chain(_strings(rows), _strings(messages)), orchestrator._names(redact))
     made = [{"name": c["name"], "args": c["args"]} for m in thread if isinstance(m, AIMessage) for c in m.tool_calls]
     text = "".join(e["delta"] for e in events if e["type"] == "text")
     dones = [e for e in events if e["type"] == "done"]
+    verdict = {}
+    if judge and q.get("judge") and not error:  # report-only: never changes passed; masked before it is stored
+        seen = "\n".join(c if isinstance(c, str) else json.dumps(c, ensure_ascii=False) for c in ctx.seen)
+        context = llm.mask(seen, cc.redact)
+        sentences = [llm.mask(s, cc.redact) for s in re.split(r"(?<=[.!?])\s+", text.strip()) if s]
+        n1 = len(read_log(log))
+        result = judges.faithfulness(context, sentences, llm.CallContext(graph=None, redact=cc.redact))
+        verdict = {"judge": result, "judge_context": context, "judge_sentences": sentences}
+        leaks += _judge_leaks(log, n1, cc.redact, verdict)
     return {
         "id": q["id"],
         "expect": q["expect"],
@@ -120,7 +131,7 @@ def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
         "starts": [list(c) for c in calls],
         "approvals": approvals,
         "model_calls": len(rows),
-        "leaks": leak_count(chain(_strings(rows), _strings(messages)), orchestrator._names(redact)),
+        "leaks": leaks,
         "schema_errors": sum(not metrics.args_fit(c, tools) for c in made),
         "codes_shown": sum(c["code"] in text for c in codes),
         "cards": sum(e["type"] == "card" for e in events),
@@ -133,7 +144,7 @@ def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
         "warnings": [e for e in events if e["type"] == "warning"],
         "app_version": orchestrator.version(fixed, tools),
         "trace": {"events": events, "messages": messages},
-    }
+    } | verdict
 
 
 class UnknownTask(ValueError):
@@ -201,6 +212,19 @@ def leak_count(texts, names: dict[str, str]) -> int:
     return sum(llm.mask(t, names) != unicodedata.normalize("NFC", t) for t in texts)
 
 
+def _judge_leaks(log: Path, n0: int, redact: dict[str, str], result: dict) -> int:
+    """Leaks in the judge's log rows after row n0 and in its verdicts."""
+    return leak_count(chain(_strings(read_log(log)[n0:]), _strings(result)), redact)
+
+
+def _faithfulness(items: list[dict]) -> dict:
+    """Mean judge score over the judged items of all runs (None when nothing was judged), and the unknown count."""
+    judged = [x["judge"] for x in items if x.get("judge")]
+    scores = [j["score"] for j in judged if j["score"] is not None]
+    return {"faithfulness": sum(scores) / len(scores) if scores else None,
+            "judge_unknown": sum(j["unknown"] for j in judged)}  # fmt: skip
+
+
 def summarize(agent: str, t: dict, *, key: str, score, passed, payload: str, leaks: int | None = None,
               extra: dict | None = None) -> dict:  # fmt: skip
     """The result every trials-based target returns (plan contract C1); run.main adds set, backend and traces."""
@@ -231,9 +255,13 @@ def summarize(agent: str, t: dict, *, key: str, score, passed, payload: str, lea
     }
 
 
-def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
-    """make_backend(conn) -> (llm backend | None for the real API, models). Runs and questions go in order."""
-    t = trials(QUESTIONS, _ask_00, make_backend, work=work, runs=runs, only=only, traces=traces)
+def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None,
+                judge: bool = False, judge_model: str | None = None) -> dict:  # fmt: skip
+    """make_backend(conn) -> (llm backend | None for the real API, models). Runs and questions go in order.
+
+    judge: also score the faithfulness of the marked tasks' replies (report-only); judge_model: the judge's model."""
+    t = trials(QUESTIONS, partial(_ask_00, judge=judge), make_backend, work=work, runs=runs, only=only, traces=traces,
+               models={"judge": judge_model} if judge_model else None)  # fmt: skip
     answers, app_version = t["got"], None
     for k, got in enumerate(answers, 1):
         chats = [{"id": a["id"], **a.pop("trace")} for a in got]
@@ -249,10 +277,11 @@ def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | No
                     leaks=leaks)  # fmt: skip
     rates = [s["approval_ok"] for s in res["metrics"]["per_run"] if s["approval_ok"] is not None]
     res["metrics"]["extra"]["approval_ok"] = sum(rates) / len(rates) if rates else None
+    res["metrics"]["extra"] |= _judge_extra(t, judge) or {}
     return res | {"app_version": app_version}
 
 
-def _report_09(paths, w: dict, p: dict, log: Path) -> dict:
+def _report_09(paths, w: dict, p: dict, log: Path, judge: bool = False) -> dict:
     """The report of one period, written in a new read-only session."""
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         settings, today = config.defaults(), w["today"]
@@ -268,7 +297,16 @@ def _report_09(paths, w: dict, p: dict, log: Path) -> dict:
             error = orchestrator.mask(f"{type(e).__name__}: {e}", ctx.redact)
             r = {"sentences": [], "audit": [], "low": got["low"], "insights": [], "facts": got["facts"]}
         rows = read_log(log)[n0:]  # before any judge call, so a judge never changes passed or the call bound
-    return _report_row(p, r, rows, ctx.redact, error)
+    row = _report_row(p, r, rows, ctx.redact, error)
+    return _judged(row, log, ctx.redact) if judge and not error else row
+
+
+def _judged(row: dict, log: Path, redact: dict[str, str]) -> dict:
+    """The report row plus the judge's verdicts on its sentences; report-only, `passed` never reads them."""
+    n0 = len(read_log(log))
+    row["judge"] = judges.faithfulness(row["facts_block"], row["sentences"], llm.CallContext(graph=None, redact=redact))
+    row["leaks"] += _judge_leaks(log, n0, redact, row["judge"])
+    return row
 
 
 def _report_row(p: dict, r: dict, rows: list[dict], redact: dict[str, str], error: str | None) -> dict:
@@ -290,6 +328,11 @@ def _report_row(p: dict, r: dict, rows: list[dict], redact: dict[str, str], erro
     }
 
 
+def _judge_extra(t: dict, judge: bool) -> dict | None:
+    """The extra keys of a judged run; None keeps the extra of an unjudged run as it was."""
+    return _faithfulness([r for done in t["got"] for r in done]) if judge else None
+
+
 def _pop_errors(t: dict) -> int:
     """Move each failed report's error into t["errors"]; the leaks of all reports."""
     for k, got in enumerate(t["got"], 1):
@@ -299,14 +342,16 @@ def _pop_errors(t: dict) -> int:
     return sum(r["leaks"] for done in t["got"] for r in done)
 
 
-def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
+def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None,
+                judge: bool = False, judge_model: str | None = None) -> dict:  # fmt: skip
     """make_backend(conn) -> (llm backend | None for the real API, models). Runs and periods go in order."""
-    t = trials(PERIODS, _report_09, make_backend, work=work, runs=runs, key="key", only=only, traces=traces)
+    t = trials(PERIODS, partial(_report_09, judge=judge), make_backend, work=work, runs=runs, key="key", only=only,
+               traces=traces, models={"judge": judge_model} if judge_model else None)  # fmt: skip
     return summarize("09", t, key="key", score=metrics.score_09, passed=metrics.passed_09, payload="reports",
-                     leaks=_pop_errors(t))  # fmt: skip
+                     leaks=_pop_errors(t), extra=_judge_extra(t, judge))  # fmt: skip
 
 
-def _draft_g5(paths, w: dict, p: dict, log: Path) -> dict:
+def _draft_g5(paths, w: dict, p: dict, log: Path, judge: bool = False) -> dict:
     """The G5 draft of one period, run to its review gate; no teacher decision, so no report row may exist."""
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         everyone = repo.list_students(conn, include_archived=True)
@@ -331,14 +376,18 @@ def _draft_g5(paths, w: dict, p: dict, log: Path) -> dict:
     with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
         report_rows = conn.execute("SELECT COUNT(*) FROM report").fetchone()[0]
     draft = draft or {"sentences": [], "audit": [], "low": False, "insights": [], "facts": []}
-    return _report_row(p, draft, rows, redact, error) | {"gate": gate, "report_rows": report_rows}
+    row = _report_row(p, draft, rows, redact, error) | {"gate": gate, "report_rows": report_rows}
+    return _judged(row, log, redact) if judge and not error else row
 
 
-def evaluate_g5(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
+def evaluate_g5(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None,
+                judge: bool = False, judge_model: str | None = None) -> dict:  # fmt: skip
     """G5 up to its review gate, on the period of G5_PERIODS. Same errors and leaks rules as evaluate_09."""
-    t = trials(G5_PERIODS, _draft_g5, make_backend, work=work, runs=runs, key="key", only=only, traces=traces)
+    t = trials(G5_PERIODS, partial(_draft_g5, judge=judge), make_backend, work=work, runs=runs, key="key", only=only,
+               traces=traces, models={"judge": judge_model} if judge_model else None)  # fmt: skip
     return summarize("g5", t, key="key", score=metrics.score_09, payload="reports", leaks=_pop_errors(t),
-                     passed=lambda r: metrics.passed_09(r) and r["gate"] and r["report_rows"] == 0)  # fmt: skip
+                     passed=lambda r: metrics.passed_09(r) and r["gate"] and r["report_rows"] == 0,
+                     extra=_judge_extra(t, judge))  # fmt: skip
 
 
 def question_of(messages: list[dict]) -> dict:

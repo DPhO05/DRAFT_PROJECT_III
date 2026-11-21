@@ -5,7 +5,8 @@ uv run python tests/eval/run.py [--agent g1|00|09 | --set g1-dev] [--backend fak
 
 fake = label oracle (checks the harness itself), dev = tutor.devfake, real = Anthropic API (costs money; manual only,
 C-34). A prompt is fit for use only after it passes 3 runs (pass^3). --agent 00 and 09 use tests/eval/agents.py;
---files is for g1 only, --only for the others.
+--files is for g1 only, --only for the others. --judge [--judge-model provider:name] adds an LLM faithfulness score
+(00, 09, g5; report-only).
 """
 
 # ruff: noqa: E402
@@ -23,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if not __package__:  # run as a script: make `tests.*` importable
     sys.path.insert(0, str(ROOT))
 
-from tests.eval import agents, components, metrics
+from tests.eval import agents, components, judges, metrics
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import config, devfake, llm
 from tutor.agents.a01_ingest import ingest
@@ -227,8 +228,8 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
 
 
 TARGETS: dict[str, dict] = {  # --agent value -> how to run it; "g1" is handled by evaluate()
-    "00": {"evaluate": agents.evaluate_00, "oracle": agents.oracle_00, "ids": ("00",)},
-    "09": {"evaluate": agents.evaluate_09, "oracle": agents.oracle_09, "ids": ("09",)},
+    "00": {"evaluate": agents.evaluate_00, "oracle": agents.oracle_00, "ids": ("00",), "judge": True},
+    "09": {"evaluate": agents.evaluate_09, "oracle": agents.oracle_09, "ids": ("09",), "judge": True},
     "g5": {
         "evaluate": agents.evaluate_g5,
         "oracle": agents.oracle_09,
@@ -289,6 +290,31 @@ def _fmt(x) -> str:
     return "—" if x is None else f"{x:.3f}" if isinstance(x, float) else str(x)
 
 
+def _judge_refusal(target: str, a) -> str | None:
+    """Why --judge cannot run with these arguments, in Vietnamese; None when it can."""
+    if not TARGETS.get(target, {}).get("judge", False):
+        return f"--judge không dùng cho agent {target}."
+    if a.backend == "dev":
+        return "--judge không chạy với --backend dev: devfake không có judge."
+    if a.backend == "real" and not a.judge_model:
+        return "--backend real cần --judge-model <provider:tên>: judge không được dùng ngầm model đang chấm."
+    try:
+        _judge_provider(a.judge_model)
+    except ValueError as e:
+        return f"--judge-model sai: {e}"
+    return None
+
+
+def _judge_provider(judge_model: str | None) -> str | None:
+    return llm.split_model(judge_model)[0] if judge_model else None
+
+
+def _judged_models(target: str) -> dict[str, str]:
+    """The models setting of the agents the target runs."""
+    models = config.load(config.paths().settings)["models"]
+    return {i: models[i] for i in TARGETS[target]["ids"] if i in models}
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--agent", choices=["g1", *TARGETS])
@@ -299,6 +325,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--only", nargs="+", help="chỉ chạy các id này (không dùng cho g1)")
     ap.add_argument("--out", type=Path, default=ROOT / "data" / "eval" / "results")
     ap.add_argument("--traces", type=Path, help="mẹ của thư mục vết (mặc định <out>/../traces)")
+    ap.add_argument("--judge", action="store_true", help="chấm thêm độ trung thực bằng LLM (chỉ 00, 09, g5)")
+    ap.add_argument("--judge-model", help="model của judge, dạng provider:tên; bắt buộc với --backend real")
     ap.add_argument("--yes", action="store_true", help="xác nhận chạy API thật (tốn tiền)")
     a = ap.parse_args(argv)
     if a.runs < 1:
@@ -319,6 +347,10 @@ def main(argv: list[str] | None = None) -> int:
     elif a.set not in (None, f"{target}-dev"):
         print(f"Không có bộ {a.set} cho agent {target}.")
         return 2
+    if a.judge:
+        if msg := _judge_refusal(target, a):
+            print(msg)
+            return 2
     model = TARGETS.get(target, {}).get("model", True)
     if a.backend == "real" and model:
         if target == "g1":
@@ -335,6 +367,8 @@ def main(argv: list[str] | None = None) -> int:
             print("Thêm --yes để chạy.")
             return 2
         config.load_env(config.ENV_FILE)  # no cli callback here; GPT settings need OPENAI_API_KEY
+        if a.judge and _judge_provider(a.judge_model) in llm.providers(_judged_models(target)):
+            print("CẢNH BÁO: judge cùng nhà cung cấp với model được chấm")  # decision 2B stays possible
     with tempfile.TemporaryDirectory(prefix="tutor-eval-") as tmp:
         info = meta(target, a.set, a.backend)
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -345,8 +379,10 @@ def main(argv: list[str] | None = None) -> int:
             t = TARGETS[target]
             try:
                 runs = a.runs if model else t["runs"]
-                res = t["evaluate"](_backend(a.backend, t["oracle"]), work=Path(tmp), runs=runs, only=a.only,
-                                    traces=folder)  # fmt: skip
+                fake = judges.with_oracle(t["oracle"]) if a.judge and a.backend == "fake" else t["oracle"]
+                kw = {"judge": a.judge, "judge_model": a.judge_model} if t.get("judge") else {}
+                res = t["evaluate"](_backend(a.backend, fake), work=Path(tmp), runs=runs, only=a.only,
+                                    traces=folder, **kw)  # fmt: skip
             except agents.UnknownTask as e:
                 print(e)
                 return 2
@@ -366,6 +402,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"search recall@5={extra['search_recall_at_5']:.3f}")
     if extra.get("draft_labels"):
         print(f"CẢNH BÁO: {extra['draft_labels']} nhãn nháp, chủ dự án chưa duyệt")
+    if a.judge:
+        print(f"faithfulness={_fmt(extra.get('faithfulness'))}  unknown={_fmt(extra.get('judge_unknown'))}")
     ids = ("02", "03", "04") if target == "g1" else TARGETS[target]["ids"]
     key = "_".join(v for a_ in ids for v in res["prompt_versions"].get(a_, [])) if model else target
     a.out.mkdir(parents=True, exist_ok=True)
