@@ -5,7 +5,7 @@ Chỉ có grader code, trong `tests/eval/metrics.py`. Một task đạt khi `met
 | hàm | mức | kiểm gì |
 |---|---|---|
 | `metrics._tools_ok` | trajectory | `expect` theo thứ tự; không gọi `forbid`; lỗi công cụ chỉ khi `allow_tool_error` |
-| `metrics.args_ok` | component | lời gọi đầu tiên mỗi công cụ có các cặp trong `expect_args` |
+| `metrics.args_ok` | component | lời gọi đầu tiên mỗi công cụ có các cặp trong `expect_args`; lời gọi cuối cùng có các cặp trong `expect_last_args` |
 | `metrics.rules_ok` | trajectory, outcome | không lộ tên, mã lỗi, "đã lưu"; approval; `expect_starts`; trần lời gọi; chữ |
 | `metrics.args_fit` | component | lời gọi hợp schema của `tools.tool_defs`; số lần sai đi vào `schema_errors` |
 | `metrics.passed_00` | outcome | mọi hàm trên, `unverified` = 0, vòng không bị cắt, có chữ hoặc có thẻ |

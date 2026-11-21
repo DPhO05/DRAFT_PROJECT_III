@@ -89,6 +89,16 @@ def ans(expect, tools, forbid=(), **kw):
             "tool_errors": 0, "unverified": 0, "stopped": None, "text": "Xong."} | kw  # fmt: skip
 
 
+def test_args_ok_expect_last_args_compares_the_last_call():
+    calls = [{"name": "propose_worksheet", "args": {"code": "HS-01", "refs": ["A", "B", "C"]}},
+             {"name": "propose_worksheet", "args": {"code": "HS-01", "refs": ["B", "C"]}}]  # fmt: skip
+    want = {"propose_worksheet": {"refs": ["B", "C"]}}
+    assert not metrics.args_ok(ans([], [], calls=calls, expect_args=want))
+    assert metrics.args_ok(ans([], [], calls=calls, expect_last_args=want))
+    assert not metrics.args_ok(ans([], [], calls=calls[::-1], expect_last_args=want))
+    assert not metrics.args_ok(ans([], [], calls=[], expect_last_args=want))  # never called
+
+
 def test_passed_00_needs_expected_tools_in_order():
     assert metrics.passed_00(
         ans(["rank_problems", "propose_worksheet"], ["rank_problems", "find_problems", "propose_worksheet"])

@@ -11,6 +11,7 @@
 | `expect` | công cụ phải gọi, theo thứ tự; công cụ khác được xen giữa |
 | `forbid` | công cụ không được gọi; `*` là mọi công cụ |
 | `expect_args` | cặp đối số mà lời gọi đầu tiên của công cụ đó phải có |
+| `expect_last_args` | cặp đối số mà lời gọi cuối cùng của công cụ đó phải có |
 | `expect_approval`, `approval` | lượt có phải chờ duyệt không; quyết định của kịch bản |
 | `expect_starts` | lệnh mà bản ghi âm `start_*` phải nhận |
 | `max_calls`, `max_model_calls` | trần số lần gọi một công cụ; trần số lời gọi model |

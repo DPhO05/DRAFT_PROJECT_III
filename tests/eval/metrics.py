@@ -150,11 +150,14 @@ def _arg_match(want, got) -> bool:
 
 
 def args_ok(a: dict) -> bool:
-    """The first call of each expected tool carries the expected arguments (lists as sets, strings contained)."""
-    for tool, want in a.get("expect_args", {}).items():
-        call = next((c for c in a.get("calls", []) if c["name"] == tool), None)
-        if call is None or not all(k in call["args"] and _arg_match(v, call["args"][k]) for k, v in want.items()):
-            return False
+    """The first call of each tool in expect_args and the last call of each tool in expect_last_args carry the
+    expected arguments (lists as sets, strings contained)."""
+    calls = a.get("calls", [])
+    for key, order in (("expect_args", calls), ("expect_last_args", calls[::-1])):
+        for tool, want in a.get(key, {}).items():
+            call = next((c for c in order if c["name"] == tool), None)
+            if call is None or not all(k in call["args"] and _arg_match(v, call["args"][k]) for k, v in want.items()):
+                return False
     return True
 
 

@@ -33,7 +33,7 @@ chấm bằng code: đúng công cụ, đúng đối số, giữ luật của ap
 | Outcome | bản ghi âm nhận đúng lệnh `start_*` | trường `expect_starts`, trong `metrics.rules_ok` |
 | Trajectory | đúng công cụ theo thứ tự, không gọi công cụ cấm, lỗi công cụ | `metrics._tools_ok` |
 | Trajectory | approval có hay không, trần số lời gọi | `metrics.rules_ok`: `expect_approval`, `max_calls`, `max_model_calls` |
-| Component | đối số của lời gọi đầu tiên mỗi công cụ | `metrics.args_ok` |
+| Component | đối số của lời gọi đầu tiên (`expect_args`) hoặc cuối cùng (`expect_last_args`) | `metrics.args_ok` |
 | Component | đối số hợp schema; không lộ tên; không hiện mã lỗi | `metrics.args_fit`, `agents.leak_count`, `codes_shown` |
 | Component | mỗi câu có số liệu học sinh được dữ liệu đỡ (chỉ báo cáo) | `judges.faithfulness`, cờ `--judge` |
 | Component | `search_problems`: recall@5 trên 6 câu tìm | target `08`: `extra.search_recall_at_5` |

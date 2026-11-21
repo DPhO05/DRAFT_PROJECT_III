@@ -67,7 +67,7 @@ def _fails(*args):
 
 # task fields the grader reads, copied into the answer
 _GRADER_FIELDS = ("expect_approval", "approval", "expect_starts", "allow_tool_error", "max_calls", "max_model_calls",
-                  "expect_text", "expect_any", "card_only")  # fmt: skip
+                  "expect_text", "expect_any", "card_only", "expect_last_args")  # fmt: skip
 
 
 def _echo_sheet(record):

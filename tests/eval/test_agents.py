@@ -26,8 +26,9 @@ def test_00_tasks_are_wellformed():
     firsts = [q.get("masked", q["text"]) for q in agents.QUESTIONS]
     assert len(set(firsts)) == len(firsts) == 20
     for q in agents.QUESTIONS:
-        named = {*q["expect"], *q["forbid"], *q.get("expect_args", {}), *q.get("max_calls", {}),
-                 *q.get("fail_tools", []), *(c["name"] for step in q["script"] for c in step)} - {"*"}  # fmt: skip
+        named = {*q["expect"], *q["forbid"], *q.get("expect_args", {}), *q.get("expect_last_args", {}),
+                 *q.get("max_calls", {}), *q.get("fail_tools", []),
+                 *(c["name"] for step in q["script"] for c in step)} - {"*"}  # fmt: skip
         assert named <= known, q["id"]
     by_id = {q["id"]: q for q in agents.QUESTIONS}
     assert by_id["q18"]["expect_text"] == orchestrator.SAVED_NOTHING
