@@ -1,16 +1,19 @@
 """Scorecard: newest result file per (set, backend) as one row each (plan contract C2).
 
 uv run python tests/eval/scorecard.py [--results data/eval/results] [--out data/eval/scorecards] [--backend fake]
-                                      [--baseline tests/eval/baseline.json]
+                                      [--baseline tests/eval/baseline.json] [--with-tests]
 """
 
 import argparse
 import json
+import re
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+WORKFLOWS = Path(__file__).with_name("workflows.json")
 if not __package__:  # run as a script: make `tests.*` importable
     sys.path.insert(0, str(ROOT))
 
@@ -75,6 +78,37 @@ def build(results: Path, *, backend: str | None = None, baseline_rows: dict | No
     return sorted(newest.values(), key=lambda r: (r["set"], r["backend"] or ""))
 
 
+def _count(out: str, word: str) -> int:
+    return sum(int(n) for n in re.findall(rf"(\d+) (?:{word})", out.strip().splitlines()[-1] if out.strip() else ""))
+
+
+def code_rows(created: str) -> list[dict]:
+    """One row per workflow target: its listed pytest ids run once per level; no model call, so calls and usd are 0."""
+    levels: dict[str, dict[str, set[str]]] = {}
+    for w in json.loads(WORKFLOWS.read_text(encoding="utf-8")):
+        levels.setdefault(w["target"], {}).setdefault(w["level"], set()).update(w["tests"])
+    rows = []
+    for target, by_level in levels.items():
+        passed = total = 0
+        share = {}
+        for level, ids in by_level.items():
+            cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *sorted(ids)]
+            out = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT).stdout
+            ok, n = _count(out, "passed"), _count(out, "passed") + _count(out, "failed|errors?")
+            passed, total, share[level] = passed + ok, total + n, ok / n if n else 0.0
+        rate = passed / total if total else 0.0
+        rows.append({
+            "set": f"{target}-tests", "target": target, "split": "dev", "source": "synthetic", "backend": "code",
+            "created": created, "file": None, "models": None, "prompt_versions": None,
+            "n_tasks": total, "k": 1, "success": rate, "pass_k": rate,
+            "trials_passed": None, "trials": None, "tasks_passed": passed, "tasks": total, "task_pass": None,
+            "metrics": share, "calls": 0, "usd": 0,
+            "tokens_in": None, "tokens_out": None, "ms_p50": None, "ms_p95": None, "error_rate": None,
+            "kind_counts": None,
+        })  # fmt: skip
+    return rows
+
+
 def _frac(n, total, rate) -> str:
     if n is not None and total:
         return f"{n}/{total}"
@@ -107,12 +141,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, default=ROOT / "data" / "eval" / "scorecards")
     ap.add_argument("--backend", default=None)
     ap.add_argument("--baseline", type=Path, default=ROOT / "tests" / "eval" / "baseline.json")
+    ap.add_argument("--with-tests", action="store_true", help="add one <target>-tests row per workflow target")
     a = ap.parse_args(argv)
     base = None
     if a.baseline.exists():
         base = json.loads(a.baseline.read_text(encoding="utf-8")).get("real", {}).get("rows")
     rows = build(a.results, backend=a.backend, baseline_rows=base)
     now = datetime.now(UTC)
+    if a.with_tests:
+        rows = sorted(rows + code_rows(f"{now:%Y-%m-%dT%H:%M:%SZ}"), key=lambda r: (r["set"], r["backend"] or ""))
     a.out.mkdir(parents=True, exist_ok=True)
     f = a.out / f"{now:%Y%m%dT%H%M%SZ}.json"
     f.write_text(

@@ -89,3 +89,30 @@ def test_main_writes_scorecard_json_and_prints_a_table(tmp_path, capsys):
     assert len(json.loads(f.read_text())["rows"]) == 2
     lines = capsys.readouterr().out.strip().splitlines()
     assert lines[0].startswith("| set") and len(lines) == 2 + 2
+
+
+def test_with_tests_adds_one_row_per_target(tmp_path, monkeypatch, capsys):
+    flows = tmp_path / "workflows.json"
+    flows.write_text(json.dumps([
+        {"target": "G2", "level": "outcome", "check": "x",
+         "tests": ["tests/eval/test_metrics.py::test_first_wrong_step"]},
+        {"target": "G2", "level": "trajectory", "check": "y", "tests": ["tests/eval/test_metrics.py::test_score_00"]},
+    ]), encoding="utf-8")  # fmt: skip
+    monkeypatch.setattr(scorecard, "WORKFLOWS", flows)
+    (tmp_path / "results").mkdir()
+    assert scorecard.main(["--results", str(tmp_path / "results"), "--out", str(tmp_path / "o"), "--with-tests"]) == 0
+    (f,) = (tmp_path / "o").glob("*.json")
+    [row] = json.loads(f.read_text(encoding="utf-8"))["rows"]
+    assert (row["set"], row["target"], row["backend"], row["k"]) == ("G2-tests", "G2", "code", 1)
+    assert (row["tasks_passed"], row["tasks"], row["pass_k"], row["calls"], row["usd"]) == (2, 2, 1, 0, 0)
+    assert row["metrics"] == {"outcome": 1, "trajectory": 1}
+
+
+def test_count_reads_the_last_pytest_line():
+    out = "FAILED a::b - x\n3 passed, 1 failed, 2 errors in 1.2s\n"
+    assert (scorecard._count(out, "passed"), scorecard._count(out, "failed|errors?")) == (3, 3)
+    assert (scorecard._count("1 error in 0.1s\n", "passed"), scorecard._count("1 error in 0.1s", "failed|errors?")) == (
+        0,
+        1,
+    )
+    assert scorecard._count("", "passed") == 0
