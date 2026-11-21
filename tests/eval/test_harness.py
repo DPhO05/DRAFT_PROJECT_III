@@ -86,3 +86,19 @@ def test_local_sets_extend_committed_ones(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(run, "LOCAL_SETS", local)
     assert {"g1-dev", "mine"} <= set(run.load_sets())
+
+
+def test_heldout_oracle_scores_perfect(tmp_path, monkeypatch):
+    monkeypatch.setattr(run, "LOCAL_SETS", tmp_path / "none.json")
+    fix = run.ROOT / run.load_sets()["g1-heldout"]["dir"]
+    res = run.evaluate(run.oracle, work=tmp_path, runs=1, fix=fix)
+    assert res["errors"] == [] and len(res["files"]) == 10
+    s = res["metrics"]["per_run"][0]
+    assert (s["n_problems"], s["n_labels"], s["n_proposals"]) == (20, 12, 12)
+    assert (s["precision"], s["recall"], s["first_wrong_step_acc"]) == (1, 1, 1)
+
+
+def test_committed_task_files_are_not_production_data():
+    assert all(s["source"] != "production" for s in json.loads(run.SETS.read_text(encoding="utf-8")).values())
+    for f in (run.ROOT / "tests" / "eval").rglob("*.json"):
+        assert '"source": "production"' not in f.read_text(encoding="utf-8"), f

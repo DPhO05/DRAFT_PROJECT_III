@@ -1,3 +1,4 @@
 {
- "g1-dev": {"dir": "tests/fixtures/submissions", "split": "dev", "source": "synthetic"}
+ "g1-dev": {"dir": "tests/fixtures/submissions", "split": "dev", "source": "synthetic"},
+ "g1-heldout": {"dir": "tests/eval/tasks/g1-heldout", "split": "heldout", "source": "synthetic"}
 }

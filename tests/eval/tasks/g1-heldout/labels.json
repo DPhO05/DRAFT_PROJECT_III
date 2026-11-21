@@ -1,0 +1,348 @@
+{
+  "hs11-2026-11-13.tex": {
+    "grade": 8,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 6,
+    "max_calls": 8,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-PTNT-001",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-PTNT-013",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": [
+          {
+            "step_idx": 4,
+            "code": "conceptual.wrong_fact",
+            "kc": null,
+            "note": "Từ $x^2 = 16$ chỉ lấy $x = 4$, bỏ sót nghiệm $x = -4$.",
+            "propagates_to": [
+              5
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "hs11-2026-11-19.tex": {
+    "grade": 8,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 6,
+    "max_calls": 8,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-PTNT-011",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-PTNT-007",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": [
+          {
+            "step_idx": 3,
+            "code": "conceptual.wrong_fact",
+            "kc": null,
+            "note": "Từ $x^2 = 4$ chỉ lấy $x = 2$, bỏ sót nghiệm $x = -2$.",
+            "propagates_to": [
+              4
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "hs12-2026-11-12.tex": {
+    "grade": 8,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 7,
+    "max_calls": 9,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-HSBN-001",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-HDT-013",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": [
+          {
+            "step_idx": 3,
+            "code": "presentation.units",
+            "kc": null,
+            "note": "Câu b) ghi diện tích $2\\,900$ mà không có đơn vị m$^2$.",
+            "propagates_to": [
+              4
+            ]
+          },
+          {
+            "step_idx": 5,
+            "code": "presentation.units",
+            "kc": null,
+            "note": "Câu b) ghi diện tích $2\\,900$ mà không có đơn vị m$^2$.",
+            "propagates_to": [
+              4
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "hs12-2026-11-18.tex": {
+    "grade": 8,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 6,
+    "max_calls": 8,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-HSBN-005",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-PTNT-004",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": [
+          {
+            "step_idx": 3,
+            "code": "presentation.units",
+            "kc": null,
+            "note": "Câu b) ghi $S = 2\\,100$ mà không có đơn vị cm$^2$.",
+            "propagates_to": []
+          },
+          {
+            "step_idx": 4,
+            "code": "presentation.units",
+            "kc": null,
+            "note": "Câu b) ghi $S = 2\\,100$ mà không có đơn vị cm$^2$.",
+            "propagates_to": []
+          }
+        ]
+      }
+    ]
+  },
+  "hs13-2026-11-11.tex": {
+    "grade": 9,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 6,
+    "max_calls": 8,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-HSB2-013",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-HSB2-001",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": [
+          {
+            "step_idx": 1,
+            "code": "computational.intermediate_calc",
+            "kc": null,
+            "note": "Tính $(-3)^2 = -9$ (đúng là $9$) nên $f(-3) = -18$ thay vì $18$.",
+            "propagates_to": [
+              6
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "hs13-2026-11-17.tex": {
+    "grade": 9,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 6,
+    "max_calls": 8,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-HSB2-010",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-HSB2-006",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": [
+          {
+            "step_idx": 5,
+            "code": "computational.intermediate_calc",
+            "kc": null,
+            "note": "Tính $(-4)^2 = -16$ (đúng là $16$) nên tung độ ra $8$ thay vì $-8$.",
+            "propagates_to": [
+              6
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "hs14-2026-11-10.tex": {
+    "grade": 9,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 7,
+    "max_calls": 9,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-HPT-001",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-HPT-007",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": [
+          {
+            "step_idx": 2,
+            "code": "conceptual.misread_question",
+            "kc": null,
+            "note": "Lập phương trình chu vi sai: viết $x + y = 28$, đúng là $2(x + y) = 28$.",
+            "propagates_to": [
+              3,
+              4
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "hs14-2026-11-18.tex": {
+    "grade": 9,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 7,
+    "max_calls": 9,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "9DS-HPT-002",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "9DS-HPT-005",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": [
+          {
+            "step_idx": 2,
+            "code": "conceptual.misread_question",
+            "kc": null,
+            "note": "Lập phương trình thứ hai sai dữ kiện: viết $5x + 2y = 69\\,000$, đúng là $2x + 5y = 69\\,000$.",
+            "propagates_to": [
+              3,
+              4
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "hs15-2026-11-14.tex": {
+    "grade": 8,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 6,
+    "max_calls": 8,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-PS-011",
+        "has_id": true,
+        "n_steps": 4,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-PS-002",
+        "has_id": true,
+        "n_steps": 3,
+        "mistakes": [
+          {
+            "step_idx": 2,
+            "code": "conceptual.wrong_fact",
+            "kc": null,
+            "note": "Rút gọn bằng cách gạch hạng tử $x^2$ ở tử và mẫu, không phải nhân tử chung.",
+            "propagates_to": [
+              3
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "hs15-2026-11-20.tex": {
+    "grade": 8,
+    "student_name": null,
+    "notes": [],
+    "expected_calls": 6,
+    "max_calls": 8,
+    "problems": [
+      {
+        "seq": 1,
+        "ref": "8DS-PS-013",
+        "has_id": true,
+        "n_steps": 6,
+        "mistakes": []
+      },
+      {
+        "seq": 2,
+        "ref": "8DS-PS-003",
+        "has_id": true,
+        "n_steps": 5,
+        "mistakes": [
+          {
+            "step_idx": 4,
+            "code": "conceptual.wrong_fact",
+            "kc": null,
+            "note": "Rút gọn bằng cách chia từng hạng tử ($x^2$ cho $x$, $y^2$ cho $y$) nên ra $x - y$, đúng là $x + y$.",
+            "propagates_to": [
+              5
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
