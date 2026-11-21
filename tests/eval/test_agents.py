@@ -200,3 +200,10 @@ def test_00_result_has_calls_tally_and_models(tmp_path):
 def test_runs_below_one_exits_2(capsys):
     assert run.main(["--agent", "00", "--backend", "fake", "--runs", "0"]) == 2
     assert "--runs" in capsys.readouterr().out
+
+
+def test_leak_count_reads_strings_not_json_text():
+    names = {"Nguyễn Văn An": "HS-01"}
+    rows = [{"user": {"turns": ["Nguyễn\\,Văn\\,An làm bài"]}}, {"user": ["Nguyễn Văn\nAn"]}, {"user": ["HS-01"]}]
+    strings = [x for r in rows for x in agents._strings(r)]
+    assert agents.leak_count(strings, names) == 2

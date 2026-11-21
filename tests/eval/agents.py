@@ -130,6 +130,18 @@ def trials(tasks, one, make_backend, *, work: Path, runs: int, key: str = "id", 
     return {"tasks": tasks, "got": got, "errors": errors, "rows": rows, "names": names}
 
 
+def _strings(x):
+    """Every string leaf of nested dicts and lists (JSON text would escape the backslashes and line breaks)."""
+    if isinstance(x, str):
+        yield x
+    elif isinstance(x, dict):
+        for v in x.values():
+            yield from _strings(v)
+    elif isinstance(x, list):
+        for v in x:
+            yield from _strings(v)
+
+
 def leak_count(texts, names: dict[str, str]) -> int:
     """How many of `texts` hold a full student name in any spelling llm.mask knows (case, diacritics, LaTeX spacing)."""
     names = {n: c for n, c in names.items() if len(n.split()) >= 2}
@@ -147,7 +159,7 @@ def summarize(agent: str, t: dict, *, key: str, score, passed, payload: str, lea
         for field, by_agent in seen.items():
             by_agent.setdefault(r["agent"], set()).add(r[field])
     if leaks is None:
-        leaks = leak_count((json.dumps(r, ensure_ascii=False) for r in t["rows"]), t["names"])
+        leaks = leak_count((x for r in t["rows"] for x in _strings(r)), t["names"])
     return {
         "agent": agent,
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),

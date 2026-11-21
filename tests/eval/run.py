@@ -144,7 +144,7 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
         finally:
             r.close()
         results.append(got)
-        rows += [r | {"run": k} for r in agents.read_log(log)]
+        rows += [row | {"run": k} for row in agents.read_log(log)]
         if traces is not None and log.exists():
             traces.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(log, traces / f"run{k}.jsonl")
