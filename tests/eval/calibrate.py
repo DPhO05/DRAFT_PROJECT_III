@@ -57,7 +57,10 @@ def judged_sentences(result: dict):
 
 
 def sample(a) -> int:
-    pool = list(judged_sentences(json.loads(a.src.read_text(encoding="utf-8"))))
+    once: dict[tuple, tuple] = {}  # one row per (context, sentence): --runs k repeats them
+    for x in judged_sentences(json.loads(a.src.read_text(encoding="utf-8"))):
+        once.setdefault(x[1:3], x)
+    pool = list(once.values())
     rng = random.Random(a.seed)
     good = [x for x in pool if x[3] == "supported"]
     bad = [x for x in pool if x[3] != "supported"]

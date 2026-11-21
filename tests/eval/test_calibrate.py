@@ -63,6 +63,12 @@ def test_sample_makes_wrong_sentences_when_short(tmp_path):
     assert all(r["id"].startswith("s") and r["id"][1:].isdigit() for r in rows)  # no id marks a made-up row
 
 
+def test_sample_draws_a_repeated_sentence_once(tmp_path):
+    row = result_09(["supported"] * 3, ["Em tăng 1 điểm.", "Bài 2 đã vững.", "Em giỏi hơn."])["reports"][0]
+    rows, _ = sample(tmp_path, {"reports": [row, row, row]}, "--n", "6")
+    assert len(rows) == 3 and len({(r["context"], r["sentence"]) for r in rows}) == 3
+
+
 def test_sample_reads_00_and_09_results(tmp_path):
     kinds = ["supported", "not_supported"]
     answers = [

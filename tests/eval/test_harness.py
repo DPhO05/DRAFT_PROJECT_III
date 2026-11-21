@@ -183,6 +183,21 @@ def test_crashed_file_stays_in_confirm_and_budget_counts(tmp_path):
     assert res["metrics"]["trajectory"]["threads"] == 1 and res["metrics"]["trajectory"]["over_budget"] == 1
 
 
+def test_g1_error_text_is_masked_and_counted_clean(tmp_path):
+    name = "Nguyễn Văn An"  # s03's student
+
+    def backend(conn, labels):
+        fake, models = run.oracle(conn, labels)
+        fake.handlers["02"] = RuntimeError(f"down {name}")
+        return fake, models
+
+    res = run.evaluate(backend, work=tmp_path, files=["s03.tex"], runs=1)
+    (e,) = res["errors"]
+    assert "down" in e["error"] and name not in e["error"]
+    assert res["metrics"]["extra"]["name_leaks"] == 0
+    assert name not in json.dumps(res, ensure_ascii=False)
+
+
 def test_suites_name_known_targets_and_sum_as_stated():
     suites = json.loads(run.SUITES.read_text(encoding="utf-8"))
     assert sum(s["expected_calls"] for s in suites["full"]) == 585

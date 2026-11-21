@@ -28,6 +28,7 @@ if not __package__:  # run as a script: make `tests.*` importable
 from tests.eval import agents, components, judges, metrics
 from tests.fakes import FakeLLM, lane_handlers
 from tutor import config, devfake, llm
+from tutor.agents.a00_orchestrator import orchestrator
 from tutor.agents.a01_ingest import ingest
 from tutor.agents.a02_grader import grader
 from tutor.agents.a03_diagnoser import diagnoser
@@ -156,6 +157,7 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
     work/run<k>; the backend is built once, on run 1."""
     labels = load_labels(files, fix)
     files = list(labels)
+    names = {lab["student_name"]: "X" for lab in labels.values() if lab["student_name"]}
     results, errors, rows, confirms = [], [], [], []
     budgets: dict[str, int] = {}
     for k in range(1, runs + 1):
@@ -182,7 +184,7 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
                     confirms.append(ok)
                 except Exception as e:  # recorded; the problems count as missing in stability
                     confirms.append(False)  # a file that never reached the review gate is not confirmed
-                    errors.append({"run": k, "file": f, "error": f"{type(e).__name__}: {e}"})
+                    errors.append({"run": k, "file": f, "error": orchestrator.mask(f"{type(e).__name__}: {e}", names)})
         finally:
             r.close()
         results.append(got)
@@ -199,7 +201,6 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
     every = {f"{f}#{p['seq']}": False for f, lab in labels.items() for p in lab["problems"]}
     tally = metrics.tally([every | metrics.g1_passed(g) for g in results])
     trajectory = metrics.trajectory(rows, budgets or None)
-    names = {lab["student_name"]: "X" for lab in labels.values() if lab["student_name"]}
     return {
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "runs": runs,
@@ -217,7 +218,7 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
             "extra": {
                 "flow_errors": len(errors),
                 "items_changed_pct": stability["items_changed_pct"],
-                "name_leaks": agents.leak_count(agents._strings(results), names),
+                "name_leaks": agents.leak_count(agents._strings([results, errors]), names),
                 "over_budget": trajectory["over_budget"],
                 "order_ok": trajectory["order_ok"],
                 "confirm_ok": sum(confirms) / len(confirms) if confirms else None,

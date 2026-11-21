@@ -269,7 +269,7 @@ def test_09_masks_every_full_name(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("agent", ["00", "09", "g5"])
 def test_real_backend_needs_yes(agent, monkeypatch, capsys):
-    monkeypatch.setattr(agents, f"evaluate_{agent}", lambda *a, **k: pytest.fail("ran the real API without --yes"))
+    monkeypatch.setitem(run.TARGETS[agent], "evaluate", lambda *a, **k: pytest.fail("ran the real API without --yes"))
     assert run.main(["--agent", agent, "--backend", "real"]) == 2
     assert "tốn tiền" in capsys.readouterr().out
 
