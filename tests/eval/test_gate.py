@@ -1,6 +1,11 @@
 import json
+import warnings
 
-from tests.eval import gate, scorecard
+import pytest
+
+from tests.eval import agents, gate, judges, run, scorecard
+from tutor import config, llm
+from tutor.agents.a09_reporter import reporter
 
 BASE = json.loads(gate.BASELINE.read_text(encoding="utf-8"))
 
@@ -115,3 +120,81 @@ def test_scorecard_baseline_option_fills_kind_counts(tmp_path):
     (f,) = (tmp_path / "out").glob("*.json")
     kinds = {r["set"]: r["kind_counts"] for r in json.loads(f.read_text(encoding="utf-8"))["rows"]}
     assert kinds == {"00-dev": {"regression": 1, "capability": 1}, "09-dev": None}
+
+
+G1_SETS = ["g1-dev", "g1-heldout"]
+_TIER0: dict[str, dict] = {}
+
+
+@pytest.fixture
+def tier0(tmp_path_factory):
+    """Every target with its oracle, k = 3, run once per test session and shared by the tests below."""
+    if not _TIER0:
+        for name in G1_SETS:
+            fix = run.ROOT / run.load_sets()[name]["dir"]
+            _TIER0[name] = run.evaluate(run.oracle, work=tmp_path_factory.mktemp(name), runs=3, fix=fix)
+        for name, spec in run.TARGETS.items():
+            oracle = judges.with_oracle(spec["oracle"]) if spec.get("judge") else spec["oracle"]
+            kw = {"judge": True} if spec.get("judge") else {}
+            runs = spec.get("runs", 3)
+            _TIER0[f"{name}-dev"] = spec["evaluate"](oracle, work=tmp_path_factory.mktemp(name), runs=runs, **kw)
+    return _TIER0
+
+
+def test_tier0_every_set_passes_with_its_oracle(tier0):
+    assert set(tier0) == {"g1-dev", "g1-heldout", "00-dev", "09-dev", "g5-dev", "01-dev", "04-dev", "02r-dev", "08-dev"}
+    for name, res in tier0.items():
+        assert res["errors"] == [], name
+        assert res["metrics"]["pass_k"] == 1 and res["metrics"]["success"] == 1, name
+        assert res["metrics"]["extra"]["name_leaks"] == 0, name
+        assert (res["calls"]["logged"] == 0) == (name == "08-dev"), name
+    assert tier0["00-dev"]["metrics"]["extra"]["approval_ok"] == 1
+    assert all(tier0[n]["metrics"]["extra"]["faithfulness"] == 1 for n in ("00-dev", "09-dev", "g5-dev"))
+
+
+def test_tier0_rows_pass_the_gate(tier0):
+    rows = [scorecard.row(run.meta("g1" if n in G1_SETS else n.removesuffix("-dev"), n, "fake") | res, n)
+            for n, res in tier0.items()]  # fmt: skip
+    lines = gate.check(rows, json.loads(gate.BASELINE.read_text(encoding="utf-8")))
+    assert [x for x in lines if x["status"] == "TRƯỢT"] == []
+
+
+def test_dev_backend_matches_the_snapshot(tmp_path):
+    res = run.evaluate(run._backend("dev"), work=tmp_path, runs=1)
+    want = json.loads(gate.BASELINE.read_text(encoding="utf-8"))["dev"]["g1-dev"]
+    got = res["metrics"]["per_run"][0]
+    assert res["errors"] == [] and want and set(want) == set(got)
+    for k, v in want.items():
+        assert got[k] == pytest.approx(v), k
+
+
+def test_prompt_versions_without_a_real_scorecard_only_warn(tier0):
+    current: dict[str, set] = {}
+    for res in tier0.values():
+        for agent, versions in res["prompt_versions"].items():
+            current.setdefault(agent, set()).update(versions)
+    real = json.loads(gate.BASELINE.read_text(encoding="utf-8"))["real"]["prompt_versions"]
+    todo = gate.unverified({a: sorted(v) for a, v in current.items()}, real)
+    for line in todo:
+        warnings.warn(f"chưa kiểm 3 lần: {line}", stacklevel=1)
+    assert {"00", "01", "02", "03", "04", "09"} <= set(current)  # the test passes whatever `todo` holds
+
+
+def test_a_changed_prompt_names_its_agent(tmp_path, monkeypatch):
+    before = agents.evaluate_09(agents.oracle_09, work=tmp_path / "a", runs=1, only=[agents.PERIODS[0]["key"]])
+    monkeypatch.setattr(reporter, "INSTRUCTIONS", reporter.INSTRUCTIONS + " ")
+    after = agents.evaluate_09(agents.oracle_09, work=tmp_path / "b", runs=1, only=[agents.PERIODS[0]["key"]])
+    assert gate.unverified(after["prompt_versions"], before["prompt_versions"]) == [
+        f"09 {after['prompt_versions']['09'][0]}"
+    ]
+
+
+def test_real_backend_without_a_key_fails_before_any_request(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "ENV_FILE", tmp_path / "no.env")  # run.main loads it; a real .env would hold a key
+    monkeypatch.setattr(llm, "_chat", {})
+    monkeypatch.setenv("TUTOR_DATA", str(tmp_path / "no-data"))
+    code = run.main(["--agent", "09", "--backend", "real", "--yes", "--runs", "1", "--out", str(tmp_path / "results")])
+    (f,) = (tmp_path / "results").glob("*.json")
+    res = json.loads(f.read_text(encoding="utf-8"))
+    assert code == 1 and len(res["errors"]) == 6 and all("KeyRejected" in e["error"] for e in res["errors"])
+    assert res["calls"]["logged"] == 0

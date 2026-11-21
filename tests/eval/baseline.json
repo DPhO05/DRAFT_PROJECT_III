@@ -16,6 +16,19 @@
  ],
  "no_drop": ["recall", "precision", "first_wrong_step_acc", "tools_ok", "args_ok", "hit_at_1", "hit_at_3", "mrr",
              "accuracy", "recall_disagree", "passed"],
- "dev": {},
+ "dev": {
+  "g1-dev": {
+   "n_problems": 40,
+   "n_labels": 21,
+   "n_proposals": 40,
+   "n_pairs": 5,
+   "first_wrong_step_acc": 0.1,
+   "precision": 0.35,
+   "recall": 0.23809523809523808,
+   "kappa": 0.0,
+   "drop_rate": 0.7619047619047619,
+   "add_rate": 0.65
+  }
+ },
  "real": {"prompt_versions": {}, "models": {}, "rows": {}}
 }
