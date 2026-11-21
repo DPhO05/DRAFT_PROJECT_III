@@ -2,6 +2,7 @@
 
 uv run python tests/eval/run.py [--agent g1|00|09 | --set g1-dev] [--backend fake|dev|real] [--runs 3]
                                 [--files s01.tex ... | --only q4 ...] [--out data/eval/results/]
+uv run python tests/eval/run.py --suite full|compact [--backend ... --runs ... --yes --out ... --judge-model ...]
 
 fake = label oracle (checks the harness itself), dev = tutor.devfake, real = Anthropic API (costs money; manual only,
 C-34). A prompt is fit for use only after it passes 3 runs (pass^3). --agent 00 and 09 use tests/eval/agents.py;
@@ -36,6 +37,7 @@ from tutor.graphs import runner, session
 
 FIX = ROOT / "tests" / "fixtures" / "submissions"
 SETS = Path(__file__).with_name("sets.json")
+SUITES = Path(__file__).with_name("suites.json")
 LOCAL_SETS = ROOT / "data" / "eval" / "sets.json"  # sets built from real data: local, never in git
 BANK = ROOT / "data" / "dummy" / "bank"
 HELD_ON = "2026-10-20"
@@ -315,7 +317,7 @@ def _judged_models(target: str) -> dict[str, str]:
     return {i: models[i] for i in TARGETS[target]["ids"] if i in models}
 
 
-def main(argv: list[str] | None = None) -> int:
+def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--agent", choices=["g1", *TARGETS])
     ap.add_argument("--set", help="bộ bài của g1, xem tests/eval/sets.json")
@@ -327,30 +329,34 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--traces", type=Path, help="mẹ của thư mục vết (mặc định <out>/../traces)")
     ap.add_argument("--judge", action="store_true", help="chấm thêm độ trung thực bằng LLM (chỉ 00, 09, g5)")
     ap.add_argument("--judge-model", help="model của judge, dạng provider:tên; bắt buộc với --backend real")
+    ap.add_argument(
+        "--suite", help="chạy một dãy bước trong tests/eval/suites.json (không kèm --agent --set --files --only)"
+    )
     ap.add_argument("--yes", action="store_true", help="xác nhận chạy API thật (tốn tiền)")
-    a = ap.parse_args(argv)
-    if a.runs < 1:
-        print("--runs phải từ 1 trở lên.")
-        return 2
+    return ap
+
+
+def _step(a) -> tuple[int, dict | None]:
+    """One target: its exit code and its result (None when it refused or did not run)."""
     target = a.agent or "g1"
     fix = FIX
     if target == "g1":
         if a.only:
             print("--only không dùng cho g1, dùng --files")
-            return 2
+            return 2, None
         sets = load_sets()
         a.set = a.set or "g1-dev"
         if a.set not in sets:
             print(f"Không có bộ {a.set}. Có: {', '.join(sets)}")
-            return 2
+            return 2, None
         fix = ROOT / sets[a.set]["dir"]
     elif a.set not in (None, f"{target}-dev"):
         print(f"Không có bộ {a.set} cho agent {target}.")
-        return 2
+        return 2, None
     if a.judge:
         if msg := _judge_refusal(target, a):
             print(msg)
-            return 2
+            return 2, None
     model = TARGETS.get(target, {}).get("model", True)
     if a.backend == "real" and model:
         if target == "g1":
@@ -365,7 +371,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"CẢNH BÁO: gọi API thật (Anthropic / OpenAI theo settings), tốn tiền: {a.runs} lần × {what}.")
         if not a.yes:
             print("Thêm --yes để chạy.")
-            return 2
+            return 2, None
         config.load_env(config.ENV_FILE)  # no cli callback here; GPT settings need OPENAI_API_KEY
         if a.judge and _judge_provider(a.judge_model) in llm.providers(_judged_models(target)):
             print("CẢNH BÁO: judge cùng nhà cung cấp với model được chấm")  # decision 2B stays possible
@@ -385,7 +391,7 @@ def main(argv: list[str] | None = None) -> int:
                                     traces=folder, **kw)  # fmt: skip
             except agents.UnknownTask as e:
                 print(e)
-                return 2
+                return 2, None
         res = info | res | {"traces": str(folder)}
     for k, s in enumerate(res["metrics"]["per_run"], 1):
         print(f"run {k}: " + "  ".join(f"{m}={_fmt(v)}" for m, v in s.items()))
@@ -407,10 +413,72 @@ def main(argv: list[str] | None = None) -> int:
     ids = ("02", "03", "04") if target == "g1" else TARGETS[target]["ids"]
     key = "_".join(v for a_ in ids for v in res["prompt_versions"].get(a_, [])) if model else target
     a.out.mkdir(parents=True, exist_ok=True)
-    out = a.out / f"{res['created'].replace(':', '').replace('-', '')}_{key}.json"
+    out = _free(a.out / f"{res['created'].replace(':', '').replace('-', '')}_{key}.json")
     out.write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"→ {out}")
-    return 1 if res["errors"] else 0
+    return (1 if res["errors"] else 0), res
+
+
+def _free(path: Path) -> Path:
+    """`path`, or `<stem>-2`, `-3`, ... when taken: two suite steps can end in the same second."""
+    n = 1
+    while (cand := path if n == 1 else path.with_name(f"{path.stem}-{n}{path.suffix}")).exists():
+        n += 1
+    return cand
+
+
+def over_budget(*, logged: int, expected: int, runs: int) -> bool:
+    """More than 30 % above the expected calls; expected_calls in suites.json is for k = 3."""
+    return logged > 1.3 * expected * runs / 3
+
+
+def _suite(a) -> int:
+    """Run the steps of a suite in turn with the common flags; stop (3) when a real step overruns."""
+    if any((a.agent, a.set, a.files, a.only, a.judge)):
+        print("--suite không dùng cùng --agent, --set, --files, --only, --judge.")
+        return 2
+    suites = json.loads(SUITES.read_text(encoding="utf-8"))
+    if a.suite not in suites:
+        print(f"Không có suite {a.suite}. Có: {', '.join(suites)}")
+        return 2
+    steps = suites[a.suite]
+    common = ["--backend", a.backend, "--runs", str(a.runs), "--out", str(a.out)]
+    common += [x for flag, v in (("--traces", a.traces), ("--judge-model", a.judge_model)) if v for x in (flag, str(v))]
+    common += ["--yes"] if a.yes else []
+    parsed = [parser().parse_args([*s["argv"], *common]) for s in steps]
+    if a.backend == "real":
+        total = round(sum(s["expected_calls"] for s in steps) * a.runs / 3)
+        print(
+            f"CẢNH BÁO: gọi API thật, tốn tiền: suite {a.suite} dự kiến {total} lần gọi ({a.runs} lần chạy mỗi bước)."
+        )
+        if not a.yes:
+            print("Thêm --yes để chạy.")
+            return 2
+    for p in parsed:
+        if p.judge and (msg := _judge_refusal(p.agent or "g1", p)):  # before any step spends money
+            print(msg)
+            return 2
+    worst = 0
+    for s, p in zip(steps, parsed, strict=True):
+        code, res = _step(p)
+        worst = max(worst, code)
+        if (
+            a.backend == "real"
+            and res
+            and over_budget(logged=res["calls"]["logged"], expected=s["expected_calls"], runs=res["runs"])
+        ):
+            scaled = round(s["expected_calls"] * res["runs"] / 3)
+            print(f"DỪNG: {' '.join(s['argv'])} gọi {res['calls']['logged']} lần, dự kiến {scaled}")
+            return 3
+    return worst
+
+
+def main(argv: list[str] | None = None) -> int:
+    a = parser().parse_args(argv)
+    if a.runs < 1:
+        print("--runs phải từ 1 trở lên.")
+        return 2
+    return _suite(a) if a.suite else _step(a)[0]
 
 
 if __name__ == "__main__":

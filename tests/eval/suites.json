@@ -1,0 +1,25 @@
+{
+ "full": [
+  {"argv": ["--set", "g1-dev", "--files", "s01.tex", "s04.tex"], "expected_calls": 102},
+  {"argv": ["--set", "g1-heldout"], "expected_calls": 189},
+  {"argv": ["--agent", "01"], "expected_calls": 30},
+  {"argv": ["--agent", "02r"], "expected_calls": 12},
+  {"argv": ["--agent", "04"], "expected_calls": 36},
+  {"argv": ["--agent", "09", "--judge"], "expected_calls": 42},
+  {"argv": ["--agent", "00", "--judge"], "expected_calls": 165},
+  {"argv": ["--agent", "g5", "--judge"], "expected_calls": 9}
+ ],
+ "compact": [
+  {"argv": ["--set", "g1-dev", "--files", "s01.tex", "s04.tex"], "expected_calls": 102},
+  {"argv": ["--set", "g1-heldout", "--files", "hs11-2026-11-13.tex", "hs12-2026-11-12.tex", "hs13-2026-11-11.tex",
+            "hs14-2026-11-10.tex", "hs15-2026-11-14.tex"], "expected_calls": 96},
+  {"argv": ["--agent", "01", "--only", "m1", "m2", "m3", "m4", "m9", "m10"], "expected_calls": 18},
+  {"argv": ["--agent", "02r"], "expected_calls": 12},
+  {"argv": ["--agent", "04"], "expected_calls": 36},
+  {"argv": ["--agent", "09", "--judge", "--only", "HS-01 month 2026-10-01", "HS-01 week 2026-10-12",
+            "HS-02 day 2026-10-14"], "expected_calls": 21},
+  {"argv": ["--agent", "00", "--only", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q11", "q12", "q14",
+            "q18", "q20"], "expected_calls": 95},
+  {"argv": ["--agent", "g5", "--judge"], "expected_calls": 9}
+ ]
+}
