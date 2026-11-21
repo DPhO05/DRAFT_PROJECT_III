@@ -19,6 +19,8 @@ dữ liệu thật, chỉ ở máy).
 | `expected_calls`, `max_calls` | chỉ có ở held-out; chưa grader nào đọc (Task 15) |
 
 - `run.load_labels` bỏ các file có `duplicate_of`.
+- Khác design mục 6.1: design ghi bộ dev là `s01.tex`, `s04.tex` (9 bài) và held-out có 10 lỗi gài. Code làm theo build Task 2:
+  `g1-dev` trỏ cả thư mục (40 bài), held-out có 12 lỗi gài. Cỡ 9 bài là của lần chạy thật với `--files s01.tex s04.tex`.
 - Test: `tests/eval/test_harness.py::test_committed_task_files_are_not_production_data`.
 - Bộ `g1-heldout` không dùng để sửa prompt (design mục 6.1).
 - Check "bao phủ cách dùng thật": chưa đạt. Repo chưa có bài làm thật. Task 20 đưa buổi chấm đã duyệt về thành task

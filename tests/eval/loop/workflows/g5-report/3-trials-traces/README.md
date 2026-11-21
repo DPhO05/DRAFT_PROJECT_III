@@ -6,3 +6,5 @@
   `report_rows`.
 - Thread hỏng được ghi vào `errors`: `tests/eval/test_agents.py::test_g5_failed_thread_is_an_error`.
 - Check "ổn định qua các lần": pass^k qua `metrics.tally`.
+- Trạng thái check: chưa đạt. Chưa đo với model thật; model giả (`--backend fake`) luôn cho pass^k = 1.000.
+  Chạy thật là design T18 đến T21, ngoài build plan.

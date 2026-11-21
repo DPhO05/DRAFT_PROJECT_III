@@ -18,3 +18,4 @@
 - Nhãn `expect_ref` không đi vào prompt: oracle tìm task bằng chữ của bài (`components.body`), không bằng nhãn.
 - `name_leaks` của `agents.summarize` đếm họ tên trong các dòng log.
 - Giới hạn: thế giới mới theo run, không theo từng trial. 01 không ghi DB nên không có gì rò giữa các task.
+  Khác design mục 5.2 ("mỗi trial"). Code làm theo build Task 4.

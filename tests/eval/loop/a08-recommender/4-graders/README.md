@@ -3,6 +3,7 @@
 ## Hôm nay
 
 - Grader là `assert` trong `tests/services/test_select.py`.
+- Mức: outcome và component có, trong các `assert` đó. Trajectory không áp dụng: một hàm, không có bước trung gian.
 
 ## Chưa có
 

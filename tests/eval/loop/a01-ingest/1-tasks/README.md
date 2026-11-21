@@ -16,4 +16,4 @@
 | `m9`, `m10` | bài không có trong ngân hàng: phải có cờ `low_match` |
 
 - Test: `tests/eval/test_components.py::test_01_tasks_are_wellformed`.
-- Check "bao phủ cách dùng thật": chưa đạt. Bài thật của học sinh chưa có trong repo.
+- Check "bao phủ cách dùng thật": chưa đạt. Bài thật của học sinh chưa có trong repo. Build plan không có Task nào thêm bài thật cho 01.

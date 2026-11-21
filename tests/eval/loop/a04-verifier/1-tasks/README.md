@@ -13,9 +13,11 @@
 | task | `expect` |
 |---|---|
 | `v1` đến `v6` | `agree` |
-| `v7` đến `v9` | `disagree`: sai bước |
+| `v7` | `disagree`: kết luận trỏ sai bước của bài có lỗi |
+| `v8`, `v9` | `disagree`: kết luận trên bài sạch |
 | `v10` đến `v12` | `wrong_code`: đúng bước, sai mã |
 
 - Bộ cân bằng giữa kết luận đúng và sai, theo lời khuyên của nguồn (design mục 5.5).
 - Test: `tests/eval/test_components.py::test_04_tasks_are_balanced_and_unique`.
 - Check "bao phủ cách dùng thật": chưa đạt. Kết luận do người viết, chưa lấy từ đề xuất thật bị gia sư bỏ.
+  Build plan không có Task nào thêm kết luận thật cho 04.

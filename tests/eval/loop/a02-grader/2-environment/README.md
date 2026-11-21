@@ -3,5 +3,11 @@
 Môi trường của G1, dựng trong `run.evaluate`. Xem `tests/eval/loop/workflows/g1-session/2-environment/README.md`.
 
 - Mỗi run: thư mục `work/run<k>/data`, `tutor.db` mới, seed ngân hàng `data/dummy/bank`, file bài chép vào `inbox`.
-- 02 nhận bước của bài, đề và rubric qua `CallContext` của G1 (`session.call_context`), tên đã che.
+- 02 nhận bước, đề và rubric làm đối số của `grader.grade` (node `grade` trong `session._lane`), tên đã che.
+- `CallContext` (`session.call_context`) chỉ mang graph, thread, buổi, mã học sinh và bản đồ che tên.
 - Riêng cho 02: không có. Không có môi trường gọi 02 một mình.
+
+## Check "sạch, không rò"
+
+- Dùng check của G1: `tests/eval/test_harness.py::test_each_run_starts_from_a_new_world` và
+  `tests/eval/test_harness.py::test_labels_never_enter_the_trial_data`.

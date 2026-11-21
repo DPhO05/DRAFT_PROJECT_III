@@ -4,7 +4,7 @@ Chỉ có grader code, trong `tests/eval/metrics.py`.
 
 | hàm | mức | kiểm gì |
 |---|---|---|
-| `metrics.passed_09` | outcome, trajectory | không câu `dropped`; số câu theo `metrics.SENTENCES`; chữ sạch; `leaks` = 0 |
+| `metrics.passed_09` | outcome, trajectory | không câu `dropped`; số câu theo `metrics.SENTENCES`; chữ sạch; `leaks` = 0; `model_calls` ≤ 2 |
 | `metrics.text_ok_09` | outcome | không câu nào có mã số liệu `F01`, mã học sinh, mã bài, dấu % |
 | `metrics.score_09` | component | `draft_flagged_pct`, `dropped_pct`, `passed`, `flags` theo loại |
 

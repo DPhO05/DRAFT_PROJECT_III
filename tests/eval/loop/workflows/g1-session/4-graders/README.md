@@ -9,6 +9,7 @@ Chỉ có grader code, trong `tests/eval/metrics.py`. Nhãn gài là verifier c�
 | `metrics.stability` | component | `pass_k`, `items_changed_pct` qua các run |
 | `errors` trong `run.evaluate` | outcome | thread không tới cổng: `flow_errors` |
 
+- Trajectory: chưa có. Task 15 thêm thứ tự 02, 03, 04 và số lời gọi mỗi file, đọc từ `llm.jsonl`.
 - Bước kéo theo (`propagates_to`) không bắt buộc, nhưng đề xuất ở đó không tính là thừa.
 - Test: `tests/eval/test_harness.py::test_label_oracle_scores_perfect_and_stable`, `tests/eval/test_harness.py::test_wrong_oracle_metrics_drop`.
 - Test pytest ngoài eval: `tests/graphs/test_session.py` (commit), `tests/graphs/test_no_write_before_review.py` (không ghi trước cổng).

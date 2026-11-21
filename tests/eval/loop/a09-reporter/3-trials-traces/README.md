@@ -13,3 +13,5 @@
 
 - Số lời gọi đếm trước mọi lời gọi judge sau này, nên judge không đổi kết quả đạt.
 - Check "ổn định qua các lần": pass^k qua `metrics.tally`.
+- Trạng thái check: chưa đạt. Chưa đo với model thật; model giả (`--backend fake`) luôn cho pass^k = 1.000.
+  Chạy thật là design T18 đến T21, ngoài build plan.

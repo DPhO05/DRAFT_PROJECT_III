@@ -2,7 +2,7 @@
 
 - 03 không có dòng scorecard riêng. Số của nó nằm trong file kết quả của G1:
   - Khoá `per_run`: `metrics.score` của từng run.
-  - Khoá `stability`: `pass_k` theo bước sai đầu tiên.
+  - Khoá `stability.pass_k` và `pass_k` (từ `metrics.tally`): cùng ý, khác mẫu số. Scorecard đọc `pass_k`.
   - `calls.by_agent["03"]`: số lời gọi và USD của 03.
 - `tests/eval/scorecard.py` in dòng `g1-dev` hoặc `g1-heldout` với chỉ số chính `recall`, `precision`.
 

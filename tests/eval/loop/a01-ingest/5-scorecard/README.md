@@ -1,6 +1,7 @@
 # a01 · Bước 5: Scorecard
 
-- File kết quả trong `--out`, mặc định `data/eval/results/`, tên `<created>_<prompt_version của 01>.json`.
+- File kết quả trong `--out`, mặc định `data/eval/results/`, tên `<created>_<prompt_version của 01>.json`, một bản mỗi lớp.
+  Phần cố định của prompt chứa đề của một lớp (`ingest.run`), bộ task có lớp 8 và lớp 9, nên tên có hai `prompt_version` của 01.
 - Khoá `per_run`: `metrics.score_01`: `n_tasks`, `hit_at_1`, `hit_at_3`, `mrr`, `low_match_precision`, `passed`.
 - Khoá `pass_k`, `success`, `tally`, `extra.name_leaks`, `calls`: như mọi target, qua `agents.summarize`.
 - `tests/eval/scorecard.py` in dòng `01-dev` với chỉ số chính `hit_at_1`, `mrr`, `name_leaks`.

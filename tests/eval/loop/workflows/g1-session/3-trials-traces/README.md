@@ -16,5 +16,7 @@
 ## Check "ổn định qua các lần"
 
 - `metrics.stability`: `pass_k` theo bước sai đầu tiên, `items_changed_pct` cho 02.
+- File kết quả có hai `pass_k`. `metrics.stability.pass_k` chia cho bài xuất hiện ở ít nhất một run. `metrics.pass_k` lấy từ
+  `metrics.tally`, có mọi khoá của nhãn. Scorecard đọc `metrics.pass_k`. Hai số khác nhau khi một file hỏng ở mọi run.
 - Lần chạy thật 2026-11-04 trên `s01.tex` và `s04.tex` cho pass^3 = 0.333 và 48.9 % mục rubric đổi điểm (design mục 1.3).
   Chưa có lần chạy thật nào sau đó.

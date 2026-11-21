@@ -13,7 +13,7 @@ Mỗi bước có một check. Chưa qua check thì chưa tin con số.
 
 | bước | làm gì | check | code trong repo |
 |---|---|---|---|
-| 1 Tasks | input, tiêu chí đạt; tự viết, sinh ra | bao phủ cách dùng thật | `tests/eval/questions_00.json`, `tests/eval/tasks/` |
+| 1 Tasks | input, tiêu chí đạt; tự soạn, chọn từ dữ liệu thật | bao phủ cách dùng thật | `tests/eval/questions_00.json`, `tests/eval/tasks/` |
 | 2 Environment | cô lập; dữ liệu, công cụ, người dùng giả | sạch, không rò | `agents.trials`, `run.evaluate` |
 | 3 Trials & traces | k lần chạy mỗi task; trace đủ | ổn định qua các lần | cờ `--runs`, `agents.read_log` |
 | 4 Graders | code, LLM judge, hiệu chỉnh với người | khớp với người chấm | `tests/eval/metrics.py` |
@@ -110,7 +110,7 @@ uv run python tests/eval/scorecard.py
 | 14 | target `--agent 02r`: rubric nháp của 02 |
 | 15 | chỉ số trajectory của G1 từ `llm.jsonl`: thứ tự 02, 03, 04, số lời gọi mỗi file, `confirm_ok` |
 | 16 | target `--agent 08` và recall@5 của `search_problems` |
-| 17 | workflow chỉ có code (05, 08, G2, G4) lên scorecard: `tests/eval/workflows.json` |
+| 17 | test pytest của 05, 08, G1, G2, G4, G5 và chat lên scorecard: `tests/eval/workflows.json` |
 | 18 | judge faithfulness, cờ `--judge` và `--judge-model`: `tests/eval/judges.py` |
 | 19 | hiệu chỉnh judge với người chấm: `tests/eval/calibrate.py` |
 | 20, 21 | lỗi production thành task nháp: `tests/eval/harvest.py`, file `production.json` |

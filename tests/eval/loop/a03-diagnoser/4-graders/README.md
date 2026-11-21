@@ -8,6 +8,7 @@ Chỉ có grader code, trong `tests/eval/metrics.py`. Nhãn gài là verifier c�
 | `metrics.score` | component | `precision`, `recall` trên tập bước sai; `drop_rate`, `add_rate`; `first_wrong_step_acc` |
 | `metrics.cohen_kappa` | component | kappa giữa mã của nhãn và mã 03 chọn ở cùng bước |
 
+- Trajectory: chưa có. Task 15 thêm thứ tự 02, 03, 04 và số lời gọi mỗi file, đọc từ `llm.jsonl`.
 - Test grader: `tests/eval/test_metrics.py::test_score_hand_example`, `tests/eval/test_metrics.py::test_kappa_matches_hand_computed_3x3`.
 - Oracle sai làm điểm tụt: `tests/eval/test_harness.py::test_wrong_oracle_metrics_drop`.
 

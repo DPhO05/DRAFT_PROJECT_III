@@ -26,3 +26,4 @@
 - `tests/eval/test_agents.py::test_00_two_turn_tasks_share_one_thread`.
 - Giới hạn: các task trong một run dùng chung một DB. DB chỉ đọc nên không rò dữ liệu, nhưng thế giới mới theo run,
   không theo từng trial.
+  Khác design mục 5.1 ("mỗi trial"). Code làm theo build Task 4.

@@ -1,7 +1,7 @@
 # a00 · Bước 1: Tasks
 
 - File: `tests/eval/questions_00.json`, 20 task, `q1` đến `q20`. Đọc vào `agents.QUESTIONS`.
-- Mọi task là synthetic: chủ dự án tự viết, không lấy từ dữ liệu thật.
+- Mọi task là synthetic: chủ dự án tự soạn, không lấy từ dữ liệu thật.
 - Input là trường `text`. Task nhiều lượt có thêm `turns`.
 
 ## Tiêu chí đạt nằm trong task

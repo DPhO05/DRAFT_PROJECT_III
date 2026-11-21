@@ -17,3 +17,4 @@
   số 7).
 - Test: `tests/eval/test_agents.py::test_09_periods_cover_low_previous_and_no_previous`.
 - Check "bao phủ cách dùng thật": chưa đạt. Thế giới là dữ liệu test, không phải buổi học thật.
+  Task 21 thêm task nháp cho 09 từ báo cáo thật (`09/tasks.json`).

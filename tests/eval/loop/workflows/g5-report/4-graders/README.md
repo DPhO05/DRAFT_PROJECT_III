@@ -8,5 +8,7 @@ Một trial đạt khi cả ba đều đúng:
 | `gate` là True: thread tới `gate_report` | outcome | `agents._draft_g5` |
 | `report_rows` = 0: chưa ghi trước khi duyệt | trajectory | `agents.evaluate_g5` |
 
+- Component: không có dòng riêng. Component của G5 là của 09: `metrics.score_09` trên bản nháp
+  (`tests/eval/loop/a09-reporter/4-graders/README.md`).
 - Phần sau cổng chỉ có test pytest: `tests/graphs/test_report.py`.
 - Check "khớp với người chấm": chưa có. Judge faithfulness là Task 18, dùng chung với 09.
