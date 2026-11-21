@@ -11,6 +11,8 @@ import csv
 import json
 import random
 import sys
+import tempfile
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -18,9 +20,10 @@ ROOT = Path(__file__).resolve().parents[2]
 if not __package__:  # run as a script: make `tests.*` importable
     sys.path.insert(0, str(ROOT))
 
-from tests.eval import judges, metrics
+from tests.eval import agents, judges, metrics
 from tests.fakes import FakeLLM
 from tutor import config, llm
+from tutor.db import repo
 
 TREND = {"tiến bộ": "sa sút", "tăng": "giảm", "giảm": "tăng", "vững": "chưa vững", "tốt hơn": "kém hơn",
          "ít hơn": "nhiều hơn", "nhiều hơn": "ít hơn"}  # fmt: skip
@@ -62,14 +65,16 @@ def sample(a) -> int:
     picked_good = rng.sample(good, min(want_good, len(good)))
     picked_bad = rng.sample(bad, min(a.n - want_good, len(bad)))
     rest = [x for x in good if x not in picked_good]
-    made = [
-        (f"{i}-x", c, wrong(s)) for i, c, s, _ in rng.sample(rest, min(a.n - want_good - len(picked_bad), len(rest)))
-    ]
-    rows = [(i, c, s, v, None) for i, c, s, v in picked_good + picked_bad] + [(i, c, s, None, N) for i, c, s in made]
+    made = [(c, wrong(s)) for _, c, s, _ in rng.sample(rest, min(a.n - want_good - len(picked_bad), len(rest)))]
+    rows = [(c, s, v, None) for _, c, s, v in picked_good + picked_bad] + [(c, s, None, N) for c, s in made]
     rng.shuffle(rows)
-    a.out.mkdir(parents=True, exist_ok=True)
+    rows = [(f"s{k:02d}", *row) for k, row in enumerate(rows, 1)]  # opaque ids: the rater must not see which are made
     day = datetime.now(UTC).date().isoformat()
     human, judge = a.out / f"{day}-human.csv", a.out / f"{day}-judge.json"
+    if human.exists() or judge.exists():
+        print(f"Đã có {human.name} hoặc {judge.name} trong {a.out}: không ghi đè nhãn đã chấm. Dùng --out khác.")
+        return 2
+    a.out.mkdir(parents=True, exist_ok=True)
     with human.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, COLUMNS)
         w.writeheader()
@@ -78,6 +83,14 @@ def sample(a) -> int:
     judge.write_text(json.dumps(verdicts, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"→ {human}\n→ {judge}")
     return 0
+
+
+def student_names() -> dict[str, str]:
+    """name -> code of the eval world's students, so the Guard masks a name the rater typed into the CSV."""
+    with tempfile.TemporaryDirectory() as d:
+        paths, _ = agents._world(Path(d))
+        with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+            return {s["name"]: s["code"] for s in repo.list_students(conn, include_archived=True)}
 
 
 def judge(a) -> int:
@@ -98,9 +111,7 @@ def judge(a) -> int:
         config.load_env(config.ENV_FILE)
         llm.configure(log, {"judge": a.judge_model})
         llm.set_backend(None)
-    ctx = llm.CallContext(
-        graph=None
-    )  # shortcut: no redact map, the files are already masked; build one if raw text ever enters
+    ctx = llm.CallContext(graph=None, redact=student_names())
     try:
         for i in todo:
             out = judges.faithfulness(rows[i]["context"], [rows[i]["sentence"]], ctx)

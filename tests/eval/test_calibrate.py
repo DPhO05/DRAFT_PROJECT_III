@@ -2,8 +2,13 @@
 
 import csv
 import json
+import tempfile
+from contextlib import closing
+from pathlib import Path
 
-from tests.eval import calibrate
+from tests.eval import agents, calibrate
+from tutor import llm
+from tutor.db import repo
 
 
 def verdicts(kinds: list[str]) -> dict:
@@ -55,6 +60,7 @@ def test_sample_makes_wrong_sentences_when_short(tmp_path):
     by_id = {r["id"]: r["sentence"] for r in rows}
     assert all(by_id[i] not in originals for i in made)
     assert not any(j["truth"] for i, j in judged.items() if i not in made)
+    assert all(r["id"].startswith("s") and r["id"][1:].isdigit() for r in rows)  # no id marks a made-up row
 
 
 def test_sample_reads_00_and_09_results(tmp_path):
@@ -150,3 +156,37 @@ def test_two_raters_print_their_kappa(tmp_path, capsys):
     assert calibrate.main(["score", "--human", str(h1), "--human", str(h2), str(j)]) == 0
     out = capsys.readouterr().out
     assert "kappa người-người=1.000" in out and "1 người chấm" not in out
+
+
+def test_sample_never_overwrites_the_files(tmp_path):
+    sample(tmp_path, result_09(["supported"] * 40), "--n", "30")
+    human, judged = files(tmp_path)
+    human.write_text("rater work", encoding="utf-8")
+    src = tmp_path / "result.json"
+    assert calibrate.main(["sample", "--from", str(src), "--out", str(tmp_path / "out")]) == 2
+    assert human.read_text(encoding="utf-8") == "rater work"
+    human.unlink()
+    assert (
+        calibrate.main(["sample", "--from", str(src), "--out", str(tmp_path / "out")]) == 2
+    )  # the judge file stays too
+
+
+def test_judge_masks_a_student_name_typed_in_the_csv(tmp_path):
+    with tempfile.TemporaryDirectory() as d:
+        paths, _ = agents._world(Path(d))
+        with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+            name = repo.list_students(conn, include_archived=True)[0]["name"]
+    sample(tmp_path, result_09(["supported"] * 40), "--n", "30")
+    human, judged = files(tmp_path)
+    rows = list(csv.DictReader(human.open(newline="", encoding="utf-8")))
+    rows[0]["sentence"] = f"{name} tăng 2 điểm."
+    with human.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, calibrate.COLUMNS)
+        w.writeheader()
+        w.writerows(rows)
+    data = json.loads(judged.read_text(encoding="utf-8"))
+    data[rows[0]["id"]]["verdict"] = None
+    judged.write_text(json.dumps(data), encoding="utf-8")
+    assert calibrate.main(["judge", str(human), str(judged), "--backend", "fake"]) == 0
+    sent = [r["user"] for r in llm.iter_log(judged.with_suffix(".llm.jsonl"))]
+    assert sent and not any(name in u for u in sent) and any("tăng 2 điểm" in u for u in sent)
