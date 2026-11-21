@@ -111,7 +111,7 @@ def score_00(answers: list[dict]) -> dict:
     }
 
 
-SENTENCES = {"day": (3, 4), "week": (5, 8), "month": (5, 8)}  # reporter.INSTRUCTIONS
+SENTENCES = {"day": (2, 3), "week": (3, 5), "month": (3, 5)}  # reporter.INSTRUCTIONS
 
 
 def passed_09(r: dict) -> bool:

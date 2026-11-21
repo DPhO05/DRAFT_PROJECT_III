@@ -123,10 +123,12 @@ def rep(kind, n, statuses):
 
 
 def test_passed_09_needs_no_drop_and_the_sentence_range():
-    assert metrics.passed_09(rep("day", 3, ["ok", "ok", "rewritten"]))
-    assert not metrics.passed_09(rep("day", 2, ["ok", "ok"]))
-    assert not metrics.passed_09(rep("day", 5, ["ok"] * 5))
-    assert metrics.passed_09(rep("week", 5, ["ok"] * 5)) and metrics.passed_09(rep("month", 8, ["ok"] * 8))
+    assert metrics.passed_09(rep("day", 2, ["ok", "ok"])) and metrics.passed_09(
+        rep("day", 3, ["ok", "ok", "rewritten"])
+    )
+    assert not metrics.passed_09(rep("day", 1, ["ok"])) and not metrics.passed_09(rep("day", 4, ["ok"] * 4))
+    assert metrics.passed_09(rep("week", 3, ["ok"] * 3)) and metrics.passed_09(rep("month", 4, ["ok"] * 4))
+    assert metrics.passed_09(rep("month", 5, ["ok"] * 5)) and not metrics.passed_09(rep("month", 6, ["ok"] * 6))
     assert not metrics.passed_09(rep("month", 5, ["ok"] * 5 + ["dropped"]))
 
 
