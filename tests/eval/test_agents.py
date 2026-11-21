@@ -482,3 +482,33 @@ def test_judge_warns_when_it_shares_the_provider(tmp_path, monkeypatch, capsys):
     assert "judge cùng nhà cung cấp" in capsys.readouterr().out
     assert run.main([*argv, "--judge-model", f"{other}:j"]) == 2
     assert "judge cùng nhà cung cấp" not in capsys.readouterr().out
+
+
+def judge_down(make):
+    def wrapped(*a):
+        backend, models = make(*a)
+        backend.handlers["judge"] = llm.LLMUnavailable("down")
+        return backend, models
+
+    return wrapped
+
+
+def test_09_judge_error_changes_nothing_else(tmp_path):
+    plain = agents.evaluate_09(agents.oracle_09, work=tmp_path / "a", runs=1)
+    down = agents.evaluate_09(judge_down(agents.oracle_09), work=tmp_path / "b", runs=1, judge=True)
+    assert (down["metrics"]["pass_k"], down["errors"]) == (plain["metrics"]["pass_k"], plain["errors"]) == (1, [])
+    assert [r["model_calls"] for r in down["reports"][0]] == [r["model_calls"] for r in plain["reports"][0]]
+    assert all(
+        r["judge"]["error"] == "LLMUnavailable: down" and r["judge"]["score"] is None for r in down["reports"][0]
+    )
+    extra = down["metrics"]["extra"]
+    assert (extra["judge_errors"], extra["faithfulness"], extra["name_leaks"]) == (6, None, 0)
+
+
+def test_00_judge_error_changes_nothing_else(tmp_path):
+    plain = agents.evaluate_00(agents.oracle_00, work=tmp_path / "a", runs=1)
+    down = agents.evaluate_00(judge_down(agents.oracle_00), work=tmp_path / "b", runs=1, judge=True)
+    assert (down["metrics"]["pass_k"], down["errors"]) == (plain["metrics"]["pass_k"], plain["errors"]) == (1, [])
+    assert [a["model_calls"] for a in down["answers"][0]] == [a["model_calls"] for a in plain["answers"][0]]
+    assert down["metrics"]["extra"]["judge_errors"] == 10 and down["metrics"]["extra"]["faithfulness"] is None
+    assert sum("error" in a["judge"] for a in down["answers"][0] if a.get("judge")) == 10

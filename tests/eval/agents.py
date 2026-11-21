@@ -118,8 +118,11 @@ def _ask_00(paths, w: dict, q: dict, log: Path, judge: bool = False) -> dict:
         context = llm.mask(seen, cc.redact)
         sentences = [llm.mask(s, cc.redact) for s in re.split(r"(?<=[.!?])\s+", text.strip()) if s]
         n1 = len(read_log(log))
-        result = judges.faithfulness(context, sentences, llm.CallContext(graph=None, redact=cc.redact))
-        verdict = {"judge": result, "judge_context": context, "judge_sentences": sentences}
+        verdict = {
+            "judge": _judge(context, sentences, cc.redact),
+            "judge_context": context,
+            "judge_sentences": sentences,
+        }
         leaks += _judge_leaks(log, n1, cc.redact, verdict)
     return {
         "id": q["id"],
@@ -212,17 +215,26 @@ def leak_count(texts, names: dict[str, str]) -> int:
     return sum(llm.mask(t, names) != unicodedata.normalize("NFC", t) for t in texts)
 
 
+def _judge(context: str, sentences: list[str], redact: dict[str, str]) -> dict:
+    """judges.faithfulness; an unavailable judge becomes an empty result with its masked error, never a failed task."""
+    try:
+        return judges.faithfulness(context, sentences, llm.CallContext(graph=None, redact=redact))
+    except llm.LLMUnavailable as e:
+        return {"verdicts": [], "score": None, "unknown": 0, "error": llm.mask(f"{type(e).__name__}: {e}", redact)}
+
+
 def _judge_leaks(log: Path, n0: int, redact: dict[str, str], result: dict) -> int:
     """Leaks in the judge's log rows after row n0 and in its verdicts."""
     return leak_count(chain(_strings(read_log(log)[n0:]), _strings(result)), redact)
 
 
 def _faithfulness(items: list[dict]) -> dict:
-    """Mean judge score over the judged items of all runs (None when nothing was judged), and the unknown count."""
+    """Mean judge score over the judged items of all runs (None when none), and the unknown and failed judge calls."""
     judged = [x["judge"] for x in items if x.get("judge")]
     scores = [j["score"] for j in judged if j["score"] is not None]
     return {"faithfulness": sum(scores) / len(scores) if scores else None,
-            "judge_unknown": sum(j["unknown"] for j in judged)}  # fmt: skip
+            "judge_unknown": sum(j["unknown"] for j in judged),
+            "judge_errors": sum("error" in j for j in judged)}  # fmt: skip
 
 
 def summarize(agent: str, t: dict, *, key: str, score, passed, payload: str, leaks: int | None = None,
@@ -304,7 +316,7 @@ def _report_09(paths, w: dict, p: dict, log: Path, judge: bool = False) -> dict:
 def _judged(row: dict, log: Path, redact: dict[str, str]) -> dict:
     """The report row plus the judge's verdicts on its sentences; report-only, `passed` never reads them."""
     n0 = len(read_log(log))
-    row["judge"] = judges.faithfulness(row["facts_block"], row["sentences"], llm.CallContext(graph=None, redact=redact))
+    row["judge"] = _judge(row["facts_block"], row["sentences"], redact)
     row["leaks"] += _judge_leaks(log, n0, redact, row["judge"])
     return row
 
