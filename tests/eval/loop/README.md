@@ -125,17 +125,18 @@ uv run python tests/eval/gate.py data/eval/scorecards/<file>.json --backend fake
 - `floors`: sàn theo bộ, ví dụ `recall` ≥ 0.90 và `precision` ≥ 0.75 cho `g1-*`, `pass_k` ≥ 0.85 cho `00-dev`.
   `name_leaks` = 0 và `approval_ok` = 1.0 là sàn cứng: thiếu số cũng là `TRƯỢT`.
 - Sàn faithfulness ≥ 0.95 chỉ tính khi `judge_trusted` là `true`. Hôm nay nó là `false`, nên các sàn này `BỎ QUA`.
-- `no_drop`: so với dòng trong `real.rows`, nhiều nhất `tolerance_tasks` task đạt ở baseline được tụt. Chỉ xét task có ở cả hai bên.
+- `no_drop`: so với dòng trong `real.rows`, nhiều nhất `tolerance_tasks` task đạt ở baseline được tụt. Chỉ xét task có ở cả hai bên. Chỉ so với dòng cùng `subset` (xem mục Lần chạy một phần).
   `real.rows` đang rỗng, nên luật này chưa có gì để so.
 - Cổng tầng 0 là test pytest `tests/eval/test_gate.py`: mọi target chạy với oracle, rồi `gate.check` trên các dòng đó. Test này
   không gọi model thật và chạy trong `uv run pytest tests/eval -q`.
 - `gate.unverified` liệt kê phiên bản prompt chưa có scorecard thật. Hôm nay chỉ test gọi nó, `gate.main` chưa gọi.
 - Gate xét dòng `backend: code` bằng `--backend code` thì mọi dòng `<target>-tests` trượt sàn cứng `name_leaks`, vì dòng đó không có số này.
 
-## Việc đang sửa
+## Lần chạy một phần
 
-- Một lần chạy với `--only` hoặc `--files` tạo dòng một phần. `scorecard.build` giữ file mới nhất của mỗi cặp (set, backend), nên dòng một
-  phần thay dòng của bộ đầy đủ, và gate không phân biệt được. Đang sửa trong review cuối.
+- Một lần chạy với `--only` hoặc `--files` ghi khoá `subset` (id hoặc file đã chạy, xếp theo thứ tự) vào file kết quả; lần chạy đầy đủ ghi `null`.
+  `scorecard.build` giữ file mới nhất của mỗi bộ (set, backend, subset), nên dòng một phần nằm cạnh dòng đầy đủ và bảng đánh dấu nó bằng `*` sau số task (ví dụ `9*`).
+- Gate áp sàn cho mọi dòng. Luật `no_drop` chỉ so dòng cùng `set` và cùng `subset` với dòng baseline; không có thì in `BỎ QUA <set> no_drop` với giới hạn `khác tập task`.
 - Hai suite có bước một phần. `compact` cho `00-dev` 14 task thay vì 20, `01-dev` 6 thay vì 10, `09-dev` 3 thay vì 6, `g1-dev` 9 bài thay vì 40,
   `g1-heldout` 10 bài thay vì 20 (đo bằng `--suite compact --backend fake --runs 1`). `full` chỉ chạy `s01.tex` và `s04.tex` cho `g1-dev`.
 

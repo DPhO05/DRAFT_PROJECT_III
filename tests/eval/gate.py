@@ -54,12 +54,13 @@ def _no_drop(row: dict, base: dict, baseline: dict) -> list[dict]:
 def check(rows: list[dict], baseline: dict) -> list[dict]:
     """One line per checked value: {"status": "ĐẠT" | "TRƯỢT" | "BỎ QUA", "set", "metric", "value", "limit"}."""
     out = [_floor(f, r, baseline) for f in baseline["floors"] for r in rows if fnmatch(r["set"], f["set"])]
-    by_set = {r["set"]: r for r in rows}
     for name, base in baseline["real"]["rows"].items():
-        if name in by_set:
-            out += _no_drop(by_set[name], base, baseline)
-        else:
-            out.append(_line(SKIP, name, "no_drop", None, "set not in scorecard"))
+        same = [r for r in rows if r["set"] == name]
+        match = [r for r in same if (r.get("subset") or None) == (base.get("subset") or None)]
+        for r in match:
+            out += _no_drop(r, base, baseline)
+        if not match:  # a partial run has fewer tasks: its no-drop margin is not the full set's
+            out.append(_line(SKIP, name, "no_drop", None, "khác tập task" if same else "không có trong scorecard"))
     return out
 
 

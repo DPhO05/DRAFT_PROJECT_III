@@ -11,8 +11,7 @@
 ## Cổng
 
 - `approval_ok` = 1.0 và `name_leaks` = 0 là sàn cứng của `00-dev` (`tests/eval/gate.py`); thiếu số cũng là `TRƯỢT`.
-- Chạy `00` với `--only` (suite `compact`) tạo dòng `00-dev` một phần, thay dòng đầy đủ, và gate không phân biệt được. Đang sửa trong
-  review cuối.
+- Chạy `00` với `--only` (suite `compact`: 14 trong 20 task) ghi khoá `subset` vào file kết quả. Dòng một phần nằm cạnh dòng đầy đủ, bảng đánh dấu `*` sau số task (ví dụ `9*`). Sàn vẫn áp cho mọi dòng. `no_drop` chỉ so dòng cùng `set` và cùng `subset` với dòng baseline; không có thì in `BỎ QUA` với giới hạn `khác tập task`.
 
 ## Check "khớp production"
 

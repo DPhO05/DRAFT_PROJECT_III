@@ -99,6 +99,37 @@ def test_missing_set_is_skipped(tmp_path):
     assert _run(tmp_path, [_row(recall=0.95)], **base) == 0
 
 
+def _tag(subset, **kw) -> dict:
+    return _row("04-dev", recall_disagree=0.9) | {"subset": subset, "task_pass": _tasks(20)} | kw
+
+
+def test_partial_row_is_not_compared_to_the_full_baseline(tmp_path, capsys):
+    base = {"real": {"rows": {"04-dev": {"n_tasks": 20, "task_pass": _tasks(20), "metrics": {"recall_disagree": 1.0}}}}}
+    part = _tag(["v1"], n_tasks=1, task_pass={"q0": False})
+    lines = [x for x in _lines([part], **base) if x["set"] == "04-dev"]
+    skip = [x for x in lines if x["metric"] == "no_drop"]
+    assert [(x["status"], x["limit"]) for x in skip] == [("BỎ QUA", "khác tập task")]
+    assert any(x["metric"] == "recall_disagree" and x["status"] == "ĐẠT" for x in lines)  # the floor still applies
+    low = _tag(["v1"], metrics={"name_leaks": 0, "recall_disagree": 0.5})
+    assert _one([low], "recall_disagree", **base)["status"] == "TRƯỢT"
+    assert _run(tmp_path, [part], **base) == 0
+    assert "BỎ QUA 04-dev no_drop None khác tập task" in capsys.readouterr().out
+
+
+def test_full_row_is_checked_beside_a_partial_one():
+    base = {"real": {"rows": {"04-dev": {"n_tasks": 20, "task_pass": _tasks(20)}}}}
+    part = _tag(["v1"], n_tasks=1, task_pass={"q0": False})
+    full = _tag(None, task_pass=_tasks(10))
+    drops = [x for x in _lines([full, part], **base) if x["metric"] == "task_pass"]
+    assert [(x["status"], x["value"]) for x in drops] == [("TRƯỢT", 10)]
+
+
+def test_missing_set_is_said_in_vietnamese():
+    base = {"real": {"rows": {"04-dev": {"n_tasks": 20, "task_pass": _tasks(20)}}}}
+    (x,) = [x for x in _lines([_row()], **base) if x["set"] == "04-dev"]
+    assert x["limit"] == "không có trong scorecard"
+
+
 def test_unverified_names_changed_and_new_versions():
     now = {"09": ["09-aaaa"], "02": ["02-bbbb"], "judge": ["judge-cc"]}
     assert gate.unverified(now, {"09": ["09-zzzz"], "02": ["02-bbbb"]}) == ["09 09-aaaa", "judge judge-cc"]

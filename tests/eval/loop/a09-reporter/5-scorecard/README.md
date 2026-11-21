@@ -10,8 +10,7 @@
 
 - `tests/eval/gate.py`: `09-dev` `dropped_pct` = 0; `faithfulness` ≥ 0.95 chờ `judge_trusted`. Luật không tụt cho `passed`.
 - Cổng tầng 0: `tests/eval/test_gate.py` chạy 09 với oracle và judge giả.
-- Lỗi cần sửa: chạy với `--only` (suite `compact`: 3 trong 6 kỳ) tạo dòng `09-dev` một phần, thay dòng đầy đủ, và gate không phân biệt
-  được. Đang sửa trong review cuối.
+- Chạy với `--only` (suite `compact`: 3 trong 6 kỳ) ghi khoá `subset` vào file kết quả. Dòng một phần nằm cạnh dòng đầy đủ, bảng đánh dấu `*` sau số task (ví dụ `9*`). Sàn vẫn áp cho mọi dòng. `no_drop` chỉ so dòng cùng `set` và cùng `subset` với dòng baseline; không có thì in `BỎ QUA` với giới hạn `khác tập task`.
 
 ## Check "khớp production"
 

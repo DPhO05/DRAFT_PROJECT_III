@@ -53,7 +53,7 @@ def row(res: dict, name: str, baseline_rows: dict | None = None) -> dict:
         "set": res.get("set") or f"{target}-dev", "target": target, "split": res.get("split"),
         "source": res.get("source"), "backend": res.get("backend"), "created": res.get("created"), "file": name,
         "models": res.get("models"), "prompt_versions": res.get("prompt_versions"),
-        "n_tasks": tasks, "k": res.get("runs"),
+        "subset": res.get("subset"), "n_tasks": tasks, "k": res.get("runs"),
         "success": m.get("success"),
         "pass_k": m.get("pass_k", (m.get("stability") or {}).get("pass_k")),
         "trials_passed": tally.get("trials_passed"), "trials": tally.get("trials"),
@@ -72,10 +72,10 @@ def build(results: Path, *, backend: str | None = None, baseline_rows: dict | No
         r = row(json.loads(f.read_text(encoding="utf-8")), f.name, baseline_rows)
         if backend and r["backend"] != backend:
             continue
-        k = (r["set"], r["backend"])
+        k = (r["set"], r["backend"], tuple(r["subset"] or ()))  # a partial run sits beside the full row
         if k not in newest or (r["created"] or "") >= (newest[k]["created"] or ""):
             newest[k] = r
-    return sorted(newest.values(), key=lambda r: (r["set"], r["backend"] or ""))
+    return sorted(newest.values(), key=lambda r: (r["set"], r["backend"] or "", r["subset"] or []))
 
 
 def _count(out: str, word: str) -> int:
@@ -100,7 +100,7 @@ def code_rows(created: str) -> list[dict]:
         rows.append({
             "set": f"{target}-tests", "target": target, "split": "dev", "source": "synthetic", "backend": "code",
             "created": created, "file": None, "models": None, "prompt_versions": None,
-            "n_tasks": total, "k": 1, "success": rate, "pass_k": rate,
+            "subset": None, "n_tasks": total, "k": 1, "success": rate, "pass_k": rate,
             "trials_passed": None, "trials": None, "tasks_passed": passed, "tasks": total, "task_pass": None,
             "metrics": share, "calls": 0, "usd": 0,
             "tokens_in": None, "tokens_out": None, "ms_p50": None, "ms_p95": None, "error_rate": None,
@@ -123,11 +123,12 @@ def table(rows: list[dict]) -> str:
     head = ["set", "target", "backend", "k", "n", "success", "pass_k", "key metrics", "calls", "usd", "model"]
     out = [head]
     for r in rows:
+        n = f"{r['n_tasks']}*" if r.get("subset") else str(r["n_tasks"])
         shown = KEY.get(r["target"], []) + ["name_leaks"]  # a missing key prints "-", never 0
         mt = " ".join(f"{k}={_fmt(r['metrics'].get(k))}" for k in shown)
         models = sorted({m for v in (r["models"] or {}).values() for m in v})
         out.append([
-            r["set"], r["target"], str(r["backend"]), str(r["k"]), str(r["n_tasks"]),
+            r["set"], r["target"], str(r["backend"]), str(r["k"]), n,
             _frac(r["trials_passed"], r["trials"], r["success"]),
             _frac(r["tasks_passed"], r["tasks"], r["pass_k"]),
             mt, str(r["calls"]), _fmt(r["usd"]), ",".join(models) or "-",

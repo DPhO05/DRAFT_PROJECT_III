@@ -116,3 +116,13 @@ def test_count_reads_the_last_pytest_line():
         1,
     )
     assert scorecard._count("", "passed") == 0
+
+
+def test_partial_run_sits_beside_the_full_row_and_is_marked(tmp_path):
+    _write(tmp_path, "a.json", _res(created="2026-11-21T10:00:00Z", subset=None))
+    _write(tmp_path, "b.json", _res(created="2026-11-21T11:00:00Z", subset=["q1"]))
+    rows = scorecard.build(tmp_path)
+    assert [(x["file"], x["subset"]) for x in rows] == [("a.json", None), ("b.json", ["q1"])]
+    full, part = scorecard.table(rows).splitlines()[2:]
+    assert "| 8 |" in full and "| 8* |" in part
+    assert scorecard.row(_res(), "legacy.json")["subset"] is None  # a result without the key is a full run

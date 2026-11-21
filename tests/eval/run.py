@@ -376,9 +376,9 @@ def _step(a) -> tuple[int, dict | None]:
         if a.judge and _judge_provider(a.judge_model) in llm.providers(_judged_models(target)):
             print("CẢNH BÁO: judge cùng nhà cung cấp với model được chấm")  # decision 2B stays possible
     with tempfile.TemporaryDirectory(prefix="tutor-eval-") as tmp:
-        info = meta(target, a.set, a.backend)
+        info = meta(target, a.set, a.backend) | {"subset": sorted(a.files or a.only or []) or None}
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-        folder = (a.traces or a.out.parent / "traces") / f"{stamp}_{target}"
+        folder = _free((a.traces or a.out.parent / "traces") / f"{stamp}_{a.set or target}")
         if target == "g1":
             res = evaluate(_backend(a.backend), work=Path(tmp), files=a.files, runs=a.runs, fix=fix, traces=folder)
         else:

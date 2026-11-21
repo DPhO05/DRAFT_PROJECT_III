@@ -11,8 +11,7 @@
 
 - `tests/eval/gate.py` xét dòng G1 (`g1-*`): `flow_errors` = 0, `recall` ≥ 0.90, `precision` ≥ 0.75. 02 chưa có sàn riêng.
 - Luật không tụt cho G1 xét các chỉ số trong `no_drop` (`recall`, `precision`, `first_wrong_step_acc`). Luật này chờ baseline thật.
-- Lỗi cần sửa: chạy với `--files` (cả hai suite chạy `g1-dev` với `s01.tex` và `s04.tex`) tạo dòng một phần, thay dòng đầy đủ, và gate
-  không phân biệt được. Đang sửa trong review cuối.
+- Chạy với `--files` (cả hai suite chạy `g1-dev` với `s01.tex` và `s04.tex`) ghi khoá `subset` vào file kết quả. Dòng một phần nằm cạnh dòng đầy đủ, bảng đánh dấu `*` sau số task (ví dụ `9*`). Sàn vẫn áp cho mọi dòng. `no_drop` chỉ so dòng cùng `set` và cùng `subset` với dòng baseline; không có thì in `BỎ QUA` với giới hạn `khác tập task`.
 
 ## Check "khớp production"
 

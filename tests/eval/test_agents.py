@@ -281,6 +281,30 @@ def test_main_fake_00_writes_result(tmp_path):
     assert len(list((tmp_path / "traces").glob("*_00/run1.jsonl"))) == 1
 
 
+def test_result_file_records_the_subset_it_ran(tmp_path):
+    out = tmp_path / "results"
+    assert run.main(["--agent", "00", "--backend", "fake", "--runs", "1", "--only", "q4", "q1", "--out", str(out)]) == 0
+    assert run.main(["--agent", "00", "--backend", "fake", "--runs", "1", "--out", str(out)]) == 0
+    got = sorted((json.loads(f.read_text(encoding="utf-8"))["subset"] for f in out.glob("*.json")), key=str)
+    assert got == [None, ["q1", "q4"]]
+
+
+def test_steps_in_the_same_second_keep_their_own_traces(tmp_path, monkeypatch):
+    class Fixed(run.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 11, 21, 10, 0, 0, tzinfo=tz)
+
+    monkeypatch.setattr(run, "datetime", Fixed)
+    for files in (["s01.tex"], ["s04.tex"]):
+        args = ["--backend", "fake", "--runs", "1", "--files", *files, "--out", str(tmp_path / "results")]
+        assert run.main(args) == 0
+    folders = sorted((tmp_path / "traces").glob("*_g1-dev*"))
+    assert len(folders) == 2 and all((f / "run1.jsonl").exists() for f in folders)
+    traces = sorted(json.loads(f.read_text(encoding="utf-8"))["traces"] for f in (tmp_path / "results").glob("*.json"))
+    assert traces == sorted(str(f) for f in folders)
+
+
 def test_00_each_run_starts_from_a_new_world(tmp_path):
     agents.evaluate_00(agents.oracle_00, work=tmp_path, runs=2, only=["q1"])
     assert (tmp_path / "run1" / "data" / "tutor.db").exists() and (tmp_path / "run2" / "data" / "tutor.db").exists()

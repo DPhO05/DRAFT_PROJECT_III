@@ -17,8 +17,7 @@
   Luật không tụt cho `recall`, `precision`, `first_wrong_step_acc`: chờ baseline thật.
 - Cổng tầng 0: `tests/eval/test_gate.py` chạy `g1-dev` và `g1-heldout` với oracle, và so `g1-dev` trên backend `dev` với ảnh chụp
   trong `baseline.json` (`dev`).
-- Lỗi cần sửa: chạy với `--files` tạo dòng một phần, thay dòng đầy đủ, và gate không phân biệt được. Cả hai suite chạy `g1-dev` với
-  `s01.tex` và `s04.tex` (9 bài thay vì 40), và `compact` chạy `g1-heldout` với 5 file (10 bài thay vì 20). Đang sửa trong review cuối.
+- Chạy với `--files` (cả hai suite chạy `g1-dev` với `s01.tex` và `s04.tex`: 9 bài thay vì 40; `compact` chạy `g1-heldout` với 5 file: 10 bài thay vì 20) ghi khoá `subset` vào file kết quả. Dòng một phần nằm cạnh dòng đầy đủ, bảng đánh dấu `*` sau số task (ví dụ `9*`). Sàn vẫn áp cho mọi dòng. `no_drop` chỉ so dòng cùng `set` và cùng `subset` với dòng baseline; không có thì in `BỎ QUA` với giới hạn `khác tập task`.
 
 ## Check "khớp production"
 

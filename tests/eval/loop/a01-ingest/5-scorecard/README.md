@@ -9,8 +9,7 @@
 ## Cổng
 
 - `tests/eval/gate.py`: sàn `hit_at_1` ≥ 0.90 và luật không tụt cho `hit_at_1`, `hit_at_3`, `mrr`, `passed`. Luật không tụt chờ baseline thật.
-- Lỗi cần sửa: chạy với `--only` (suite `compact`: 6 trong 10 task) tạo dòng `01-dev` một phần, thay dòng đầy đủ, và gate không phân biệt
-  được. Đang sửa trong review cuối.
+- Chạy với `--only` (suite `compact`: 6 trong 10 task) ghi khoá `subset` vào file kết quả. Dòng một phần nằm cạnh dòng đầy đủ, bảng đánh dấu `*` sau số task (ví dụ `9*`). Sàn vẫn áp cho mọi dòng. `no_drop` chỉ so dòng cùng `set` và cùng `subset` với dòng baseline; không có thì in `BỎ QUA` với giới hạn `khác tập task`.
 
 ## Check "khớp production"
 
