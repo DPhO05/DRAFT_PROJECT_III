@@ -97,6 +97,7 @@ def _ask_00(paths, w: dict, q: dict, log: Path, judge: bool = False) -> dict:
         saver, cfg = InMemorySaver(), {"configurable": {"thread_id": "eval"}, "recursion_limit": 200}
         cc = llm.CallContext(graph=None, conversation_id="2026-10-21-1", redact=orchestrator._names(redact))
         events, approvals, agent, error = [], [], None, None
+        said = []
         try:
             with chat.scope(cc, fixed, tools):
                 for text in [q["text"], *q.get("turns", [])]:  # as the app: all new per message, the thread stays
@@ -107,12 +108,14 @@ def _ask_00(paths, w: dict, q: dict, log: Path, judge: bool = False) -> dict:
                                        system=fixed)  # fmt: skip
                     leg = list(chat.events(agent, ctx, cfg))
                     events += leg
+                    said.append("".join(e["delta"] for e in leg if e["type"] == "text"))
                     while leg and leg[-1]["type"] == "approval":
                         approvals.append({"name": leg[-1]["name"], "args": leg[-1]["args"]})
                         decision = assistant.Decision(**q.get("approval", {"decision": "reject"}))
                         resume = assistant._decisions(decision, chat.waiting(agent, cfg))
                         leg = list(chat.events(agent, ctx, cfg, resume=resume))
                         events += leg
+                        said[-1] += "".join(e["delta"] for e in leg if e["type"] == "text")
         except Exception as e:  # kept as a failed answer so its log rows still count for leaks
             events, approvals, error = [], [], orchestrator.mask(f"{type(e).__name__}: {e}", redact)
         thread = agent.get_state(cfg).values.get("messages", []) if agent else []
@@ -120,11 +123,12 @@ def _ask_00(paths, w: dict, q: dict, log: Path, judge: bool = False) -> dict:
     rows = read_log(log)[n0:]  # before any judge call, so a judge never changes passed or the call bound
     leaks = leak_count(chain(_strings(rows), _strings(messages)), orchestrator._names(redact))
     made = [{"name": c["name"], "args": c["args"]} for m in thread if isinstance(m, AIMessage) for c in m.tool_calls]
-    text = "".join(e["delta"] for e in events if e["type"] == "text")
+    text = "" if error else "\n\n".join(s for s in said if s)
     dones = [e for e in events if e["type"] == "done"]
     verdict = {}
     if judge and q.get("judge") and not error:  # report-only: never changes passed; masked before it is stored
         seen = "\n".join(c if isinstance(c, str) else json.dumps(c, ensure_ascii=False) for c in ctx.seen)
+        seen += "\nLời gọi công cụ: " + json.dumps(made, ensure_ascii=False)
         context = llm.mask(seen, cc.redact)
         sentences = [llm.mask(s, cc.redact) for s in re.split(r"(?<=[.!?])\s+", text.strip()) if s]
         n1 = len(read_log(log))

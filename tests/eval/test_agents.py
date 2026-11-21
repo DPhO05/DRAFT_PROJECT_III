@@ -473,6 +473,13 @@ def test_00_judge_scores_only_marked_tasks(tmp_path):
     assert all("judge" not in a or {"judge_context", "judge_sentences"} <= a.keys() for a in res["answers"][0])
 
 
+def test_00_judge_input_keeps_turns_apart_and_shows_call_args(tmp_path):
+    res = agents.evaluate_00(judges.with_oracle(agents.oracle_00), work=tmp_path, runs=1, judge=True,
+                             only=["q11", "q15"])  # fmt: skip
+    assert len(by_id(res, "q15")["judge_sentences"]) == 2  # one per turn, not glued at "?"
+    assert "hs01-a.tex" in by_id(res, "q11")["judge_context"]
+
+
 def test_g5_judge_scores_the_draft(tmp_path):
     res = agents.evaluate_g5(judges.with_oracle(agents.oracle_09), work=tmp_path, runs=1, judge=True)
     assert res["metrics"]["extra"]["faithfulness"] == 1 and res["metrics"]["pass_k"] == 1
