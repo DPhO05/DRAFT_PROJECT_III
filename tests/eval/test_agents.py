@@ -183,9 +183,12 @@ def test_09_oracle_passes_every_period(tmp_path):
         "HS-01 month 2026-10-01",
         "HS-01 week 2026-10-12",
         "HS-02 day 2026-10-14",
+        "HS-01 day 2026-10-14",
+        "HS-01 week 2026-10-05",
+        "HS-02 week 2026-10-12 low",
     ]
     for s in res["metrics"]["per_run"]:
-        assert s == {"n_reports": 3, "draft_flagged_pct": 0, "dropped_pct": 0, "passed": 1}
+        assert (s["n_reports"], s["draft_flagged_pct"], s["dropped_pct"], s["passed"]) == (6, 0, 0, 1)
     assert res["metrics"]["pass_k"] == 1 and list(res["prompt_versions"]) == ["09"]
 
 
@@ -208,6 +211,16 @@ def test_09_bad_number_is_dropped_after_one_rewrite(tmp_path):
     res = agents.evaluate_09(wrong_09, work=tmp_path, runs=1)
     assert all(sum(a["status"] == "dropped" for a in r["audit"]) == 1 for r in res["reports"][0])
     assert res["metrics"]["pass_k"] == 0
+    assert res["metrics"]["per_run"][0]["flags"]["number"] == 6
+
+
+def test_09_periods_cover_low_previous_and_no_previous(tmp_path):
+    res = agents.evaluate_09(agents.oracle_09, work=tmp_path, runs=1)
+    by_key = {r["key"]: r for r in res["reports"][0]}
+    assert by_key["HS-02 week 2026-10-12 low"]["low"] is True
+    assert sum(r["low"] for r in by_key.values()) == 1
+    assert by_key["HS-01 day 2026-10-14"]["has_previous"] and not by_key["HS-01 week 2026-10-05"]["has_previous"]
+    assert all(r["n_insights"] >= 1 and r["model_calls"] == 1 and r["leaks"] == 0 for r in by_key.values())
 
 
 def test_raised_error_text_is_stored_without_a_student_name(tmp_path, monkeypatch):
@@ -226,7 +239,7 @@ def test_09_period_without_facts_is_an_error(tmp_path, monkeypatch):
     empty = {"key": "HS-02 day 2026-10-20", "code": "HS-02", "period_kind": "day", "period_start": "2026-10-20"}
     monkeypatch.setattr(agents, "PERIODS", [*agents.PERIODS, empty])
     res = agents.evaluate_09(agents.oracle_09, work=tmp_path, runs=1)
-    assert [e["key"] for e in res["errors"]] == ["HS-02 day 2026-10-20"] and res["metrics"]["pass_k"] == 3 / 4
+    assert [e["key"] for e in res["errors"]] == ["HS-02 day 2026-10-20"] and res["metrics"]["pass_k"] == 6 / 7
 
 
 def test_09_masks_every_full_name(tmp_path, monkeypatch):
@@ -235,9 +248,9 @@ def test_09_masks_every_full_name(tmp_path, monkeypatch):
     real = agents.reporter.run
     monkeypatch.setattr(agents.reporter, "run", lambda *a, **k: seen.append(k["ctx"]) or real(*a, **k))
     agents.evaluate_09(agents.oracle_09, work=tmp_path, runs=1)
-    assert len(seen) == 3 and all(c.graph == "G5" for c in seen)
+    assert len(seen) == 6 and all(c.graph == "G5" for c in seen)
     assert seen[0].redact == {"Nguyễn Văn An": "HS-01", "Trần Thị Bình": "HS-02", "Lê Văn Cường": "HS-03"}
-    assert [c.student_code for c in seen] == ["HS-01", "HS-01", "HS-02"]
+    assert [c.student_code for c in seen] == ["HS-01", "HS-01", "HS-02", "HS-01", "HS-01", "HS-02"]
 
 
 @pytest.mark.parametrize("agent", ["00", "09"])

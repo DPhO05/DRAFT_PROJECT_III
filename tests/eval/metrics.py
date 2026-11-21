@@ -9,6 +9,7 @@ Agent 09 (P8b): a report is {key, period_kind, n_sentences, audit}; audit rows h
 """
 
 import math
+import re
 from collections import Counter
 
 
@@ -177,10 +178,25 @@ def score_00(answers: list[dict]) -> dict:
 SENTENCES = {"day": (2, 3), "week": (3, 5), "month": (3, 5)}  # reporter.INSTRUCTIONS
 
 
+_SHOWN_09 = re.compile(r"F\d\d|HS-\d\d|\d[A-Z]{2}-[A-Z0-9]+-\d{3}|%")  # fact id, student code, bank ref, percent
+FLAGS_09 = ("number", "no_fact", "tone", "percent", "empty")
+
+
+def text_ok_09(r: dict) -> bool:
+    """No shown sentence holds a fact id, student code, bank ref or percent sign."""
+    return not any(_SHOWN_09.search(s) for s in r.get("sentences", []))
+
+
 def passed_09(r: dict) -> bool:
-    """No draft sentence dropped, and the shown report has the sentence count its period asks for."""
+    """No draft sentence dropped, the sentence count fits its period, the text is clean, no leak, at most 2 calls."""
     lo, hi = SENTENCES[r["period_kind"]]
-    return all(a["status"] != "dropped" for a in r["audit"]) and lo <= r["n_sentences"] <= hi
+    return (
+        all(a["status"] != "dropped" for a in r["audit"])
+        and lo <= r["n_sentences"] <= hi
+        and text_ok_09(r)
+        and r.get("leaks", 0) == 0
+        and r.get("model_calls", 1) <= 2
+    )
 
 
 def score_09(reports: list[dict]) -> dict:
@@ -191,6 +207,7 @@ def score_09(reports: list[dict]) -> dict:
         "draft_flagged_pct": _rate(100 * sum(x != "ok" for x in rows), len(rows)),
         "dropped_pct": _rate(100 * rows.count("dropped"), len(rows)),
         "passed": _rate(sum(map(passed_09, reports)), len(reports)),
+        "flags": {f: sum(a.get("flag") == f for r in reports for a in r["audit"]) for f in FLAGS_09},
     }
 
 

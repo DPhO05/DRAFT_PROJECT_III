@@ -208,7 +208,28 @@ def test_passed_09_needs_no_drop_and_the_sentence_range():
 
 def test_score_09():
     s = metrics.score_09([rep("day", 3, ["ok", "rewritten", "ok"]), rep("week", 4, ["ok"] * 4 + ["dropped"])])
-    assert s == {"n_reports": 2, "draft_flagged_pct": 25.0, "dropped_pct": 12.5, "passed": 0.5}
+    assert (s["n_reports"], s["draft_flagged_pct"], s["dropped_pct"], s["passed"]) == (2, 25.0, 12.5, 0.5)
+
+
+def test_text_ok_09_refuses_ids_codes_refs_and_percent():
+    ok = {"sentences": ["Em làm 4 trong 6 ý.", "Em còn nhầm dấu khi chuyển vế."]}
+    assert metrics.text_ok_09(ok) and metrics.text_ok_09({})
+    for bad in ("Theo F02, em tiến bộ.", "HS-01 làm tốt.", "Em sai bài 9DS-BPT-001.", "Em đạt 50% số ý."):
+        assert not metrics.text_ok_09({"sentences": [bad]}), bad
+
+
+def test_passed_09_needs_clean_text_no_leak_and_at_most_two_calls():
+    good = rep("day", 2, ["ok", "ok"]) | {"sentences": ["a", "b"], "model_calls": 2, "leaks": 0}
+    assert metrics.passed_09(good)
+    assert not metrics.passed_09(good | {"model_calls": 3})
+    assert not metrics.passed_09(good | {"leaks": 1})
+    assert not metrics.passed_09(good | {"sentences": ["Em đạt 50%.", "b"]})
+
+
+def test_score_09_counts_flags_by_kind():
+    r = rep("day", 2, ["ok", "dropped", "rewritten"])
+    r["audit"][1]["flag"], r["audit"][2]["flag"] = "number", "tone"
+    assert metrics.score_09([r])["flags"] == {"number": 1, "no_fact": 0, "tone": 1, "percent": 0, "empty": 0}
 
 
 def row(agent, ms, usd, result="ok"):
