@@ -164,6 +164,19 @@ def test_00_wrong_oracle_scores_drop(tmp_path):
     assert q3["text"] == "HS-01 sai 99 lần." and [w["kind"] for w in q3["warnings"]] == ["unverified_number"]
 
 
+def request_q14(conn):
+    fake, models = agents.oracle_00(conn)
+    right = fake.handlers["00"]
+    asks = [{"type": "text", "text": "Thầy/cô gửi giúp mình:\n\n- Mã học sinh (HS-xx)\n- File bài làm `.tex`"}]
+    fake.handlers["00"] = lambda messages: asks if agents.question_of(messages)["id"] == "q14" else right(messages)
+    return fake, models
+
+
+def test_00_q14_accepts_a_request_without_a_question_mark(tmp_path):
+    res = agents.evaluate_00(request_q14, work=tmp_path, runs=1, only=["q14"])
+    assert metrics.passed_00(by_id(res, "q14"))
+
+
 def test_00_one_failing_question_is_an_error_not_a_crash(tmp_path):
     res = agents.evaluate_00(broken_q4, work=tmp_path, runs=1)
     assert [e["id"] for e in res["errors"]] == ["q4"]

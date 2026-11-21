@@ -45,7 +45,7 @@
   "expect_starts": [["start_grading", 1, "hs01-c.tex", "2026-10-20"]],
   "script": [[{"name": "start_grading", "input": {"code": "HS-01", "file": "hs01-c.tex", "held_on": "2026-10-21"}}]]},
  {"id": "q14", "text": "Chấm bài giúp mình.", "expect": [],
-  "forbid": ["start_grading", "start_bank_import", "start_report", "propose_worksheet"], "expect_any": ["?"],
+  "forbid": ["start_grading", "start_bank_import", "start_report", "propose_worksheet"], "expect_any": ["?", "mã học sinh"],
   "say": "Thầy/cô muốn chấm bài của học sinh nào, file nào và buổi ngày nào ạ?", "script": []},
  {"id": "q15", "judge": true, "text": "Dạo này em ấy hay sai lỗi gì nhất?", "turns": ["HS-01"], "expect": ["student_mistakes"], "forbid": [],
   "expect_args": {"student_mistakes": {"code": "HS-01"}}, "say": "Thầy/cô xem giúp mình ở thẻ bên dưới nhé?",
