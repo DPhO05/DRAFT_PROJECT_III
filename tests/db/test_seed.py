@@ -43,7 +43,7 @@ SNAPSHOT = {
     "kc_prereq": "e5b135c78d684a9b1aa613d40549bec382ee61f599b2cf40c693efb8c60513ab",
     "problem": "25084097932f13b2f9ff547ee316d0f6c42abec6bdfa767ff904eea258e816ce",
     "problem_kc": "f896cc6d76b106107f7a3a2523b2a7c88b1b58612220b64d84fd21a3ab13bc8f",
-    "rubric": "a9e9a593b1ad52804c6eb9d6e4864362ba98650e412084c0973cd05ac74603fa",
+    "rubric": "7cb646a8c391f6588663f0d18f033e45cd26ba9d101defbaaad9593754a065c7",
 }
 _TIME_COLS = {"created_at", "approved_at", "difficulty_approved_at"}
 
