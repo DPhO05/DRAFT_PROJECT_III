@@ -135,3 +135,38 @@ def test_passed_09_needs_no_drop_and_the_sentence_range():
 def test_score_09():
     s = metrics.score_09([rep("day", 3, ["ok", "rewritten", "ok"]), rep("week", 4, ["ok"] * 4 + ["dropped"])])
     assert s == {"n_reports": 2, "draft_flagged_pct": 25.0, "dropped_pct": 12.5, "passed": 0.5}
+
+
+def row(agent, ms, usd, result="ok"):
+    return {"agent": agent, "ms": ms, "cost_usd": usd, "result": result, "input_tokens": 100, "output_tokens": 20,
+            "cache_read_tokens": 80, "cache_write_tokens": 0}  # fmt: skip
+
+
+def test_usage_sums_tokens_cost_and_latency():
+    u = metrics.usage([row("02", 100, 0.1), row("02", 200, 0.2), row("03", 300, 0.3, "retry"),
+                       row("04", 400, 0.4, "schema_error")])  # fmt: skip
+    assert (u["logged"], u["usd"], u["tokens_in"], u["tokens_out"]) == (4, 1.0, 720, 80)
+    assert (u["ms_p50"], u["ms_p95"], u["error_rate"]) == (200, 400, 0.5)
+    assert u["by_agent"] == {"02": {"calls": 2, "usd": 0.3}, "03": {"calls": 1, "usd": 0.3},
+                             "04": {"calls": 1, "usd": 0.4}}  # fmt: skip
+
+
+def test_usage_of_no_rows():
+    u = metrics.usage([])
+    assert (u["logged"], u["usd"], u["ms_p50"], u["ms_p95"], u["error_rate"], u["by_agent"]) == (
+        0,
+        0,
+        None,
+        None,
+        None,
+        {},
+    )
+
+
+def test_tally_counts_trials_and_tasks():
+    runs = [{f"q{i}": True for i in range(8)} for _ in range(3)]
+    runs[2]["q3"] = False
+    t = metrics.tally(runs)
+    assert (t["trials_passed"], t["trials"], t["tasks_passed"], t["tasks"]) == (23, 24, 7, 8)
+    assert (t["success"], t["pass_k"]) == (23 / 24, 7 / 8) and t["task_pass"]["q3"] is False
+    assert metrics.tally([{"a": True, "b": True}, {"a": True}])["pass_k"] == 0.5  # missing = failed

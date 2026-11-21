@@ -186,3 +186,17 @@ def test_set_the_agent_does_not_have_exits_2(capsys):
     assert run.main(["--agent", "00", "--backend", "fake", "--set", "g1-dev"]) == 2
     out = capsys.readouterr().out
     assert "g1-dev" in out and "00" in out
+
+
+def test_00_result_has_calls_tally_and_models(tmp_path):
+    res = agents.evaluate_00(agents.oracle_00, work=tmp_path, runs=1)
+    assert res["calls"]["logged"] > 0 and isinstance(res["calls"]["usd"], float)
+    assert set(res["calls"]["by_agent"]) == {"00"} and list(res["models"]) == ["00"]
+    t = res["metrics"]["tally"]
+    assert (t["trials_passed"], t["trials"], t["tasks_passed"], t["tasks"]) == (8, 8, 8, 8)
+    assert res["metrics"]["success"] == 1 and res["metrics"]["extra"]["name_leaks"] == 0
+
+
+def test_runs_below_one_exits_2(capsys):
+    assert run.main(["--agent", "00", "--backend", "fake", "--runs", "0"]) == 2
+    assert "--runs" in capsys.readouterr().out

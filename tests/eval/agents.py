@@ -8,6 +8,7 @@ api/assistant.py: fixed prompt parts and tool list from the catalog, `chat.event
 import json
 import re
 import shutil
+import unicodedata
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
@@ -83,14 +84,6 @@ def _ask_00(paths, w: dict, q: dict, log: Path) -> dict:
     }
 
 
-def _prompt_versions(rows: list[dict]) -> dict[str, list[str]]:
-    """prompt_version(s) per agent in the logged rows."""
-    seen: dict[str, set] = {}
-    for row in rows:
-        seen.setdefault(row["agent"], set()).add(row["prompt_version"])
-    return {a: sorted(v) for a, v in sorted(seen.items())}
-
-
 class UnknownTask(ValueError):
     """--only named a task the target does not have."""
 
@@ -137,6 +130,43 @@ def trials(tasks, one, make_backend, *, work: Path, runs: int, key: str = "id", 
     return {"tasks": tasks, "got": got, "errors": errors, "rows": rows, "names": names}
 
 
+def leak_count(texts, names: dict[str, str]) -> int:
+    """How many of `texts` hold a full student name in any spelling llm.mask knows (case, diacritics, LaTeX spacing)."""
+    names = {n: c for n, c in names.items() if len(n.split()) >= 2}
+    # llm.mask returns NFC text: compare with the NFC form, or any non-NFC text would count as a leak
+    return sum(llm.mask(t, names) != unicodedata.normalize("NFC", t) for t in texts)
+
+
+def summarize(agent: str, t: dict, *, key: str, score, passed, payload: str, leaks: int | None = None,
+              extra: dict | None = None) -> dict:  # fmt: skip
+    """The result every trials-based target returns (plan contract C1); run.main adds set, backend and traces."""
+    ok = [{x[key]: False for x in t["tasks"]} | {a[key]: passed(a) for a in done} for done in t["got"]]
+    tally = metrics.tally(ok)
+    seen: dict[str, dict[str, set]] = {"prompt_version": {}, "model": {}}
+    for r in t["rows"]:
+        for field, by_agent in seen.items():
+            by_agent.setdefault(r["agent"], set()).add(r[field])
+    if leaks is None:
+        leaks = leak_count((json.dumps(r, ensure_ascii=False) for r in t["rows"]), t["names"])
+    return {
+        "agent": agent,
+        "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "runs": len(t["got"]),
+        "prompt_versions": {a: sorted(v) for a, v in sorted(seen["prompt_version"].items())},
+        "models": {a: sorted(v) for a, v in sorted(seen["model"].items())},
+        "metrics": {
+            "per_run": [score(done) for done in t["got"]],
+            "pass_k": tally["pass_k"],
+            "success": tally["success"],
+            "tally": tally,
+            "extra": {"name_leaks": leaks} | (extra or {}),
+        },
+        "errors": t["errors"],
+        "calls": metrics.usage(t["rows"]),
+        payload: t["got"],
+    }
+
+
 def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
     """make_backend(conn) -> (llm backend | None for the real API, models). Runs and questions go in order."""
     t = trials(QUESTIONS, _ask_00, make_backend, work=work, runs=runs, only=only, traces=traces)
@@ -148,17 +178,8 @@ def evaluate_00(make_backend, *, work: Path, runs: int = 3, only: list[str] | No
             (traces / f"run{k}-chat.json").write_text(json.dumps(chats, ensure_ascii=False), encoding="utf-8")
         for a in got:
             app_version = a.pop("app_version")
-    passed = [{q["id"]: False for q in t["tasks"]} | {a["id"]: metrics.passed_00(a) for a in got} for got in answers]
-    return {
-        "agent": "00",
-        "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "runs": runs,
-        "app_version": app_version,
-        "prompt_versions": _prompt_versions(t["rows"]),
-        "metrics": {"per_run": [metrics.score_00(got) for got in answers], "pass_k": metrics.pass_k(passed)},
-        "errors": t["errors"],
-        "answers": answers,
-    }
+    res = summarize("00", t, key="id", score=metrics.score_00, passed=metrics.passed_00, payload="answers")
+    return res | {"app_version": app_version}
 
 
 def _report_09(paths, w: dict, p: dict, log: Path) -> dict:
@@ -182,17 +203,7 @@ def _report_09(paths, w: dict, p: dict, log: Path) -> dict:
 def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
     """make_backend(conn) -> (llm backend | None for the real API, models). Runs and periods go in order."""
     t = trials(PERIODS, _report_09, make_backend, work=work, runs=runs, key="key", only=only, traces=traces)
-    reports = t["got"]
-    passed = [{p["key"]: False for p in t["tasks"]} | {r["key"]: metrics.passed_09(r) for r in got} for got in reports]
-    return {
-        "agent": "09",
-        "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "runs": runs,
-        "prompt_versions": _prompt_versions(t["rows"]),
-        "metrics": {"per_run": [metrics.score_09(got) for got in reports], "pass_k": metrics.pass_k(passed)},
-        "errors": t["errors"],
-        "reports": reports,
-    }
+    return summarize("09", t, key="key", score=metrics.score_09, passed=metrics.passed_09, payload="reports")
 
 
 def question_of(messages: list[dict]) -> dict:

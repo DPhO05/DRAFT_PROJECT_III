@@ -138,3 +138,11 @@ def test_committed_task_files_are_not_production_data():
     assert all(s["source"] != "production" for s in json.loads(run.SETS.read_text(encoding="utf-8")).values())
     for f in (run.ROOT / "tests" / "eval").rglob("*.json"):
         assert '"source": "production"' not in f.read_text(encoding="utf-8"), f
+
+
+def test_g1_result_has_calls_tally_and_models(tmp_path):
+    res = run.evaluate(run.oracle, work=tmp_path, files=["s01.tex"], runs=2)
+    assert res["calls"]["logged"] > 0 and {"02", "03"} <= set(res["calls"]["by_agent"])
+    t = res["metrics"]["tally"]
+    assert (t["trials"], t["tasks"], t["tasks_passed"]) == (10, 5, 5) and res["metrics"]["pass_k"] == 1
+    assert res["metrics"]["extra"]["flow_errors"] == 0

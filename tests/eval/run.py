@@ -144,23 +144,34 @@ def evaluate(make_backend, *, work: Path, files: list[str] | None = None, runs: 
         finally:
             r.close()
         results.append(got)
-        rows += agents.read_log(log)
+        rows += [r | {"run": k} for r in agents.read_log(log)]
         if traces is not None and log.exists():
             traces.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(log, traces / f"run{k}.jsonl")
-    versions: dict[str, set] = {}
+    seen: dict[str, dict[str, set]] = {"prompt_version": {}, "model": {}}
     for row in rows:
-        versions.setdefault(row["agent"], set()).add(row["prompt_version"])
+        for field, by_agent in seen.items():
+            by_agent.setdefault(row["agent"], set()).add(row[field])
+    stability = metrics.stability(results)
+    # every label key starts False, so a problem that failed in all runs still counts
+    every = {f"{f}#{p['seq']}": False for f, lab in labels.items() for p in lab["problems"]}
+    tally = metrics.tally([every | metrics.g1_passed(g) for g in results])
     return {
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "runs": runs,
         "files": files,
-        "prompt_versions": {a: sorted(v) for a, v in sorted(versions.items())},
+        "prompt_versions": {a: sorted(v) for a, v in sorted(seen["prompt_version"].items())},
+        "models": {a: sorted(v) for a, v in sorted(seen["model"].items())},
         "metrics": {
             "per_run": [metrics.score(list(g.values())) for g in results],
-            "stability": metrics.stability(results),
+            "stability": stability,
+            "pass_k": tally["pass_k"],
+            "success": tally["success"],
+            "tally": tally,
+            "extra": {"flow_errors": len(errors), "items_changed_pct": stability["items_changed_pct"]},
         },
         "errors": errors,
+        "calls": metrics.usage(rows),
         "problems": results,
     }
 
@@ -203,6 +214,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--traces", type=Path, help="mẹ của thư mục vết (mặc định <out>/../traces)")
     ap.add_argument("--yes", action="store_true", help="xác nhận chạy API thật (tốn tiền)")
     a = ap.parse_args(argv)
+    if a.runs < 1:
+        print("--runs phải từ 1 trở lên.")
+        return 2
     target = a.agent or "g1"
     fix = FIX
     if target == "g1":
@@ -255,6 +269,7 @@ def main(argv: list[str] | None = None) -> int:
     for e in res["errors"]:
         print(f"LỖI run {e['run']} {e.get('file') or e.get('id') or e.get('key')}: {e['error']}")
     print("prompt_version: " + "  ".join(v for vs in res["prompt_versions"].values() for v in vs))
+    print(f"calls: logged={res['calls']['logged']}  usd={res['calls']['usd']:.3f}")
     ids = ("02", "03", "04") if target == "g1" else TARGETS[target]["ids"]
     key = "_".join(v for a_ in ids for v in res["prompt_versions"].get(a_, []))
     a.out.mkdir(parents=True, exist_ok=True)

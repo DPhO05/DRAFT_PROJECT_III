@@ -8,6 +8,7 @@ Agent 00 (P8b): an answer is {id, expect, forbid, tools, tool_errors, unverified
 Agent 09 (P8b): a report is {key, period_kind, n_sentences, audit}; audit rows have a status (ok, rewritten, dropped).
 """
 
+import math
 from collections import Counter
 
 
@@ -135,3 +136,50 @@ def pass_k(runs: list[dict[str, bool]]) -> float | None:
     """runs: {question id: passed} per run. A question missing from a run counts as failed (pass^k, k = runs)."""
     keys = set().union(*runs)
     return _rate(sum(all(r.get(k, False) for r in runs) for k in keys), len(keys))
+
+
+def g1_passed(run: dict[str, dict]) -> dict[str, bool]:
+    """One G1 run as {problem key: first wrong step found}."""
+    return {k: _fws(p) for k, p in run.items()}
+
+
+def tally(runs: list[dict[str, bool]]) -> dict:
+    """runs: {task id: passed} per run. A task missing from a run failed. success counts trials, pass_k tasks."""
+    keys = sorted(set().union(*runs))
+    task_pass = {k: all(r.get(k, False) for r in runs) for k in keys}
+    trials = len(runs) * len(keys)
+    passed = sum(r.get(k, False) for r in runs for k in keys)
+    return {
+        "trials_passed": passed,
+        "trials": trials,
+        "tasks_passed": sum(task_pass.values()),
+        "tasks": len(keys),
+        "success": _rate(passed, trials),
+        "pass_k": _rate(sum(task_pass.values()), len(keys)),
+        "task_pass": task_pass,
+    }
+
+
+def percentile(xs: list[float], p: float) -> float | None:
+    """Nearest rank."""
+    return sorted(xs)[math.ceil(p / 100 * len(xs)) - 1] if xs else None
+
+
+def usage(rows: list[dict]) -> dict:
+    """Calls, cost, tokens and latency of logged rows (cost_usd comes from llm.iter_log)."""
+    by_agent: dict[str, dict] = {}
+    for r in rows:
+        a = by_agent.setdefault(r["agent"], {"calls": 0, "usd": 0})
+        a["calls"] += 1
+        a["usd"] += r["cost_usd"]
+    ms = [r["ms"] for r in rows]
+    return {
+        "logged": len(rows),
+        "usd": round(sum(r["cost_usd"] for r in rows), 6),
+        "tokens_in": sum(r["input_tokens"] + r["cache_read_tokens"] + r["cache_write_tokens"] for r in rows),
+        "tokens_out": sum(r["output_tokens"] for r in rows),
+        "ms_p50": percentile(ms, 50),
+        "ms_p95": percentile(ms, 95),
+        "error_rate": _rate(sum(r["result"] != "ok" for r in rows), len(rows)),
+        "by_agent": {k: {"calls": v["calls"], "usd": round(v["usd"], 6)} for k, v in sorted(by_agent.items())},
+    }
