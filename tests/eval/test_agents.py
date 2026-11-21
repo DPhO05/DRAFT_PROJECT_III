@@ -242,6 +242,19 @@ def test_09_period_without_facts_is_an_error(tmp_path, monkeypatch):
     assert [e["key"] for e in res["errors"]] == ["HS-02 day 2026-10-20"] and res["metrics"]["pass_k"] == 6 / 7
 
 
+def raising_09_with_a_name(conn):
+    fake, models = agents.oracle_09(conn)
+    fake.handlers["09"] = lambda user, system: llm.LLMUnavailable("down: Nguyễn Văn An")
+    return fake, models
+
+
+def test_09_a_failed_period_keeps_its_leak_rows(tmp_path):
+    res = agents.evaluate_09(raising_09_with_a_name, work=tmp_path, runs=1, only=["HS-02 day 2026-10-14"])
+    assert [e["key"] for e in res["errors"]] == ["HS-02 day 2026-10-14"]
+    assert "down" in res["errors"][0]["error"] and "Nguyễn Văn An" not in res["errors"][0]["error"]
+    assert res["metrics"]["extra"]["name_leaks"] >= 1 and res["metrics"]["pass_k"] == 0
+
+
 def test_09_masks_every_full_name(tmp_path, monkeypatch):
     """09's prompt holds no student name today; what is checked is that the context carries the app's mask map."""
     seen = []

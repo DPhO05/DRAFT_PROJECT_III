@@ -258,8 +258,12 @@ def _report_09(paths, w: dict, p: dict, log: Path) -> dict:
         ctx = session.call_context(paths, sid, None, cfg, graph="G5")  # as the app: names masked
         got = facts.report_facts(conn, sid, p["period_kind"], p["period_start"], today=today,
                                  low_pass_rate=p.get("low_pass_rate", settings["report"]["low_pass_rate"]))  # fmt: skip
-        n0 = len(read_log(log))
-        r = reporter.run(got, ctx=ctx)
+        n0, error = len(read_log(log)), None
+        try:
+            r = reporter.run(got, ctx=ctx)
+        except Exception as e:  # kept as a failed report so its log rows still count for leaks
+            error = orchestrator.mask(f"{type(e).__name__}: {e}", ctx.redact)
+            r = {"sentences": [], "audit": [], "low": got["low"], "insights": [], "facts": got["facts"]}
         rows = read_log(log)[n0:]  # before any judge call, so a judge never changes passed or the call bound
     sentences = [s["text"] for s in r["sentences"]]
     return {
@@ -274,12 +278,17 @@ def _report_09(paths, w: dict, p: dict, log: Path) -> dict:
         "model_calls": len(rows),
         "leaks": leak_count(chain(_strings(rows), sentences), ctx.redact),
         "facts_block": "\n".join(f"{f['fact_id']} · {f['text']}" for f in r["facts"]),
+        "error": error,
     }
 
 
 def evaluate_09(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
     """make_backend(conn) -> (llm backend | None for the real API, models). Runs and periods go in order."""
     t = trials(PERIODS, _report_09, make_backend, work=work, runs=runs, key="key", only=only, traces=traces)
+    for k, got in enumerate(t["got"], 1):
+        for r in got:
+            if error := r.pop("error"):
+                t["errors"].append({"run": k, "key": r["key"], "error": error})
     leaks = sum(r["leaks"] for done in t["got"] for r in done)
     return summarize("09", t, key="key", score=metrics.score_09, passed=metrics.passed_09, payload="reports",
                      leaks=leaks)  # fmt: skip
