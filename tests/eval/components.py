@@ -2,6 +2,7 @@
 
 01: match a student's problem to the bank. The task set is tests/eval/tasks/ingest_01.json.
 04: agree, disagree or suggest another code for a claimed mistake. The set is tests/eval/tasks/verifier_04.json.
+02r: draft a grading rubric for a bank problem. The set is tests/eval/tasks/rubric_02.json (bank refs).
 """
 
 import json
@@ -9,15 +10,17 @@ from contextlib import closing
 from pathlib import Path
 
 from tests.eval import agents, metrics
-from tests.fakes import FakeLLM
+from tests.fakes import FakeLLM, lane_handlers
 from tutor import llm
 from tutor.agents.a01_ingest import ingest
+from tutor.agents.a02_grader import grader
 from tutor.agents.a04_verifier import verifier
 from tutor.db import repo
 from tutor.services import latex
 
 TASKS_01: list[dict] = json.loads((Path(__file__).parent / "tasks" / "ingest_01.json").read_text(encoding="utf-8"))
 TASKS_04: list[dict] = json.loads((Path(__file__).parent / "tasks" / "verifier_04.json").read_text(encoding="utf-8"))
+TASKS_02R: list[dict] = json.loads((Path(__file__).parent / "tasks" / "rubric_02.json").read_text(encoding="utf-8"))
 FIX = Path(__file__).parents[1] / "fixtures" / "submissions"
 
 
@@ -98,3 +101,24 @@ def oracle_04(conn):
         return verifier.VerdictOut(verdict=t["expect"], reason="oracle", suggested_code=t.get("expect_code"))
 
     return FakeLLM({"04": handle}), {}
+
+
+def _draft_02r(paths, w, t, log) -> dict:
+    n0 = len(agents.read_log(log))
+    with closing(repo.connect(paths.tutor_db, readonly=True)) as conn:
+        pid = next(b["id"] for b in repo.bank_problems(conn) if b["ref"] == t["id"])
+        problem = repo.problem_detail(conn, pid)
+    ctx = llm.CallContext(graph="G1", thread_id=f"eval-{t['id']}", redact=_redact(paths))
+    draft = grader.generate_rubric(problem, ctx=ctx)
+    return {"id": t["id"], "draft": draft, "model_calls": len(agents.read_log(log)) - n0}
+
+
+def evaluate_02r(make_backend, *, work: Path, runs: int = 3, only: list[str] | None = None, traces=None) -> dict:
+    """make_backend(conn) -> (llm backend | None for the real API, models)."""
+    t = agents.trials(TASKS_02R, _draft_02r, make_backend, work=work, runs=runs, only=only, traces=traces)
+    return agents.summarize("02r", t, key="id", score=metrics.score_02r, passed=metrics.passed_02r, payload="items")
+
+
+def oracle_02r(conn):
+    """FakeLLM whose 02 returns the one-item draft for any problem."""
+    return FakeLLM({"02": lane_handlers()["02"]}), {}

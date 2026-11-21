@@ -307,3 +307,14 @@ def test_components_hand_example():
     assert (c["clean_full_marks"], c["clean_flagged"]) == (1 / 2, 1 / 2)
     assert c["confusion"] == {"a.b": {"c.d": 1}}
     assert (c["agree_on_right"], c["agree_on_wrong"]) == (0, 1)  # 0 of 1 at a label step, 1 of 1 elsewhere
+
+
+def test_passed_02r_checks_ids_points_and_total():
+    items = [{"item_id": "r1", "text": "a", "points": 1}, {"item_id": "r2", "text": "b", "points": 0.5}]
+    ok = {"id": "x", "model_calls": 1, "draft": {"items": items, "max_score": 1.5}}
+    assert metrics.passed_02r(ok)
+    assert not metrics.passed_02r(ok | {"draft": None})
+    assert not metrics.passed_02r(ok | {"draft": ok["draft"] | {"max_score": 2}})
+    bad_id = {"items": [{"item_id": "r2", "text": "a", "points": 1}], "max_score": 1}
+    assert not metrics.passed_02r(ok | {"draft": bad_id})
+    assert not metrics.passed_02r(ok | {"model_calls": 2})

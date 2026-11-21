@@ -357,3 +357,20 @@ def usage(rows: list[dict]) -> dict:
         "error_rate": _rate(sum(r["result"] != "ok" for r in rows), len(rows)),
         "by_agent": {k: {"calls": v["calls"], "usd": round(v["usd"], 6)} for k, v in sorted(by_agent.items())},
     }
+
+
+def passed_02r(a: dict) -> bool:
+    """A draft with items r1, r2, ... in order, every point above 0, max_score the sum, in one model call."""
+    d = a["draft"]
+    return (
+        d is not None
+        and [i["item_id"] for i in d["items"]] == [f"r{k}" for k in range(1, len(d["items"]) + 1)]
+        and all(i["points"] > 0 for i in d["items"])
+        and d["max_score"] == sum(i["points"] for i in d["items"])
+        and a["model_calls"] == 1
+    )
+
+
+def score_02r(answers: list[dict]) -> dict:
+    """One run of the 02 rubric draft."""
+    return {"n_tasks": len(answers), "passed": _rate(sum(map(passed_02r, answers)), len(answers))}

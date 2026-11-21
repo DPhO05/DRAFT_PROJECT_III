@@ -64,7 +64,18 @@ def test_04_always_agree_misses_every_wrong_conclusion(tmp_path):
     assert s["accuracy"] == 6 / 12 and s["recall_disagree"] == 0
 
 
-@pytest.mark.parametrize("agent", ["01", "04"])
+def test_02r_oracle_drafts_pass(tmp_path):
+    res = components.evaluate_02r(components.oracle_02r, work=tmp_path, runs=3)
+    assert res["errors"] == [] and res["metrics"]["pass_k"] == 1 and res["calls"]["logged"] == 12
+    assert list(res["prompt_versions"]) == ["02"]
+
+
+def test_02r_schema_failure_fails_the_task(tmp_path):
+    res = components.evaluate_02r(lambda conn: (FakeLLM({"02": None}), {}), work=tmp_path, runs=1)
+    assert res["metrics"]["pass_k"] == 0 and res["errors"] == []
+
+
+@pytest.mark.parametrize("agent", ["01", "04", "02r"])
 def test_real_backend_needs_yes(agent, capsys):
     assert run.main(["--agent", agent, "--backend", "real"]) == 2
     assert "tốn tiền" in capsys.readouterr().out
