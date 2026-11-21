@@ -362,9 +362,7 @@ def test_guard_401_key_rejected_and_scrubbed(glog):
 @pytest.mark.parametrize("status", [400, 404])
 def test_guard_bad_request_one_try(status, glog):
     m, bodies = guarded(status)
-    with pytest.raises(
-        llm.LLMUnavailable, match="Tên model hoặc yêu cầu không hợp lệ, xem mục models trong settings.json"
-    ):
+    with pytest.raises(llm.BadRequest, match="Tên model hoặc yêu cầu không hợp lệ, xem mục models trong settings.json"):
         ask(m)
     assert len(bodies) == 1
 
