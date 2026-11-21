@@ -11,8 +11,10 @@ names masked) and production.json.
 # ruff: noqa: E402
 import argparse
 import json
+import re
 import sqlite3
 import sys
+import unicodedata
 from contextlib import closing
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -114,16 +116,34 @@ def sessions(conn: sqlite3.Connection, data: Path, out: Path) -> dict:
     }
 
 
-def _select(db: Path, sql: str) -> list[sqlite3.Row]:
-    """Rows of a read-only SELECT; a missing file or table gives []."""
+def _select(db: Path, sql: str) -> list[sqlite3.Row] | None:
+    """Rows of a read-only SELECT; None when the file or the table is missing (source not read)."""
     if not db.is_file():
-        return []
+        return None
     with closing(_ro(db)) as conn:
         conn.row_factory = sqlite3.Row
         try:
             return conn.execute(sql).fetchall()
         except sqlite3.OperationalError:
-            return []
+            return None
+
+
+def _flat(s: str) -> str:
+    """Lower-case, no accents, no separators: 'inbox/Nguyen_Van_An.tex' -> 'inboxnguyenvanantex'."""
+    s = unicodedata.normalize("NFD", s.replace("đ", "d").replace("Đ", "D"))
+    return re.sub(r"[\W_]+", "", "".join(c for c in s if not unicodedata.combining(c)).lower())
+
+
+def _path(p: str, names: dict) -> str:
+    """A slugged name ('nguyen-van-an') survives llm.mask, so a path holding one is hidden whole."""
+    # shortcut: one-word names are left to llm.mask, as a short one would match any path; upgrade if one is slugged
+    if any(" " in n.strip() and _flat(n) in _flat(p) for n in names):
+        return "<đã che>"
+    return llm.mask(p, names)
+
+
+def _hide_paths(text: str, names: dict) -> str:
+    return llm.mask(re.sub(r"\S*[/\\]\S*", lambda m: _path(m.group(), names), text), names)
 
 
 def _share(n: int, total: int):
@@ -146,6 +166,8 @@ def failed_threads(data: Path, out: Path, names: dict) -> dict:
         config.paths(data).checkpoints_db,
         "SELECT thread_id, graph, student_id, held_on, error, input_json FROM tutor_thread WHERE status = 'failed'",
     )
+    if rows is None:
+        return {"failed_threads": None}
     drafts = []
     for r in rows:
         src = json.loads(r["input_json"]).get("source_path") if r["input_json"] else None
@@ -154,8 +176,8 @@ def failed_threads(data: Path, out: Path, names: dict) -> dict:
             "graph": r["graph"],
             "student_code": config.student_code(r["student_id"]) if r["student_id"] is not None else None,
             "held_on": r["held_on"],
-            "error": llm.mask(r["error"] or "", names),
-            "source_path": llm.mask(src, names) if src else None,
+            "error": _hide_paths(r["error"] or "", names),
+            "source_path": _path(src, names) if src else None,
         } | DRAFT)  # fmt: skip
     _save(out, "failed", drafts)
     return {"failed_threads": len(drafts)}
@@ -163,8 +185,9 @@ def failed_threads(data: Path, out: Path, names: dict) -> dict:
 
 def reports(data: Path, out: Path, names: dict) -> dict:
     """Draft 09 tasks from reports with a writer row that is not `ok` or an approved row with a flag."""
-    rows = _select(
-        config.paths(data).tutor_db, "SELECT id, student_id, period_kind, period_start, audit_json FROM report"
+    rows = (
+        _select(config.paths(data).tutor_db, "SELECT id, student_id, period_kind, period_start, audit_json FROM report")
+        or []
     )
     drafts, writer_rows, flagged = [], 0, 0
     for r in rows:
@@ -217,7 +240,7 @@ def chats(data: Path, out: Path, names: dict) -> dict:
 
 def llm_rows(data: Path, out: Path, names: dict) -> dict:
     """Draft component tasks from calls that ended `schema_error` or `retry`; G1 cost per session."""
-    prices = config.defaults()
+    prices = config.load(config.paths(data).settings)  # as the app prices (api/logs.py)
     drafts, usd, threads = [], 0.0, set()
     for r in llm.iter_log(
         config.paths(data).logs / "llm.jsonl", prices["price_assumption"], by_model=prices["price_by_model"]
@@ -258,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
         prod |= source(a.data, day, names)
     day.mkdir(parents=True, exist_ok=True)
     (day / "production.json").write_text(json.dumps(prod, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"Gom {prod['harvested']}/{prod['sessions']} buổi, {prod['failed_threads']} luồng lỗi → {day}")
+    print(f"Gom {prod['harvested']}/{prod['sessions']} buổi, {prod['failed_threads'] or 0} luồng lỗi → {day}")
     return 0
 
 

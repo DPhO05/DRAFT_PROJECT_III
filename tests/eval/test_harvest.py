@@ -241,9 +241,48 @@ def test_missing_sources_give_null_rates(paths, tmp_path):
     student(paths)
     code, day = go(paths, tmp_path)
     prod = prod_of(day)
-    assert code == 0 and prod["failed_threads"] == 0
-    assert [prod[k] for k in ("report_flagged_rate", "unverified_rate", "usd_per_session")] == [None] * 3
+    assert code == 0
+    keys = ("failed_threads", "report_flagged_rate", "unverified_rate", "usd_per_session")
+    assert [prod[k] for k in keys] == [None] * 4
     assert not any((day / d).exists() for d in ("failed", "09", "00", "component"))
+
+
+def test_checkpoints_without_the_table_gives_null(paths, tmp_path):
+    student(paths)
+    sqlite3.connect(paths.checkpoints_db).close()
+    _, day = go(paths, tmp_path)
+    assert prod_of(day)["failed_threads"] is None
+
+
+def test_cost_uses_the_saved_prices(paths, tmp_path):
+    student(paths)
+    row = {"agent": "03", "graph": "G1", "thread_id": "t", "model": "m", "input_tokens": 1_000_000, "result": "ok"}
+    llm_log(paths, row)
+    paths.settings.write_text(json.dumps({"price_by_model": {"m": {"input_per_mtok": 1}}}), encoding="utf-8")
+    _, day = go(paths, tmp_path)
+    assert prod_of(day)["usd_per_session"] == 1.0
+
+
+def test_slugged_name_in_a_path_is_hidden(paths, tmp_path):
+    student(paths)
+    threads(
+        paths,
+        (
+            "t1",
+            "failed",
+            "Không đọc inbox/Nguyen_Van_An.tex",
+            json.dumps({"source_path": "inbox/nguyen-van-an.tex"}),
+        ),
+        ("t2", "failed", "x", json.dumps({"source_path": "inbox/nguyenvanan.tex"})),
+        ("t3", "failed", "x", json.dumps({"source_path": "inbox/b.tex"})),
+    )
+    _, day = go(paths, tmp_path)
+    got = [(t["source_path"], t["error"]) for t in tasks_of(day, "failed")]
+    assert got == [("<đã che>", "Không đọc <đã che>"), ("<đã che>", "x"), ("inbox/b.tex", "x")]
+    for f in (tmp_path / "out").rglob("*"):
+        if f.is_file():
+            text = f.read_text(encoding="utf-8").lower()
+            assert "nguyen-van-an" not in text and "nguyen_van_an" not in text and "nguyenvanan" not in text, f.name
 
 
 def test_open_checkpoints_is_refused(paths, tmp_path, capsys):
