@@ -3,6 +3,8 @@
 **TL;DR:** 04 kiểm lại từng kết luận lỗi của 03 và trả `agree`, `wrong_code` hoặc `disagree`. Eval cho 04 chạy một mình
 trên 12 kết luận cố định, k = 3 lần, chấm bằng code so khớp verdict.
 
+![Sơ đồ vòng đánh giá của 04](loop.png)
+
 - Code của agent: `src/tutor/agents/a04_verifier/verifier.py` (`verifier.run`, `verifier.VerdictOut`).
 - Code eval: `components.evaluate_04`, `components._verify_04`, `components.oracle_04` trong `tests/eval/components.py`.
 - Test của eval: `tests/eval/test_components.py`, các test tên `test_04_...`.

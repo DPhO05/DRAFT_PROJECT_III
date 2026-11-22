@@ -3,6 +3,8 @@
 **TL;DR:** 03 tìm bước sai đầu tiên và các bước sai khác, gắn mã lỗi. 03 chưa có target riêng. Nó được đo bên trong
 lần chạy G1: các đề xuất ở cổng `gate_review` so với lỗi gài trong `labels.json`.
 
+![Sơ đồ vòng đánh giá của 03](loop.png)
+
 - Code của agent: `src/tutor/agents/a03_diagnoser/diagnoser.py` (`diagnoser.run`, `diagnoser.DiagnosisOut`).
 - Trong G1, 03 là node `diagnose` của mỗi lane, sau `grade` và trước `verify`.
 - Code eval: `run.evaluate`, `run._one`, `run.oracle` trong `tests/eval/run.py`; số trong `metrics.score`.

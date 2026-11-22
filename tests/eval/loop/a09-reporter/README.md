@@ -3,6 +3,8 @@
 **TL;DR:** 09 viết phần "Nhận xét" của báo cáo phụ huynh. Mỗi câu phải trích ít nhất một mã số liệu; câu trượt
 audit được viết lại một lần, trượt lần nữa thì bị bỏ. Eval chạy 6 kỳ báo cáo, k = 3 lần, chấm bằng code.
 
+![Sơ đồ vòng đánh giá của 09](loop.png)
+
 - Code của agent: `src/tutor/agents/a09_reporter/reporter.py` (`reporter.run`, `reporter.ReportOut`).
 - Audit của app: `audit.check_sentence` trong `src/tutor/services/audit.py`. Số liệu của kỳ: `facts.report_facts` trong
   `src/tutor/services/facts.py`.

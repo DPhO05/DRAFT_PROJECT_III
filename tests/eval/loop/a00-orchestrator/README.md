@@ -3,6 +3,8 @@
 **TL;DR:** 00 là trợ lý chat của gia sư: một agent LangChain gọi công cụ. Eval hỏi 20 câu cố định, chạy k = 3 lần,
 chấm bằng code: đúng công cụ, đúng đối số, giữ luật của app, không có số chưa kiểm.
 
+![Sơ đồ vòng đánh giá của 00](loop.png)
+
 - Code của agent: `src/tutor/agents/a00_orchestrator/chat.py`, `src/tutor/agents/a00_orchestrator/orchestrator.py`,
   `src/tutor/agents/a00_orchestrator/tools.py`.
 - Code eval: `agents.evaluate_00`, `agents._ask_00`, `agents.oracle_00` trong `tests/eval/agents.py`.

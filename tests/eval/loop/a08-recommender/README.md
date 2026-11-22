@@ -3,6 +3,8 @@
 **TL;DR:** 08 không gọi LLM. `select.rank_problems` chọn bài cho phiếu theo ba nhóm: ôn, vừa sức, thử thách. Target `--agent 08` xếp
 hạng 5 hồ sơ học sinh và so với nhãn của chủ dự án. Nhãn còn là bản nháp. Bộ xếp hạng đạt 0/6 bài khớp nhãn ở ba hồ sơ: xem "Việc của chủ dự án".
 
+![Sơ đồ vòng đánh giá của 08](loop.png)
+
 - Code của agent: `src/tutor/agents/a08_recommender/select.py` (`select.rank_problems`, `select.BUCKETS`).
 - Ai gọi 08: công cụ `rank_problems` của 00 (`tools.Toolbox`). G4 kiểm nhóm của từng bài (`src/tutor/graphs/worksheet.py`).
 - Code eval: `components.evaluate_08`, `components._rank_08` trong `tests/eval/components.py`.

@@ -3,6 +3,8 @@
 **TL;DR:** 02 chấm từng mục rubric đạt hay không, kèm bằng chứng trích từ bài làm, và viết rubric nháp khi bài thiếu rubric. Việc
 chấm được đo bên trong lần chạy G1: độ ổn định, bằng chứng nguyên văn, cờ. Việc viết rubric nháp có target riêng `--agent 02r`.
 
+![Sơ đồ vòng đánh giá của 02](loop.png)
+
 - Code của agent: `src/tutor/agents/a02_grader/grader.py` (`grader.grade`, `grader.generate_rubric`).
 - Trong G1, 02 là node `grade` của mỗi lane (`session.build`).
 - Code eval của việc chấm: `run.evaluate`, `run._one` trong `tests/eval/run.py`. Oracle của 02 là `lane_handlers` trong `tests/fakes.py`.

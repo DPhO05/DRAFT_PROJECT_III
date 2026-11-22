@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Eval loop</title>
+<!-- Render from tests/eval/loop: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars --window-size=1600,780 --force-device-scale-factor=2 --screenshot=<agent>/loop.png "file://$PWD/loop.html#<agent>" -->
+<style>
+  :root { --ink:#1f2328; --mute:#59636e; --line:#d1d9e0; --card:#f6f8fa; --accent:#0969da; --ok:#1a7f37; --warn:#9a6700; }
+  * { box-sizing:border-box; margin:0; }
+  body { width:1600px; height:780px; background:#fff; color:var(--ink); padding:40px 48px;
+         font:17px/1.45 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  h1 { font-size:30px; }
+  .sub { color:var(--mute); margin:6px 0 30px; max-width:1300px; }
+  .row { display:flex; align-items:stretch; gap:0; position:relative; }
+  .card { flex:1; background:var(--card); border:1.5px solid var(--line); border-radius:12px; padding:16px 16px 14px;
+          display:flex; flex-direction:column; gap:8px; min-height:330px; }
+  .arr { width:34px; display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:26px; }
+  .n { font-weight:700; font-size:19px; color:var(--accent); }
+  .gen { color:var(--mute); font-size:14px; }
+  .spec { flex:1; }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; }
+  code, .chip { font:13px/1.3 Menlo, monospace; }
+  .spec code { background:#eaeef2; padding:1px 4px; border-radius:4px; }
+  .chip { background:#e7ecf0; border:1px solid var(--line); border-radius:5px; padding:3px 6px; color:#24292f; }
+  .chk { color:var(--ok); font-size:14px; border-top:1px dashed var(--line); padding-top:7px; }
+  .lane { position:relative; height:62px; margin:0 10% 0 9%; border:2px dashed var(--accent);
+          border-top:none; border-radius:0 0 14px 14px; }
+  .lane::before { content:""; position:absolute; left:-9px; top:-4px; border:8px solid transparent;
+                  border-bottom:12px solid var(--accent); border-top:none; }
+  .lane.none { border-color:#afb8c1; }
+  .lane.none::before { border-bottom-color:#afb8c1; }
+  .lane span { position:absolute; left:50%; bottom:-14px; transform:translateX(-50%); background:#fff; padding:0 12px;
+               white-space:nowrap; font-size:15px; }
+  .lane.none span { color:var(--mute); }
+  .bottom { display:flex; gap:20px; margin-top:44px; }
+  .box { flex:1; border:1.5px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .box h2 { font-size:16px; margin-bottom:6px; }
+  .gate h2 { color:var(--warn); }
+  .box code { background:#eaeef2; padding:1px 4px; border-radius:4px; }
+  .run code { display:block; background:#1f2328; color:#e6edf3; padding:8px 10px; border-radius:6px; margin-top:4px; }
+  .foot { color:var(--mute); font-size:13px; margin-top:14px; }
+</style>
+</head>
+<body>
+<h1 id="title"></h1>
+<p class="sub" id="sub"></p>
+<div class="row" id="row"></div>
+<div class="lane" id="lane"><span id="harvest"></span></div>
+<div class="bottom">
+  <div class="box gate"><h2>Cổng (gate.py, baseline.json)</h2><div id="gate"></div></div>
+  <div class="box run"><h2>Chạy (model giả, không tốn tiền)</h2><div id="run"></div></div>
+</div>
+<p class="foot">✓ = check trước khi tin con số. Mọi bộ đều có sàn cứng <code>name_leaks</code> = 0. Chi tiết: README.md cùng thư mục.</p>
+<script>
+const STEPS = [
+  ["1 · Tasks", "input + tiêu chí đạt", "✓ bao phủ cách dùng thật"],
+  ["2 · Environment", "cô lập · chạy lại được", "✓ sạch, không rò"],
+  ["3 · Trials & traces", "k lần chạy mỗi task, trace mỗi run", "✓ ổn định qua các lần"],
+  ["4 · Graders", "code · LLM judge", "✓ khớp với người chấm"],
+  ["5 · Scorecard", "success · pass^k · chi phí", "✓ khớp production"],
+];
+// Each step: [text, [chips]]. harvest null = no harvest yet.
+const A = {
+  "a00-orchestrator": {
+    t: "a00 Orchestrator: vòng đánh giá",
+    s: "Trợ lý chat của gia sư: agent LangChain gọi công cụ. 20 câu cố định, k = 3 lần, chấm bằng code; judge chấm thêm faithfulness.",
+    steps: [
+      ["20 task `q1` đến `q20`, có câu nhiều lượt và câu cần duyệt", ["tests/eval/questions_00.json"]],
+      ["Thế giới mới mỗi run; DB chỉ đọc; lệnh `start_*` chỉ ghi âm", ["agents.trials"]],
+      ["k = `--runs`; trace mỗi run kèm file chat", ["run<k>.jsonl", "run<k>-chat.json"]],
+      ["Code: đúng công cụ, đúng đối số, giữ luật app, không số chưa kiểm. Judge trên 10 câu (`--judge`)", ["metrics.passed_00", "_tools_ok", "rules_ok", "args_ok", "judges.faithfulness"]],
+      ["`score_00` mỗi run; pass^k, `name_leaks`, `approval_ok`, chi phí", ["agents.summarize", "scorecard.py"]],
+    ],
+    h: "harvest.chats: câu trả lời có unverified_number, approval bị bỏ  →  task nháp 00/tasks.json",
+    g: "<code>00-dev</code> <code>pass_k</code> ≥ 0.85 · <code>approval_ok</code> = 1.0 (cứng) · <code>faithfulness</code> ≥ 0.95 chờ <code>judge_trusted</code>",
+    r: ["uv run python tests/eval/run.py --agent 00 --backend fake --runs 3"],
+  },
+  "a01-ingest": {
+    t: "a01 Ingest: vòng đánh giá",
+    s: "01 chỉ gọi model khi bài không ghi mã hoặc ghi mã lạ, để tìm bài giống nhất trong ngân hàng. 10 bài không mã, k = 3 lần, chấm bằng code.",
+    steps: [
+      ["10 bài không mã: 8 có trong ngân hàng, 2 ngoài", ["tests/eval/tasks/ingest_01.json"]],
+      ["Thế giới mới mỗi run; ngân hàng chỉ đọc", ["agents.trials", "data/dummy/bank"]],
+      ["k = `--runs`; trace mỗi run", ["run<k>.jsonl"]],
+      ["Code: mã đúng, bài ngoài có cờ `low_match`, đúng 1 lời gọi model", ["metrics.passed_01"]],
+      ["hit@1, hit@3, MRR, `low_match_precision`, `bad_candidates`", ["metrics.score_01", "agents.summarize"]],
+    ],
+    h: null,
+    g: "<code>01-dev</code> <code>hit_at_1</code> ≥ 0.90 · không tụt <code>hit_at_1</code>, <code>hit_at_3</code>, <code>mrr</code>, <code>passed</code>",
+    r: ["uv run python tests/eval/run.py --agent 01 --backend fake --runs 3"],
+  },
+  "a02-grader": {
+    t: "a02 Grader: vòng đánh giá",
+    s: "02 chấm từng mục rubric đạt hay không, kèm bằng chứng trích từ bài làm, và viết rubric nháp khi bài thiếu. Việc chấm đo trong G1; rubric nháp có target 02r.",
+    steps: [
+      ["Bài của G1 cho việc chấm; 4 mã bài cho rubric nháp", ["tests/eval/sets.json", "tests/eval/tasks/rubric_02.json"]],
+      ["Môi trường của G1; target `02r` dùng `agents.trials`", ["run.evaluate", "agents.trials"]],
+      ["Đọc từ trial của G1: dòng `agent` = `02`", ["run<k>.jsonl"]],
+      ["Ổn định qua các run, bằng chứng nguyên văn, bài sạch đủ điểm; rubric nháp hợp lệ", ["metrics.stability", "metrics.components", "metrics.passed_02r"]],
+      ["`items_changed_pct` trong dòng `g1-*`; dòng `02r-dev`; `by_agent`", ["scorecard.py"]],
+    ],
+    h: "harvest.sessions (G1): buổi chấm gia sư sửa, bỏ hoặc thêm tay  →  task G1 nháp",
+    g: "Chưa có sàn riêng cho 02 · <code>02r-dev</code> không tụt <code>passed</code> · <code>g1-*</code> <code>flow_errors</code> = 0",
+    r: ["uv run python tests/eval/run.py --agent g1 --set g1-dev --backend fake --runs 3", "uv run python tests/eval/run.py --agent 02r --backend fake --runs 3"],
+  },
+  "a03-diagnoser": {
+    t: "a03 Diagnoser: vòng đánh giá",
+    s: "03 tìm bước sai đầu tiên và các bước sai khác, gắn mã lỗi. Chưa có target riêng: đo trong lần chạy G1, so đề xuất ở gate_review với lỗi gài.",
+    steps: [
+      ["Bài G1 có lỗi gài: bước, mã lỗi, bước kéo theo", ["tests/eval/sets.json", "labels.json"]],
+      ["Môi trường của G1; học sinh mới nên lịch sử lỗi rỗng", ["run.evaluate"]],
+      ["Đọc từ trial của G1: dòng `agent` = `03`", ["run<k>.jsonl"]],
+      ["So đề xuất với lỗi gài, bước sai đầu tiên, độ đồng thuận", ["metrics.score", "first_wrong_step", "cohen_kappa", "metrics.components"]],
+      ["`precision`, `recall`, `kappa`, `drop_rate`, `add_rate` trong dòng `g1-*`", ["scorecard.py"]],
+    ],
+    h: "harvest.sessions: buổi chấm gia sư sửa, bỏ hoặc thêm tay  →  task G1 nháp",
+    g: "<code>g1-*</code> <code>recall</code> ≥ 0.90 · <code>precision</code> ≥ 0.75 · không tụt <code>first_wrong_step_acc</code>",
+    r: ["uv run python tests/eval/run.py --agent g1 --set g1-dev --backend fake --runs 3"],
+  },
+  "a04-verifier": {
+    t: "a04 Verifier: vòng đánh giá",
+    s: "04 kiểm lại từng kết luận lỗi của 03 và trả agree, wrong_code hoặc disagree. Chạy một mình trên 12 kết luận cố định, k = 3 lần, chấm bằng code.",
+    steps: [
+      ["12 kết luận: 6 đúng, 3 sai bước, 3 sai mã", ["tests/eval/tasks/verifier_04.json"]],
+      ["Thế giới mới mỗi run; đề và bảng mã đọc từ DB", ["agents.trials"]],
+      ["k = `--runs`; trace mỗi run", ["run<k>.jsonl"]],
+      ["Code: so khớp verdict với nhãn", ["metrics.passed_04"]],
+      ["accuracy, `recall_disagree`, confusion 3 × 3", ["metrics.score_04", "agents.summarize"]],
+    ],
+    h: null,
+    g: "<code>04-dev</code> <code>recall_disagree</code> ≥ 0.80 · không tụt <code>accuracy</code>, <code>recall_disagree</code>",
+    r: ["uv run python tests/eval/run.py --agent 04 --backend fake --runs 3"],
+  },
+  "a08-recommender": {
+    t: "a08 Recommender: vòng đánh giá",
+    s: "08 không gọi LLM: rank_problems chọn bài cho phiếu theo ôn, vừa sức, thử thách. Xếp hạng 5 hồ sơ, so với nhãn nháp của chủ dự án.",
+    steps: [
+      ["5 hồ sơ học sinh, 6 câu tìm; 11 nhãn còn nháp", ["reco_08.json", "search_00.json"]],
+      ["`agents.trials` với `FakeLLM` không handler: lời gọi model nào cũng lỗi", ["agents.trials"]],
+      ["k = 1, 0 lời gọi model; code tất định", ["<created>_08.json"]],
+      ["Đủ n bài, không bài cấm; P@n, recall@n; recall@5 của tìm bài", ["metrics.passed_08", "metrics.score_08"]],
+      ["Dòng `08-dev`; dòng test code `08-tests`", ["scorecard.py --with-tests"]],
+    ],
+    h: null,
+    g: "Chưa có sàn cho 08: chờ chủ dự án duyệt nhãn hoặc đổi bộ xếp hạng",
+    r: ["uv run python tests/eval/run.py --agent 08", "uv run pytest tests/services/test_select.py -q"],
+  },
+  "a09-reporter": {
+    t: "a09 Reporter: vòng đánh giá",
+    s: "09 viết phần \"Nhận xét\" của báo cáo phụ huynh; mỗi câu trích ít nhất một mã số liệu, câu trượt audit viết lại một lần rồi bỏ. 6 kỳ, k = 3 lần.",
+    steps: [
+      ["6 kỳ báo cáo", ["agents.PERIODS"]],
+      ["Thế giới mới mỗi run; DB chỉ đọc; tên đã che", ["agents.trials"]],
+      ["k = `--runs`; trace mỗi run; bảng `audit` trong kết quả", ["run<k>.jsonl"]],
+      ["Code: audit từng câu; judge faithfulness (`--judge`)", ["metrics.passed_09", "judges.faithfulness"]],
+      ["`dropped_pct`, `draft_flagged_pct`, cờ theo loại", ["metrics.score_09", "agents.summarize"]],
+    ],
+    h: "harvest.reports: dòng writer không ok, dòng approved có cờ  →  task nháp 09/tasks.json",
+    g: "<code>09-dev</code> <code>dropped_pct</code> = 0 · không tụt · <code>faithfulness</code> ≥ 0.95 chờ <code>judge_trusted</code>",
+    r: ["uv run python tests/eval/run.py --agent 09 --backend fake --runs 3 --judge"],
+  },
+};
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const md = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+const a = A[location.hash.slice(1)] || A["a00-orchestrator"];
+document.getElementById("title").textContent = a.t;
+document.getElementById("sub").textContent = a.s;
+document.getElementById("row").innerHTML = STEPS.map(([n, gen, chk], i) =>
+  (i ? '<div class="arr">→</div>' : "") +
+  `<div class="card"><div class="n">${n}</div><div class="gen">${gen}</div>` +
+  `<div class="spec">${md(a.steps[i][0])}</div>` +
+  `<div class="chips">${a.steps[i][1].map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div>` +
+  `<div class="chk">${chk}</div></div>`).join("");
+const lane = document.getElementById("lane");
+if (!a.h) lane.classList.add("none");
+document.getElementById("harvest").textContent = a.h || "Harvest: chưa có cho agent này";
+document.getElementById("gate").innerHTML = a.g;
+document.getElementById("run").innerHTML = a.r.map(c => `<code>${esc(c)}</code>`).join("");
+</script>
+</body>
+</html>

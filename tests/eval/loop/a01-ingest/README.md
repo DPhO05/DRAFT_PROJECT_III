@@ -3,6 +3,8 @@
 **TL;DR:** 01 cắt bài bằng code và chỉ gọi model khi bài không ghi mã hoặc ghi mã lạ, để tìm bài giống nhất trong
 ngân hàng. Eval đo phần có model đó: 10 bài không mã, chạy k = 3 lần, chấm bằng code.
 
+![Sơ đồ vòng đánh giá của 01](loop.png)
+
 - Code của agent: `src/tutor/agents/a01_ingest/ingest.py` (`ingest.run`, `ingest.MatchResult`).
 - Code eval: `components.evaluate_01`, `components._match_01`, `components.oracle_01` trong `tests/eval/components.py`.
 - Test của eval: `tests/eval/test_components.py`, các test tên `test_01_...`.
